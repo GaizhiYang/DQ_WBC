@@ -257,6 +257,13 @@ def get_trainer(is_eval=False):
             checkpoint_steps = int(args.checkpoint.split("_")[-1].split(".")[0])
             cfg["env"]["globalStepCounter"] = checkpoint_steps
 
+    # Allow the command line to override both the YAML value and the
+    # evaluation default above (800 environments).
+    if args.num_envs is not None:
+        if args.num_envs <= 0:
+            raise ValueError("--num_envs must be a positive integer")
+        cfg["env"]["numEnvs"] = args.num_envs
+
     """
     To clarify, when capturing images of each object, the images were taken from a car. 
     The z-height of each environment's car was determined by the intervel. 
@@ -324,7 +331,10 @@ def get_trainer(is_eval=False):
             action_space=env.action_space,
             device=device)
     
-    cfg_trainer = {"timesteps": args.timesteps, "headless": True}
+    # Keep the trainer's rendering setting consistent with the environment.
+    # When --headless is omitted, SKRL must call env.render() so the Isaac Gym
+    # viewer remains visible and responsive during evaluation.
+    cfg_trainer = {"timesteps": args.timesteps, "headless": args.headless}
     if args.checkpoint:
         print("Resuming from checkpoint: ", args.checkpoint)
         agent.load(args.checkpoint)

@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+
+# Training outputs and checkpoints
+/DQ_high-level/DQ_stu/
+/DQ_high-level/DQ_teacher/

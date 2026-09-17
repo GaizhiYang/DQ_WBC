@@ -18,7 +18,7 @@ env:
   holdSteps: 25
   lastCommands: False
 
-  low_policy_path: "/mnt/data/caiboyang/DQ_AAAI/visual_wholebody-main/high-level_3_20_grasppredict/data/low_model/model_44000.pt" 
+  low_policy_path: "/home/hehui/DQ_WBC/DQ_high-level/data/low_model/model_44000.pt" 
   taskddescription: "023"
 
   asset:

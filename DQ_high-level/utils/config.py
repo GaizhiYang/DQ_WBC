@@ -63,6 +63,8 @@ def get_params():
     parser.add_argument("--arm_kd", type=float, default=2) # only useful when log data
     parser.add_argument("--table_height", type=float, default=None) # only useful when log data
     parser.add_argument("--seed", type=int, default=43) # only useful when log data
+    parser.add_argument("--num_envs", type=int, default=None,
+                        help="Number of environments to create. Overrides the config value.")
     
     args = parser.parse_args()
     
