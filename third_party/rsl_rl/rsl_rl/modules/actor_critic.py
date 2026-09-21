@@ -299,6 +299,7 @@ class ActorCritic(nn.Module):
         self.distribution = None
         # disable args validation for speedup
         Normal.set_default_validate_args = False
+        self._nonfinite_actor_warned = False
         
         # seems that we get better performance without init
         # self.init_memory_weights(self.memory_a, 0.001, 0.)
@@ -333,8 +334,20 @@ class ActorCritic(nn.Module):
         return torch.cat([leg_entropy_sum, arm_entropy_sum], dim=-1)
 
     def update_distribution(self, observations, hist_encoding):
+        observations = torch.nan_to_num(observations, nan=0.0, posinf=0.0, neginf=0.0)
         mean = self.actor(observations, hist_encoding)
-        self.distribution = Normal(mean, mean*0. + self.std)
+        if not torch.isfinite(mean).all():
+            # Keep one bad observation/activation from aborting the rollout.
+            # PPO separately rejects non-finite losses/gradients and rolls
+            # back an invalid optimizer step, so this is a last-resort
+            # boundary rather than silent parameter repair.
+            if not self._nonfinite_actor_warned:
+                bad = (~torch.isfinite(mean)).sum().item()
+                print(f"[ActorCritic] replaced {bad} non-finite actor outputs")
+                self._nonfinite_actor_warned = True
+            mean = torch.nan_to_num(mean, nan=0.0, posinf=10.0, neginf=-10.0)
+        std = torch.nan_to_num(self.std, nan=1.0, posinf=10.0, neginf=1e-4).clamp_min(1e-4)
+        self.distribution = Normal(mean, mean*0. + std)
 
     def act(self, observations, hist_encoding, **kwargs):
         self.update_distribution(observations, hist_encoding)

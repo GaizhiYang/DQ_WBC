@@ -88,7 +88,14 @@ class OnPolicyRunner:
 
         _, _ = self.env.reset()
 
-        self.alg.set_arm_default_coeffs(self.env.p_gains[12:], self.env.d_gains[12:], self.env.default_dof_pos[-7:-2])
+        arm_start = getattr(self.env, "arm_dof_start", 12)
+        num_gripper_joints = getattr(self.env, "num_gripper_joints", 1)
+        num_arm_dofs = getattr(self.env, "num_arm_dofs", 6)
+        self.alg.set_arm_default_coeffs(
+            self.env.p_gains[arm_start:arm_start + num_arm_dofs],
+            self.env.d_gains[arm_start:arm_start + num_arm_dofs],
+            self.env.default_dof_pos[-(num_arm_dofs + num_gripper_joints):-num_gripper_joints],
+        )
         
     def set_it(self, it):
         self.current_learning_iteration = it
@@ -206,8 +213,9 @@ class OnPolicyRunner:
                 elif "metric" in key:
                     wandb_dict['Episode_metric/' + key] = value
                 ep_string += f"""{f'Mean episode {key}:':>{pad}} {value:.4f}\n"""
-        leg_mean_std = self.alg.actor_critic.std[:, :12].mean()
-        arm_mean_std = self.alg.actor_critic.std[:, 12:].mean()
+        num_leg_actions = getattr(self.env, "num_leg_dofs", 12)
+        leg_mean_std = self.alg.actor_critic.std[:, :num_leg_actions].mean()
+        arm_mean_std = self.alg.actor_critic.std[:, num_leg_actions:].mean()
         std_numpy = self.alg.actor_critic.std.cpu().detach().numpy()
         fps = int(self.num_steps_per_env * self.env.num_envs / (locs['collection_time'] + locs['learn_time']))
 

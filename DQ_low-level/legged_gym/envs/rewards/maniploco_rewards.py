@@ -45,7 +45,7 @@ class ManipLoco_rewards:
         return torch.exp(-orn_err/self.env.cfg.rewards.tracking_ee_sigma), orn_err
 
     def _reward_arm_energy_abs_sum(self):
-        energy = torch.sum(torch.abs(self.env.torques[:, 12:-self.env.cfg.env.num_gripper_joints] * self.env.dof_vel[:, 12:-self.env.cfg.env.num_gripper_joints]), dim = 1)
+        energy = torch.sum(torch.abs(self.env.torques[:, self.env.arm_dof_start:self.env.arm_dof_start + self.env.num_arm_dofs] * self.env.dof_vel[:, self.env.arm_dof_start:self.env.arm_dof_start + self.env.num_arm_dofs]), dim = 1)
         return energy, energy
 
     def _reward_tracking_ee_orn_ry(self):
@@ -56,23 +56,23 @@ class ManipLoco_rewards:
     # -------------B1: Reward functions----------------
 
     def _reward_hip_action_l2(self):
-        action_l2 = torch.sum(self.env.actions[:, [0, 3, 6, 9]] ** 2, dim=1)
+        action_l2 = torch.sum(self.env.actions[:, self.env.hip_indices] ** 2, dim=1)
         return action_l2, action_l2
 
     def _reward_leg_energy_abs_sum(self):
-        energy = torch.sum(torch.abs(self.env.torques[:, :12] * self.env.dof_vel[:, :12]), dim = 1)
+        energy = torch.sum(torch.abs(self.env.torques[:, self.env.leg_dof_indices] * self.env.dof_vel[:, self.env.leg_dof_indices]), dim = 1)
         return energy, energy
 
     def _reward_leg_energy_sum_abs(self):
-        energy = torch.abs(torch.sum(self.env.torques[:, :12] * self.env.dof_vel[:, :12], dim = 1))
+        energy = torch.abs(torch.sum(self.env.torques[:, self.env.leg_dof_indices] * self.env.dof_vel[:, self.env.leg_dof_indices], dim = 1))
         return energy, energy
     
     def _reward_leg_action_l2(self):
-        action_l2 = torch.sum(self.env.actions[:, :12] ** 2, dim=1)
+        action_l2 = torch.sum(self.env.actions[:, self.env.leg_dof_indices] ** 2, dim=1)
         return action_l2, action_l2
     
     def _reward_leg_energy(self):
-        energy = torch.sum(self.env.torques[:, :12] * self.env.dof_vel[:, :12], dim = 1)
+        energy = torch.sum(self.env.torques[:, self.env.leg_dof_indices] * self.env.dof_vel[:, self.env.leg_dof_indices], dim = 1)
         return energy, energy
     
     def _reward_tracking_lin_vel(self):
@@ -123,7 +123,7 @@ class ManipLoco_rewards:
         return torque, torque
     
     def _reward_energy_square(self):
-        energy = torch.sum(torch.square(self.env.torques[:, :12] * self.env.dof_vel[:, :12]), dim=1)
+        energy = torch.sum(torch.square(self.env.torques[:, self.env.leg_dof_indices] * self.env.dof_vel[:, self.env.leg_dof_indices]), dim=1)
         return energy, energy
 
     def _reward_tracking_lin_vel_y(self):
@@ -146,25 +146,25 @@ class ManipLoco_rewards:
     
     def _reward_work(self):
         work = self.env.torques * self.env.dof_vel
-        abs_sum_work = torch.abs(torch.sum(work[:, :12], dim = 1))
+        abs_sum_work = torch.abs(torch.sum(work[:, self.env.leg_dof_indices], dim = 1))
         return abs_sum_work, abs_sum_work
     
     def _reward_dof_acc(self):
-        rew = torch.sum(torch.square((self.env.last_dof_vel - self.env.dof_vel)[:, :12] / self.env.dt), dim=1)
+        rew = torch.sum(torch.square((self.env.last_dof_vel - self.env.dof_vel)[:, self.env.leg_dof_indices] / self.env.dt), dim=1)
         return rew, rew
     
     def _reward_action_rate(self):
-        action_rate = torch.sum(torch.square(self.env.last_actions - self.env.actions)[:, :12], dim=1)
+        action_rate = torch.sum(torch.square(self.env.last_actions - self.env.actions)[:, self.env.leg_dof_indices], dim=1)
         return action_rate, action_rate
     
     def _reward_dof_pos_limits(self):
         out_of_limits = -(self.env.dof_pos - self.env.dof_pos_limits[:, 0]).clip(max=0.) # lower limit
         out_of_limits += (self.env.dof_pos - self.env.dof_pos_limits[:, 1]).clip(min=0.) # upper limit
-        rew = torch.sum(out_of_limits[:, :12], dim=1)
+        rew = torch.sum(out_of_limits[:, self.env.leg_dof_indices], dim=1)
         return rew, rew
     
     def _reward_delta_torques(self):
-        rew = torch.sum(torch.square(self.env.torques - self.env.last_torques)[:, :12], dim=1)
+        rew = torch.sum(torch.square(self.env.torques - self.env.last_torques)[:, self.env.leg_dof_indices], dim=1)
         return rew, rew
     
     def _reward_collision(self):
@@ -173,14 +173,14 @@ class ManipLoco_rewards:
         
     def _reward_stand_still(self):
         # Penalize motion at zero commands
-        dof_error = torch.sum(torch.abs(self.env.dof_pos - self.env.default_dof_pos)[:, :12], dim=1)
+        dof_error = torch.sum(torch.abs(self.env.dof_pos - self.env.default_dof_pos)[:, self.env.leg_position_indices], dim=1)
         rew = torch.exp(-dof_error*0.05)
         rew[self.env._get_walking_cmd_mask()] = 0.
         return rew, rew
 
     def _reward_walking_dof(self):
         # Penalize motion at zero commands
-        dof_error = torch.sum(torch.abs(self.env.dof_pos - self.env.default_dof_pos)[:, :12], dim=1)
+        dof_error = torch.sum(torch.abs(self.env.dof_pos - self.env.default_dof_pos)[:, self.env.leg_position_indices], dim=1)
         rew = torch.exp(-dof_error*0.05)
         rew[~self.env._get_walking_cmd_mask()] = 0.
         return rew, rew
@@ -287,13 +287,13 @@ class ManipLoco_rewards:
         return reward, metric
     
     def _reward_dof_default_pos(self):
-        dof_error = torch.sum(torch.abs(self.env.dof_pos - self.env.default_dof_pos)[:, :12], dim=1)
+        dof_error = torch.sum(torch.abs(self.env.dof_pos - self.env.default_dof_pos)[:, self.env.leg_position_indices], dim=1)
         rew = torch.exp(-dof_error*0.05)
         
         return rew, rew
     
     def _reward_dof_error(self):
-        dof_error = torch.sum(torch.square(self.env.dof_pos - self.env.default_dof_pos)[:, :12], dim=1)
+        dof_error = torch.sum(torch.square(self.env.dof_pos - self.env.default_dof_pos)[:, self.env.leg_position_indices], dim=1)
         return dof_error, dof_error
     
     def _reward_tracking_lin_vel_max(self):

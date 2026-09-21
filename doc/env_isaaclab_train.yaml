@@ -1,0 +1,2034 @@
+viewer:
+  eye: !!python/tuple
+  - 7.5
+  - 7.5
+  - 7.5
+  lookat: !!python/tuple
+  - 0.0
+  - 0.0
+  - 0.0
+  cam_prim_path: /OmniverseKit_Persp
+  resolution: !!python/tuple
+  - 1280
+  - 720
+  origin_type: world
+  env_index: 0
+  asset_name: null
+  body_name: null
+sim:
+  physics_prim_path: /physicsScene
+  device: cuda:0
+  dt: 0.005
+  render_interval: 4
+  gravity: !!python/tuple
+  - 0.0
+  - 0.0
+  - -9.81
+  enable_scene_query_support: false
+  use_fabric: true
+  physx:
+    solver_type: 1
+    solve_articulation_contact_last: false
+    min_position_iteration_count: 1
+    max_position_iteration_count: 255
+    min_velocity_iteration_count: 0
+    max_velocity_iteration_count: 255
+    enable_ccd: false
+    enable_stabilization: false
+    enable_external_forces_every_iteration: false
+    enable_enhanced_determinism: false
+    bounce_threshold_velocity: 0.5
+    friction_offset_threshold: 0.04
+    friction_correlation_distance: 0.025
+    gpu_max_rigid_contact_count: 8388608
+    gpu_max_rigid_patch_count: 327680
+    gpu_found_lost_pairs_capacity: 2097152
+    gpu_found_lost_aggregate_pairs_capacity: 33554432
+    gpu_total_aggregate_pairs_capacity: 2097152
+    gpu_collision_stack_size: 67108864
+    gpu_heap_capacity: 67108864
+    gpu_temp_buffer_capacity: 16777216
+    gpu_max_num_partitions: 8
+    gpu_max_soft_body_contacts: 1048576
+    gpu_max_particle_contacts: 1048576
+  physics_material:
+    func: isaaclab.sim.spawners.materials.physics_materials:spawn_rigid_body_material
+    static_friction: 1.0
+    dynamic_friction: 1.0
+    restitution: 1.0
+    friction_combine_mode: multiply
+    restitution_combine_mode: multiply
+    compliant_contact_stiffness: 0.0
+    compliant_contact_damping: 0.0
+  render:
+    enable_translucency: null
+    enable_reflections: null
+    enable_global_illumination: null
+    antialiasing_mode: null
+    enable_dlssg: null
+    enable_dl_denoiser: null
+    dlss_mode: null
+    enable_direct_lighting: null
+    samples_per_pixel: null
+    enable_shadows: null
+    enable_ambient_occlusion: null
+    dome_light_upper_lower_strategy: null
+    carb_settings: null
+    rendering_mode: null
+  create_stage_in_memory: false
+  logging_level: WARNING
+  save_logs_to_file: true
+  log_dir: null
+ui_window_class_type: isaaclab.envs.ui.manager_based_rl_env_window:ManagerBasedRLEnvWindow
+seed: 42
+decimation: 4
+scene:
+  num_envs: 4096
+  env_spacing: 2.5
+  lazy_sensor_update: true
+  replicate_physics: true
+  filter_collisions: true
+  clone_in_fabric: false
+  robot:
+    class_type: isaaclab.assets.articulation.articulation:Articulation
+    prim_path: /World/envs/env_.*/Robot
+    spawn:
+      func: isaaclab.sim.spawners.from_files.from_files:spawn_from_usd
+      visible: true
+      semantic_tags: null
+      copy_from_source: true
+      mass_props: null
+      deformable_props: null
+      rigid_props:
+        rigid_body_enabled: null
+        kinematic_enabled: null
+        disable_gravity: false
+        linear_damping: 0.0
+        angular_damping: 0.0
+        max_linear_velocity: 1000.0
+        max_angular_velocity: 1000.0
+        max_depenetration_velocity: 1.0
+        max_contact_impulse: null
+        enable_gyroscopic_forces: null
+        retain_accelerations: false
+        solver_position_iteration_count: null
+        solver_velocity_iteration_count: null
+        sleep_threshold: null
+        stabilization_threshold: null
+      collision_props: null
+      activate_contact_sensors: true
+      scale: null
+      articulation_props:
+        articulation_enabled: null
+        enabled_self_collisions: false
+        solver_position_iteration_count: 4
+        solver_velocity_iteration_count: 0
+        sleep_threshold: null
+        stabilization_threshold: null
+        fix_root_link: null
+      fixed_tendons_props: null
+      spatial_tendons_props: null
+      joint_drive_props: null
+      visual_material_path: material
+      visual_material: null
+      usd_path: /home/hehui/LeggedManip_Lab/source/LeggedManip_Lab/LeggedManip_Lab/assets/d1_piper_l/generated_usd/d1_piper_l.usd
+      variants: null
+    init_state:
+      pos: !!python/tuple
+      - 0.0
+      - 0.0
+      - 0.45
+      rot: !!python/tuple
+      - 1.0
+      - 0.0
+      - 0.0
+      - 0.0
+      lin_vel: !!python/tuple
+      - 0.0
+      - 0.0
+      - 0.0
+      ang_vel: !!python/tuple
+      - 0.0
+      - 0.0
+      - 0.0
+      joint_pos:
+        FL_hip_joint: 0.0
+        FR_hip_joint: 0.0
+        RL_hip_joint: 0.0
+        RR_hip_joint: 0.0
+        FL_thigh_joint: 0.8
+        FR_thigh_joint: 0.8
+        RL_thigh_joint: 0.8
+        RR_thigh_joint: 0.8
+        FL_calf_joint: -1.5
+        FR_calf_joint: -1.5
+        RL_calf_joint: -1.5
+        RR_calf_joint: -1.5
+        FL_foot_joint: 0.0
+        FR_foot_joint: 0.0
+        RL_foot_joint: 0.0
+        RR_foot_joint: 0.0
+        joint[1-6]: 0.0
+        gripper.*: 0.0
+      joint_vel:
+        .*: 0.0
+    collision_group: 0
+    debug_vis: false
+    articulation_root_prim_path: null
+    soft_joint_pos_limit_factor: 0.9
+    actuators:
+      legs:
+        class_type: isaaclab.actuators.actuator_pd:DCMotor
+        joint_names_expr:
+        - .*(hip|thigh|calf)_joint
+        effort_limit: 90.0
+        velocity_limit: 20.0
+        effort_limit_sim: null
+        velocity_limit_sim: null
+        stiffness: 60.0
+        damping: 3.0
+        armature: 0.0535
+        friction: 0.589
+        dynamic_friction: null
+        viscous_friction: null
+        saturation_effort: 90.0
+      wheels:
+        class_type: isaaclab.actuators.actuator_pd:DCMotor
+        joint_names_expr:
+        - .*_foot_joint
+        effort_limit: 12
+        velocity_limit: 30.0
+        effort_limit_sim: null
+        velocity_limit_sim: null
+        stiffness: 0.0
+        damping: 0.5
+        armature: null
+        friction: 0.0
+        dynamic_friction: null
+        viscous_friction: null
+        saturation_effort: 12.0
+      joint1:
+        class_type: isaaclab.actuators.actuator_pd:DelayedPDActuator
+        joint_names_expr:
+        - joint1
+        effort_limit: 20.0
+        velocity_limit: null
+        effort_limit_sim: 20.0
+        velocity_limit_sim: null
+        stiffness: 50.0
+        damping: 3.0
+        armature: 0.01
+        friction: 0.01
+        dynamic_friction: null
+        viscous_friction: null
+        min_delay: 0
+        max_delay: 4
+      joint2:
+        class_type: isaaclab.actuators.actuator_pd:DelayedPDActuator
+        joint_names_expr:
+        - joint2
+        effort_limit: 20.0
+        velocity_limit: null
+        effort_limit_sim: 20.0
+        velocity_limit_sim: null
+        stiffness: 50.0
+        damping: 2.0
+        armature: 0.01
+        friction: 0.01
+        dynamic_friction: null
+        viscous_friction: null
+        min_delay: 0
+        max_delay: 4
+      joint3:
+        class_type: isaaclab.actuators.actuator_pd:DelayedPDActuator
+        joint_names_expr:
+        - joint3
+        effort_limit: 15.0
+        velocity_limit: null
+        effort_limit_sim: 15.0
+        velocity_limit_sim: null
+        stiffness: 80.0
+        damping: 3.0
+        armature: 0.01
+        friction: 0.01
+        dynamic_friction: null
+        viscous_friction: null
+        min_delay: 0
+        max_delay: 4
+      joint4:
+        class_type: isaaclab.actuators.actuator_pd:DelayedPDActuator
+        joint_names_expr:
+        - joint4
+        effort_limit: 7.0
+        velocity_limit: null
+        effort_limit_sim: 7.0
+        velocity_limit_sim: null
+        stiffness: 30.0
+        damping: 3.0
+        armature: 0.01
+        friction: 0.01
+        dynamic_friction: null
+        viscous_friction: null
+        min_delay: 0
+        max_delay: 4
+      joint5:
+        class_type: isaaclab.actuators.actuator_pd:DelayedPDActuator
+        joint_names_expr:
+        - joint5
+        effort_limit: 5.0
+        velocity_limit: null
+        effort_limit_sim: 5.0
+        velocity_limit_sim: null
+        stiffness: 30.0
+        damping: 2.5
+        armature: 0.01
+        friction: 0.01
+        dynamic_friction: null
+        viscous_friction: null
+        min_delay: 0
+        max_delay: 4
+      joint6:
+        class_type: isaaclab.actuators.actuator_pd:DelayedPDActuator
+        joint_names_expr:
+        - joint6
+        effort_limit: 5.0
+        velocity_limit: null
+        effort_limit_sim: 5.0
+        velocity_limit_sim: null
+        stiffness: 20.0
+        damping: 1.0
+        armature: 0.01
+        friction: 0.01
+        dynamic_friction: null
+        viscous_friction: null
+        min_delay: 0
+        max_delay: 4
+      gripper:
+        class_type: isaaclab.actuators.actuator_pd:DelayedPDActuator
+        joint_names_expr:
+        - gripper.*
+        effort_limit: null
+        velocity_limit: null
+        effort_limit_sim: null
+        velocity_limit_sim: null
+        stiffness: 20.0
+        damping: 1.0
+        armature: 0.001
+        friction: 0.01
+        dynamic_friction: null
+        viscous_friction: null
+        min_delay: 0
+        max_delay: 0
+    actuator_value_resolution_debug_print: false
+  terrain:
+    class_type: isaaclab.terrains.terrain_importer:TerrainImporter
+    collision_group: -1
+    prim_path: /World/ground
+    num_envs: 4096
+    terrain_type: plane
+    terrain_generator: null
+    usd_path: null
+    env_spacing: 2.5
+    use_terrain_origins: true
+    visual_material:
+      func: isaaclab.sim.spawners.materials.visual_materials:spawn_from_mdl_file
+      mdl_path: https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/5.1/Isaac/IsaacLab/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl
+      project_uvw: true
+      albedo_brightness: null
+      texture_scale: !!python/tuple
+      - 0.25
+      - 0.25
+    physics_material:
+      func: isaaclab.sim.spawners.materials.physics_materials:spawn_rigid_body_material
+      static_friction: 1.0
+      dynamic_friction: 1.0
+      restitution: 1.0
+      friction_combine_mode: multiply
+      restitution_combine_mode: multiply
+      compliant_contact_stiffness: 0.0
+      compliant_contact_damping: 0.0
+    max_init_terrain_level: null
+    debug_vis: false
+  contact_forces:
+    class_type: isaaclab.sensors.contact_sensor.contact_sensor:ContactSensor
+    prim_path: /World/envs/env_.*/Robot/.*
+    update_period: 0.005
+    history_length: 3
+    debug_vis: false
+    track_pose: false
+    track_contact_points: false
+    track_friction_forces: false
+    max_contact_data_count_per_prim: 4
+    track_air_time: true
+    force_threshold: 1.0
+    filter_prim_paths_expr: []
+    visualizer_cfg:
+      prim_path: /Visuals/ContactSensor
+      markers:
+        contact:
+          func: isaaclab.sim.spawners.shapes.shapes:spawn_sphere
+          visible: true
+          semantic_tags: null
+          copy_from_source: true
+          mass_props: null
+          rigid_props: null
+          collision_props: null
+          activate_contact_sensors: false
+          visual_material_path: material
+          visual_material:
+            func: isaaclab.sim.spawners.materials.visual_materials:spawn_preview_surface
+            diffuse_color: !!python/tuple
+            - 1.0
+            - 0.0
+            - 0.0
+            emissive_color: !!python/tuple
+            - 0.0
+            - 0.0
+            - 0.0
+            roughness: 0.5
+            metallic: 0.0
+            opacity: 1.0
+          physics_material_path: material
+          physics_material: null
+          radius: 0.02
+        no_contact:
+          func: isaaclab.sim.spawners.shapes.shapes:spawn_sphere
+          visible: false
+          semantic_tags: null
+          copy_from_source: true
+          mass_props: null
+          rigid_props: null
+          collision_props: null
+          activate_contact_sensors: false
+          visual_material_path: material
+          visual_material:
+            func: isaaclab.sim.spawners.materials.visual_materials:spawn_preview_surface
+            diffuse_color: !!python/tuple
+            - 0.0
+            - 1.0
+            - 0.0
+            emissive_color: !!python/tuple
+            - 0.0
+            - 0.0
+            - 0.0
+            roughness: 0.5
+            metallic: 0.0
+            opacity: 1.0
+          physics_material_path: material
+          physics_material: null
+          radius: 0.02
+  sky_light:
+    class_type: null
+    prim_path: /World/skyLight
+    spawn:
+      func: isaaclab.sim.spawners.lights.lights:spawn_light
+      visible: true
+      semantic_tags: null
+      copy_from_source: true
+      prim_type: DomeLight
+      color: !!python/tuple
+      - 1.0
+      - 1.0
+      - 1.0
+      enable_color_temperature: false
+      color_temperature: 6500.0
+      normalize: false
+      exposure: 0.0
+      intensity: 750.0
+      texture_file: https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/5.1/Isaac/Materials/Textures/Skies/PolyHaven/kloofendal_43d_clear_puresky_4k.hdr
+      texture_format: automatic
+      visible_in_primary_ray: true
+    init_state:
+      pos: !!python/tuple
+      - 0.0
+      - 0.0
+      - 0.0
+      rot: !!python/tuple
+      - 1.0
+      - 0.0
+      - 0.0
+      - 0.0
+    collision_group: 0
+    debug_vis: false
+recorders:
+  dataset_file_handler_class_type: isaaclab.utils.datasets.hdf5_dataset_file_handler:HDF5DatasetFileHandler
+  dataset_export_dir_path: /tmp/isaaclab/logs
+  dataset_filename: dataset
+  dataset_export_mode:
+    _value_: 1
+    _name_: EXPORT_ALL
+    _sort_order_: 1
+  export_in_record_pre_reset: true
+  export_in_close: false
+observations:
+  policy:
+    concatenate_terms: true
+    concatenate_dim: -1
+    enable_corruption: true
+    history_length: 3
+    flatten_history_dim: true
+    base_ang_vel:
+      func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.observations:base_ang_vel
+      params: {}
+      modifiers: null
+      noise:
+        func: isaaclab.utils.noise.noise_model:uniform_noise
+        operation: add
+        n_min: -0.2
+        n_max: 0.2
+      clip: !!python/tuple
+      - -100.0
+      - 100.0
+      scale: 0.2
+      history_length: 0
+      flatten_history_dim: true
+    projected_gravity:
+      func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.observations:projected_gravity
+      params: {}
+      modifiers: null
+      noise:
+        func: isaaclab.utils.noise.noise_model:uniform_noise
+        operation: add
+        n_min: -0.05
+        n_max: 0.05
+      clip: !!python/tuple
+      - -100.0
+      - 100.0
+      scale: null
+      history_length: 0
+      flatten_history_dim: true
+    joint_pos:
+      func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.observations:joint_pos_rel_without_wheel
+      params:
+        asset_cfg:
+          name: robot
+          joint_names:
+          - FL_hip_joint
+          - FL_thigh_joint
+          - FL_calf_joint
+          - FL_foot_joint
+          - FR_hip_joint
+          - FR_thigh_joint
+          - FR_calf_joint
+          - FR_foot_joint
+          - RL_hip_joint
+          - RL_thigh_joint
+          - RL_calf_joint
+          - RL_foot_joint
+          - RR_hip_joint
+          - RR_thigh_joint
+          - RR_calf_joint
+          - RR_foot_joint
+          - joint1
+          - joint2
+          - joint3
+          - joint4
+          - joint5
+          - joint6
+          joint_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          fixed_tendon_names: null
+          fixed_tendon_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          body_names: null
+          body_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          object_collection_names: null
+          object_collection_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          preserve_order: true
+        wheel_asset_cfg:
+          name: robot
+          joint_names:
+          - FL_foot_joint
+          - FR_foot_joint
+          - RL_foot_joint
+          - RR_foot_joint
+          joint_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          fixed_tendon_names: null
+          fixed_tendon_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          body_names: null
+          body_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          object_collection_names: null
+          object_collection_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          preserve_order: false
+      modifiers: null
+      noise:
+        func: isaaclab.utils.noise.noise_model:uniform_noise
+        operation: add
+        n_min: -0.01
+        n_max: 0.01
+      clip: !!python/tuple
+      - -100.0
+      - 100.0
+      scale: 1.0
+      history_length: 0
+      flatten_history_dim: true
+    joint_vel:
+      func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.observations:joint_vel_rel
+      params:
+        asset_cfg:
+          name: robot
+          joint_names: null
+          joint_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          fixed_tendon_names: null
+          fixed_tendon_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          body_names: null
+          body_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          object_collection_names: null
+          object_collection_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          preserve_order: false
+        joint_names:
+        - FL_hip_joint
+        - FL_thigh_joint
+        - FL_calf_joint
+        - FL_foot_joint
+        - FR_hip_joint
+        - FR_thigh_joint
+        - FR_calf_joint
+        - FR_foot_joint
+        - RL_hip_joint
+        - RL_thigh_joint
+        - RL_calf_joint
+        - RL_foot_joint
+        - RR_hip_joint
+        - RR_thigh_joint
+        - RR_calf_joint
+        - RR_foot_joint
+        - joint1
+        - joint2
+        - joint3
+        - joint4
+        - joint5
+        - joint6
+      modifiers: null
+      noise:
+        func: isaaclab.utils.noise.noise_model:uniform_noise
+        operation: add
+        n_min: -1.5
+        n_max: 1.5
+      clip: !!python/tuple
+      - -100.0
+      - 100.0
+      scale: 1.0
+      history_length: 0
+      flatten_history_dim: true
+    actions:
+      func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.observations:last_action
+      params: {}
+      modifiers: null
+      noise: null
+      clip: !!python/tuple
+      - -100.0
+      - 100.0
+      scale: 1.0
+      history_length: 0
+      flatten_history_dim: true
+    velocity_commands:
+      func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.observations:generated_commands
+      params:
+        command_name: base_velocity
+      modifiers: null
+      noise: null
+      clip: !!python/tuple
+      - -100.0
+      - 100.0
+      scale: null
+      history_length: 0
+      flatten_history_dim: true
+    pos_commands:
+      func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.observations:generated_commands
+      params:
+        command_name: ee_pose
+      modifiers: null
+      noise: null
+      clip: !!python/tuple
+      - -100.0
+      - 100.0
+      scale: null
+      history_length: 0
+      flatten_history_dim: true
+  critic:
+    concatenate_terms: true
+    concatenate_dim: -1
+    enable_corruption: false
+    history_length: null
+    flatten_history_dim: true
+    base_lin_vel:
+      func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.observations:base_lin_vel
+      params: {}
+      modifiers: null
+      noise: null
+      clip: null
+      scale: 2.0
+      history_length: 0
+      flatten_history_dim: true
+    base_ang_vel:
+      func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.observations:base_ang_vel
+      params: {}
+      modifiers: null
+      noise: null
+      clip: null
+      scale: 0.2
+      history_length: 0
+      flatten_history_dim: true
+    projected_gravity:
+      func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.observations:projected_gravity
+      params: {}
+      modifiers: null
+      noise: null
+      clip: null
+      scale: null
+      history_length: 0
+      flatten_history_dim: true
+    velocity_commands:
+      func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.observations:generated_commands
+      params:
+        command_name: base_velocity
+      modifiers: null
+      noise: null
+      clip: null
+      scale: null
+      history_length: 0
+      flatten_history_dim: true
+    pos_commands:
+      func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.observations:generated_commands
+      params:
+        command_name: ee_pose
+      modifiers: null
+      noise: null
+      clip: null
+      scale: null
+      history_length: 0
+      flatten_history_dim: true
+    joint_pos:
+      func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.observations:joint_pos_rel_without_wheel
+      params:
+        asset_cfg:
+          name: robot
+          joint_names:
+          - FL_hip_joint
+          - FL_thigh_joint
+          - FL_calf_joint
+          - FL_foot_joint
+          - FR_hip_joint
+          - FR_thigh_joint
+          - FR_calf_joint
+          - FR_foot_joint
+          - RL_hip_joint
+          - RL_thigh_joint
+          - RL_calf_joint
+          - RL_foot_joint
+          - RR_hip_joint
+          - RR_thigh_joint
+          - RR_calf_joint
+          - RR_foot_joint
+          - joint1
+          - joint2
+          - joint3
+          - joint4
+          - joint5
+          - joint6
+          joint_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          fixed_tendon_names: null
+          fixed_tendon_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          body_names: null
+          body_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          object_collection_names: null
+          object_collection_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          preserve_order: true
+        wheel_asset_cfg:
+          name: robot
+          joint_names:
+          - FL_foot_joint
+          - FR_foot_joint
+          - RL_foot_joint
+          - RR_foot_joint
+          joint_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          fixed_tendon_names: null
+          fixed_tendon_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          body_names: null
+          body_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          object_collection_names: null
+          object_collection_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          preserve_order: false
+      modifiers: null
+      noise:
+        func: isaaclab.utils.noise.noise_model:uniform_noise
+        operation: add
+        n_min: -0.01
+        n_max: 0.01
+      clip: !!python/tuple
+      - -100.0
+      - 100.0
+      scale: 1.0
+      history_length: 0
+      flatten_history_dim: true
+    joint_vel:
+      func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.observations:joint_vel_rel
+      params:
+        asset_cfg:
+          name: robot
+          joint_names: null
+          joint_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          fixed_tendon_names: null
+          fixed_tendon_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          body_names: null
+          body_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          object_collection_names: null
+          object_collection_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          preserve_order: false
+        joint_names:
+        - FL_hip_joint
+        - FL_thigh_joint
+        - FL_calf_joint
+        - FL_foot_joint
+        - FR_hip_joint
+        - FR_thigh_joint
+        - FR_calf_joint
+        - FR_foot_joint
+        - RL_hip_joint
+        - RL_thigh_joint
+        - RL_calf_joint
+        - RL_foot_joint
+        - RR_hip_joint
+        - RR_thigh_joint
+        - RR_calf_joint
+        - RR_foot_joint
+        - joint1
+        - joint2
+        - joint3
+        - joint4
+        - joint5
+        - joint6
+      modifiers: null
+      noise:
+        func: isaaclab.utils.noise.noise_model:uniform_noise
+        operation: add
+        n_min: -1.5
+        n_max: 1.5
+      clip: !!python/tuple
+      - -100.0
+      - 100.0
+      scale: 1.0
+      history_length: 0
+      flatten_history_dim: true
+    actions:
+      func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.observations:last_action
+      params: {}
+      modifiers: null
+      noise: null
+      clip: null
+      scale: null
+      history_length: 0
+      flatten_history_dim: true
+    joint_torques:
+      func: isaaclab.envs.mdp.observations:joint_effort
+      params:
+        asset_cfg:
+          name: robot
+          joint_names:
+          - FL_hip_joint
+          - FL_thigh_joint
+          - FL_calf_joint
+          - FL_foot_joint
+          - FR_hip_joint
+          - FR_thigh_joint
+          - FR_calf_joint
+          - FR_foot_joint
+          - RL_hip_joint
+          - RL_thigh_joint
+          - RL_calf_joint
+          - RL_foot_joint
+          - RR_hip_joint
+          - RR_thigh_joint
+          - RR_calf_joint
+          - RR_foot_joint
+          - joint1
+          - joint2
+          - joint3
+          - joint4
+          - joint5
+          - joint6
+          joint_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          fixed_tendon_names: null
+          fixed_tendon_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          body_names: null
+          body_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          object_collection_names: null
+          object_collection_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          preserve_order: true
+      modifiers: null
+      noise: null
+      clip: !!python/tuple
+      - -100.0
+      - 100.0
+      scale: 0.1
+      history_length: 0
+      flatten_history_dim: true
+    feet_contact:
+      func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.observations:contact
+      params:
+        sensor_cfg:
+          name: contact_forces
+          joint_names: null
+          joint_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          fixed_tendon_names: null
+          fixed_tendon_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          body_names: .*_foot
+          body_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          object_collection_names: null
+          object_collection_ids: !!python/object/apply:builtins.slice
+          - null
+          - null
+          - null
+          preserve_order: false
+      modifiers: null
+      noise: null
+      clip: !!python/tuple
+      - 0.0
+      - 1.0
+      scale: 0.1
+      history_length: 0
+      flatten_history_dim: true
+    ee_link0_rel_pose:
+      func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.observations:end_effector_link0_relative_pose
+      params: {}
+      modifiers: null
+      noise: null
+      clip: null
+      scale: null
+      history_length: 0
+      flatten_history_dim: true
+actions:
+  joint_pos_fl:
+    class_type: isaaclab.envs.mdp.actions.joint_actions:JointPositionAction
+    asset_name: robot
+    debug_vis: false
+    clip:
+      .*: !!python/tuple
+      - -100.0
+      - 100.0
+    joint_names:
+    - FL_hip_joint
+    - FL_thigh_joint
+    - FL_calf_joint
+    scale: 0.25
+    offset: 0.0
+    preserve_order: true
+    use_default_offset: true
+  joint_vel_fl:
+    class_type: isaaclab.envs.mdp.actions.joint_actions:JointVelocityAction
+    asset_name: robot
+    debug_vis: false
+    clip:
+      .*: !!python/tuple
+      - -100.0
+      - 100.0
+    joint_names:
+    - FL_foot_joint
+    scale: 5.0
+    offset: 0.0
+    preserve_order: true
+    use_default_offset: true
+  joint_pos_fr:
+    class_type: isaaclab.envs.mdp.actions.joint_actions:JointPositionAction
+    asset_name: robot
+    debug_vis: false
+    clip:
+      .*: !!python/tuple
+      - -100.0
+      - 100.0
+    joint_names:
+    - FR_hip_joint
+    - FR_thigh_joint
+    - FR_calf_joint
+    scale: 0.25
+    offset: 0.0
+    preserve_order: true
+    use_default_offset: true
+  joint_vel_fr:
+    class_type: isaaclab.envs.mdp.actions.joint_actions:JointVelocityAction
+    asset_name: robot
+    debug_vis: false
+    clip:
+      .*: !!python/tuple
+      - -100.0
+      - 100.0
+    joint_names:
+    - FR_foot_joint
+    scale: 5.0
+    offset: 0.0
+    preserve_order: true
+    use_default_offset: true
+  joint_pos_rl:
+    class_type: isaaclab.envs.mdp.actions.joint_actions:JointPositionAction
+    asset_name: robot
+    debug_vis: false
+    clip:
+      .*: !!python/tuple
+      - -100.0
+      - 100.0
+    joint_names:
+    - RL_hip_joint
+    - RL_thigh_joint
+    - RL_calf_joint
+    scale: 0.25
+    offset: 0.0
+    preserve_order: true
+    use_default_offset: true
+  joint_vel_rl:
+    class_type: isaaclab.envs.mdp.actions.joint_actions:JointVelocityAction
+    asset_name: robot
+    debug_vis: false
+    clip:
+      .*: !!python/tuple
+      - -100.0
+      - 100.0
+    joint_names:
+    - RL_foot_joint
+    scale: 5.0
+    offset: 0.0
+    preserve_order: true
+    use_default_offset: true
+  joint_pos_rr:
+    class_type: isaaclab.envs.mdp.actions.joint_actions:JointPositionAction
+    asset_name: robot
+    debug_vis: false
+    clip:
+      .*: !!python/tuple
+      - -100.0
+      - 100.0
+    joint_names:
+    - RR_hip_joint
+    - RR_thigh_joint
+    - RR_calf_joint
+    scale: 0.25
+    offset: 0.0
+    preserve_order: true
+    use_default_offset: true
+  joint_vel_rr:
+    class_type: isaaclab.envs.mdp.actions.joint_actions:JointVelocityAction
+    asset_name: robot
+    debug_vis: false
+    clip:
+      .*: !!python/tuple
+      - -100.0
+      - 100.0
+    joint_names:
+    - RR_foot_joint
+    scale: 5.0
+    offset: 0.0
+    preserve_order: true
+    use_default_offset: true
+  joint_pos:
+    class_type: isaaclab.envs.mdp.actions.joint_actions:JointPositionAction
+    asset_name: robot
+    debug_vis: false
+    clip: null
+    joint_names:
+    - joint[1-6]
+    scale: 0.25
+    offset: 0.0
+    preserve_order: true
+    use_default_offset: true
+events:
+  physics_material:
+    func: isaaclab.envs.mdp.events:randomize_rigid_body_material
+    params:
+      asset_cfg:
+        name: robot
+        joint_names: null
+        joint_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        fixed_tendon_names: null
+        fixed_tendon_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        body_names: .*
+        body_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        object_collection_names: null
+        object_collection_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        preserve_order: false
+      static_friction_range: !!python/tuple
+      - 0.5
+      - 1.2
+      dynamic_friction_range: !!python/tuple
+      - 0.5
+      - 1.2
+      restitution_range: !!python/tuple
+      - 0.0
+      - 0.1
+      num_buckets: 64
+      make_consistent: true
+    mode: startup
+    interval_range_s: null
+    is_global_time: false
+    min_step_count_between_reset: 0
+  add_mass:
+    func: isaaclab.envs.mdp.events:randomize_rigid_body_mass
+    params:
+      asset_cfg:
+        name: robot
+        joint_names: null
+        joint_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        fixed_tendon_names: null
+        fixed_tendon_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        body_names: .*
+        body_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        object_collection_names: null
+        object_collection_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        preserve_order: false
+      mass_distribution_params: !!python/tuple
+      - 0.9
+      - 1.1
+      operation: scale
+    mode: startup
+    interval_range_s: null
+    is_global_time: false
+    min_step_count_between_reset: 0
+  base_com:
+    func: isaaclab.envs.mdp.events:randomize_rigid_body_com
+    params:
+      asset_cfg:
+        name: robot
+        joint_names: null
+        joint_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        fixed_tendon_names: null
+        fixed_tendon_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        body_names: base_link
+        body_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        object_collection_names: null
+        object_collection_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        preserve_order: false
+      com_range:
+        x: !!python/tuple
+        - -0.05
+        - 0.05
+        y: !!python/tuple
+        - -0.05
+        - 0.05
+        z: !!python/tuple
+        - -0.01
+        - 0.01
+    mode: startup
+    interval_range_s: null
+    is_global_time: false
+    min_step_count_between_reset: 0
+  randomize_actuator_gains:
+    func: isaaclab.envs.mdp.events:randomize_actuator_gains
+    params:
+      asset_cfg:
+        name: robot
+        joint_names: .*
+        joint_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        fixed_tendon_names: null
+        fixed_tendon_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        body_names: null
+        body_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        object_collection_names: null
+        object_collection_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        preserve_order: false
+      stiffness_distribution_params: !!python/tuple
+      - 0.8
+      - 1.2
+      damping_distribution_params: !!python/tuple
+      - 0.8
+      - 1.2
+      operation: scale
+    mode: reset
+    interval_range_s: null
+    is_global_time: false
+    min_step_count_between_reset: 0
+  randomize_rigid_body_inertia: null
+  base_external_force_torque:
+    func: isaaclab.envs.mdp.events:apply_external_force_torque
+    params:
+      asset_cfg:
+        name: robot
+        joint_names: null
+        joint_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        fixed_tendon_names: null
+        fixed_tendon_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        body_names: base_link
+        body_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        object_collection_names: null
+        object_collection_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        preserve_order: false
+      force_range: !!python/tuple
+      - 0.0
+      - 0.0
+      torque_range: !!python/tuple
+      - -0.0
+      - 0.0
+    mode: reset
+    interval_range_s: null
+    is_global_time: false
+    min_step_count_between_reset: 0
+  reset_base:
+    func: isaaclab.envs.mdp.events:reset_root_state_uniform
+    params:
+      pose_range:
+        x: !!python/tuple
+        - -0.5
+        - 0.5
+        y: !!python/tuple
+        - -0.5
+        - 0.5
+        yaw: !!python/tuple
+        - -3.14
+        - 3.14
+      velocity_range:
+        x: !!python/tuple
+        - -0.0
+        - 0.0
+        y: !!python/tuple
+        - -0.0
+        - 0.0
+        z: !!python/tuple
+        - -0.0
+        - 0.0
+        yaw: !!python/tuple
+        - -0.0
+        - 0.0
+        pitch: !!python/tuple
+        - -0.0
+        - 0.0
+        roll: !!python/tuple
+        - -0.0
+        - 0.0
+    mode: reset
+    interval_range_s: null
+    is_global_time: false
+    min_step_count_between_reset: 0
+  reset_robot_joints:
+    func: isaaclab.envs.mdp.events:reset_joints_by_scale
+    params:
+      position_range: !!python/tuple
+      - 0.5
+      - 1.5
+      velocity_range: !!python/tuple
+      - 0.0
+      - 0.0
+    mode: reset
+    interval_range_s: null
+    is_global_time: false
+    min_step_count_between_reset: 0
+  push_robot: null
+rerender_on_reset: false
+num_rerenders_on_reset: 0
+wait_for_textures: true
+xr: null
+teleop_devices:
+  devices: {}
+export_io_descriptors: false
+log_dir: /home/hehui/LeggedManip_Lab/logs/rsl_rl/d1_piper_wbc/2026-08-31_19-51-15
+is_finite_horizon: false
+episode_length_s: 20.0
+rewards:
+  end_effector_position_tracking_exp:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:position_command_error_exp
+    params:
+      asset_cfg:
+        name: robot
+        joint_names: null
+        joint_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        fixed_tendon_names: null
+        fixed_tendon_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        body_names: end_effector
+        body_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        object_collection_names: null
+        object_collection_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        preserve_order: false
+      command_name: ee_pose
+      std: 0.31622776601683794
+      link0_name: piper_base_link
+    weight: 4.5
+  end_effector_orientation_tracking:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:orientation_command_error
+    params:
+      asset_cfg:
+        name: robot
+        joint_names: null
+        joint_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        fixed_tendon_names: null
+        fixed_tendon_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        body_names: end_effector
+        body_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        object_collection_names: null
+        object_collection_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        preserve_order: false
+      command_name: ee_pose
+    weight: -4.0
+  track_lin_vel_xy_exp:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:track_lin_vel_xy_exp
+    params:
+      command_name: base_velocity
+      std: 0.5
+    weight: 3.5
+  track_ang_vel_z_exp:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:track_ang_vel_z_exp
+    params:
+      command_name: base_velocity
+      std: 0.5
+    weight: 2.5
+  stand_still_base_velocity:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:stand_still_base_velocity
+    params:
+      command_name: base_velocity
+      command_threshold: 0.1
+    weight: -5.0
+  track_base_height_exp:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:base_height_tracking
+    params:
+      target_height: 0.45
+      std: 0.02
+    weight: 0.25
+  lin_vel_z_l2:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:lin_vel_z_l2
+    params: {}
+    weight: -2.0
+  ang_vel_xy_l2:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:ang_vel_xy_l2
+    params: {}
+    weight: -0.05
+  dof_torques_l2:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:joint_torques_l2
+    params: {}
+    weight: -1.0e-05
+  hip_torques_max:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:joint_torques_max
+    params:
+      joint_names: .*_hip_joint
+    weight: -8.0e-05
+  thigh_torques_max:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:joint_torques_max
+    params:
+      joint_names: .*_thigh_joint
+    weight: -8.0e-05
+  calf_torques_max:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:joint_torques_max
+    params:
+      joint_names: .*_calf_joint
+    weight: -2.0e-05
+  joint_acc_l2:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:joint_acc_l2
+    params:
+      asset_cfg:
+        name: robot
+        joint_names:
+        - FL_hip_joint
+        - FL_thigh_joint
+        - FL_calf_joint
+        - FR_hip_joint
+        - FR_thigh_joint
+        - FR_calf_joint
+        - RL_hip_joint
+        - RL_thigh_joint
+        - RL_calf_joint
+        - RR_hip_joint
+        - RR_thigh_joint
+        - RR_calf_joint
+        - joint1
+        - joint2
+        - joint3
+        - joint4
+        - joint5
+        - joint6
+        joint_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        fixed_tendon_names: null
+        fixed_tendon_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        body_names: null
+        body_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        object_collection_names: null
+        object_collection_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        preserve_order: false
+    weight: -2.5e-07
+  joint_acc_wheel_l2:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:joint_acc_l2
+    params:
+      asset_cfg:
+        name: robot
+        joint_names:
+        - .*_foot_joint
+        joint_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        fixed_tendon_names: null
+        fixed_tendon_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        body_names: null
+        body_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        object_collection_names: null
+        object_collection_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        preserve_order: false
+    weight: -2.5e-09
+  action_rate_l2:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:action_rate_l2
+    params: {}
+    weight: -0.01
+  joint_power:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:joint_power
+    params: {}
+    weight: -2.0e-05
+  feet_slide: null
+  hip_deviation:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:joint_deviation_l1
+    params:
+      asset_cfg:
+        name: robot
+        joint_names:
+        - .*_hip_joint
+        joint_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        fixed_tendon_names: null
+        fixed_tendon_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        body_names: null
+        body_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        object_collection_names: null
+        object_collection_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        preserve_order: false
+    weight: -0.1
+  joint_deviation:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:joint_deviation_l1
+    params:
+      asset_cfg:
+        name: robot
+        joint_names:
+        - .*_calf_joint
+        - .*_thigh_joint
+        joint_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        fixed_tendon_names: null
+        fixed_tendon_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        body_names: null
+        body_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        object_collection_names: null
+        object_collection_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        preserve_order: false
+    weight: -0.02
+  arm_deviation:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:joint_deviation_l1
+    params:
+      asset_cfg:
+        name: robot
+        joint_names:
+        - joint[1-6]
+        joint_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        fixed_tendon_names: null
+        fixed_tendon_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        body_names: null
+        body_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        object_collection_names: null
+        object_collection_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        preserve_order: false
+    weight: -0.1
+  joint_mirror:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:joint_mirror
+    params:
+      asset_cfg:
+        name: robot
+        joint_names: null
+        joint_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        fixed_tendon_names: null
+        fixed_tendon_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        body_names: null
+        body_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        object_collection_names: null
+        object_collection_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        preserve_order: false
+      mirror_joints:
+      - - FR_(hip|thigh|calf)_joint
+        - RL_(hip|thigh|calf)_joint
+      - - FL_(hip|thigh|calf)_joint
+        - RR_(hip|thigh|calf)_joint
+    weight: -0.15
+  feet_air_time: null
+  feet_long_air: null
+  air_time_variance: null
+  flat_orientation_l2:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:flat_orientation_l2
+    params: {}
+    weight: -1.0
+  dof_pos_limits:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.rewards:joint_pos_limits
+    params:
+      asset_cfg:
+        name: robot
+        joint_names:
+        - .*_(hip|thigh|calf)_joint
+        - joint[1-6]
+        joint_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        fixed_tendon_names: null
+        fixed_tendon_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        body_names: null
+        body_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        object_collection_names: null
+        object_collection_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        preserve_order: false
+    weight: -1.0
+terminations:
+  time_out:
+    func: isaaclab.envs.mdp.terminations:time_out
+    params: {}
+    time_out: true
+  base_contact:
+    func: isaaclab.envs.mdp.terminations:illegal_contact
+    params:
+      sensor_cfg:
+        name: contact_forces
+        joint_names: null
+        joint_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        fixed_tendon_names: null
+        fixed_tendon_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        body_names: base_link
+        body_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        object_collection_names: null
+        object_collection_ids: !!python/object/apply:builtins.slice
+        - null
+        - null
+        - null
+        preserve_order: false
+      threshold: 0.5
+    time_out: false
+  bad_orientation:
+    func: isaaclab.envs.mdp.terminations:bad_orientation
+    params:
+      limit_angle: 1.0
+    time_out: false
+curriculum:
+  lin_vel_cmd_levels:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.curriculums:lin_vel_cmd_levels
+    params: {}
+  ang_vel_cmd_levels:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.curriculums:ang_vel_cmd_levels
+    params: {}
+  pos_cmd_levels:
+    func: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.curriculums:pos_cmd_levels
+    params: {}
+commands:
+  ee_pose:
+    class_type: LeggedManip_Lab.tasks.manager_based.leggedmanip_lab.mdp.pose_command_wbc:UniformPoseWBCCommand
+    resampling_time_range: !!python/tuple
+    - 8.0
+    - 10.0
+    debug_vis: true
+    asset_name: robot
+    body_name: end_effector
+    make_quat_unique: false
+    ranges:
+      pos_x: !!python/tuple
+      - 0.4
+      - 0.45
+      pos_y: !!python/tuple
+      - -0.05
+      - 0.05
+      pos_z: !!python/tuple
+      - 0.5
+      - 0.5
+      roll: !!python/tuple
+      - -0.0
+      - 0.0
+      pitch: !!python/tuple
+      - -0.0
+      - -0.0
+      yaw: !!python/tuple
+      - -0.0
+      - -0.0
+    goal_pose_visualizer_cfg:
+      prim_path: /Visuals/Command/goal_pose
+      markers:
+        frame:
+          func: isaaclab.sim.spawners.from_files.from_files:spawn_from_usd
+          visible: true
+          semantic_tags: null
+          copy_from_source: true
+          mass_props: null
+          deformable_props: null
+          rigid_props: null
+          collision_props: null
+          activate_contact_sensors: false
+          scale: !!python/tuple
+          - 0.1
+          - 0.1
+          - 0.1
+          articulation_props: null
+          fixed_tendons_props: null
+          spatial_tendons_props: null
+          joint_drive_props: null
+          visual_material_path: material
+          visual_material: null
+          usd_path: https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/5.1/Isaac/Props/UIElements/frame_prim.usd
+          variants: null
+        connecting_line:
+          func: isaaclab.sim.spawners.shapes.shapes:spawn_cylinder
+          visible: true
+          semantic_tags: null
+          copy_from_source: true
+          mass_props: null
+          rigid_props: null
+          collision_props: null
+          activate_contact_sensors: false
+          visual_material_path: material
+          visual_material:
+            func: isaaclab.sim.spawners.materials.visual_materials:spawn_preview_surface
+            diffuse_color: !!python/tuple
+            - 1.0
+            - 1.0
+            - 0.0
+            emissive_color: !!python/tuple
+            - 0.0
+            - 0.0
+            - 0.0
+            roughness: 1.0
+            metallic: 0.0
+            opacity: 1.0
+          physics_material_path: material
+          physics_material: null
+          radius: 0.002
+          height: 1.0
+          axis: Z
+    current_pose_visualizer_cfg:
+      prim_path: /Visuals/Command/body_pose
+      markers:
+        frame:
+          func: isaaclab.sim.spawners.from_files.from_files:spawn_from_usd
+          visible: true
+          semantic_tags: null
+          copy_from_source: true
+          mass_props: null
+          deformable_props: null
+          rigid_props: null
+          collision_props: null
+          activate_contact_sensors: false
+          scale: !!python/tuple
+          - 0.1
+          - 0.1
+          - 0.1
+          articulation_props: null
+          fixed_tendons_props: null
+          spatial_tendons_props: null
+          joint_drive_props: null
+          visual_material_path: material
+          visual_material: null
+          usd_path: https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/5.1/Isaac/Props/UIElements/frame_prim.usd
+          variants: null
+        connecting_line:
+          func: isaaclab.sim.spawners.shapes.shapes:spawn_cylinder
+          visible: true
+          semantic_tags: null
+          copy_from_source: true
+          mass_props: null
+          rigid_props: null
+          collision_props: null
+          activate_contact_sensors: false
+          visual_material_path: material
+          visual_material:
+            func: isaaclab.sim.spawners.materials.visual_materials:spawn_preview_surface
+            diffuse_color: !!python/tuple
+            - 1.0
+            - 1.0
+            - 0.0
+            emissive_color: !!python/tuple
+            - 0.0
+            - 0.0
+            - 0.0
+            roughness: 1.0
+            metallic: 0.0
+            opacity: 1.0
+          physics_material_path: material
+          physics_material: null
+          radius: 0.002
+          height: 1.0
+          axis: Z
+    limit_ranges:
+      pos_x: !!python/tuple
+      - 0.3
+      - 0.6
+      pos_y: !!python/tuple
+      - -0.35
+      - 0.35
+      pos_z: !!python/tuple
+      - 0.15
+      - 0.8
+      roll: !!python/tuple
+      - -1.0466666666666666
+      - 1.0466666666666666
+      pitch: !!python/tuple
+      - -1.57
+      - 1.57
+      yaw: !!python/tuple
+      - -0.5233333333333333
+      - 0.5233333333333333
+    link_name: piper_base_link
+    curriculum_enabled: true
+  base_velocity:
+    class_type: isaaclab.envs.mdp.commands.velocity_command:UniformVelocityCommand
+    resampling_time_range: !!python/tuple
+    - 10.0
+    - 10.0
+    debug_vis: true
+    asset_name: robot
+    heading_command: false
+    heading_control_stiffness: 1.0
+    rel_standing_envs: 0.1
+    rel_heading_envs: 1.0
+    ranges:
+      lin_vel_x: !!python/tuple
+      - -0.2
+      - 0.2
+      lin_vel_y: !!python/tuple
+      - -0.2
+      - 0.2
+      ang_vel_z: !!python/tuple
+      - -0.2
+      - 0.2
+      heading: !!python/tuple
+      - -0.0
+      - 0.0
+    goal_vel_visualizer_cfg:
+      prim_path: /Visuals/Command/velocity_goal
+      markers:
+        arrow:
+          func: isaaclab.sim.spawners.from_files.from_files:spawn_from_usd
+          visible: true
+          semantic_tags: null
+          copy_from_source: true
+          mass_props: null
+          deformable_props: null
+          rigid_props: null
+          collision_props: null
+          activate_contact_sensors: false
+          scale: !!python/tuple
+          - 0.5
+          - 0.5
+          - 0.5
+          articulation_props: null
+          fixed_tendons_props: null
+          spatial_tendons_props: null
+          joint_drive_props: null
+          visual_material_path: material
+          visual_material:
+            func: isaaclab.sim.spawners.materials.visual_materials:spawn_preview_surface
+            diffuse_color: !!python/tuple
+            - 0.0
+            - 1.0
+            - 0.0
+            emissive_color: !!python/tuple
+            - 0.0
+            - 0.0
+            - 0.0
+            roughness: 0.5
+            metallic: 0.0
+            opacity: 1.0
+          usd_path: https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/5.1/Isaac/Props/UIElements/arrow_x.usd
+          variants: null
+    current_vel_visualizer_cfg:
+      prim_path: /Visuals/Command/velocity_current
+      markers:
+        arrow:
+          func: isaaclab.sim.spawners.from_files.from_files:spawn_from_usd
+          visible: true
+          semantic_tags: null
+          copy_from_source: true
+          mass_props: null
+          deformable_props: null
+          rigid_props: null
+          collision_props: null
+          activate_contact_sensors: false
+          scale: !!python/tuple
+          - 0.5
+          - 0.5
+          - 0.5
+          articulation_props: null
+          fixed_tendons_props: null
+          spatial_tendons_props: null
+          joint_drive_props: null
+          visual_material_path: material
+          visual_material:
+            func: isaaclab.sim.spawners.materials.visual_materials:spawn_preview_surface
+            diffuse_color: !!python/tuple
+            - 0.0
+            - 0.0
+            - 1.0
+            emissive_color: !!python/tuple
+            - 0.0
+            - 0.0
+            - 0.0
+            roughness: 0.5
+            metallic: 0.0
+            opacity: 1.0
+          usd_path: https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/5.1/Isaac/Props/UIElements/arrow_x.usd
+          variants: null
+    limit_ranges:
+      lin_vel_x: !!python/tuple
+      - -0.8
+      - 0.8
+      lin_vel_y: !!python/tuple
+      - -0.5
+      - 0.5
+      ang_vel_z: !!python/tuple
+      - -1.0
+      - 1.0
+      heading: !!python/tuple
+      - -0.0
+      - 0.0
+    curriculum_enabled: false

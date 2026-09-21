@@ -52,6 +52,35 @@ class ManipLoco(LeggedRobot):
     cfg: B1Z1RoughCfg
 
     def __init__(self, cfg, *args, **kwargs):
+        # The original B1/Z1 task has 12 leg joints and one gripper DOF.  Keep
+        # those defaults, but allow other assets (for example D1 + Piper-L) to
+        # provide their own leg/arm/gripper layout in the config.
+        self.num_leg_dofs = getattr(cfg.env, "num_leg_dofs", 12)
+        self.num_arm_dofs = getattr(cfg.env, "num_arm_dofs", 6)
+        self.num_gripper_joints = getattr(cfg.env, "num_gripper_joints", 1)
+        self.arm_dof_start = self.num_leg_dofs
+        self.num_action_dofs = self.num_leg_dofs + self.num_arm_dofs
+        self.wheel_action_indices = list(getattr(cfg.env, "wheel_action_indices", []))
+        self.leg_dof_indices = list(range(self.num_leg_dofs))
+        self.leg_position_indices = list(getattr(cfg.env, "leg_position_indices", self.leg_dof_indices))
+        self.arm_dof_indices = list(range(self.arm_dof_start, self.arm_dof_start + self.num_arm_dofs))
+        if any(i < 0 or i >= self.num_leg_dofs for i in self.wheel_action_indices):
+            raise ValueError(f"wheel_action_indices must index leg DOFs: {self.wheel_action_indices}")
+        if any(i < 0 or i >= self.num_leg_dofs for i in self.leg_position_indices):
+            raise ValueError(f"leg_position_indices must index leg DOFs: {self.leg_position_indices}")
+        leg_reorder = list(getattr(cfg.env, "leg_dof_reorder", range(self.num_leg_dofs)))
+        if sorted(leg_reorder) != list(range(self.num_leg_dofs)):
+            raise ValueError(f"leg_dof_reorder must be a permutation of leg DOFs: {leg_reorder}")
+        # ``_reindex_all`` exposes leg DOFs in policy order.  Keep a matching
+        # list for wheel observations so a task can mask unbounded wheel
+        # angles after reindexing without affecting the action layout.
+        self.leg_dof_reorder = leg_reorder
+        self.wheel_obs_indices = [leg_reorder.index(i) for i in self.wheel_action_indices]
+        if getattr(cfg.env, "num_actions", self.num_action_dofs) != self.num_action_dofs:
+            raise ValueError(
+                f"num_actions ({cfg.env.num_actions}) must match the actuated "
+                f"leg+arm DOFs ({self.num_action_dofs})"
+            )
         if cfg.env.observe_gait_commands:
             print("||||||||||Observe gait commands!")
             cfg.env.num_proprio += 5 # gait_indices=1, clock_phase=4
@@ -68,7 +97,13 @@ class ManipLoco(LeggedRobot):
         """
         # print("self.root_states is ",self.root_states)
 
-        actions[:, 12:] = 0.
+        # The arm action head is retained for compatibility with the policy
+        # architecture, but arm motion is generated from the task-space goal
+        # below.  Work on a copy: PPO keeps the tensor returned by its policy
+        # for the action/log-prob transition, so an in-place mask here would
+        # make the stored action disagree with its log probability.
+        actions = torch.nan_to_num(actions.clone(), nan=0.0, posinf=0.0, neginf=0.0)
+        actions[:, self.num_leg_dofs:] = 0.
         actions = self._reindex_all(actions)
         actions = torch.clip(actions, -self.clip_actions, self.clip_actions).to(self.device)
         # step physics and render each frame
@@ -90,11 +125,26 @@ class ManipLoco(LeggedRobot):
         # curr_ee_goal_cart_world = self._get_ee_goal_spherical_center() + ee_goal_cart_yaw_global
         
         dpos = self.curr_ee_goal_cart_world - self.ee_pos
-        drot = orientation_error(self.ee_goal_orn_quat, self.ee_orn / torch.norm(self.ee_orn, dim=-1).unsqueeze(-1))
+        # Isaac Gym exposes quaternions as [x, y, z, w].  A zero/invalid
+        # quaternion can occur for an already-diverged environment; do not
+        # let the normalization turn that into NaN orientation error.
+        ee_orn = torch.nan_to_num(self.ee_orn, nan=0.0, posinf=0.0, neginf=0.0)
+        ee_orn_norm = torch.linalg.vector_norm(ee_orn, dim=-1, keepdim=True)
+        ee_orn = ee_orn / ee_orn_norm.clamp_min(1e-8)
+        identity_orn = torch.zeros_like(ee_orn)
+        identity_orn[:, 3] = 1.0
+        ee_orn = torch.where(ee_orn_norm > 1e-8, ee_orn, identity_orn)
+        drot = orientation_error(self.ee_goal_orn_quat, ee_orn)
         dpose = torch.cat([dpos, drot], -1).unsqueeze(-1)
-        arm_pos_targets = self._control_ik(dpose) + self.dof_pos[:, -(6 + self.cfg.env.num_gripper_joints):-self.cfg.env.num_gripper_joints]
+        arm_pos = self.dof_pos[:, self.arm_dof_start:self.arm_dof_start + self.num_arm_dofs]
+        arm_pos = torch.where(
+            torch.isfinite(arm_pos), arm_pos,
+            self.default_dof_pos[self.arm_dof_start:self.arm_dof_start + self.num_arm_dofs].unsqueeze(0),
+        )
+        arm_pos_targets = self._control_ik(dpose) + arm_pos
+        arm_pos_targets = self._clip_arm_position_targets(arm_pos_targets)
         all_pos_targets = torch.zeros_like(self.dof_pos)
-        all_pos_targets[:, -(6 + self.cfg.env.num_gripper_joints):-self.cfg.env.num_gripper_joints] = arm_pos_targets
+        all_pos_targets[:, self.arm_dof_start:self.arm_dof_start + self.num_arm_dofs] = arm_pos_targets
 
         for t in range(self.cfg.control.decimation):
             self.torques = self._compute_torques(self.actions)
@@ -132,6 +182,12 @@ class ManipLoco(LeggedRobot):
         self.episode_length_buf += 1
         self.common_step_counter += 1
 
+        # Preserve the offending environment ids for termination/reset below.
+        # Without this check, a single PhysX divergence can enter the rollout
+        # buffer and only surface much later as a NaN actor distribution.
+        nonfinite_state = self._nonfinite_state_mask()
+        self._report_nonfinite_state(nonfinite_state)
+
         # prepare quantities
         self.base_quat[:] = self.root_states[:, 3:7]
         self.base_lin_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
@@ -154,6 +210,7 @@ class ManipLoco(LeggedRobot):
 
         # compute observations, rewards, resets, ...
         self.check_termination()
+        self.reset_buf |= nonfinite_state
         self.compute_reward()
         env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
         self.reset_idx(env_ids, start=False)
@@ -179,6 +236,8 @@ class ManipLoco(LeggedRobot):
         for i in range(len(self.reward_functions)):
             name = self.reward_names[i]
             rew, metric = self.reward_functions[i]()
+            rew = self._finite_reward_value(rew)
+            metric = self._finite_reward_value(metric)
             rew = rew * self.reward_scales[name]
             self.rew_buf += rew
             self.episode_sums[name] += rew
@@ -188,6 +247,8 @@ class ManipLoco(LeggedRobot):
         # add termination reward after clipping
         if "termination" in self.reward_scales:
             rew, metric = self._reward_termination()
+            rew = self._finite_reward_value(rew)
+            metric = self._finite_reward_value(metric)
             rew = rew * self.reward_scales["termination"]
             self.rew_buf += rew
             self.episode_sums["termination"] += rew
@@ -199,6 +260,8 @@ class ManipLoco(LeggedRobot):
         for i in range(len(self.arm_reward_functions)):
             name = self.arm_reward_names[i]
             rew, metric = self.arm_reward_functions[i]()
+            rew = self._finite_reward_value(rew)
+            metric = self._finite_reward_value(metric)
             rew = rew * self.arm_reward_scales[name]
             self.arm_rew_buf += rew
             self.episode_sums[name] += rew
@@ -208,12 +271,19 @@ class ManipLoco(LeggedRobot):
         # add termination reward after clipping
         if "arm_termination" in self.arm_reward_scales:
             rew, metric = self._reward_termination()
+            rew = self._finite_reward_value(rew)
+            metric = self._finite_reward_value(metric)
             rew = rew * self.arm_reward_scales["arm_termination"]
             self.arm_rew_buf += rew
             self.episode_sums["arm_termination"] += rew
             self.episode_metric_sums["arm_termination"] += metric
 
         self.arm_rew_buf /= 100
+
+    def _finite_reward_value(self, value):
+        """Convert scalar reward stubs (0, 0.0) and tensors uniformly."""
+        value = torch.as_tensor(value, device=self.device, dtype=torch.float)
+        return torch.nan_to_num(value, nan=0.0, posinf=0.0, neginf=0.0)
 
     def compute_observations(self):
         """ Computes observations
@@ -223,11 +293,21 @@ class ManipLoco(LeggedRobot):
         if self.stand_by:
             self.commands[:] = 0.
 
+        # Wheel joint angles are unbounded revolute coordinates.  Their
+        # absolute phase is not useful for locomotion and eventually reaches
+        # the observation clip while the robot drives.  Keep the historical
+        # input width for checkpoint/network compatibility, but expose zero
+        # placeholders in those four position slots; wheel velocity remains
+        # observable in the next block.
+        dof_pos_obs = self._reindex_all((self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos)
+        if self.wheel_obs_indices:
+            dof_pos_obs[:, self.wheel_obs_indices] = 0.0
+
         obs_buf = torch.cat((       self._get_body_orientation(),  # dim 2
                                     self.base_ang_vel * self.obs_scales.ang_vel,  # dim 3
-                                    self._reindex_all((self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos)[:, :-self.cfg.env.num_gripper_joints],  # dim 18
-                                    self._reindex_all(self.dof_vel * self.obs_scales.dof_vel)[:, :-self.cfg.env.num_gripper_joints],  # dim 18
-                                    self._reindex_all(self.action_history_buf[:, -1])[:, :12],  # dim 12
+                                    dof_pos_obs[:, :-self.num_gripper_joints],  # non-gripper joints; wheel positions masked
+                                    self._reindex_all(self.dof_vel * self.obs_scales.dof_vel)[:, :-self.num_gripper_joints],  # non-gripper joints
+                                    self._reindex_all(self.action_history_buf[:, -1])[:, :self.num_leg_dofs],  # leg/wheel actions
                                     self._reindex_feet(self.foot_contacts_from_sensor),  # dim 4
                                     self.commands[:, :3] * self.commands_scale,  # dim 3
                                     # self.curr_ee_goal_sphere,  # dim 3 position
@@ -242,9 +322,21 @@ class ManipLoco(LeggedRobot):
             priv_buf = torch.cat((
                 self.mass_params_tensor,
                 self.friction_coeffs_tensor,
-                self.motor_strength[:, :12] - 1,
+                self.motor_strength[:, :self.num_leg_dofs] - 1,
             ), dim=-1)
             self.obs_buf = torch.cat([obs_buf, priv_buf, self.obs_history_buf.view(self.num_envs, -1)], dim=-1)
+        else:
+            # Keep the observation shape well-defined if privileged
+            # observations are disabled for a task.
+            self.obs_buf = torch.cat([obs_buf, self.obs_history_buf.view(self.num_envs, -1)], dim=-1)
+
+        if not torch.isfinite(obs_buf).all() and not self._nonfinite_obs_warned:
+            bad_envs = (~torch.isfinite(obs_buf).all(dim=1)).nonzero(as_tuple=False).flatten()[:8]
+            print(
+                "[ManipLoco] non-finite observation; replacing it with finite "
+                f"values for envs {bad_envs.detach().cpu().tolist()}"
+            )
+            self._nonfinite_obs_warned = True
         
         self.obs_history_buf = torch.where(
             (self.episode_length_buf <= 1)[:, None, None], 
@@ -257,6 +349,15 @@ class ManipLoco(LeggedRobot):
 
         if self.add_noise:
             self.obs_buf += (2 * torch.rand_like(self.obs_buf) - 1) * self.noise_scale_vec
+
+        # torch.clip does not remove NaN.  Keep the policy input finite even
+        # for the transition immediately preceding an invalid-state reset.
+        clip_obs = self.cfg.normalization.clip_observations
+        self.obs_buf = torch.nan_to_num(self.obs_buf, nan=0.0, posinf=clip_obs, neginf=-clip_obs)
+        if self.privileged_obs_buf is not None:
+            self.privileged_obs_buf = torch.nan_to_num(
+                self.privileged_obs_buf, nan=0.0, posinf=clip_obs, neginf=-clip_obs
+            )
 
     def check_termination(self):
         """ Check if environments need to be reset
@@ -345,7 +446,12 @@ class ManipLoco(LeggedRobot):
     # ------------ callbacks ------------
 
     def _parse_cfg(self, cfg):
-        self.num_torques = self.cfg.env.num_torques
+        self.num_torques = getattr(self.cfg.env, "num_torques", self.num_action_dofs)
+        if self.num_torques != self.num_action_dofs:
+            raise ValueError(
+                f"num_torques ({self.num_torques}) must match the actuated "
+                f"leg+arm DOFs ({self.num_action_dofs})"
+            )
         self.dt = self.cfg.control.decimation * self.sim_params.dt
         self.obs_scales = self.cfg.normalization.obs_scales
         self.reward_scales = class_to_dict(self.cfg.rewards.scales)
@@ -360,7 +466,7 @@ class ManipLoco(LeggedRobot):
         self.push_interval = np.ceil(self.cfg.domain_rand.push_interval_s / self.dt)
         self.clip_actions = self.cfg.normalization.clip_actions
         self.action_delay = self.cfg.env.action_delay
-        self.stop_update_goal = self.cfg.env.stop_update_goal
+        self.stop_update_goal = getattr(self.cfg.env, "stop_update_goal", False)
         self.record_video = self.cfg.env.record_video
 
     def _prepare_reward_function(self):
@@ -481,15 +587,78 @@ class ManipLoco(LeggedRobot):
         robot_asset = self.gym.load_asset(self.sim, asset_root, asset_file, asset_options)
         self.num_dofs = self.gym.get_asset_dof_count(robot_asset)
         self.num_bodies = self.gym.get_asset_rigid_body_count(robot_asset)
+        expected_num_dofs = self.num_action_dofs + self.num_gripper_joints
+        if self.num_dofs != expected_num_dofs:
+            raise ValueError(
+                f"Asset exposes {self.num_dofs} DOFs, but the configured "
+                f"leg ({self.num_leg_dofs}) + arm ({self.num_arm_dofs}) + "
+                f"gripper ({self.num_gripper_joints}) layout requires "
+                f"{expected_num_dofs}"
+            )
         dof_props_asset = self.gym.get_asset_dof_properties(robot_asset)
-        dof_props_asset['driveMode'][12:].fill(gymapi.DOF_MODE_POS)  # set arm to pos control
-        dof_props_asset['stiffness'][12:].fill(400.0)
-        dof_props_asset['damping'][12:].fill(40.0)
+        if len(dof_props_asset["driveMode"]) != self.num_dofs:
+            raise ValueError(
+                f"Isaac Gym returned {len(dof_props_asset)} DOF properties for "
+                f"an asset with {self.num_dofs} DOFs"
+            )
+        dof_props_asset['driveMode'][self.arm_dof_start:].fill(gymapi.DOF_MODE_POS)  # set arm/gripper to pos control
+        dof_props_asset['stiffness'][self.arm_dof_start:].fill(400.0)
+        dof_props_asset['damping'][self.arm_dof_start:].fill(40.0)
+
+        # Allow a task to carry actuator values from its native robot
+        # description.  D1 + Piper-L uses per-joint Piper gains and a
+        # low-gain gripper, while B1/Z1 keeps the historical 400/40 arm drive.
+        arm_stiffness = getattr(self.cfg.control, "arm_stiffness", None)
+        arm_damping = getattr(self.cfg.control, "arm_damping", None)
+        arm_effort_limit = getattr(self.cfg.control, "arm_effort_limit", None)
+        if arm_stiffness is not None:
+            dof_props_asset['stiffness'][self.arm_dof_start:self.arm_dof_start + self.num_arm_dofs] = np.asarray(arm_stiffness)
+        if arm_damping is not None:
+            dof_props_asset['damping'][self.arm_dof_start:self.arm_dof_start + self.num_arm_dofs] = np.asarray(arm_damping)
+        if arm_effort_limit is not None:
+            dof_props_asset['effort'][self.arm_dof_start:self.arm_dof_start + self.num_arm_dofs] = np.asarray(arm_effort_limit)
+        gripper_stiffness = getattr(self.cfg.control, "gripper_stiffness", None)
+        gripper_damping = getattr(self.cfg.control, "gripper_damping", None)
+        if gripper_stiffness is not None:
+            dof_props_asset['stiffness'][-self.num_gripper_joints:] = gripper_stiffness
+        if gripper_damping is not None:
+            dof_props_asset['damping'][-self.num_gripper_joints:] = gripper_damping
+
+        # Effort/friction/armature limits are part of the DCMotor definitions
+        # for D1.  Apply them by joint name before _process_dof_props caches
+        # the limits used by the torque adapter.
+        dof_names_asset = self.gym.get_asset_dof_names(robot_asset)
+        configured_arm_names = getattr(self.cfg.arm, "dof_names", None)
+        if configured_arm_names is not None and list(
+            dof_names_asset[self.arm_dof_start:self.arm_dof_start + self.num_arm_dofs]
+        ) != list(configured_arm_names):
+            raise ValueError("Asset arm DOF order does not match cfg.arm.dof_names")
+        leg_effort_limit = getattr(self.cfg.control, "leg_effort_limit", None)
+        wheel_effort_limit = getattr(self.cfg.control, "wheel_effort_limit", None)
+        leg_friction = getattr(self.cfg.control, "leg_friction", None)
+        leg_armature = getattr(self.cfg.control, "leg_armature", None)
+        for i, name in enumerate(dof_names_asset):
+            if i < self.arm_dof_start:
+                if "foot_joint" in name:
+                    if wheel_effort_limit is not None:
+                        dof_props_asset['effort'][i] = wheel_effort_limit
+                else:
+                    if leg_effort_limit is not None:
+                        dof_props_asset['effort'][i] = leg_effort_limit
+                    if leg_friction is not None:
+                        dof_props_asset['friction'][i] = leg_friction
+                    if leg_armature is not None:
+                        dof_props_asset['armature'][i] = leg_armature
         rigid_shape_props_asset = self.gym.get_asset_rigid_shape_properties(robot_asset)
         self.body_names = self.gym.get_asset_rigid_body_names(robot_asset)
         self.body_names_to_idx = self.gym.get_asset_rigid_body_dict(robot_asset)
         self.dof_names = self.gym.get_asset_dof_names(robot_asset)
-        self.dof_wo_gripper_names = self.dof_names[:-self.cfg.env.num_gripper_joints]
+        if len(self.dof_names) != self.num_dofs:
+            raise ValueError(
+                f"Isaac Gym returned {len(self.dof_names)} DOF names for "
+                f"an asset with {self.num_dofs} DOFs"
+            )
+        self.dof_wo_gripper_names = self.dof_names[:-self.num_gripper_joints]
         self.dof_names_to_idx = self.gym.get_asset_dof_dict(robot_asset)
         # self.num_bodies = len(self.body_names)
         # self.num_dofs = len(self.dof_names)
@@ -514,6 +683,14 @@ class ManipLoco(LeggedRobot):
             sensor_idx = self.gym.create_asset_force_sensor(robot_asset, foot_idx, sensor_pose)
             self.sensor_indices.append(sensor_idx)
         
+        if self.cfg.asset.gripper_name not in self.body_names_to_idx:
+            raise ValueError(
+                f"Configured gripper body '{self.cfg.asset.gripper_name}' was "
+                "removed while collapsing fixed joints. Add "
+                "dont_collapse=\"true\" to its fixed URDF joint, or set "
+                "asset.collapse_fixed_joints=False. Available bodies: "
+                f"{self.body_names}"
+            )
         self.gripper_idx = self.body_names_to_idx[self.cfg.asset.gripper_name]
 
         # box
@@ -597,8 +774,8 @@ class ManipLoco(LeggedRobot):
 
         if self.cfg.domain_rand.randomize_motor:
             self.motor_strength = torch.cat([
-                    torch_rand_float(self.cfg.domain_rand.leg_motor_strength_range[0], self.cfg.domain_rand.leg_motor_strength_range[1], (self.num_envs, 12), device=self.device),
-                    torch_rand_float(self.cfg.domain_rand.arm_motor_strength_range[0], self.cfg.domain_rand.arm_motor_strength_range[1], (self.num_envs, 6), device=self.device)
+                    torch_rand_float(self.cfg.domain_rand.leg_motor_strength_range[0], self.cfg.domain_rand.leg_motor_strength_range[1], (self.num_envs, self.num_leg_dofs), device=self.device),
+                    torch_rand_float(self.cfg.domain_rand.arm_motor_strength_range[0], self.cfg.domain_rand.arm_motor_strength_range[1], (self.num_envs, self.num_arm_dofs), device=self.device)
                 ], dim=1)
         else:
             self.motor_strength = torch.ones(self.num_envs, self.num_torques, device=self.device)
@@ -638,17 +815,26 @@ class ManipLoco(LeggedRobot):
                 self.gym.set_camera_location(camera_handle, self.envs[i], gymapi.Vec3(*cam_pos), gymapi.Vec3(*0*cam_pos))
     
     def _process_rigid_body_props(self, props, env_id):
+        base_body_name = getattr(self.cfg.asset, "base_body_name", None)
+        if base_body_name is not None and base_body_name in self.body_names_to_idx:
+            base_body_idx = self.body_names_to_idx[base_body_name]
+        else:
+            # Historical B1/Z1 assets have the main body at index 1.
+            base_body_idx = min(1, len(props) - 1)
+
         if self.cfg.domain_rand.randomize_base_mass:
             rng_mass = self.cfg.domain_rand.added_mass_range
             rand_mass = np.random.uniform(rng_mass[0], rng_mass[1], size=(1, ))
-            props[1].mass += rand_mass
+            props[base_body_idx].mass += rand_mass
         else:
             rand_mass = np.zeros(1)
         
         if self.cfg.domain_rand.randomize_gripper_mass:
             gripper_rng_mass = self.cfg.domain_rand.gripper_added_mass_range
             gripper_rand_mass = np.random.uniform(gripper_rng_mass[0], gripper_rng_mass[1], size=(1, ))
-            props[self.gripper_idx].mass += gripper_rand_mass
+            gripper_mass_name = getattr(self.cfg.asset, "gripper_mass_body_name", None)
+            gripper_mass_idx = self.body_names_to_idx.get(gripper_mass_name, self.gripper_idx)
+            props[gripper_mass_idx].mass += gripper_rand_mass
         else:
             gripper_rand_mass = np.zeros(1)
 
@@ -657,7 +843,7 @@ class ManipLoco(LeggedRobot):
             rng_com_y = self.cfg.domain_rand.added_com_range_y
             rng_com_z = self.cfg.domain_rand.added_com_range_z
             rand_com = np.random.uniform([rng_com_x[0], rng_com_y[0], rng_com_z[0]], [rng_com_x[1], rng_com_y[1], rng_com_z[1]], size=(3, ))
-            props[1].com += gymapi.Vec3(*rand_com)
+            props[base_body_idx].com += gymapi.Vec3(*rand_com)
         else:
             rand_com = np.zeros(3)
 
@@ -708,6 +894,15 @@ class ManipLoco(LeggedRobot):
         """ Initialize torch tensors which will contain simulation states and processed quantities
         """
         self.action_scale = torch.tensor(self.cfg.control.action_scale, device=self.device)
+        dpose_limit = getattr(self.cfg.control, "ik_dpose_limit", [0.20, 0.20, 0.20, 0.50, 0.50, 0.50])
+        delta_q_limit = getattr(self.cfg.control, "ik_delta_q_limit", [0.25] * self.num_arm_dofs)
+        if len(dpose_limit) != 6 or len(delta_q_limit) != self.num_arm_dofs:
+            raise ValueError("IK safety limits must have lengths 6 and num_arm_dofs")
+        self.ik_dpose_limit = torch.tensor(dpose_limit, dtype=torch.float, device=self.device).view(1, 6, 1)
+        self.ik_delta_q_limit = torch.tensor(delta_q_limit, dtype=torch.float, device=self.device).view(1, -1)
+        self.ik_joint_limit_margin = float(getattr(self.cfg.control, "ik_joint_limit_margin", 0.05))
+        self._nonfinite_state_warned = False
+        self._nonfinite_obs_warned = False
 
         # get gym GPU state tensors
         actor_root_state = self.gym.acquire_actor_root_state_tensor(self.sim)
@@ -724,6 +919,12 @@ class ManipLoco(LeggedRobot):
         self.gym.refresh_jacobian_tensors(self.sim)
         self.gym.refresh_force_sensor_tensor(self.sim)
 
+        if self.num_dofs != self.num_action_dofs + self.num_gripper_joints:
+            raise RuntimeError(
+                "D1/Piper-L DOF layout changed after asset creation; "
+                "cannot safely construct the low-level controller"
+            )
+
         # create some wrapper tensors for different slices
         self.force_sensor_tensor = gymtorch.wrap_tensor(force_sensor_tensor).view(self.num_envs, 4, 6)
         self._root_states = gymtorch.wrap_tensor(actor_root_state).view(self.num_envs, 2, 13) # 2 actors
@@ -731,12 +932,13 @@ class ManipLoco(LeggedRobot):
         self.box_root_state = self._root_states[:, 1, :]
         self.dof_state = gymtorch.wrap_tensor(dof_state_tensor)
         self.dof_pos = self.dof_state.view(self.num_envs, self.num_dofs, 2)[..., 0]
-        self.dof_pos_wo_gripper = self.dof_pos[:, :-self.cfg.env.num_gripper_joints]
+        self.dof_pos_wo_gripper = self.dof_pos[:, :-self.num_gripper_joints]
         self.dof_vel = self.dof_state.view(self.num_envs, self.num_dofs, 2)[..., 1]
-        self.dof_vel_wo_gripper = self.dof_vel[:, :-self.cfg.env.num_gripper_joints]
+        self.dof_vel_wo_gripper = self.dof_vel[:, :-self.num_gripper_joints]
         self.base_quat = self.root_states[:, 3:7]
         self.base_pos = self.root_states[:, :3]
-        self.arm_base_offset = torch.tensor([0.3, 0., 0.09], device=self.device, dtype=torch.float).repeat(self.num_envs, 1)
+        arm_base_offset = getattr(self.cfg.arm, "base_offset", [0.3, 0., 0.09])
+        self.arm_base_offset = torch.tensor(arm_base_offset, device=self.device, dtype=torch.float).repeat(self.num_envs, 1)
         # self.yaw_ema = euler_from_quat(self.base_quat)[2]
         base_yaw = euler_from_quat(self.base_quat)[2]
         self.base_yaw_euler = torch.cat([torch.zeros(self.num_envs, 2, device=self.device), base_yaw.view(-1, 1)], dim=1)
@@ -764,7 +966,12 @@ class ManipLoco(LeggedRobot):
         self.ee_pos = self.rigid_body_state[:, self.gripper_idx, :3]
         self.ee_orn = self.rigid_body_state[:, self.gripper_idx, 3:7]
         self.ee_vel = self.rigid_body_state[:, self.gripper_idx, 7:]
-        self.ee_j_eef = self.jacobian_whole[:, self.gripper_idx, :6, -(6 + self.cfg.env.num_gripper_joints):-self.cfg.env.num_gripper_joints]
+        self.ee_j_eef = self.jacobian_whole[:, self.gripper_idx, :6, -(self.num_arm_dofs + self.num_gripper_joints):-self.num_gripper_joints]
+        if self.ee_j_eef.shape[-1] != self.num_arm_dofs:
+            raise ValueError(
+                f"End-effector Jacobian exposes {self.ee_j_eef.shape[-1]} arm "
+                f"columns; expected {self.num_arm_dofs}"
+            )
 
         # box info & target_ee info
         self.box_pos = self.box_root_state[:, 0:3]
@@ -853,7 +1060,7 @@ class ManipLoco(LeggedRobot):
                                                  requires_grad=False)
         
         # self.target_ee = torch.zeros(self.num_envs, self.cfg.target_ee.num_commands, dtype=torch.float, device=self.device, requires_grad=False) # ee x, ee y, ee z
-        self.gripper_torques_zero = torch.zeros(self.num_envs, self.cfg.env.num_gripper_joints, device=self.device)
+        self.gripper_torques_zero = torch.zeros(self.num_envs, self.num_gripper_joints, device=self.device)
 
         self.feet_air_time = torch.zeros(self.num_envs, self.feet_indices.shape[0], dtype=torch.float, device=self.device, requires_grad=False)
         self.base_lin_vel = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
@@ -880,8 +1087,21 @@ class ManipLoco(LeggedRobot):
                 self.d_gains[i] = 0.
                 if self.cfg.control.control_type in ["P", "V"]:
                     raise Exception(f"PD gain of joint {name} were not defined, setting them to zero")
+
+        # Some assets expose wheel joints as revolute DOFs.  Their actuator
+        # configuration uses zero stiffness and viscous damping, so override
+        # the generic name-based gains (which would otherwise match the
+        # ``joint`` substring) with the wheel gains from the task config.
+        wheel_stiffness = getattr(self.cfg.control, "wheel_stiffness", None)
+        wheel_damping = getattr(self.cfg.control, "wheel_damping", None)
+        if wheel_stiffness is not None or wheel_damping is not None:
+            for wheel_idx in self.wheel_action_indices:
+                if wheel_stiffness is not None:
+                    self.p_gains[wheel_idx] = wheel_stiffness
+                if wheel_damping is not None:
+                    self.d_gains[wheel_idx] = wheel_damping
         # self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
-        self.default_dof_pos_wo_gripper = self.default_dof_pos[:-self.cfg.env.num_gripper_joints]
+        self.default_dof_pos_wo_gripper = self.default_dof_pos[:-self.num_gripper_joints]
         
         self.global_steps = 0
 
@@ -1047,9 +1267,6 @@ class ManipLoco(LeggedRobot):
             [torch.Tensor]: Vector of scales used to multiply a uniform distribution in [-1, 1]
         """
 
-        if self.num_actions != 18:
-            raise NotImplementedError("Noise scale is only implemented for action space of 12")
-
         noise_vec = torch.zeros_like(self.obs_buf[0])
         self.add_noise = self.cfg.noise.add_noise
         noise_scales = self.cfg.noise.noise_scales
@@ -1065,25 +1282,18 @@ class ManipLoco(LeggedRobot):
         noise_vec[idx:idx+3] = noise_scales.ang_vel * noise_level * self.obs_scales.ang_vel
         idx += 3
 
-        # DOF positions (dim 12) b1
-        noise_vec[idx:idx+12] = noise_scales.dof_pos * noise_level * self.obs_scales.dof_pos
-        idx += 12
+        # Joint positions and velocities (all non-gripper actuated joints).
+        noise_vec[idx:idx+self.num_action_dofs] = noise_scales.dof_pos * noise_level * self.obs_scales.dof_pos
+        if self.wheel_obs_indices:
+            for wheel_idx in self.wheel_obs_indices:
+                noise_vec[idx + wheel_idx] = 0.0
+        idx += self.num_action_dofs
+        noise_vec[idx:idx+self.num_action_dofs] = noise_scales.dof_vel * noise_level * self.obs_scales.dof_vel
+        idx += self.num_action_dofs
 
-        # DOF positions (dim 6) z1
-        noise_vec[idx:idx+6] = 0
-        idx += 6
-
-        # DOF velocities (dim 12)
-        noise_vec[idx:idx+12] = noise_scales.dof_vel * noise_level * self.obs_scales.dof_vel
-        idx += 12
-
-        # DOF velocities (dim 6)
-        noise_vec[idx:idx+6] = 0
-        idx += 6
-
-        # Action history (dim 12)
-        noise_vec[idx:idx+12] = 0  # Assuming no noise for action history
-        idx += 12
+        # Action history contains the leg/wheel action part only.
+        noise_vec[idx:idx+self.num_leg_dofs] = 0
+        idx += self.num_leg_dofs
 
         # Foot contacts (dim 4)
         noise_vec[idx:idx+4] = 0  # Assuming no noise for foot contacts
@@ -1101,23 +1311,27 @@ class ManipLoco(LeggedRobot):
         noise_vec[idx:idx+3] = 0  # Assuming no noise for end-effector goal orientation
         idx += 3
 
-        if self.cfg.terrain.measure_heights:
-            noise_vec[48:235] = noise_scales.height_measurements* noise_level * self.obs_scales.height_measurements
-
         return noise_vec
     
     def _reindex_feet(self, vec):
         # raisim_order = ["FR_foot", "FL_foot", "RR_foot", "RL_foot"]
         # ig_order = ['FL_foot', 'FR_foot', 'RL_foot', 'RR_foot']
         if self.cfg.env.reorder_dofs:
-            return vec[:, [1, 0, 3, 2]]
+            feet_reorder = getattr(self.cfg.env, "feet_reorder", [1, 0, 3, 2])
+            return vec[:, feet_reorder]
         return vec
 
     def _reindex_all(self, vec):
-        return torch.hstack((vec[:, [3, 4, 5, 0, 1, 2, 9, 10, 11, 6, 7, 8]], vec[:, 12:]))
+        leg_reorder = getattr(self.cfg.env, "leg_dof_reorder", None)
+        if leg_reorder is None:
+            leg_reorder = list(range(self.num_leg_dofs))
+        return torch.hstack((vec[:, leg_reorder], vec[:, self.num_leg_dofs:]))
     
     def _reindex_dog(self, vec):
-        return vec[:, [3, 4, 5, 0, 1, 2, 9, 10, 11, 6, 7, 8]]
+        leg_reorder = getattr(self.cfg.env, "leg_dof_reorder", None)
+        if leg_reorder is None:
+            leg_reorder = list(range(self.num_leg_dofs))
+        return vec[:, leg_reorder]
     
     def _get_body_orientation(self, return_yaw=False):
         r, p, y = euler_from_quat(self.base_quat)
@@ -1191,13 +1405,50 @@ class ManipLoco(LeggedRobot):
                 pose = gymapi.Transform(gymapi.Vec3(ee_target_all_cart_world[i, 0, j], ee_target_all_cart_world[i, 1, j], ee_target_all_cart_world[i, 2, j]), r=None)
                 gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[i], pose)
 
+    def _nonfinite_state_mask(self):
+        """Return environments whose simulator/controller state is invalid."""
+        tensors = (self.root_states, self.dof_pos, self.dof_vel,
+                   self.rigid_body_state, self.ee_j_eef)
+        valid = torch.ones(self.num_envs, dtype=torch.bool, device=self.device)
+        for tensor in tensors:
+            valid &= torch.isfinite(tensor.reshape(self.num_envs, -1)).all(dim=1)
+        return ~valid
+
+    def _report_nonfinite_state(self, invalid):
+        if invalid.any() and not self._nonfinite_state_warned:
+            env_ids = invalid.nonzero(as_tuple=False).flatten()[:8].detach().cpu().tolist()
+            print(
+                "[ManipLoco] non-finite simulator state; resetting envs "
+                f"{env_ids}. This is usually caused by an unstable IK target."
+            )
+            self._nonfinite_state_warned = True
+
+    def _clip_arm_position_targets(self, targets):
+        """Clip IK targets to a conservative interior of the URDF limits."""
+        lower = self.dof_pos_limits[self.arm_dof_start:self.arm_dof_start + self.num_arm_dofs, 0]
+        upper = self.dof_pos_limits[self.arm_dof_start:self.arm_dof_start + self.num_arm_dofs, 1]
+        margin = torch.minimum(
+            torch.full_like(lower, self.ik_joint_limit_margin),
+            0.25 * (upper - lower).clamp_min(1e-4),
+        )
+        lower = lower + margin
+        upper = upper - margin
+        targets = torch.nan_to_num(targets, nan=0.0, posinf=0.0, neginf=0.0)
+        return torch.maximum(torch.minimum(targets, upper.unsqueeze(0)), lower.unsqueeze(0))
+
     def _control_ik(self, dpose):
-        # solve damped least squares
-        j_eef_T = torch.transpose(self.ee_j_eef, 1, 2)
-        lmbda = torch.eye(6, device=self.device) * (0.05 ** 2)
-        A = torch.bmm(self.ee_j_eef, j_eef_T) + lmbda[None, ...]
-        u = torch.bmm(j_eef_T, torch.linalg.solve(A, dpose))#.view(self.num_envs, 6)
-        return u.squeeze(-1)
+        # Damped least squares, with bounded input/output.  A bounded update
+        # is important here because this target is sent directly to Isaac
+        # Gym's position drive rather than to a torque controller.
+        dpose = torch.nan_to_num(dpose, nan=0.0, posinf=0.0, neginf=0.0)
+        dpose = torch.clamp(dpose, -self.ik_dpose_limit, self.ik_dpose_limit)
+        jacobian = torch.nan_to_num(self.ee_j_eef, nan=0.0, posinf=0.0, neginf=0.0)
+        j_eef_T = torch.transpose(jacobian, 1, 2)
+        lmbda = torch.eye(6, device=self.device, dtype=jacobian.dtype) * (0.05 ** 2)
+        A = torch.bmm(jacobian, j_eef_T) + lmbda[None, ...]
+        u = torch.bmm(j_eef_T, torch.linalg.solve(A, dpose))
+        u = torch.nan_to_num(u.squeeze(-1), nan=0.0, posinf=0.0, neginf=0.0)
+        return torch.clamp(u, -self.ik_delta_q_limit, self.ik_delta_q_limit)
 
     def _compute_torques(self, actions):
         """ Compute torques from actions.
@@ -1213,7 +1464,19 @@ class ManipLoco(LeggedRobot):
         actions_scaled = actions * self.motor_strength * self.action_scale
 
         default_torques = self.p_gains * (actions_scaled + self.default_dof_pos_wo_gripper - self.dof_pos_wo_gripper) - self.d_gains * self.dof_vel_wo_gripper
-        default_torques[:, -6:] = 0
+
+        # D1 wheels are velocity actuators (stiffness=0, damping=0.5 in
+        # d1_piper_articulation_cfg.py), unlike the position-controlled leg
+        # joints.  Interpret the corresponding policy outputs as normalized
+        # wheel velocity targets; action_scale for these entries is 5 rad/s.
+        for wheel_idx in self.wheel_action_indices:
+            default_torques[:, wheel_idx] = self.d_gains[wheel_idx] * (
+                actions_scaled[:, wheel_idx] - self.dof_vel[:, wheel_idx]
+            )
+
+        # Arm torques are intentionally disabled: the arm is driven by the
+        # task-space IK position target generated in step().
+        default_torques[:, self.arm_dof_start:self.arm_dof_start + self.num_arm_dofs] = 0
         torques = torch.cat([default_torques, self.gripper_torques_zero], dim=-1)
         
         return torch.clip(torques, -self.torque_limits, self.torque_limits)

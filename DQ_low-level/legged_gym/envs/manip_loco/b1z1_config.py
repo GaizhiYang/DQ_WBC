@@ -107,6 +107,8 @@ class B1Z1RoughCfg( LeggedRobotCfg ):
         num_envs = 6144
         num_actions = 12 + 6 #CAUTION
         num_torques = 12 + 6
+        num_leg_dofs = 12
+        num_arm_dofs = 6
         action_delay = 3  # -1 for no delay
         num_gripper_joints = 1
         num_proprio = 2 + 3 + 18 + 18 + 12 + 4 + 3 + 3 + 3 
@@ -117,6 +119,9 @@ class B1Z1RoughCfg( LeggedRobotCfg ):
         send_timeouts = True # send time out information to the algorithm
         episode_length_s = 10 # episode length in seconds
         reorder_dofs = True
+        # Isaac Gym asset order is FR, FL, RR, RL; policy order is
+        # FL, FR, RL, RR.
+        leg_dof_reorder = [3, 4, 5, 0, 1, 2, 9, 10, 11, 6, 7, 8]
         teleop_mode = False # Overriden in teleop.py. When true, commands come from keyboard
         record_video = False
         stand_by = False
