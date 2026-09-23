@@ -303,6 +303,14 @@ class ManipLoco(LeggedRobot):
         if self.wheel_obs_indices:
             dof_pos_obs[:, self.wheel_obs_indices] = 0.0
 
+        ee_orientation_obs = torch.zeros_like(self.curr_ee_goal_sphere)
+        if getattr(self.cfg.env, "observe_ee_orientation", False):
+            # Bounded quaternion error in the body frame, using the existing
+            # three orientation slots.  q and -q encode the same rotation.
+            ee_orientation_obs = quat_rotate_inverse(
+                self.base_quat, orientation_error(self.ee_goal_orn_quat, self.ee_orn)
+            )
+
         obs_buf = torch.cat((       self._get_body_orientation(),  # dim 2
                                     self.base_ang_vel * self.obs_scales.ang_vel,  # dim 3
                                     dof_pos_obs[:, :-self.num_gripper_joints],  # non-gripper joints; wheel positions masked
@@ -312,7 +320,7 @@ class ManipLoco(LeggedRobot):
                                     self.commands[:, :3] * self.commands_scale,  # dim 3
                                     # self.curr_ee_goal_sphere,  # dim 3 position
                                     ee_goal_local_cart,  # dim 3 position
-                                    0*self.curr_ee_goal_sphere  # dim 3 orientation
+                                    ee_orientation_obs  # dim 3 orientation error
                                     ),dim=-1)
         if self.cfg.env.observe_gait_commands:
             obs_buf = torch.cat((obs_buf,
@@ -731,6 +739,10 @@ class ManipLoco(LeggedRobot):
 
             # widowGo1 
             pos = self.env_origins[i].clone()
+            if self.cfg.asset.fix_base_link:
+                # A fixed root must be created at its intended height; a
+                # later root-state reset cannot move the fixed articulation.
+                pos += self.base_init_state[:3]
             pos[:2] += torch_rand_float(-self.cfg.init_state.origin_perturb_range, self.cfg.init_state.origin_perturb_range, (2,1), device=self.device).squeeze(1)
             rand_yaw_quat = gymapi.Quat.from_euler_zyx(0., 0., self.cfg.init_state.rand_yaw_range*np.random.uniform(-1, 1))
             start_pose.r = rand_yaw_quat
@@ -966,7 +978,15 @@ class ManipLoco(LeggedRobot):
         self.ee_pos = self.rigid_body_state[:, self.gripper_idx, :3]
         self.ee_orn = self.rigid_body_state[:, self.gripper_idx, 3:7]
         self.ee_vel = self.rigid_body_state[:, self.gripper_idx, 7:]
-        self.ee_j_eef = self.jacobian_whole[:, self.gripper_idx, :6, -(self.num_arm_dofs + self.num_gripper_joints):-self.num_gripper_joints]
+        # Fixed-base Jacobians omit the root body's row and its six columns.
+        # Floating-base training includes both.  Select the same EE and arm
+        # joints in either layout, including fixed-base diagnostic runs.
+        jacobian_body_idx = self.gripper_idx - int(self.cfg.asset.fix_base_link)
+        jacobian_dof_start = self.arm_dof_start + (0 if self.cfg.asset.fix_base_link else 6)
+        self.ee_j_eef = self.jacobian_whole[
+            :, jacobian_body_idx, :6,
+            jacobian_dof_start:jacobian_dof_start + self.num_arm_dofs,
+        ]
         if self.ee_j_eef.shape[-1] != self.num_arm_dofs:
             raise ValueError(
                 f"End-effector Jacobian exposes {self.ee_j_eef.shape[-1]} arm "
@@ -989,7 +1009,18 @@ class ManipLoco(LeggedRobot):
         self.ee_goal_orn_euler = torch.zeros(self.num_envs, 3, device=self.device)
         self.ee_goal_orn_euler[:, 0] = np.pi / 2
         self.ee_goal_orn_quat = quat_from_euler_xyz(self.ee_goal_orn_euler[:, 0], self.ee_goal_orn_euler[:, 1], self.ee_goal_orn_euler[:, 2])
+        tool_rpy = torch.tensor(
+            getattr(self.cfg.goal_ee, "tool_orientation_offset_rpy", [0.0, 0.0, 0.0]),
+            dtype=torch.float, device=self.device,
+        ).view(1, 3).repeat(self.num_envs, 1)
+        self.ee_tool_orientation_offset = quat_from_euler_xyz(
+            tool_rpy[:, 0], tool_rpy[:, 1], tool_rpy[:, 2]
+        )
+        self.ee_goal_orn_quat = quat_mul(self.ee_goal_orn_quat, self.ee_tool_orientation_offset)
+        self.ee_goal_orn_euler[:] = torch.stack(euler_from_quat(self.ee_goal_orn_quat), dim=-1)
         self.ee_goal_orn_delta_rpy = torch.zeros(self.num_envs, 3, device=self.device)
+        self.ee_start_orn_delta_rpy = torch.zeros_like(self.ee_goal_orn_delta_rpy)
+        self.curr_ee_orn_delta_rpy = torch.zeros_like(self.ee_goal_orn_delta_rpy)
 
         self.curr_ee_goal_cart = torch.zeros(self.num_envs, 3, device=self.device)
         self.curr_ee_goal_sphere = torch.zeros(self.num_envs, 3, device=self.device)
@@ -1124,6 +1155,7 @@ class ManipLoco(LeggedRobot):
         rand_yaw = self.cfg.init_state.rand_yaw_range*torch_rand_float(-1, 1, (len(env_ids), 1), device=self.device).squeeze(1)
         quat = quat_from_euler_xyz(0*rand_yaw, 0*rand_yaw, rand_yaw) 
         self.root_states[env_ids, 3:7] = quat[:, :]  
+        self.base_yaw_quat[env_ids] = quat
         # base velocities
         self.root_states[env_ids, 7:13] = torch_rand_float(-self.cfg.init_state.init_vel_perturb_range, self.cfg.init_state.init_vel_perturb_range, (len(env_ids), 6), device=self.device) # [7:10]: lin vel, [10:13]: ang vel
 
@@ -1494,7 +1526,11 @@ class ManipLoco(LeggedRobot):
 
     def _resample_ee_goal(self, env_ids, is_init=False):
         if self.cfg.env.teleop_mode and is_init:
-            self.curr_ee_goal_sphere[:] = self.init_start_ee_sphere[:]
+            self.curr_ee_goal_sphere[env_ids] = self.init_start_ee_sphere[:]
+            self.ee_goal_orn_delta_rpy[env_ids] = 0
+            self.ee_start_orn_delta_rpy[env_ids] = 0
+            self.curr_ee_orn_delta_rpy[env_ids] = 0
+            self._update_ee_goal_pose(env_ids)
             return
         elif self.cfg.env.teleop_mode:
             return
@@ -1504,9 +1540,16 @@ class ManipLoco(LeggedRobot):
             
             if is_init:
                 self.ee_goal_orn_delta_rpy[env_ids, :] = 0
+                self.ee_start_orn_delta_rpy[env_ids] = 0
+                self.curr_ee_orn_delta_rpy[env_ids] = 0
                 self.ee_start_sphere[env_ids] = self.init_start_ee_sphere[:]
                 self.ee_goal_sphere[env_ids] = self.init_end_ee_sphere[:]
+                self.curr_ee_goal_sphere[env_ids] = self.init_start_ee_sphere[:]
+                # Reset the command before the next IK step, rather than
+                # commanding the previous episode's target for one step.
+                self._update_ee_goal_pose(env_ids)
             else:
+                self.ee_start_orn_delta_rpy[env_ids] = self.curr_ee_orn_delta_rpy[env_ids]
                 self._resample_ee_goal_orn_once(env_ids)
                 self.ee_start_sphere[env_ids] = self.ee_goal_sphere[env_ids].clone()
                 for i in range(10):
@@ -1525,20 +1568,32 @@ class ManipLoco(LeggedRobot):
         underground_mask = torch.any(ee_target_cart[..., 2] < self.underground_limit, dim=0)
         return collision_mask | underground_mask
 
+    def _update_ee_goal_pose(self, env_ids=None):
+        """Convert the current spherical command to the robot's EE frame."""
+        if env_ids is None:
+            env_ids = slice(None)
+        self.curr_ee_goal_cart[env_ids] = sphere2cart(self.curr_ee_goal_sphere[env_ids])
+        ee_goal_cart_yaw_global = quat_apply(self.base_yaw_quat[env_ids], self.curr_ee_goal_cart[env_ids])
+        self.curr_ee_goal_cart_world[env_ids] = self._get_ee_goal_spherical_center()[env_ids] + ee_goal_cart_yaw_global
+
+        default_yaw = torch.atan2(ee_goal_cart_yaw_global[:, 1], ee_goal_cart_yaw_global[:, 0])
+        default_pitch = -self.curr_ee_goal_sphere[env_ids, 1] + self.cfg.goal_ee.arm_induced_pitch
+        interpolate_orn = getattr(self.cfg.goal_ee, "interpolate_orientation", False)
+        delta = (self.curr_ee_orn_delta_rpy if interpolate_orn and not self.cfg.env.teleop_mode
+                 else self.ee_goal_orn_delta_rpy)[env_ids]
+        nominal_quat = quat_from_euler_xyz(delta[:, 0] + np.pi / 2, default_pitch + delta[:, 1], delta[:, 2] + default_yaw)
+        self.ee_goal_orn_quat[env_ids] = quat_mul(nominal_quat, self.ee_tool_orientation_offset[env_ids])
+        self.ee_goal_orn_euler[env_ids] = torch.stack(euler_from_quat(self.ee_goal_orn_quat[env_ids]), dim=-1)
+
     def _update_curr_ee_goal(self):
         if not self.cfg.env.teleop_mode:
             t = torch.clip(self.goal_timer / self.traj_timesteps, 0, 1)
             self.curr_ee_goal_sphere[:] = torch.lerp(self.ee_start_sphere, self.ee_goal_sphere, t[:, None])
-
-        # TODO: for the teleop mode, we need to directly update self.curr_ee_goal_cart using VR controller.
-        self.curr_ee_goal_cart[:] = sphere2cart(self.curr_ee_goal_sphere)
-        ee_goal_cart_yaw_global = quat_apply(self.base_yaw_quat, self.curr_ee_goal_cart)
-        self.curr_ee_goal_cart_world = self._get_ee_goal_spherical_center() + ee_goal_cart_yaw_global
-        
-        # TODO: for the teleop mode, we need to directly update self.ee_goal_orn_quat using VR controller.
-        default_yaw = torch.atan2(ee_goal_cart_yaw_global[:, 1], ee_goal_cart_yaw_global[:, 0])
-        default_pitch = -self.curr_ee_goal_sphere[:, 1] + self.cfg.goal_ee.arm_induced_pitch
-        self.ee_goal_orn_quat = quat_from_euler_xyz(self.ee_goal_orn_delta_rpy[:, 0] + np.pi / 2, default_pitch + self.ee_goal_orn_delta_rpy[:, 1], self.ee_goal_orn_delta_rpy[:, 2] + default_yaw)
+            if getattr(self.cfg.goal_ee, "interpolate_orientation", False):
+                self.curr_ee_orn_delta_rpy[:] = torch.lerp(
+                    self.ee_start_orn_delta_rpy, self.ee_goal_orn_delta_rpy, t[:, None]
+                )
+        self._update_ee_goal_pose()
         
         self.goal_timer += 1
         resample_id = (self.goal_timer > self.traj_total_timesteps).nonzero(as_tuple=False).flatten()

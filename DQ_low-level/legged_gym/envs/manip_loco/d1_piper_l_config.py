@@ -7,6 +7,8 @@ the arm from a task-space IK target.  The three gripper DOFs are not part of
 the policy action vector.
 """
 
+import math
+
 from legged_gym.envs.manip_loco.b1z1_config import B1Z1RoughCfg, B1Z1RoughCfgPPO
 
 
@@ -37,17 +39,19 @@ class D1PiperLRoughCfg(B1Z1RoughCfg):
         history_len = 10
         num_observations = num_proprio * (history_len + 1) + num_priv
         stop_update_goal = False
+        observe_ee_orientation = True
 
     class goal_ee(B1Z1RoughCfg.goal_ee):
-        # The Piper-L chain in d1_piper_l.urdf has a roughly 0.75 m reach
-        # from the shoulder.  The useful IK region is smaller than the
-        # mathematical joint-limit envelope: targets should stay in front of
-        # the shoulder, above the chassis, and away from wrist/shoulder
-        # singularities.  With the center below and the default D1 pose, the
-        # sampled target region is approximately x=[0.50, 0.84] m,
-        # y=[-0.29, 0.29] m, z=[0.83, 1.15] m in world coordinates.  Relative
-        # to piper_base_link (mount at [0.20, 0, 0.09] m), this is roughly
-        # x=[0.30, 0.64] m, y=[-0.29, 0.29] m, z=[0.29, 0.61] m.
+        # Map the shared Z1 command frame to Piper's tool frame: Piper +Z
+        # points along Z1 +X, and Piper +Y along Z1 -Z.  The full axis mapping
+        # also centers joint6 at zero; Ry(pi/2) alone leaves it near pi/2.
+        # Applied on the right: q_goal = q_nominal * q_tool_offset.
+        tool_orientation_offset_rpy = [-math.pi / 2, 0.0, -math.pi / 2]
+        interpolate_orientation = True
+
+        # Keep a margin for simultaneous position AND orientation tracking.
+        # At a level base height of 0.45 m these targets occupy approximately
+        # x=[0.58, 0.81], y=[-0.20, 0.20], z=[0.84, 1.05] m.
         class sphere_center(B1Z1RoughCfg.goal_ee.sphere_center):
             x_offset = 0.30
             y_offset = 0.0
@@ -62,16 +66,18 @@ class D1PiperLRoughCfg(B1Z1RoughCfg):
             # yaw frame.  These bounds keep the arm in its forward upper
             # workspace instead of sampling near the shoulder or behind the
             # robot.  They also leave margin for the URDF joint limits.
-            pos_l = [0.38, 0.58]
-            pos_p = [0.35, 0.90]
-            pos_y = [-0.55, 0.55]
+            pos_l = [0.40, 0.54]
+            pos_p = [0.35, 0.70]
+            pos_y = [-0.40, 0.40]
 
             # Orientation offsets are applied to the nominal tool orientation
             # generated from the spherical target.  Keep them moderate so
             # joint4/5/6 do not spend most of their motion at limits.
-            delta_orn_r = [-0.35, 0.35]
-            delta_orn_p = [-0.35, 0.35]
-            delta_orn_y = [-0.45, 0.45]
+            # Leave additional wrist margin for the position drive's
+            # gravity-induced error, not just ideal kinematic reachability.
+            delta_orn_r = [-0.15, 0.15]
+            delta_orn_p = [-0.10, 0.10]
+            delta_orn_y = [-0.15, 0.15]
 
     class init_state(B1Z1RoughCfg.init_state):
         pos = [0.0, 0.0, 0.45]
@@ -93,10 +99,12 @@ class D1PiperLRoughCfg(B1Z1RoughCfg):
             "RR_calf_joint": -1.5,
             "RR_foot_joint": 0.0,
             "joint1": 0.0,
-            "joint2": 0.0,
-            "joint3": 0.0,
+            # IK solution for init_pos_start and the Piper tool frame above.
+            # Avoid the singular, joint-limit-bound all-zero URDF pose.
+            "joint2": 1.382548,
+            "joint3": -0.897305,
             "joint4": 0.0,
-            "joint5": 0.0,
+            "joint5": -0.567976,
             "joint6": 0.0,
             "gripper": 0.0,
             "gripper_joint1": 0.0,
@@ -118,8 +126,11 @@ class D1PiperLRoughCfg(B1Z1RoughCfg):
         wheel_effort_limit = 12.0
         leg_friction = 0.589
         leg_armature = 0.0535
-        arm_stiffness = [50.0, 50.0, 80.0, 30.0, 30.0, 20.0]
-        arm_damping = [3.0, 2.0, 3.0, 3.0, 2.5, 1.0]
+        # These are Isaac Gym's implicit position-drive gains, as in B1/Z1.
+        # The native Isaac Lab actuator gains caused large gravity-induced
+        # errors with this incremental task-space IK controller.
+        arm_stiffness = [400.0] * 6
+        arm_damping = [40.0] * 6
         arm_effort_limit = [20.0, 20.0, 15.0, 7.0, 5.0, 5.0]
         gripper_stiffness = 20.0
         gripper_damping = 1.0
@@ -167,6 +178,9 @@ class D1PiperLRoughCfg(B1Z1RoughCfg):
         # per wheel.  Penalize impacts above normal support load instead of
         # penalizing every stationary contact.
         max_contact_force = 180.0
+
+        class arm_scales(B1Z1RoughCfg.rewards.arm_scales):
+            tracking_ee_orn = 0.5
 
         class scales(B1Z1RoughCfg.rewards.scales):
             # These rewards assume feet periodically leave the ground.  A

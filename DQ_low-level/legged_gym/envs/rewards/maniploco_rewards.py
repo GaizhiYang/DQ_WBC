@@ -40,8 +40,17 @@ class ManipLoco_rewards:
         return torch.exp(-ee_pos_error/self.env.cfg.rewards.tracking_ee_sigma), ee_pos_error
     
     def _reward_tracking_ee_orn(self):
-        ee_orn_euler = torch.stack(euler_from_quat(self.env.ee_orn), dim=-1)
-        orn_err = torch.sum(torch.abs(torch_wrap_to_pi_minuspi(self.env.ee_goal_orn_euler - ee_orn_euler)) * self.env.orn_error_scale, dim=1)
+        # Use the live quaternion target, including the robot's tool-frame
+        # offset.  Euler differences are ambiguous near gimbal lock and the
+        # old Euler target was never updated after initialization.
+        goal = self.env.ee_goal_orn_quat
+        current = self.env.ee_orn
+        goal = goal / torch.linalg.vector_norm(goal, dim=-1, keepdim=True).clamp_min(1e-8)
+        current = current / torch.linalg.vector_norm(current, dim=-1, keepdim=True).clamp_min(1e-8)
+        relative = quat_mul(goal, quat_conjugate(current))
+        orn_err = 2 * torch.atan2(
+            torch.linalg.vector_norm(relative[:, :3], dim=-1), torch.abs(relative[:, 3])
+        )
         return torch.exp(-orn_err/self.env.cfg.rewards.tracking_ee_sigma), orn_err
 
     def _reward_arm_energy_abs_sum(self):

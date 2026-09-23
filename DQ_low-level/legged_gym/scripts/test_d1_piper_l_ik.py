@@ -5,12 +5,14 @@ This test uses the same ``ManipLoco.step`` and ``ManipLoco._control_ik`` path
 as the training task.  The policy is not loaded: in this task the six arm
 policy outputs are masked in ``step`` and the arm target is generated from
 the task-space end-effector goal.  Zero actions are sent to the environment
-so that the four leg joints hold their configured default pose.
+so that the legs hold their configured default pose and wheel speed targets
+remain zero.
 
 By default the robot base is fixed and the end effector follows a small,
-reachable circle around its pose after reset.  This isolates arm IK from
-locomotion.  Use ``--free_base`` to test the same controller with a moving
-base, at the cost of a less direct IK measurement.
+circle around its pose after reset.  Use ``--target_mode training`` to test
+the actual sampled training poses, or ``init_start``/``init_end`` to hold
+either initialization pose.  Both position and orientation are checked in
+every environment.  Use ``--free_base`` to include base motion.
 
 Example with a viewer::
 
@@ -20,12 +22,14 @@ Example with a viewer::
 Example for a headless run and CSV output::
 
     python test_d1_piper_l_ik.py --headless --sim_device cuda:0 \
-        --rl_device cuda:0 --duration 20 --csv /tmp/d1_piper_l_ik.csv
+        --rl_device cuda:0 --target_mode training --num_envs 16 \
+        --duration 30 --csv /tmp/d1_piper_l_ik.csv
 """
 
 from __future__ import print_function
 
 import csv
+import copy
 import math
 import os
 import sys
@@ -41,7 +45,7 @@ if LOW_LEVEL_ROOT not in sys.path:
 
 import isaacgym  # noqa: F401  (must be imported before legged_gym)
 from isaacgym import gymapi, gymutil
-from isaacgym.torch_utils import orientation_error
+from isaacgym.torch_utils import orientation_error, quat_mul, quat_conjugate
 
 import torch
 
@@ -67,7 +71,14 @@ def parse_args():
             "name": "--num_envs",
             "type": int,
             "default": 1,
-            "help": "Number of environments (IK metrics use environment 0)",
+            "help": "Number of environments (all are checked)",
+        },
+        {
+            "name": "--target_mode",
+            "type": str,
+            "default": "circle",
+            "choices": ["circle", "init_start", "init_end", "training"],
+            "help": "Follow a circle, hold a configured pose, or follow training commands",
         },
         {
             "name": "--duration",
@@ -110,6 +121,12 @@ def parse_args():
             "type": float,
             "default": 0.03,
             "help": "Position RMS threshold used for the final PASS/FAIL line",
+        },
+        {
+            "name": "--orientation_tolerance_deg",
+            "type": float,
+            "default": 8.0,
+            "help": "Orientation RMS threshold in degrees (each environment)",
         },
         {
             "name": "--csv",
@@ -171,6 +188,10 @@ def parse_args():
         raise ValueError("--log_interval must be positive")
     if args.position_tolerance <= 0.0:
         raise ValueError("--position_tolerance must be positive")
+    if args.orientation_tolerance_deg <= 0.0:
+        raise ValueError("--orientation_tolerance_deg must be positive")
+    if args.warmup >= args.duration:
+        raise ValueError("--warmup must be shorter than --duration")
     if args.num_envs < 1:
         raise ValueError("--num_envs must be at least one")
     return args
@@ -179,13 +200,19 @@ def parse_args():
 def configure_test_environment(args):
     """Create a deterministic, single-purpose copy of the task config."""
     env_cfg, _ = task_registry.get_cfgs(name=args.task)
+    env_cfg = copy.deepcopy(env_cfg)
     env_cfg.env.num_envs = args.num_envs
 
     # Fixing the base isolates the arm controller.  The option remains
     # available because a free-base run is useful as a secondary check.
     env_cfg.asset.fix_base_link = not args.free_base
-    env_cfg.env.teleop_mode = True
+    env_cfg.env.teleop_mode = args.target_mode != "training"
     env_cfg.env.episode_length_s = max(env_cfg.env.episode_length_s, args.duration + 2.0)
+    env_cfg.init_state.rand_yaw_range = 0.0
+    env_cfg.init_state.origin_perturb_range = 0.0
+    env_cfg.init_state.init_vel_perturb_range = 0.0
+    env_cfg.commands.ranges.lin_vel_x = [0.0, 0.0]
+    env_cfg.commands.ranges.ang_vel_yaw = [0.0, 0.0]
 
     # Disable task randomization that is unrelated to the IK measurement.
     env_cfg.domain_rand.randomize_friction = False
@@ -200,6 +227,7 @@ def configure_test_environment(args):
     env_cfg.terrain.num_rows = args.rows
     env_cfg.terrain.num_cols = args.cols
     env_cfg.terrain.curriculum = False
+    env_cfg.terrain.height = [0.0, 0.0]
     return task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg)[0]
 
 
@@ -218,12 +246,12 @@ def compute_ik_diagnostics(env, target_pos, target_quat):
     drot = orientation_error(target_quat, current_quat)
     dpose = torch.cat((dpos, drot), dim=-1).unsqueeze(-1)
     delta_q = env._control_ik(dpose)
-    singular_values = torch.linalg.svdvals(env.ee_j_eef[0])
+    singular_values = torch.linalg.svdvals(env.ee_j_eef)
     return (
         delta_q,
         torch.linalg.vector_norm(dpos, dim=-1),
         torch.linalg.vector_norm(drot, dim=-1),
-        singular_values[-1],
+        singular_values[:, -1],
     )
 
 
@@ -295,6 +323,10 @@ def run_test(args):
         # task tensors, Jacobians and end-effector state.
         env.reset()
         env.debug_viz = False
+        if args.target_mode in ("init_start", "init_end"):
+            sphere = env.init_start_ee_sphere if args.target_mode == "init_start" else env.init_end_ee_sphere
+            env.curr_ee_goal_sphere[:] = sphere
+            env._update_ee_goal_pose()
         center = env.ee_pos.clone().detach()
         target_quat = (
             env.ee_orn
@@ -323,6 +355,7 @@ def run_test(args):
                 csv_file,
                 fieldnames=[
                     "time_s",
+                    "env_id",
                     "target_x",
                     "target_y",
                     "target_z",
@@ -330,7 +363,7 @@ def run_test(args):
                     "ee_y",
                     "ee_z",
                     "position_error_m",
-                    "orientation_error",
+                    "orientation_error_rad",
                     "ik_delta_q_norm",
                     "jacobian_sigma_min",
                 ],
@@ -343,68 +376,90 @@ def run_test(args):
         )
         num_steps = int(math.ceil(args.duration / env.dt))
         warmup_steps = int(math.ceil(args.warmup / env.dt))
+        if warmup_steps >= num_steps:
+            raise ValueError("No control steps remain after warmup; increase --duration")
         log_every = max(1, int(round(args.log_interval / env.dt)))
         metric_rows = []
+        reset_count = 0
 
         for step in range(num_steps):
             time_s = step * env.dt
-            target_pos, target_q = make_target(center, target_quat, time_s, args)
+            if args.target_mode == "circle":
+                target_pos, target_q = make_target(center, target_quat, time_s, args)
+            else:
+                # Snapshot the command actually consumed by this step;
+                # post_physics_step advances the training trajectory.
+                target_pos = env.curr_ee_goal_cart_world.clone()
+                target_q = env.ee_goal_orn_quat.clone()
             delta_q, _, _, sigma_min = compute_ik_diagnostics(env, target_pos, target_q)
             set_target(env, target_pos, target_q)
-            env.step(zero_actions)
+            _, _, _, _, dones, _ = env.step(zero_actions)
+            reset_count += int(dones.sum().item())
 
             position_error = torch.linalg.vector_norm(target_pos - env.ee_pos, dim=-1)
             current_quat = env.ee_orn / torch.linalg.vector_norm(
                 env.ee_orn, dim=-1, keepdim=True
             ).clamp_min(1e-8)
-            orientation_err = torch.linalg.vector_norm(
-                orientation_error(target_q, current_quat), dim=-1
+            # Geodesic quaternion angle; atan2 remains well behaved at zero
+            # error and at 180 degrees, unlike sign(w)-based IK diagnostics.
+            relative = quat_mul(target_q, quat_conjugate(current_quat))
+            orientation_err = 2 * torch.atan2(
+                torch.linalg.vector_norm(relative[:, :3], dim=-1), relative[:, 3].abs()
             )
-            row = {
-                "time_s": time_s,
-                "target_x": float(target_pos[0, 0]),
-                "target_y": float(target_pos[0, 1]),
-                "target_z": float(target_pos[0, 2]),
-                "ee_x": float(env.ee_pos[0, 0]),
-                "ee_y": float(env.ee_pos[0, 1]),
-                "ee_z": float(env.ee_pos[0, 2]),
-                "position_error_m": float(position_error[0]),
-                "orientation_error": float(orientation_err[0]),
-                "ik_delta_q_norm": float(torch.linalg.vector_norm(delta_q[0])),
-                "jacobian_sigma_min": float(sigma_min),
-            }
-            if writer is not None:
-                writer.writerow(row)
-
-            if step >= warmup_steps:
-                metric_rows.append(row)
+            for env_id in range(env.num_envs):
+                row = {
+                    "time_s": time_s,
+                    "env_id": env_id,
+                    "target_x": float(target_pos[env_id, 0]),
+                    "target_y": float(target_pos[env_id, 1]),
+                    "target_z": float(target_pos[env_id, 2]),
+                    "ee_x": float(env.ee_pos[env_id, 0]),
+                    "ee_y": float(env.ee_pos[env_id, 1]),
+                    "ee_z": float(env.ee_pos[env_id, 2]),
+                    "position_error_m": float(position_error[env_id]),
+                    "orientation_error_rad": float(orientation_err[env_id]),
+                    "ik_delta_q_norm": float(torch.linalg.vector_norm(delta_q[env_id])),
+                    "jacobian_sigma_min": float(sigma_min[env_id]),
+                }
+                if writer is not None:
+                    writer.writerow(row)
+                if step >= warmup_steps:
+                    metric_rows.append(row)
             if step % log_every == 0 or step == num_steps - 1:
                 print(
-                    "t={time_s:7.2f}s  pos_err={position_error_m:.4f}m  "
-                    "ori_err={orientation_error:.4f}  |dq|={ik_delta_q_norm:.4f}  "
-                    "sigma_min={jacobian_sigma_min:.5f}".format(**row)
+                    "t={:.2f}s  max_pos_err={:.4f}m  max_ori_err={:.2f}deg  "
+                    "min_sigma={:.5f}".format(
+                        time_s, float(position_error.max()),
+                        math.degrees(float(orientation_err.max())), float(sigma_min.min()),
+                    )
                 )
             draw_debug(env, target_pos, target_q, target_geom, actual_geom, axes_geom)
 
-        if not metric_rows:
-            metric_rows = [row]
         position_errors = np.asarray([r["position_error_m"] for r in metric_rows])
-        orientation_errors = np.asarray([r["orientation_error"] for r in metric_rows])
+        orientation_errors = np.asarray([r["orientation_error_rad"] for r in metric_rows])
         sigma_mins = np.asarray([r["jacobian_sigma_min"] for r in metric_rows])
         pos_rms = float(np.sqrt(np.mean(position_errors ** 2)))
         pos_max = float(np.max(position_errors))
         ori_rms = float(np.sqrt(np.mean(orientation_errors ** 2)))
         sigma_min = float(np.min(sigma_mins))
-        passed = pos_rms <= args.position_tolerance
+        per_env_pos_rms = np.sqrt(np.mean(position_errors.reshape(-1, env.num_envs) ** 2, axis=0))
+        per_env_ori_rms = np.sqrt(np.mean(orientation_errors.reshape(-1, env.num_envs) ** 2, axis=0))
+        passed = (
+            np.all(per_env_pos_rms <= args.position_tolerance)
+            and np.all(per_env_ori_rms <= math.radians(args.orientation_tolerance_deg))
+            and reset_count == 0
+        )
         print(
             "IK summary: position_rms={:.4f}m, position_max={:.4f}m, "
-            "orientation_rms={:.4f}, min_jacobian_sigma={:.5f}".format(
-                pos_rms, pos_max, ori_rms, sigma_min
+            "orientation_rms={:.2f}deg, min_jacobian_sigma={:.5f}, resets={}".format(
+                pos_rms, pos_max, math.degrees(ori_rms), sigma_min, reset_count
             )
         )
         print(
-            "IK result: {} (position RMS threshold {:.4f}m)".format(
-                "PASS" if passed else "FAIL", args.position_tolerance
+            "IK result: {} (worst-env RMS: {:.4f}m / {:.2f}deg; limits: {:.4f}m / {:.2f}deg)".format(
+                "PASS" if passed else "FAIL", np.max(per_env_pos_rms),
+                math.degrees(np.max(per_env_ori_rms)), args.position_tolerance,
+                args.orientation_tolerance_deg,
             )
         )
         return 0 if passed else 2
