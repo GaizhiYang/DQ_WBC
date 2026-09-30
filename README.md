@@ -64,7 +64,18 @@ This part you can totally refer to [VBC's Low-level introduction](https://github
    ```
 3. Train DQ_stu:
    ```bash
-   python train_multi_bc_deter_DQ_stu.py --task B1Z1PickMulti --rl_device cuda:0 --sim_device cuda:0 --timesteps 240000 --experiment_dir DQ_stu/b1-pick-multi-DQstu_01 --teacher_ckpt_path  your_teacher_checkpoint_path --roboinfo --observe_gait_commands --small_value_set_zero --rand_control --headless
+python train_multi_bc_deter_DQ_stu.py \
+  --task B1Z1PickMulti \
+  --rl_device cuda:0 \
+  --sim_device cuda:0 \
+  --timesteps 240000 \
+  --experiment_dir DQ_stu/b1-pick-multi-DQstu_02 \
+  --teacher_ckpt_path DQ_teacher/b1-pick-multi-DQteacher_01/isaacgym/checkpoints/agent_120000.pt \
+  --roboinfo \
+  --observe_gait_commands \
+  --small_value_set_zero \
+  --rand_control \
+  --headless
    ```
 4. Play DQ_stu:
    ```bash
