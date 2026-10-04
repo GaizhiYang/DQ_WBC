@@ -58,6 +58,34 @@ This part you can totally refer to [VBC's Low-level introduction](https://github
 ```bash
    python train_multistate_DQ_teacher.py --rl_device cuda:0 --sim_device cuda:0 --timesteps 120000  --task B1Z1PickMulti --experiment_dir DQ_teacher/b1-pick-multi-DQteacher_01 --roboinfo --observe_gait_commands --small_value_set_zero --rand_control --headless
    ```
+   For a single-object experiment, add `--object_name sugar_box` (or another
+   name under `env.asset.asset_multi` in `DQ_high-level/data/cfg/DQ_teacher.yaml`).
+   Use a separate `--experiment_dir`, for example `DQ_teacher/sugar_box_test`.
+   This selects the matching asset, feature, initial pose, and precomputed grasp
+   predictions; each object still has 30 candidate grasps. Omitting the option
+   uses all configured objects. Add `--num_envs 512` for a smaller parallel batch
+   when testing; fewer environments also means fewer training samples per step.
+   Run these commands from `DQ_high-level`. Use the same `--object_name` when
+   playing the resulting checkpoint. Training saves the selected object in the
+   experiment config, so `--resume` retains it.
+```bash
+cd /home/hehui/DQ_WBC/DQ_high-level
+
+python train_multistate_DQ_teacher.py \
+  --rl_device cuda:0 \
+  --sim_device cuda:0 \
+  --timesteps 120000 \
+  --task B1Z1PickMulti \
+  --object_name green_bowl \
+  --experiment_dir DQ_teacher/b1-pick-green_bowl \
+  --roboinfo \
+  --observe_gait_commands \
+  --small_value_set_zero \
+  --rand_control \
+  --headless
+```
+
+
 2. Play DQ_teacher:
    ```bash
    python play_multistate_DQ_teacher.py --task B1Z1PickMulti --checkpoint "your_teacher_checkpoint_path" --roboinfo --observe_gait_commands --small_value_set_zero --rand_control --rl_device "cuda:0" --sim_device "cuda:0"  --headless
