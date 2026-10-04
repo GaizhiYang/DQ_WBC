@@ -10,7 +10,7 @@ env:
   controlFrequencyInv: 4
   controlFrequencyLow: 8
   imgDelayFrame: 4
-  D1_bench_task_level : "Level04"
+  D1_bench_task_level : "Level01"
 
   liftedSuccessThreshold: 0.35
   liftedInitThreshold: 0.05

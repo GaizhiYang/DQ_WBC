@@ -3,6 +3,7 @@ from isaacgym import gymtorch
 from isaacgym.torch_utils import *
 
 import numpy as np
+from copy import deepcopy
 import torch
 import os
 import os
@@ -67,7 +68,7 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
         self.to(device)
         self.num_features = num_features # 1024
         self.encode_dim = encode_dim # 128
-        self.cube_object_num = 30
+        self.cube_object_num = 30  # Candidate grasps per object, not the number of object assets.
         self.notrain_obs_num = 3*self.cube_object_num + 3*self.cube_object_num # 30 cube's pos + rpy feature_num
         
         if num_features > 0:
@@ -113,7 +114,7 @@ class Value(DeterministicMixin, Model, PredictAttentionSelector):
 
         self.num_features = num_features # 1024
         self.encode_dim = encode_dim # 128
-        self.cube_object_num = 30
+        self.cube_object_num = 30  # Candidate grasps per object, not the number of object assets.
         self.notrain_obs_num = 3*self.cube_object_num + 3*self.cube_object_num # 30 cube's pos + rpy feature_num
         
         if num_features > 0:
@@ -149,7 +150,7 @@ class Value(DeterministicMixin, Model, PredictAttentionSelector):
             return self.net(inputs["states"]), {}
 
 
-def get_predict_point(camera_6p_info=None, cube_predict_info_path=None, cube_root_states_info_path=None, num_env=None, intervel=None, delta_height=None):
+def get_predict_point(camera_6p_info=None, cube_predict_info_path=None, cube_root_states_info_path=None, num_env=None, intervel=None, delta_height=None, object_indices=None):
     import json
     import os
     import torch
@@ -161,7 +162,13 @@ def get_predict_point(camera_6p_info=None, cube_predict_info_path=None, cube_roo
     cube_root_states_info_path = os.path.join(data_dir, cube_root_states_info_path)
 
     # load cubes's states（position + quaternion + velocity...）
-    cube_states = torch.load(cube_root_states_info_path)[0].cpu()
+    cube_states = torch.load(cube_root_states_info_path, map_location="cpu")[0]
+    if object_indices is None:
+        object_indices = list(range(cube_states.shape[0]))
+    if not object_indices or any(i < 0 or i >= cube_states.shape[0] for i in object_indices):
+        raise ValueError(f"Object dict_idx values must be in [0, {cube_states.shape[0] - 1}]")
+    # Keep initial poses and grasp predictions in the same order as asset_multi.
+    cube_states = cube_states[object_indices]
     cprint(f"cube_states.shape is {cube_states.shape}", "yellow")
 
     cube_pos = cube_states[:, :3]
@@ -174,7 +181,7 @@ def get_predict_point(camera_6p_info=None, cube_predict_info_path=None, cube_roo
     T_grasp_cv_all = []
 
     # read base_num sample's all transform
-    for i in range(base_n):
+    for i in object_indices:
         sample_dir = os.path.join(data_dir, cube_predict_info_path)
         json_path = os.path.join(sample_dir, f"predictions_image_{(i):02d}.json")
         with open(json_path, 'r') as f:
@@ -182,7 +189,7 @@ def get_predict_point(camera_6p_info=None, cube_predict_info_path=None, cube_roo
         grasp_matrices = np.array(data['transform'])  
         T_grasp_cv_all.append(grasp_matrices)
 
-    # turn to tensor，shape is [base_n, n, 4, 4]   # base_n=cube_onject_num=30, n=num_grasptransform_per_object 
+    # Shape: [number of selected objects, candidate grasps per object, 4, 4].
     T_grasp_cv_all = np.stack(T_grasp_cv_all, axis=0)
     n_grasps = T_grasp_cv_all.shape[1]  # get n
     T_grasp_cv_all = torch.tensor(T_grasp_cv_all, dtype=torch.float32)
@@ -243,6 +250,14 @@ def get_trainer(is_eval=False):
     cprint(f"Using config file: {file_path}","red" )
         
     cfg = load_cfg(file_path)
+    multi_obj = cfg["env"]["asset"]["asset_multi"]
+    if args.object_name is not None:
+        if args.object_name not in multi_obj:
+            raise ValueError(f"Unknown --object_name {args.object_name!r}. Available objects: {', '.join(multi_obj)}")
+        multi_obj = {args.object_name: multi_obj[args.object_name]}
+        cfg["env"]["asset"]["asset_multi"] = multi_obj
+    object_indices = [obj["dict_idx"] for obj in multi_obj.values()]
+    cprint(f"Using {len(multi_obj)} object asset(s): {', '.join(multi_obj)}", "yellow")
     cfg['env']['wandb'] = args.wandb
     cfg['env']["useTanh"] = args.use_tanh
     cfg['env']["near_goal_stop"] = args.near_goal_stop
@@ -279,9 +294,11 @@ def get_trainer(is_eval=False):
     cube_root_states_info_path = "30all_nomove_cube_root_states5.pt"
     camera_6p_tensor, grasp_cv_tensor, cube_init_tensor = get_predict_point(cube_predict_info_path=cube_predict_info_path
                                                                             ,cube_root_states_info_path=cube_root_states_info_path,num_env=cfg['env']['numEnvs'],
-                                                                            intervel=intervel,delta_height=0.1)
+                                                                            intervel=intervel,delta_height=0.1,object_indices=object_indices)
     env_num = cfg['env']['numEnvs']
     cprint(f"env_num is {env_num}", "yellow")
+    # Save the selected assets and overrides before the environment mutates cfg.
+    experiment_cfg = deepcopy(cfg)
     env = create_env(cfg=cfg, args=args, camera_6p_tensor=camera_6p_tensor, grasp_cv_tensor=grasp_cv_tensor, cube_init_tensor=cube_init_tensor)
     device = env.rl_device
     memory = RandomMemory(memory_size=24, num_envs=env.num_envs, device=device)
@@ -357,7 +374,7 @@ def get_trainer(is_eval=False):
         wandb.save("train_multistate.py", policy="now")
     if not args.eval:
         if not os.path.exists(os.path.join(args.experiment_dir, args.wandb_name, cfg_file)):
-            copy_cfg(file_path, os.path.join(args.experiment_dir, args.wandb_name))
+            copy_cfg(file_path, os.path.join(args.experiment_dir, args.wandb_name), cfg=experiment_cfg)
     
     return trainer
     

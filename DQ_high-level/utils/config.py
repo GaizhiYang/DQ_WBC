@@ -9,9 +9,13 @@ def load_cfg(file_path):
     
     return cfg
 
-def copy_cfg(file_path, target_path):
+def copy_cfg(file_path, target_path, cfg=None):
     import subprocess
     Path(target_path).mkdir(parents=True, exist_ok=True)
+    if cfg is not None:
+        with open(Path(target_path) / Path(file_path).name, "w") as f:
+            yaml.safe_dump(cfg, f, sort_keys=False)
+        return
     subprocess.run(["cp", file_path, target_path])
 
 def get_params():
@@ -65,6 +69,8 @@ def get_params():
     parser.add_argument("--seed", type=int, default=43) # only useful when log data
     parser.add_argument("--num_envs", type=int, default=None,
                         help="Number of environments to create. Overrides the config value.")
+    parser.add_argument("--object_name", type=str, default=None,
+                        help="Train/evaluate DQ_teacher on one object from env.asset.asset_multi (e.g. sugar_box).")
     
     args = parser.parse_args()
     

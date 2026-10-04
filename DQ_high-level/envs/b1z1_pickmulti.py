@@ -206,7 +206,29 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
 
         super()._create_envs()
         
+    def _record_single_object_success(self, one_time=False):
+        counter = self.success_onetime_counter if one_time else self.success_counter
+        successes = counter.sum().item()
+        episodes = self.episode_counter.clamp_min(0).sum().item()
+        rate = min(successes, episodes) / max(episodes, 1)
+        prefix = "Onetime_SuccessRate" if one_time else "SuccessRate"
+        rates = {f"{prefix} / {self.obj_list[0]}": rate}
+        if self.pred_success:
+            rates["SuccessRate / PredLifted"] = (
+                0 if self.global_step_counter == 0
+                else (self.predlift_success_counter / self.local_step_counter).mean().item()
+            )
+        if self.cfg["env"]["wandb"]:
+            self.extras.setdefault("success_rate", {}).update(rates)
+        else:
+            print({"success_rate": rates, "episodes": episodes})
+
     def _record_one_time_success(self):
+        if len(self.obj_list) == 1:
+            self._record_single_object_success(one_time=True)
+            if not self.cfg["env"]["wandb"]:
+                self.surpass_dist_flag[(self.closest_dist < 0.3) & (self.curr_dist > 0.5)] = 0
+            return
         num_group = self.num_envs // 30
         bowl_indices_np = np.array([[0+i*30, 9+i*30, 8+i*30, 23+i*30, 27+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
         bowl_indices = torch.from_numpy(bowl_indices_np).to(self.device)
@@ -321,6 +343,13 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
     def _reset_envs(self, env_ids):
         super()._reset_envs(env_ids)
         if len(env_ids) > 0:
+            if len(self.obj_list) == 1:
+                self._record_single_object_success()
+                self.episode_step_sum[env_ids] += self.one_epoch_step[env_ids]
+                self.one_epoch_step[env_ids] = 0.0
+                if self.eval:
+                    self._record_one_time_success()
+                return
 
             num_group = self.num_envs // 30
             bowl_indices_np = np.array([[0+i*30, 9+i*30, 8+i*30, 23+i*30, 27+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
