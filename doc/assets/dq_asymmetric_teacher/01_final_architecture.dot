@@ -1,0 +1,66 @@
+digraph G {
+graph [rankdir=LR, compound=true, newrank=true, bgcolor="white", pad=".30", nodesep=".28", ranksep=".42", splines=polyline, fontname="Noto Sans CJK SC", fontsize=23, labelloc=t, labeljust=l, label=<<B>已实现｜DQ 非对称 Actor–Critic：M0 / M1 / M2</B><BR/><FONT POINT-SIZE="13">默认 M2 = M1 + 传感器 belief；M0 / M1 可切换。蓝：部署观测　绿：继承网络　紫：新增模块　红：训练专用<BR/>训练打包 [priv1276, images62208, task5?, belief16?]：M0 = 63484，M1 = 63489，M2 = 63505</FONT>>];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=13, margin=".15,.11", penwidth=1.35];
+edge [fontname="Noto Sans CJK SC", fontsize=10, color="#61768E", arrowsize=.72, penwidth=1.25];
+subgraph cluster_critic {label="Critic｜仅训练；保留自身 GT 编码器与 GFM；不读取图像"; color="#CB9691"; penwidth=1.5; style="rounded"; fontname="Noto Sans CJK SC"; fontsize=16; margin=16;
+gt [label="归一化特权状态\npriv [B,1276]\n物体、机器人、抓取候选",fillcolor="#FCEDEC",color="#B47470"];
+cgfm [label="原 Critic 编码器 + GFM\n物体特征1024→512→128\n128 + 位姿6 → Query\n30×6候选 → 抓取表示6",fillcolor="#EAF5EC",color="#568362"];
+cfused [label="原206维融合\n状态 / 动作72 + 编码128\n+ 抓取表示6\nLinear 206→512",fillcolor="#EAF5EC",color="#568362"];
+task [label="M1 / M2｜任务状态 [B,5]\n剩余时间、最近距离、最高高度\n持物计数比例、当前举起标志\n固定缩放 / 截断",fillcolor="#FCEDEC",color="#B47470"];
+ctask [label="M1 / M2｜task_adapter\n5→512，无 bias\n新增时权重初始化为0",fillcolor="#F1ECFC",color="#8270B0"];
+cbelief [label="M2｜belief_adapter\n同一传感器 belief16 → 512\n无 bias，新增时权重初始化为0",fillcolor="#F1ECFC",color="#8270B0"];
+csum [label="512维逐元素相加\n→ ELU",fillcolor="#FFF4DF",color="#BA924B"];
+chead [label="继承 Critic 下游 MLP\n512→256 ELU\n256→128 ELU → 1",fillcolor="#EAF5EC",color="#568362"];
+value [label="V(priv, task?, belief?)\nGAE / PPO value loss",fillcolor="#FFF4DF",color="#BA924B"];
+gt -> cgfm;
+cgfm -> cfused;
+cfused -> csum;
+csum -> chead;
+chead -> value;
+gt -> cfused [label="状态 / 动作72"];
+task -> ctask;
+ctask -> csum;
+cbelief -> csum;
+{rank=same; gt; task;}
+{rank=same; cfused; ctask; cbelief;}
+}
+subgraph cluster_actor {label="Actor｜所有模式均只使用部署可得输入；与 Critic 参数独立"; color="#89A9C7"; penwidth=1.5; style="rounded"; fontname="Noto Sans CJK SC"; fontsize=16; margin=16;
+images [label="双相机 mask + depth\n每路三帧历史\n[B,12,54,96] = 62208",fillcolor="#E9F2FD",color="#5584B0"];
+p [label="归一化本体 / 动作历史\np [B,61]\n机器人52 + 上一动作9",fillcolor="#E9F2FD",color="#5584B0"];
+belief [label="M2｜传感器滤波 belief\n[B,16]，固定单位 / 截断\n感知流程见图3",fillcolor="#E9F2FD",color="#5584B0"];
+cnn [label="共享 CNN\n每帧 2×54×96 → 64\n两相机、三帧共用",fillcolor="#EAF5EC",color="#568362"];
+ta [label="腕相机 GuidedTransformer\n3视觉 token + 1状态 token\n2层 / 2头 / d=64\nFF=2048，dropout=0",fillcolor="#EAF5EC",color="#568362"];
+tb [label="底盘 GuidedTransformer\n3视觉 token + 1状态 token\n2层 / 2头 / d=64\nFF=2048，dropout=0",fillcolor="#EAF5EC",color="#568362"];
+visual [label="各路池化 + Linear 64→64\n拼接 z [B,128]\n继承 visual_adapter\n128→512，无 bias",fillcolor="#EAF5EC",color="#568362"];
+pa [label="proprio_adapter\n61→512，含 bias\n继承原首层对应61列",fillcolor="#F1ECFC",color="#8270B0"];
+ba [label="M2｜belief_adapter\n16→512，无 bias\n新增时权重初始化为0",fillcolor="#F1ECFC",color="#8270B0"];
+sum [label="512维逐元素相加\n→ ELU",fillcolor="#FFF4DF",color="#BA924B"];
+head [label="继承 Actor 下游 MLP\n512→256 ELU\n256→128 ELU → 9\n输出动作均值 μ",fillcolor="#EAF5EC",color="#568362"];
+normal [label="继承可学习 log_std [9]\n对角高斯策略\n训练采样 / 评估取 μ",fillcolor="#EAF5EC",color="#568362"];
+control [label="9维高层动作\n固定原 LLP + IK + 夹爪\n保持 DQ 执行接口",fillcolor="#F0F2F4",color="#85909B"];
+images -> cnn;
+cnn -> ta;
+cnn -> tb;
+p -> ta [label="61→64 状态 token"];
+p -> tb;
+p -> pa;
+pa -> sum;
+belief -> ba;
+ba -> sum;
+ta -> visual;
+tb -> visual;
+visual -> sum;
+sum -> head;
+head -> normal;
+normal -> control;
+{rank=same; images; p; belief;}
+{rank=same; ta; tb;}
+{rank=same; visual; pa; ba;}
+}
+{rank=same; images; p; belief; gt; task;}
+{rank=same; ta; tb; cgfm;}
+{rank=same; visual; pa; ba; cfused; ctask; cbelief;}
+{rank=same; sum; csum;}
+{rank=same; head; chead;}
+{rank=same; normal; value;}
+}

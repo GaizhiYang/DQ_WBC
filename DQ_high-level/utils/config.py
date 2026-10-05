@@ -28,6 +28,10 @@ def get_params():
     parser.add_argument("--rl_device", type=str, default="cuda:0")
     parser.add_argument("--sim_device", type=str, default="cuda:0")
     parser.add_argument("--graphics_device_id", type=int, default=-1)
+    parser.add_argument("--graphics_device_ids", type=str, default=None,
+                        help="Asymmetric torchrun: comma-separated Vulkan graphics indices, one per local rank.")
+    parser.add_argument("--local-rank", "--local_rank", type=int, default=None,
+                        help=argparse.SUPPRESS)
     parser.add_argument("--headless", action="store_true")
     parser.add_argument("--wandb", action="store_true")
     parser.add_argument("--wandb_project", type=str, default="isaacgym")
@@ -71,6 +75,32 @@ def get_params():
                         help="Number of environments to create. Overrides the config value.")
     parser.add_argument("--object_name", type=str, default=None,
                         help="Train/evaluate DQ_teacher on one object from env.asset.asset_multi (e.g. sugar_box).")
+    # Parsed here as well as by the new entrypoint because B1Z1PickMulti
+    # reparses the process command line during environment construction.
+    parser.add_argument("--vision_config", type=str, default=None,
+                        help="Configuration for train/play_multistate_DQ_teacher_vision.py.")
+    parser.add_argument("--vision_mode", choices=("images", "zero", "none"), default=None,
+                        help="Visual teacher: real images, zero-image control, or original teacher control.")
+    parser.add_argument("--teacher_init_checkpoint", type=str, default="",
+                        help="Warm-start a new visual/asymmetric experiment. Asymmetric training starts from scratch when neither this nor --checkpoint is supplied.")
+    parser.add_argument("--teacher_initial_step", type=int, default=None,
+                        help="Legacy teacher environment step (required for checkpoints without a numeric suffix).")
+    parser.add_argument("--vision_minibatch_size", type=int, default=None,
+                        help="Number of high-level observations per PPO mini-batch.")
+    parser.add_argument("--vision_learning_epochs", type=int, default=None,
+                        help="Override PPO epochs for the visual-teacher experiment.")
+    parser.add_argument("--vision_task_level", choices=tuple("Level%02d" % i for i in range(6)), default=None,
+                        help="Override the benchmark level for visual-teacher training/evaluation.")
+    parser.add_argument("--asymmetric_config", type=str, default=None,
+                        help="Asymmetric-teacher YAML for a new experiment.")
+    parser.add_argument("--asymmetric_mode", choices=("m0", "m1", "m2"), default=None,
+                        help="m0: visual actor; m1: task-aware Critic; m2: additionally persistent perception.")
+    parser.add_argument("--asymmetric_allow_legacy", action="store_true",
+                        help="Explicitly allow an old teacher without visual weights as M0 initialization.")
+    parser.add_argument("--asymmetric_eval_interval", type=int, default=None,
+                        help="Periodic evaluation interval in training vector steps; 0 disables it.")
+    parser.add_argument("--asymmetric_eval_steps", type=int, default=None,
+                        help="Vector steps per periodic evaluation (outside the training budget).")
     
     args = parser.parse_args()
     

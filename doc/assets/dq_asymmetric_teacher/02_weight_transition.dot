@@ -1,0 +1,45 @@
+digraph G {
+graph [rankdir=LR, compound=true, newrank=true, bgcolor="white", pad=".30", nodesep=".28", ranksep=".42", splines=polyline, fontname="Noto Sans CJK SC", fontsize=23, labelloc=t, labeljust=l, label=<<B>已实现｜教师权重直接迁移 → 非对称 PPO</B><BR/><FONT POINT-SIZE="13">从第一轮 rollout 起，Actor 就只接收部署输入。新增 adapter 为零初始化；已有视觉权重完整继承。</FONT>>];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=13, margin=".15,.11", penwidth=1.35];
+edge [fontname="Noto Sans CJK SC", fontsize=10, color="#61768E", arrowsize=.72, penwidth=1.25];
+subgraph cluster_migration {label="权重迁移｜源：TeacherVisionPolicy / 原教师 Critic"; color="#A3BDA9"; penwidth=1.5; style="rounded"; fontname="Noto Sans CJK SC"; fontsize=16; margin=16;
+first [label="教师 Actor 首层\nLinear 206→512\n206维融合输入",fillcolor="#EAF5EC",color="#568362"];
+select [label="选取首层的本体列\nkeep = [6:58] + [63:72]\n并复制完整 bias",fillcolor="#F1ECFC",color="#8270B0"];
+pa [label="proprio_adapter\n61→512\n只有部署本体 / 历史状态",fillcolor="#F1ECFC",color="#8270B0"];
+vision [label="教师视觉分支\n共享 CNN + 两路 Transformer\n两路投影 + visual_adapter",fillcolor="#EAF5EC",color="#568362"];
+visualcopy [label="原样复制全部视觉权重\n保留已训练的 128→512\nvisual_adapter",fillcolor="#EAF5EC",color="#568362"];
+downstream [label="教师 Actor 下游与分布\n512→256→128→9\nlog_std [9]",fillcolor="#EAF5EC",color="#568362"];
+headcopy [label="原样复制下游 MLP\n和可学习 log_std",fillcolor="#EAF5EC",color="#568362"];
+newbelief [label="M2 新增 Actor belief16→512\n无 bias，权重0\n开始训练后可学习",fillcolor="#F1ECFC",color="#8270B0"];
+actor [label="纯视觉 / 本体 Actor\nM2 启用 belief16\n保持9维动作接口",fillcolor="#E9F2FD",color="#5584B0"];
+valueold [label="原教师 Critic 全部参数\n独立特征编码器 + GFM\n206→512→256→128→1",fillcolor="#EAF5EC",color="#568362"];
+valuecopy [label="保留 Critic 的全部原参数\nM1：新增 task5→512\nM2：再加 belief16→512\n新 adapter 无 bias、权重0",fillcolor="#F1ECFC",color="#8270B0"];
+critic [label="独立特权 Critic\npriv1276 + task5? + belief16?\nGFM 仅在 Critic 内运行",fillcolor="#FCEDEC",color="#B47470"];
+first -> select;
+select -> pa;
+pa -> actor;
+vision -> visualcopy;
+visualcopy -> actor;
+downstream -> headcopy;
+headcopy -> actor;
+newbelief -> actor;
+valueold -> valuecopy;
+valuecopy -> critic;
+{rank=same; first; vision; downstream; valueold;}
+{rank=same; select; visualcopy; headcopy; valuecopy;}
+{rank=same; pa; newbelief;}
+{rank=same; actor; critic;}
+}
+subgraph cluster_training {label="直接 PPO｜模式可切换 M0 / M1 / M2（默认）"; color="#B2A4D2"; penwidth=1.5; style="rounded"; fontname="Noto Sans CJK SC"; fontsize=16; margin=16;
+ppo [label="完整 rollout → GAE → PPO\n更新 Actor 和 Critic\n冻结原低层控制策略\n保持原任务奖励 / 课程",fillcolor="#FFF4DF",color="#BA924B"];
+evaluate [label="定期独立评估\nActor 取均值动作\n按任务成功率选择 checkpoint",fillcolor="#F0F2F4",color="#85909B"];
+export [label="部署导出 v2\n纯 Actor + 61维归一化统计\nfeature flags + belief约定\nM2：图像62208 + raw61 + belief16",fillcolor="#E9F2FD",color="#5584B0"];
+ppo -> evaluate;
+evaluate -> export;
+}
+actor -> ppo [label="动作 / log_prob"];
+critic -> ppo [label="V / value loss"];
+stats [label="迁移与恢复边界\n初始化：恢复原归一化统计，新建 PPO optimizer\n恢复训练：严格读取相同模式的 v2 checkpoint\n部署输入无需1276维 GT，也无需任务记忆5",fillcolor="#F0F2F4",color="#85909B"];
+stats -> ppo [label="冻结原输入 / 价值统计",style="dashed"];
+{rank=same; stats; first; vision; downstream; valueold;}
+}

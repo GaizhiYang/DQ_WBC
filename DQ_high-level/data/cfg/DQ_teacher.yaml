@@ -10,7 +10,7 @@ env:
   controlFrequencyInv: 4
   controlFrequencyLow: 8
   imgDelayFrame: 4
-  D1_bench_task_level : "Level01"
+  D1_bench_task_level : "Level00"
 
   liftedSuccessThreshold: 0.35
   liftedInitThreshold: 0.05
@@ -219,7 +219,7 @@ sim:
     bounce_threshold_velocity: 0.2
     max_depenetration_velocity: 50.0
     default_buffer_size_multiplier: 100.0
-    max_gpu_contact_pairs: 1000000 #284032
+    max_gpu_contact_pairs: 8388608 # Contact-buffer headroom for 5000 parallel environments.
 
 reward:
   base_height_target: 0.55

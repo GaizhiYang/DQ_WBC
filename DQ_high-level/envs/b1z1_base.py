@@ -120,6 +120,9 @@ class B1Z1Base(RewardVecTask):
         self.hold_steps = self.cfg["env"].get("holdSteps", 10)
         self.img_delay_frame = self.cfg["env"].get("imgDelayFrame", 5) # 0.08s5
         self.enable_camera = self.cfg["sensor"].get("enableCamera", False)
+        self.terminate_on_camera_constraint = self.cfg["env"].get(
+            "terminateOnCameraConstraint", self.enable_camera)
+        self.refresh_camera_on_reset = self.cfg["env"].get("refreshCameraOnReset", False)
         self.depth_clip_lower = self.cfg["sensor"].get("depth_clip_lower", 0.15)
         self.depth_clip_rand_range = self.cfg["sensor"].get("depth_clip_rand_range", [0.18, 0.25])
         
@@ -450,6 +453,9 @@ class B1Z1Base(RewardVecTask):
             elif self.camera_mode == "front_only":
                 num_channels = 2
             self.camera_history_buf = torch.zeros(self.num_envs, self.camera_history_len, self.cfg["sensor"]["resized_resolution"][0] * self.cfg["sensor"]["resized_resolution"][1] * num_channels, device=self.device, dtype=torch.float) # TODO: modify input image channels
+            if self.refresh_camera_on_reset:
+                self._camera_history_initialized = torch.zeros(
+                    self.num_envs, device=self.device, dtype=torch.bool)
             for env_i, env_handle in enumerate(self.envs):
                 self.camera_sensor_dict["forward_depth"].append(gymtorch.wrap_tensor(
                     self.gym.get_camera_image_gpu_tensor(
@@ -526,7 +532,8 @@ class B1Z1Base(RewardVecTask):
     
     def create_sim(self):
         self.up_axis_idx = 2 # Y=1, Z=2;
-        self.sim = super().create_sim(self.sim_id, self.sim_id, self.physics_engine, self.sim_params)
+        graphics_device = self.graphics_device_id if self.graphics_device_id >= 0 else self.sim_id
+        self.sim = super().create_sim(self.sim_id, graphics_device, self.physics_engine, self.sim_params)
         #### create the terrain in high-level ####
         self.terrain = Terrain(self.cfg_terrain.terrain, )
         self._create_trimesh()
@@ -894,7 +901,7 @@ class B1Z1Base(RewardVecTask):
             self.gym.set_asset_rigid_shape_properties(robot_asset, rigid_shape_props_asset)
             robot_start_pose = gymapi.Transform()
             # robot_start_pose.p = gymapi.Vec3(*self.robot_start_pose) # gymapi.Vec3(-1.55, 0, 0.66) # 0.95 - 1.35
-            robot_start_pose.p = gymapi.Vec3(-2.0,2.0,0.66) # gymapi.Vec3(-1.55, 0, 0.66) # 0.95 - 1.35
+            robot_start_pose.p = gymapi.Vec3(-0.85,2.0,0.66) # gymapi.Vec3(-1.55, 0, 0.66) # 0.95 - 1.35
             robot_start_pose.r = gymapi.Quat(0, 0, 0, 1)
             robot_handle = self.gym.create_actor(env_ptr, robot_asset, robot_start_pose, "robot", col_group, col_filter, 0)
             self.robot_handles.append(robot_handle)
@@ -1057,6 +1064,8 @@ class B1Z1Base(RewardVecTask):
         self.commands[env_ids, :] = 0
         self.action_history_buf[env_ids, :, :] = 0
         self.command_history_buf[env_ids, :, :] = 0
+        if self.refresh_camera_on_reset and hasattr(self, "_camera_history_initialized"):
+            self._camera_history_initialized[env_ids] = False
 
         self.curr_dist[env_ids] = 0.
         self.closest_dist[env_ids] = -1.
@@ -1093,8 +1102,9 @@ class B1Z1Base(RewardVecTask):
             self.episode_counter[env_ids] += 1
             self._reset_actors(env_ids)
             self._reset_env_tensors(env_ids)
-            self._refresh_sim_tensors()
-            self._compute_observations(env_ids)
+            if not self.refresh_camera_on_reset:
+                self._refresh_sim_tensors()
+                self._compute_observations(env_ids)
             
             if self.local_step_counter == 0:
                 self.curr_ee_goal_orn_rpy[:, :] = torch.tensor([np.pi/2, 0., 0.], device=self.device)
@@ -1106,6 +1116,15 @@ class B1Z1Base(RewardVecTask):
             # Randomize env
             if self.randomize:
                 self.apply_randomizations(self.randomization_params, env_ids)
+
+            if self.refresh_camera_on_reset:
+                # Reset may submit a simulation step. Finish it before reading
+                # robot poses, and expose the new EE goals in the first obs.
+                self.gym.fetch_results(self.sim, True)
+                self._refresh_sim_tensors()
+                self.update_roboinfo()
+                self._compute_observations(env_ids)
+                self._refresh_camera_observations_after_reset(env_ids)
 
             ## my add to collect cube image dataset for the grasp predict net ##
             # self.collect_dataset_flag+=1
@@ -2131,8 +2150,13 @@ class B1Z1Base(RewardVecTask):
             else:
                 self.commands[:, 0] = torch.clip(self.actions[:, 7], -0.45, 0.45)
     
-    def _compute_states_buf(self): # if enabled_camera is true, then this function will be called
-        self.states_buf[:] = torch.cat([self.camera_history_buf.view(self.num_envs, -1), self.obs_buf[:, (self.num_features + 6):-(self.num_actions + 3+180+2)], self.obs_buf[:, -self.num_actions:]], dim=-1)
+    def _compute_states_buf(self, env_ids=None): # if enabled_camera is true, then this function will be called
+        selection = slice(None) if env_ids is None else env_ids
+        observations = self.obs_buf[selection]
+        self.states_buf[selection] = torch.cat([
+            self.camera_history_buf[selection].flatten(start_dim=1),
+            observations[:, (self.num_features + 6):-(self.num_actions + 3+180+2)],
+            observations[:, -self.num_actions:]], dim=-1)
         # self.states_buf[:] = torch.cat([self.camera_history_buf.view(self.num_envs, -1), self.obs_buf[:, (self.num_features + 12):-(self.num_actions + 3)], self.obs_buf[:, -self.num_actions:]], dim=-1) # my change
         
     def update_roboinfo(self):
@@ -2146,20 +2170,58 @@ class B1Z1Base(RewardVecTask):
         self.gym.step_graphics(self.sim)
         self.gym.render_all_camera_sensors(self.sim)
         self.gym.start_access_image_tensors(self.sim)
-        self.depth_image_flat, self.wrist_depth_image_flat, self.forward_mask, self.wrist_mask, self.forward_depth_seg, self.wrist_depth_seg = self._get_camera_obs()
-        if self.camera_test==True:
-            _,_,_ = self.get_fix_camera_obs()
-        self.gym.end_access_image_tensors(self.sim)
-        
-    def make_img_obs(self):
+        try:
+            self.depth_image_flat, self.wrist_depth_image_flat, self.forward_mask, self.wrist_mask, self.forward_depth_seg, self.wrist_depth_seg = self._get_camera_obs()
+            if self.camera_test==True:
+                _,_,_ = self.get_fix_camera_obs()
+        finally:
+            self.gym.end_access_image_tensors(self.sim)
+
+        if self.cfg.get("sensor", {}).get("recordCameraGeometry", False):
+            # Capture calibration/kinematics at the same instant as the image,
+            # before the remaining low-level steps move either camera again.
+            from utils.asymmetric_camera import record_camera_geometry
+            record_camera_geometry(self)
+
+    def _camera_frame_observation(self):
         if self.camera_mode == "full" or self.camera_mode == "seperate":
-            tensor_obs = torch.cat([self.forward_mask, self.wrist_mask, self.forward_depth_seg, self.wrist_depth_seg], dim=-1)
+            return torch.cat([self.forward_mask, self.wrist_mask, self.forward_depth_seg, self.wrist_depth_seg], dim=-1)
         elif self.camera_mode == "wrist_seg":
-            tensor_obs = torch.cat([self.forward_mask, self.wrist_mask, self.forward_depth_seg], dim=-1)
+            return torch.cat([self.forward_mask, self.wrist_mask, self.forward_depth_seg], dim=-1)
         elif self.camera_mode == "front_only":
-            tensor_obs = torch.cat([self.forward_mask, self.forward_depth_seg], dim=-1)
+            return torch.cat([self.forward_mask, self.forward_depth_seg], dim=-1)
+        raise ValueError(f"Unsupported camera mode: {self.camera_mode}")
+
+    def _refresh_camera_observations_after_reset(self, env_ids):
+        """Capture reset frames without advancing ongoing episodes' histories."""
+        if not self.enable_camera or len(env_ids) == 0:
+            return
+        # Buffers and GPU camera handles are installed by _init_tensors. Do not
+        # access them while a task is still constructing its simulation.
+        required_buffers = ("camera_history_buf", "states_buf", "camera_sensor_dict",
+                            "_camera_history_initialized")
+        if not all(hasattr(self, name) for name in required_buffers):
+            return
+        sensor_names = ("forward_depth", "forward_seg", "forward_color",
+                        "wrist_depth", "wrist_seg", "wirst_color")
+        if any(len(self.camera_sensor_dict.get(name, ())) != self.num_envs
+               for name in sensor_names):
+            return
+        self.obtain_imgs()
+        first_frame = self._camera_frame_observation()[env_ids]
+        self.camera_history_buf[env_ids] = first_frame[:, None, :].expand(
+            -1, self.camera_history_len, -1)
+        self._camera_history_initialized[env_ids] = True
+        self._compute_states_buf(env_ids)
+
+    def make_img_obs(self):
+        tensor_obs = self._camera_frame_observation()
+        if self.refresh_camera_on_reset:
+            initialize_history = ~self._camera_history_initialized
+        else:
+            initialize_history = self.progress_buf <= 1
         self.camera_history_buf = torch.where(
-            (self.progress_buf <= 1)[:, None, None],
+            initialize_history[:, None, None],
             torch.stack([tensor_obs] * self.camera_history_len, dim=1),
             self.camera_history_buf
         )
@@ -2167,6 +2229,8 @@ class B1Z1Base(RewardVecTask):
             self.camera_history_buf[:, 1:],
             tensor_obs.unsqueeze(1)
         ], dim=1)
+        if self.refresh_camera_on_reset:
+            self._camera_history_initialized[:] = True
         
     def obtain_front_imgs(self):
         self.gym.fetch_results(self.sim, True)

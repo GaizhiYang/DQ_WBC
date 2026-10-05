@@ -511,7 +511,7 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         # else:
         #     rand_heights = torch.ones((len(env_ids), 1), device=self.device, dtype=torch.float)*self.table_heights_fix - self.table_dimz / 2
         
-        self.table_commands[env_ids,4] = torch_rand_float(0.2, 0.7, (len(env_ids), 1), device=self.device).squeeze(1) - self.table_dimz / 2.0
+        self.table_commands[env_ids,4] = torch_rand_float(0.4, 0.5, (len(env_ids), 1), device=self.device).squeeze(1) - self.table_dimz / 2.0
         self._table_root_states[env_ids, 2] = self.table_commands[env_ids,4]
 
         self.table_heights[env_ids] = self.table_commands[env_ids,4] + self.table_dimz / 2.0
@@ -707,7 +707,7 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         cube_falls = z_cube+0.015 < self.table_heights # Fall or model glitch
         self.reset_buf[:] = self.reset_buf | cube_falls
         
-        if self.enable_camera:
+        if self.terminate_on_camera_constraint:
             robot_head_dir = quat_apply(self.base_yaw_quat, torch.tensor([1., 0., 0.], device=self.device).repeat(self.num_envs, 1))
             cube_dir = self._cube_root_states[:, :3] - self._robot_root_states[:, :3]
             cube_dir[:, 2] = 0

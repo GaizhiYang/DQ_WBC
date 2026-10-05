@@ -1,0 +1,50 @@
+digraph G {
+graph [rankdir=LR, compound=true, newrank=true, bgcolor="white", pad=".30", nodesep=".28", ranksep=".42", splines=polyline, fontname="Noto Sans CJK SC", fontsize=23, labelloc=t, labeljust=l, label=<<B>已实现｜M2 传感器感知与 PPO 训练闭环</B><BR/><FONT POINT-SIZE="13">M2 默认包含 M1。感知估计来自相机帧、标定、采样时间与机器人位姿；GT 只流向 Critic 和训练奖励。<BR/>每轮流程：传感器观测 → 执行动作 / 收集 rollout → PPO 更新 → 下一轮观测。</FONT>>];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=13, margin=".15,.11", penwidth=1.35];
+edge [fontname="Noto Sans CJK SC", fontsize=10, color="#61768E", arrowsize=.72, penwidth=1.25];
+subgraph cluster_perception {label="可部署传感器前端｜M2 启用；M0 / M1 直接沿用原图像历史"; color="#89A9C7"; penwidth=1.5; style="rounded"; fontname="Noto Sans CJK SC"; fontsize=16; margin=16;
+sensor [label="底盘 + 腕部双相机\nmask / 正向深度（m）\n内参 K、采样时刻 T_world_camera\n两相机 timestamps、当前机器人位姿",fillcolor="#E9F2FD",color="#5584B0"];
+corrupt [label="训练扰动：动作影响视角\n距离 / 角速率相关噪声与漏检\n连续丢帧 + 两相机独立延迟\n部署关闭合成扰动，保留真实时间戳",fillcolor="#F1ECFC",color="#8270B0"];
+history [label="交付帧 → 三帧历史\nmask / depth，12×54×96\n无新帧 / 整帧丢失时填零",fillcolor="#E9F2FD",color="#5584B0"];
+measurement [label="mask + 有效 depth 反投影\n采样时刻相机位姿 → 世界系\n估计可见表面参考点",fillcolor="#E9F2FD",color="#5584B0"];
+kf [label="常速度 Kalman Filter\n按 capture time 排序\n固定滞后窗口回放更新\n漏观测时仅预测",fillcolor="#F1ECFC",color="#8270B0"];
+belief [label="当前 base 系 belief16\n位置3 / 绝对速度3 / 位置std3\n可见2 / 观测年龄2 / 初始化1\n预测年龄1 / 有效深度比例1",fillcolor="#E9F2FD",color="#5584B0"];
+sensor -> corrupt;
+corrupt -> history;
+corrupt -> measurement;
+measurement -> kf;
+kf -> belief;
+}
+subgraph cluster_learning {label="独立非对称网络｜Actor 不读取目标 GT；M1 任务记忆只进入 Critic"; color="#A3BDA9"; penwidth=1.5; style="rounded"; fontname="Noto Sans CJK SC"; fontsize=16; margin=16;
+actor [label="视觉 Actor\n图像历史 + 本体61 + belief16\nCNN + 双 GuidedTransformer\n输出 μ / log_std / action",fillcolor="#EAF5EC",color="#568362"];
+control [label="固定 LLP + IK + 夹爪\n执行9维高层动作\n改变视角与下一时刻观测",fillcolor="#F0F2F4",color="#85909B"];
+gt [label="仅训练信息\npriv1276 + M1 task5\n物体 GT 刚体位姿 / 速度",fillcolor="#FCEDEC",color="#B47470"];
+critic [label="独立 Critic\npriv1276 + task5 + belief16\n输出状态价值 V",fillcolor="#EAF5EC",color="#568362"];
+reward [label="原 DQ 任务奖励 / 终止\n+ M2 预测精度奖励\n评估成绩只用原任务表现",fillcolor="#FCEDEC",color="#B47470"];
+buffer [label="Rollout buffer\n观测 / 动作 / old log_prob\nreward / done / old value",fillcolor="#FFF4DF",color="#BA924B"];
+ppo [label="GAE → PPO 更新\nActor：policy + entropy\nCritic：value loss\n终止按任务截止期限处理",fillcolor="#F1ECFC",color="#8270B0"];
+actor -> control;
+gt -> critic;
+gt -> reward;
+actor -> buffer [label="动作 + log_prob"];
+critic -> buffer [label="V"];
+reward -> buffer;
+buffer -> ppo;
+}
+history -> actor [label="图像历史"];
+belief -> actor [label="belief16"];
+belief -> critic [label="相同 belief16"];
+subgraph cluster_reward_reference {label="M2 奖励参考｜仅训练；不反馈给传感器估计器"; color="#CB9691"; penwidth=1.5; style="rounded"; fontname="Noto Sans CJK SC"; fontsize=16; margin=16;
+clean [label="干净可见表面参考点\n由未扰动的渲染帧得到\n与目标中心区分",fillcolor="#FCEDEC",color="#B47470"];
+reference [label="GT 刚体运动传播参考点\n构造0.15 s短时预测参考\n只用于计算误差",fillcolor="#FCEDEC",color="#B47470"];
+error [label="KF 短时预测 vs 参考\n误差 → 指数精度奖励\n可通过权重关闭",fillcolor="#FFF4DF",color="#BA924B"];
+clean -> reference;
+reference -> error;
+}
+kf -> error [constraint="false",label="估计的世界位置 / 速度"];
+error -> reward [color="#B47470",label="训练时追加"];
+{rank=same; sensor; clean;}
+{rank=same; history; measurement; reference;}
+{rank=same; belief; error; gt;}
+{rank=same; actor; critic; reward;}
+}

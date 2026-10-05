@@ -54,10 +54,25 @@ This part you can totally refer to [VBC's Low-level introduction](https://github
 **Note**:We made changes to the **low-level** part of the VBC work mainly by **expanding the value ranges** of `delta_orn_r`, `delta_orn_p`, and `delta_orn_y` in `low-level/legged_gym/envs/manip_loco/b1z1_config.py`
 
 ### High-level training and eval
+
+For the camera-augmented teacher Actor and matched `images` / `none` / `zero`
+PPO experiments, see [the visual-teacher training guide](doc/DQ_teacher_vision_training.md).
+
 1. Train DQ_teacher:
 ```bash
-   python train_multistate_DQ_teacher.py --rl_device cuda:0 --sim_device cuda:0 --timesteps 120000  --task B1Z1PickMulti --experiment_dir DQ_teacher/b1-pick-multi-DQteacher_01 --roboinfo --observe_gait_commands --small_value_set_zero --rand_control --headless
-   ```
+python train_multistate_DQ_teacher.py \
+  --rl_device cuda:0 \
+  --sim_device cuda:0 \
+  --timesteps 120000 \
+  --task B1Z1PickMulti \
+  --experiment_dir DQ_teacher/b1-pick-multi-DQteacher_1004 \
+  --roboinfo \
+  --observe_gait_commands \
+  --small_value_set_zero \
+  --rand_control \
+  --headless
+
+```
    For a single-object experiment, add `--object_name sugar_box` (or another
    name under `env.asset.asset_multi` in `DQ_high-level/data/cfg/DQ_teacher.yaml`).
    Use a separate `--experiment_dir`, for example `DQ_teacher/sugar_box_test`.
@@ -112,6 +127,12 @@ python train_multi_bc_deter_DQ_stu.py \
 
 ### Change the DQ_Bench Level:
 You can easily make this by just modifying the config file:`DQ_WBC/DQ_high-level/data/cfg/DQ_stu.yaml`,`DQ_WBC/DQ_high-level/data/cfg/DQ_teacher.yaml`
+
+### Asymmetric visual teacher (M0 / M1 / M2)
+
+The asymmetric entrypoint directly trains an image/proprioception Actor with an independent privileged Critic. Without a checkpoint it trains the high-level network from scratch; `--teacher_init_checkpoint` optionally migrates trained weights. The existing pretrained low-level controller is retained. M1 adds five task-state inputs to the Critic. M2 also adds timestamped target filtering, camera corruption and a training-only perception reward; its Actor consumes a sensor-derived belief. It supports checkpoint resume, deterministic evaluation and deployment export, without privileged-input annealing. See [implementation and commands](doc/DQ_asymmetric_teacher_training.md) and [architecture design](doc/DQ_asymmetric_teacher_design.md).
+
+Multi-GPU training uses `python -m torch.distributed.run --standalone --nproc_per_node=2` with one simulator per GPU and synchronized PPO updates. Environment and minibatch counts are per GPU. See the [multi-GPU commands and NVIDIA Vulkan setup](doc/DQ_asymmetric_teacher_training.md#多-gpu-同步训练).
 
 
 # 📝 Citation
