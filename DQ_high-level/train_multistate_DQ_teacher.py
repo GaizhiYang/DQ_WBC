@@ -24,6 +24,9 @@ import utils.wrapper as wrapper
 import time
 from legged_gym.envs.manip_loco.b1z1_config import B1Z1RoughCfg
 from modules.predictattention import PredictAttentionSelector
+from modules.karl_teacher import KarlTeacherPolicy, KarlTeacherValue
+from utils.karl_teacher_wrapper import KarlTeacherWrapper
+from utils.teacher_grasp_training import resolve_selection, checkpoint_step, TeacherGraspTrainingState
 
 
 set_seed(43)
@@ -52,7 +55,11 @@ def create_env(cfg, args, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor ):
                          rand_cmd_scale=args.rand_cmd_scale, rand_depth_clip=args.rand_depth_clip, stop_pick=args.stop_pick, table_height=args.table_height, eval=args.eval,
                          camera_6p_tensor=camera_6p_tensor, grasp_cv_tensor=grasp_cv_tensor, cube_init_tensor=cube_init_tensor, cfg_terrain = cfg_terrain)
     # the step under is just to add some property to _env , just a small extension of _env(B1Z1PickMulti class)
-    wrapped_env = wrapper.IsaacGymPreview3Wrapper(_env)
+    selection = cfg.get("grasp_selection", {})
+    if selection.get("mode") == "karl":
+        wrapped_env = KarlTeacherWrapper(_env, selection["switch_margin_deg"], selection["orientation_preference"])
+    else:
+        wrapped_env = wrapper.IsaacGymPreview3Wrapper(_env)
     return wrapped_env
 
 # define models (stochastic and deterministic models) using mixins
@@ -224,6 +231,8 @@ def get_predict_point(camera_6p_info=None, cube_predict_info_path=None, cube_roo
 
 def get_trainer(is_eval=False):
     args = get_params()
+    if not args.task:
+        args.task = "B1Z1PickMulti"
     args.eval = is_eval
     args.wandb = args.wandb and (not args.eval) and (not args.debug)
     cfg_file = "DQ_teacher.yaml"    
@@ -250,6 +259,13 @@ def get_trainer(is_eval=False):
     cprint(f"Using config file: {file_path}","red" )
         
     cfg = load_cfg(file_path)
+    checkpoint = torch.load(args.checkpoint, map_location="cpu") if args.checkpoint else None
+    cfg, selection = resolve_selection(args, cfg, checkpoint)
+    set_seed(args.seed)
+    cprint(f"Grasp selection: {selection}", "cyan")
+    checkpoint_steps = checkpoint_step(checkpoint, args.checkpoint) if checkpoint is not None else 0
+    if checkpoint is not None:
+        cfg["env"]["globalStepCounter"] = checkpoint_steps
     multi_obj = cfg["env"]["asset"]["asset_multi"]
     if args.object_name is not None:
         if args.object_name not in multi_obj:
@@ -269,7 +285,6 @@ def get_trainer(is_eval=False):
         cfg['env']['numEnvs'] = 800 # 34
         cfg["env"]["maxEpisodeLength"] = 100
         if args.checkpoint:
-            checkpoint_steps = int(args.checkpoint.split("_")[-1].split(".")[0])
             cfg["env"]["globalStepCounter"] = checkpoint_steps
 
     # Allow the command line to override both the YAML value and the
@@ -306,8 +321,13 @@ def get_trainer(is_eval=False):
     num_features = 0 if args.no_feature else 1024
     encode_dim = 0 if args.no_feature else 128
     models_ppo = {}
-    models_ppo["policy"] = Policy(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=args.eval)
-    models_ppo["value"] = Value(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor)
+    if selection["mode"] == "karl":
+        models_ppo["policy"] = KarlTeacherPolicy(env.observation_space, env.action_space, device,
+                                                use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=args.eval)
+        models_ppo["value"] = KarlTeacherValue(env.observation_space, env.action_space, device)
+    else:
+        models_ppo["policy"] = Policy(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=args.eval)
+        models_ppo["value"] = Value(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor)
     
     cfg_ppo = PPO_DEFAULT_CONFIG.copy()
     cfg_ppo["rollouts"] = 24  # memory_size
@@ -347,15 +367,18 @@ def get_trainer(is_eval=False):
             observation_space=env.observation_space,
             action_space=env.action_space,
             device=device)
+    agent.checkpoint_modules["grasp_selection_state"] = TeacherGraspTrainingState(env, selection, experiment_cfg, args)
+    agent.checkpoint_modules["scheduler"] = agent.scheduler
     
     # Keep the trainer's rendering setting consistent with the environment.
     # When --headless is omitted, SKRL must call env.render() so the Isaac Gym
     # viewer remains visible and responsive during evaluation.
     cfg_trainer = {"timesteps": args.timesteps, "headless": args.headless}
+    if args.eval:
+        cfg_trainer["evaluation_steps"] = args.timesteps
     if args.checkpoint:
         print("Resuming from checkpoint: ", args.checkpoint)
         agent.load(args.checkpoint)
-        checkpoint_steps = int(args.checkpoint.split("_")[-1].split(".")[0])
         if args.record_video:
             experiment_dir = args.checkpoint.split("/")[0]
             wandb_name = args.checkpoint.split("/")[1]
@@ -371,7 +394,7 @@ def get_trainer(is_eval=False):
         import wandb
         wandb.save("data/cfg/" + cfg_file, policy="now")
         wandb.save("envs/b1z1_" + args.task[4:].lower() + ".py", policy="now")
-        wandb.save("train_multistate.py", policy="now")
+        wandb.save(__file__, policy="now")
     if not args.eval:
         if not os.path.exists(os.path.join(args.experiment_dir, args.wandb_name, cfg_file)):
             copy_cfg(file_path, os.path.join(args.experiment_dir, args.wandb_name), cfg=experiment_cfg)

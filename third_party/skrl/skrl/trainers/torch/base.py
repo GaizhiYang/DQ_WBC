@@ -235,9 +235,12 @@ class Trainer:
                 mp4_writers.append(mp4_writer)
 
         if not self.record_video:
-            traj_length = 50000 # 35000 # min(int(self.env.max_episode_length), 300)
+            # Entrypoints may opt into a bounded, comparable evaluation budget.
+            # Keep the legacy duration for existing callers without this key.
+            traj_length = int(self.cfg.get("evaluation_steps", 50000))
         else:
-            traj_length = min(int(self.env.max_episode_length), 150)
+            traj_length = min(int(self.env.max_episode_length), 150,
+                              int(self.cfg.get("evaluation_steps", 150)))
         
         for timestep in tqdm.tqdm(range(0, traj_length), disable=self.disable_progressbar):
 

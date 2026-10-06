@@ -18,6 +18,7 @@ from isaacgym import gymtorch
 from isaacgym import gymutil
 from isaacgym.torch_utils import *
 from torch import Tensor
+from modules.karl_grasp_selector import quaternion_to_rpy
 import torchvision.transforms as transforms
 
 
@@ -580,7 +581,12 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
                 base_quat_conj = quat_conjugate(base_quat)   # Inverse of base quaternion
                 #  Compute local quaternion: q_local = q_base^(-1) * q_global
                 ee_grasp_local_orn_quat = quat_mul(base_quat_conj, grasp_global_rot)
-                grasp_predict_local_rpy = quat_to_euler_zyx(ee_grasp_local_orn_quat)
+                if self.cfg.get("grasp_selection", {}).get("mode") == "karl":
+                    # Geometric SO(3) selection needs true RPY, in the same
+                    # convention as the observed end-effector orientation.
+                    grasp_predict_local_rpy = quaternion_to_rpy(ee_grasp_local_orn_quat)
+                else:
+                    grasp_predict_local_rpy = quat_to_euler_zyx(ee_grasp_local_orn_quat)
                 ####### related pose ########
 
                 ####### related orientation ########

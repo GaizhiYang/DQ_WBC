@@ -1,0 +1,44 @@
+{
+  "torch": "2.4.1+cu121",
+  "device": "cuda:1",
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "timing": "median of 5 repeats; 10 warmups; synchronized wall time; milliseconds",
+  "iterations_per_repeat": 40,
+  "excluded": "simulation, raw pose transforms, standard scaler, optimizer step",
+  "parameters": {
+    "gfm": [
+      871768,
+      870736
+    ],
+    "karl": [
+      861842,
+      860810
+    ]
+  },
+  "rows": [
+    {
+      "batch": 1,
+      "gfm_actor_critic_forward_ms": 0.3172,
+      "karl_selection_pack_ms": 0.3655,
+      "karl_selection_pack_actor_critic_ms": 0.5352,
+      "gfm_forward_backward_ms": 1.447,
+      "karl_forward_backward_ms": 0.7259
+    },
+    {
+      "batch": 128,
+      "gfm_actor_critic_forward_ms": 0.3319,
+      "karl_selection_pack_ms": 0.3662,
+      "karl_selection_pack_actor_critic_ms": 0.5694,
+      "gfm_forward_backward_ms": 1.4294,
+      "karl_forward_backward_ms": 0.7005
+    },
+    {
+      "batch": 4096,
+      "gfm_actor_critic_forward_ms": 1.6487,
+      "karl_selection_pack_ms": 0.3502,
+      "karl_selection_pack_actor_critic_ms": 0.7898,
+      "gfm_forward_backward_ms": 3.2927,
+      "karl_forward_backward_ms": 1.3911
+    }
+  ]
+}

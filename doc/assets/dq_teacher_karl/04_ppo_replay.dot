@@ -1,0 +1,28 @@
+digraph G {
+graph [rankdir=TB, bgcolor=white, pad=0.3, nodesep=0.35, ranksep=0.5, splines=polyline, fontname="Noto Sans CJK SC", fontsize=21, labelloc=t, label="PPO 数据与梯度：选中目标随观测一起存储"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=13, margin="0.18,0.12", color="#678099"];
+edge [color="#65758B", arrowsize=0.75, fontname="Noto Sans CJK SC", fontsize=11];
+raw [label="环境原始 obs [B,1276]\n30 候选姿态 + 物体 / 机器人状态", fillcolor="#e7f1ff"];
+select [label="KarlTeacherWrapper\n原始几何评分 + 滞回 + 部分 reset\n无神经网络 / 无梯度", fillcolor="#ede8fa"];
+packed [label="o_selected [B,1102]\n实际选中的目标抓取 6 维\n重新分配张量，避免环境原地改写旧观测", fillcolor="#e7f1ff"];
+rollout [label="采样：标准化 → Actor / Critic\n高斯动作、旧 log_prob、旧 V\n与环境交互得到 r、done", fillcolor="#e7f5ec"];
+memory [label="RandomMemory：24 × B\nstates [24,B,1102] / actions [24,B,9]\nrewards / terminated / log_prob / values", fillcolor="#eef0f4"];
+gae [label="GAE：γ=0.99，λ=0.95\n优势 A、回报 R；价值标准化", fillcolor="#eef0f4"];
+batch [label="5 epochs × 6 minibatches\n打乱已存储的样本\n沿用原 RunningStandardScaler 更新规则", fillcolor="#e7f1ff"];
+net [label="重新计算 Actor / Critic\n只读取样本自带的选中抓取\n不重评分、不改历史候选索引", fillcolor="#e7f5ec"];
+loss [label="原 PPO clipped policy loss + value loss\nratio_clip=0.2；value_clip=0.2\n初始 lr=4.2e−4；KLAdaptiveRL=0.008", fillcolor="#ffe9e5"];
+opt [label="Adam / 梯度裁剪 1.0\n只更新两套点云编码器与 MLP、Actor log_std\n冻结低层控制策略", fillcolor="#ffe9e5"];
+reset [label="done 的终止观测先进入缓冲区\n真正 env.reset() 时，仅清零对应环境的目标索引", fillcolor="#eef0f4"];
+raw -> select [label=""];
+select -> packed [label=""];
+packed -> rollout [label=""];
+rollout -> memory [label=""];
+memory -> gae [label=""];
+gae -> batch [label=""];
+batch -> net [label=""];
+net -> loss [label=""];
+loss -> opt [label=""];
+packed -> memory [label="保存未归一化观测"];
+opt -> net [label="更新参数", style=dashed, constraint=false];
+reset -> select [label="部分环境", style=dashed, constraint=false];
+}

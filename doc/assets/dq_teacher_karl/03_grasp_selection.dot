@@ -1,0 +1,24 @@
+digraph G {
+graph [rankdir=TB, bgcolor=white, pad=0.3, nodesep=0.35, ranksep=0.5, splines=polyline, fontname="Noto Sans CJK SC", fontsize=21, labelloc=t, label="KARL 候选筛选：每环境独立、只在采样阶段运行"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=13, margin="0.18,0.12", color="#678099"];
+edge [color="#65758B", arrowsize=0.75, fontname="Noto Sans CJK SC", fontsize=11];
+grasp [label="原 DQ 候选 [B,30,6]\n统一机器人基座系 / 米与弧度\n候选顺序在 episode 内保持不变", fillcolor="#e7f1ff"];
+ee [label="实际末端位姿 [B,6]\n使用实际姿态，不是当前末端命令", fillcolor="#e7f1ff"];
+quat [label="RPY → xyzw 四元数\nθᵢ = 2 acos(clamp(|qᵢ · qₑₑ|, 0, 1))\n处理 q 与 −q 等价、跨越 ±π", fillcolor="#ede8fa"];
+cost [label="默认 Jᵢ = θᵢ\n可选 --karl_orientation_preference karl：Jᵢ = θᵢ + cᵢ\ncᵢ 为原 UR5 范围启发式 0/1（未经 DQ 标定）\n非有限候选的 Jᵢ = ∞", fillcolor="#ede8fa"];
+argmin [label="j_best = argminᵢ Jᵢ\n每步重新评分全部 30 个候选", fillcolor="#ede8fa"];
+memory [label="持久索引 j_prev [B]\n初次 / 对应环境 reset 时设为 0\n其他环境保留历史索引", fillcolor="#eef0f4"];
+switch [label="若 J[j_prev] > J[j_best] + π/6，则切换\n否则保留；等于门槛也保留\n门槛作用于总代价，不一定只是角度", fillcolor="#ede8fa"];
+target [label="Gather 同一候选的 xyz 和 RPY\n输出真实候选 [B,6] + 新索引\n全部无效时输出当前末端位姿并置诊断标志", fillcolor="#fff0d9"];
+buffer [label="拼入 [B,1102]，Actor / Critic 共用\nPPO 缓冲区保存选中的位姿\n后续 minibatch 不访问筛选器", fillcolor="#eef0f4"];
+grasp -> quat [label=""];
+ee -> quat [label=""];
+quat -> cost [label=""];
+cost -> argmin [label=""];
+argmin -> switch [label=""];
+switch -> target [label=""];
+target -> buffer [label=""];
+memory -> switch [label=""];
+grasp -> target [label="保留物理候选"];
+target -> memory [label="更新索引", style=dashed, constraint=false];
+}

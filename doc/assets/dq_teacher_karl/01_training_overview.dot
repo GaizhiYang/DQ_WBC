@@ -1,0 +1,36 @@
+digraph G {
+graph [rankdir=TB, bgcolor=white, pad=0.3, nodesep=0.35, ranksep=0.5, splines=polyline, fontname="Noto Sans CJK SC", fontsize=21, labelloc=t, label="DQ-NET 教师：用 KARL 几何筛选替换 GFM"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=13, margin="0.18,0.12", color="#678099"];
+edge [color="#65758B", arrowsize=0.75, fontname="Noto Sans CJK SC", fontsize=11];
+bank [label="离线资产（保持原 DQ）\n每物体 30 个 Contact-GraspNet 候选\n物体系固定变换 + 1024 维点云特征", fillcolor="#eef0f4"];
+sim [label="Isaac Gym 并行环境\n物体位姿 / 实际末端位姿 / 机器人状态", fillcolor="#e7f1ff"];
+transform [label="原候选位姿变换：物体系 → 世界系 → 机器人基座系\n30 × (xyz + RPY)，位置 z 仍沿用原裁剪\nKARL 分支输出真实 RPY（修正旧 YPR 顺序）", fillcolor="#eef0f4"];
+select [label="KARL 筛选器（无参数、无梯度）\nSO(3) 姿态距离 → 最小代价候选\n改善超过 30° 才切换；每环境保存一个索引", fillcolor="#ede8fa"];
+pack [label="打包观测 [B,1102]\n点云 1024 + 状态 63 + 所选抓取 6 + 上一动作 9", fillcolor="#e7f1ff"];
+norm [label="RunningStandardScaler 1102 → 1102\n筛选已在未归一化几何量上完成", fillcolor="#eef0f4"];
+actor [label="Actor（独立参数）\n点云编码 1024→512→128\n拼接 206 → MLP 512→256→128 → μ 9", fillcolor="#e7f5ec"];
+critic [label="Critic（独立参数）\n点云编码 1024→512→128\n拼接 206 → MLP 512→256→128 → V 1", fillcolor="#e7f5ec"];
+actions [label="对角高斯采样：9 维高层动作\n末端位置增量 3 + 姿态增量 3\n夹爪 1 + 底盘速度命令 2", fillcolor="#fff0d9"];
+control [label="原高层动作处理 + 冻结低层策略 / 臂 IK-PD\n物理仿真、奖励与终止规则保持原设置", fillcolor="#eef0f4"];
+ppo [label="原 PPO / GAE\n24 步采样 × B 环境\n5 epochs × 6 minibatches", fillcolor="#ffe9e5"];
+{rank=same; bank; sim;}
+{rank=same; actor; critic;}
+bank -> transform [label=""];
+sim -> transform [label=""];
+sim -> select [label="实际末端姿态"];
+transform -> select [label=""];
+select -> pack [label=""];
+pack -> norm [label=""];
+bank -> pack [label="点云特征"];
+sim -> pack [label="状态 / 上一动作"];
+norm -> actor [label=""];
+norm -> critic [label=""];
+actor -> actions [label=""];
+actions -> control [label=""];
+control -> sim [label="下一步", style=dashed, constraint=false];
+pack -> ppo [label="存储选择后的原始观测"];
+critic -> ppo [label="V / GAE"];
+actions -> ppo [label="a / log π / r / done"];
+ppo -> actor [label="策略梯度", style=dashed, constraint=false];
+ppo -> critic [label="价值梯度", style=dashed, constraint=false];
+}
