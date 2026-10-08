@@ -21,7 +21,7 @@ def quaternion_to_rpy(quaternion):
     """Canonical XYZ Euler angles, including a consistent yaw=0 gimbal lock.
 
     DQ's legacy quat_to_euler_zyx returns YPR and loses the rotation at gimbal
-    lock. Use this only for the KARL branch; leave the GFM baseline unchanged.
+    lock. Used by geometric single-target branches; the GFM baseline is unchanged.
     """
     q = quaternion / quaternion.norm(dim=-1, keepdim=True).clamp_min(1e-12)
     x, y, z, w = q.unbind(-1)

@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT / "DQ_high-level"))
 from modules.karl_grasp_selector import KarlGraspSelector, grasp_costs, rpy_to_quaternion, quaternion_to_rpy
 from modules.karl_teacher import KarlTeacherPolicy, KarlTeacherValue
 from utils.karl_teacher_wrapper import KarlTeacherWrapper
+from utils.karl_grasp_visualization import selected_grasp_world_pose
 from utils.teacher_grasp_training import (
     ENVIRONMENT_OPTIONS, TeacherGraspTrainingState, resolve_selection, checkpoint_step,
 )
@@ -145,6 +146,19 @@ class KarlGeometryTests(unittest.TestCase):
         sel, poses, ee = self.select([90, 0])
         self.assertFalse(sel.select(poses.requires_grad_(), ee)[0].requires_grad)
 
+    def test_visualized_pose_uses_full_base_rotation_and_arm_origin(self):
+        from scipy.spatial.transform import Rotation
+        base = Rotation.from_euler("xyz", [[.35, -.4, 1.2], [-.5, .6, -.9]])
+        local_rpy = np.array([[.2, .3, -.4], [1., -.8, .6]])
+        selected = torch.tensor([[.1, -.2, .6, *local_rpy[0]],
+                                 [-.3, .4, -.6, *local_rpy[1]]], dtype=torch.float64)
+        arm_origin = np.array([[2., 3., .7], [-4., 10., 1.]])
+        world = selected_grasp_world_pose(selected, torch.from_numpy(base.as_quat()),
+                                          torch.from_numpy(arm_origin)).numpy()
+        np.testing.assert_allclose(world[:, :3], arm_origin + base.apply(selected[:, :3].numpy()), atol=1e-12)
+        np.testing.assert_allclose(Rotation.from_quat(world[:, 3:]).as_matrix(),
+                                   (base * Rotation.from_euler("xyz", local_rpy)).as_matrix(), atol=1e-12)
+
 
 class KarlTeacherTests(unittest.TestCase):
     @classmethod
@@ -178,6 +192,54 @@ class KarlTeacherTests(unittest.TestCase):
         torch.testing.assert_close(packed[:, -15:-12], raw.obs[:, -165:-162])
         env.reset()
         self.assertEqual(env.selector.indices.tolist(), [0, 8])
+
+    def test_visualizer_receives_hysteresis_result_and_clears_before_reset(self):
+        class RecordingVisualizer:
+            def update(self, selected, metrics):
+                self.selected = selected.clone()
+                self.indices = metrics["karl_grasp_index"].clone()
+
+            def reset(self, env_ids=None):
+                self.reset_ids = None if env_ids is None else env_ids.clone()
+
+        raw = RawTeacherEnv()
+        # Candidate 1 is best, but candidate 0 is retained within the margin.
+        rpy = raw.obs[:, -99:-9].view(2, 30, 3)
+        rpy[:, :, 2] = math.radians(60)
+        rpy[:, 0, 2], rpy[:, 1, 2] = math.radians(20), 0
+        env = KarlTeacherWrapper(raw)
+        env._grasp_visualizer = RecordingVisualizer()
+        packed, _ = env.reset()
+        self.assertEqual(env._grasp_visualizer.indices.tolist(), [0, 0])
+        torch.testing.assert_close(env._grasp_visualizer.selected, packed[:, -15:-9])
+        rpy[:, 0, 2] = math.radians(80)
+        packed, *_ = env.step(torch.zeros(2, 9))
+        self.assertEqual(env._grasp_visualizer.indices.tolist(), [1, 1])
+        torch.testing.assert_close(env._grasp_visualizer.selected, packed[:, -15:-9])
+
+        raw.reset_buf[:] = torch.tensor([1, 0])
+        reset = raw.reset
+
+        def checked_reset():
+            self.assertEqual(env._grasp_visualizer.reset_ids.tolist(), [0])
+            return reset()
+
+        raw.reset = checked_reset
+        env.reset()
+
+    def test_viewer_flags_do_not_enable_rendering_for_headless_or_gfm(self):
+        cfg = {"env": {}}
+        with self.assertRaisesRegex(ValueError, "requires --grasp_selector karl"):
+            resolve_selection(args(vis_selected_grasp=True), cfg)
+        with self.assertRaisesRegex(ValueError, "omit --headless"):
+            resolve_selection(args(grasp_selector="karl", roboinfo=True,
+                                   vis_selected_grasp=True, headless=True), cfg)
+        with self.assertRaisesRegex(ValueError, "positive integer"):
+            resolve_selection(args(grasp_selector="karl", roboinfo=True,
+                                   vis_selected_grasp=True, grasp_vis_envs=0), cfg)
+        # Defensive wrapper check must not import Isaac Gym without a viewer.
+        env = KarlTeacherWrapper(RawTeacherEnv(), visualize_grasp=True)
+        self.assertIsNone(env._grasp_visualizer)
 
     def test_backbone_matches_baseline_and_removes_only_attention_parameters(self):
         old_policy, old_value = original_teacher_classes()

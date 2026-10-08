@@ -12,12 +12,15 @@ ENVIRONMENT_OPTIONS = ("task", "roboinfo", "observe_gait_commands", "no_feature"
                        "arm_delay", "rand_cmd_scale", "rand_depth_clip", "stop_pick",
                        "table_height", "small_value_set_zero", "seed")
 
+GEOMETRIC_OPTIONS = ("switch_margin", "center_weight", "topdown_weight",
+                     "height_weight", "table_clearance", "lock_distance")
+
 
 def resolve_selection(args, cfg, checkpoint=None):
     saved = None
     if checkpoint is not None:
         if "teacher_vision_state" in checkpoint or "asymmetric_teacher_state" in checkpoint:
-            raise ValueError("Use an original GFM or KARL privileged-teacher checkpoint for this experiment")
+            raise ValueError("Use a GFM, KARL or geometric privileged-teacher checkpoint for this experiment")
         state = checkpoint.get("grasp_selection_state")
         if state is not None:
             if state.get("version") != 1:
@@ -30,8 +33,8 @@ def resolve_selection(args, cfg, checkpoint=None):
             if "query_proj.weight" not in checkpoint.get("policy", {}):
                 raise ValueError("Unrecognized teacher checkpoint (missing GFM or grasp-selection metadata)")
             saved = {"mode": "gfm", "switch_margin_deg": 30.0, "orientation_preference": "none"}
-    settings = deepcopy(saved or cfg.get("grasp_selection", {
-        "mode": "gfm", "switch_margin_deg": 30.0, "orientation_preference": "none"}))
+    defaults = {"mode": "gfm", "switch_margin_deg": 30.0, "orientation_preference": "none"}
+    settings = deepcopy(saved) if saved is not None else dict(defaults, **deepcopy(cfg.get("grasp_selection", {})))
     for arg, key in (("grasp_selector", "mode"), ("karl_switch_margin_deg", "switch_margin_deg"),
                      ("karl_orientation_preference", "orientation_preference")):
         value = getattr(args, arg, None)
@@ -39,21 +42,49 @@ def resolve_selection(args, cfg, checkpoint=None):
             if saved is not None and value != saved[key]:
                 raise ValueError("--%s conflicts with checkpoint grasp selection; start a new experiment" % arg)
             settings[key] = value
-    if settings["mode"] not in ("gfm", "karl") or settings["orientation_preference"] not in ("none", "karl"):
+    if settings["mode"] not in ("gfm", "karl", "geometric") or settings["orientation_preference"] not in ("none", "karl"):
         raise ValueError("Invalid grasp-selection configuration")
     margin = settings["switch_margin_deg"]
     if not math.isfinite(margin) or margin < 0:
         raise ValueError("--karl_switch_margin_deg must be finite and non-negative")
-    if settings["mode"] == "gfm" and any(getattr(args, key, None) is not None for key in
-                                         ("karl_switch_margin_deg", "karl_orientation_preference")):
+    if settings["mode"] != "karl" and any(getattr(args, key, None) is not None for key in
+                                          ("karl_switch_margin_deg", "karl_orientation_preference")):
         raise ValueError("KARL-specific options require --grasp_selector karl")
-    if settings["mode"] == "karl":
+    if settings["mode"] == "geometric":
+        from modules.geometric_grasp_selector import GEOMETRIC_DEFAULTS, validate_geometric_settings
+
+        if saved is None:
+            geometric = deepcopy(GEOMETRIC_DEFAULTS)
+            geometric.update(settings.get("geometric", {}))
+        else:
+            geometric = deepcopy(saved.get("geometric", {}))
+            if set(geometric) != set(GEOMETRIC_DEFAULTS):
+                raise ValueError("Incomplete or unsupported geometric checkpoint settings")
+        for key in GEOMETRIC_OPTIONS:
+            arg = "geometric_" + key
+            value = getattr(args, arg, None)
+            if value is not None:
+                if saved is not None and value != geometric[key]:
+                    raise ValueError("--%s conflicts with checkpoint grasp selection; start a new experiment" % arg)
+                geometric[key] = value
+        settings["geometric"] = validate_geometric_settings(geometric)
+    elif any(getattr(args, "geometric_" + key, None) is not None for key in GEOMETRIC_OPTIONS):
+        raise ValueError("Geometric-specific options require --grasp_selector geometric")
+    if settings["mode"] in ("karl", "geometric"):
+        label = "KARL" if settings["mode"] == "karl" else "Geometric"
         if not args.roboinfo:
-            raise ValueError("KARL teacher comparison requires --roboinfo")
+            raise ValueError("%s teacher comparison requires --roboinfo" % label)
         if args.no_feature or args.last_commands or cfg["env"].get("lastCommands", False) or args.pitch_control:
-            raise ValueError("KARL comparison requires feature observations, last actions and 9 controls; omit --no_feature/--last_commands/--pitch_control")
+            raise ValueError("%s comparison requires feature observations, last actions and 9 controls; omit --no_feature/--last_commands/--pitch_control" % label)
         if args.task != "B1Z1PickMulti" or cfg.get("sensor", {}).get("enableCamera", False):
-            raise ValueError("KARL comparison requires --task B1Z1PickMulti and sensor.enableCamera: false")
+            raise ValueError("%s comparison requires --task B1Z1PickMulti and sensor.enableCamera: false" % label)
+    if getattr(args, "vis_selected_grasp", False):
+        if settings["mode"] not in ("karl", "geometric"):
+            raise ValueError("--vis_selected_grasp requires --grasp_selector karl or geometric (or a matching checkpoint)")
+        if getattr(args, "headless", False):
+            raise ValueError("--vis_selected_grasp needs a viewer; omit --headless")
+        if getattr(args, "grasp_vis_envs", 8) <= 0:
+            raise ValueError("--grasp_vis_envs must be a positive integer")
     cfg["grasp_selection"] = deepcopy(settings)
     return cfg, settings
 
@@ -84,4 +115,5 @@ class TeacherGraspTrainingState:
         if state.get("version") != 1 or state["settings"] != self.settings:
             raise ValueError("Incompatible grasp-selection checkpoint")
         self.env._env.global_step_counter = int(state["global_step"])
-        # Physics and rollouts are not serialized: new episodes start at index 0.
+        # Physics and rollouts are not serialized: each selector initializes
+        # its target again when the fresh episode observations are packed.

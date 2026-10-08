@@ -1,0 +1,272 @@
+[
+  {
+    "object": "green_bowl",
+    "valid": 4,
+    "selected": 6,
+    "object_rejected": 0,
+    "table_rejected": 26,
+    "offset_mm": 61.31,
+    "down_deg": 15.94
+  },
+  {
+    "object": "sugar_box",
+    "valid": 30,
+    "selected": 13,
+    "object_rejected": 0,
+    "table_rejected": 0,
+    "offset_mm": 7.24,
+    "down_deg": 8.71
+  },
+  {
+    "object": "potato_chip_1",
+    "valid": 29,
+    "selected": 27,
+    "object_rejected": 0,
+    "table_rejected": 1,
+    "offset_mm": 25.56,
+    "down_deg": 17.09
+  },
+  {
+    "object": "plastic_peach",
+    "valid": 3,
+    "selected": 8,
+    "object_rejected": 0,
+    "table_rejected": 27,
+    "offset_mm": 29.84,
+    "down_deg": 11.05
+  },
+  {
+    "object": "plastic_banana",
+    "valid": 9,
+    "selected": 7,
+    "object_rejected": 0,
+    "table_rejected": 21,
+    "offset_mm": 21.13,
+    "down_deg": 6.21
+  },
+  {
+    "object": "green_cup",
+    "valid": 28,
+    "selected": 12,
+    "object_rejected": 0,
+    "table_rejected": 2,
+    "offset_mm": 13.76,
+    "down_deg": 11.2
+  },
+  {
+    "object": "magic_clean",
+    "valid": 29,
+    "selected": 15,
+    "object_rejected": 0,
+    "table_rejected": 1,
+    "offset_mm": 20.06,
+    "down_deg": 88.8
+  },
+  {
+    "object": "power_drill",
+    "valid": 30,
+    "selected": 9,
+    "object_rejected": 0,
+    "table_rejected": 0,
+    "offset_mm": 14.84,
+    "down_deg": 17.71
+  },
+  {
+    "object": "soap_dish",
+    "valid": 6,
+    "selected": 16,
+    "object_rejected": 0,
+    "table_rejected": 24,
+    "offset_mm": 31.17,
+    "down_deg": 7.87
+  },
+  {
+    "object": "yellow_bowl",
+    "valid": 11,
+    "selected": 20,
+    "object_rejected": 0,
+    "table_rejected": 19,
+    "offset_mm": 42.82,
+    "down_deg": 7.2
+  },
+  {
+    "object": "pitcher",
+    "valid": 30,
+    "selected": 28,
+    "object_rejected": 0,
+    "table_rejected": 0,
+    "offset_mm": 31.26,
+    "down_deg": 62.05
+  },
+  {
+    "object": "blue_tea_box",
+    "valid": 30,
+    "selected": 15,
+    "object_rejected": 0,
+    "table_rejected": 0,
+    "offset_mm": 34.6,
+    "down_deg": 6.09
+  },
+  {
+    "object": "mug",
+    "valid": 30,
+    "selected": 4,
+    "object_rejected": 0,
+    "table_rejected": 0,
+    "offset_mm": 27.21,
+    "down_deg": 6.31
+  },
+  {
+    "object": "lipton_tea",
+    "valid": 29,
+    "selected": 1,
+    "object_rejected": 0,
+    "table_rejected": 1,
+    "offset_mm": 12.28,
+    "down_deg": 11.77
+  },
+  {
+    "object": "plastic_lemon",
+    "valid": 0,
+    "selected": -1,
+    "object_rejected": 0,
+    "table_rejected": 30,
+    "offset_mm": 0.0,
+    "down_deg": 0.0
+  },
+  {
+    "object": "plastic_apple",
+    "valid": 27,
+    "selected": 24,
+    "object_rejected": 0,
+    "table_rejected": 3,
+    "offset_mm": 23.17,
+    "down_deg": 18.21
+  },
+  {
+    "object": "plate_holder",
+    "valid": 30,
+    "selected": 12,
+    "object_rejected": 0,
+    "table_rejected": 0,
+    "offset_mm": 39.5,
+    "down_deg": 4.26
+  },
+  {
+    "object": "book_holder_3",
+    "valid": 29,
+    "selected": 15,
+    "object_rejected": 0,
+    "table_rejected": 1,
+    "offset_mm": 26.7,
+    "down_deg": 16.92
+  },
+  {
+    "object": "blue_moon",
+    "valid": 30,
+    "selected": 2,
+    "object_rejected": 0,
+    "table_rejected": 0,
+    "offset_mm": 17.84,
+    "down_deg": 77.29
+  },
+  {
+    "object": "plastic_orange",
+    "valid": 16,
+    "selected": 26,
+    "object_rejected": 0,
+    "table_rejected": 14,
+    "offset_mm": 25.25,
+    "down_deg": 21.63
+  },
+  {
+    "object": "pink_tea_box",
+    "valid": 23,
+    "selected": 18,
+    "object_rejected": 5,
+    "table_rejected": 3,
+    "offset_mm": 13.79,
+    "down_deg": 38.88
+  },
+  {
+    "object": "bleach_cleanser",
+    "valid": 30,
+    "selected": 13,
+    "object_rejected": 0,
+    "table_rejected": 0,
+    "offset_mm": 29.64,
+    "down_deg": 88.81
+  },
+  {
+    "object": "phillips_screwdriver",
+    "valid": 2,
+    "selected": 25,
+    "object_rejected": 0,
+    "table_rejected": 28,
+    "offset_mm": 23.34,
+    "down_deg": 0.92
+  },
+  {
+    "object": "doraemon_bowl",
+    "valid": 22,
+    "selected": 2,
+    "object_rejected": 0,
+    "table_rejected": 8,
+    "offset_mm": 38.7,
+    "down_deg": 22.68
+  },
+  {
+    "object": "orange_cup",
+    "valid": 30,
+    "selected": 26,
+    "object_rejected": 0,
+    "table_rejected": 0,
+    "offset_mm": 29.2,
+    "down_deg": 11.32
+  },
+  {
+    "object": "blue_cup",
+    "valid": 30,
+    "selected": 18,
+    "object_rejected": 0,
+    "table_rejected": 0,
+    "offset_mm": 18.66,
+    "down_deg": 10.86
+  },
+  {
+    "object": "cleanser",
+    "valid": 26,
+    "selected": 10,
+    "object_rejected": 0,
+    "table_rejected": 4,
+    "offset_mm": 2.44,
+    "down_deg": 104.15
+  },
+  {
+    "object": "bowl",
+    "valid": 19,
+    "selected": 17,
+    "object_rejected": 0,
+    "table_rejected": 11,
+    "offset_mm": 47.36,
+    "down_deg": 21.08
+  },
+  {
+    "object": "clear_box",
+    "valid": 30,
+    "selected": 18,
+    "object_rejected": 0,
+    "table_rejected": 0,
+    "offset_mm": 68.92,
+    "down_deg": 14.79
+  },
+  {
+    "object": "suger_1",
+    "valid": 18,
+    "selected": 8,
+    "object_rejected": 0,
+    "table_rejected": 12,
+    "offset_mm": 32.98,
+    "down_deg": 13.52
+  }
+]

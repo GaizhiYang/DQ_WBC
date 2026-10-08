@@ -1,6 +1,6 @@
 # DQ-NET 教师：KARL 式候选抓取筛选的实现与训练网络
 
-本文对应已经实现的代码，入口为 [train_multistate_DQ_teacher.py](../DQ_high-level/train_multistate_DQ_teacher.py)。修改对象是 **DQ-NET 原始特权观测教师**，通过 `--grasp_selector gfm|karl` 进行对照实验。
+本文对应已经实现的代码，入口为 [train_multistate_DQ_teacher.py](../DQ_high-level/train_multistate_DQ_teacher.py)。修改对象是 **DQ-NET 原始特权观测教师**，通过 `--grasp_selector gfm|karl|geometric` 进行对照实验。第 1–10 节说明原 KARL 适配；第 11 节说明新增的“居中、上部、向下接近”几何筛选模式及运行命令。
 
 **主要变化：原来由 Actor、Critic 各自通过 GFM 生成一个 6 维抓取表征；现在由环境包装器依据实际末端姿态，从原有 30 个候选中选择一个 6 维抓取位姿，两套网络共同使用。** 点云编码、策略主干、价值主干、9 维高层动作、奖励、低层控制器和 PPO 超参数延续原教师设置。
 
@@ -243,12 +243,24 @@ python train_multistate_DQ_teacher.py \
 python train_multistate_DQ_teacher.py \
   --task B1Z1PickMulti --grasp_selector karl \
   --karl_switch_margin_deg 30 --karl_orientation_preference none \
-  --num_envs 512 --object_name green_bowl \
+  --num_envs 4096 --object_name sugar_box \
   --roboinfo --observe_gait_commands \
   --headless --sim_device cuda:0 --rl_device cuda:0 \
   --timesteps 80000 --seed 43 \
   --experiment_dir DQ_teacher/grasp_karl --wandb_name seed43
 ```
+优化后的karl筛选：
+
+```bash
+python train_multistate_DQ_teacher.py \
+  --task B1Z1PickMulti --grasp_selector geometric \
+  --num_envs 4096 --object_name sugar_box \
+  --roboinfo --observe_gait_commands \
+  --headless --sim_device cuda:0 --rl_device cuda:0 \
+  --timesteps 80000 --seed 43 \
+  --experiment_dir DQ_teacher/grasp_geometric_sugar_box --wandb_name seed43
+```
+
 
 若训练全部物体，两组都去掉 `--object_name green_bowl`。若更换任务运动等级，两组使用相同的 `data/cfg/DQ_teacher.yaml` 中 `env.D1_bench_task_level`；原配置默认是 `Level00`。训练进度影响原环境的命令课程，因此比较时 `--timesteps` 也要相同。
 
@@ -358,3 +370,238 @@ python doc/assets/dq_teacher_karl/render_diagrams.py
 ```
 
 论文依据：[DQ-NET.pdf](DQ-NET.pdf) 的高层教师/GFM 部分；[KARL.pdf](../../karl-main/doc/KARL.pdf) 的方法部分。数值门槛和具体候选评分以 KARL 本地实现为准。
+
+## 10. 在仿真窗口查看最终选中的抓取位姿
+
+新增 `--vis_selected_grasp` 开关，绘制**经过滞回判断、实际打包进 Actor/Critic 观测的那个抓取目标**。不是重新求一次最小代价候选，也不是网络输出的末端控制目标；原有筛选、奖励、观测维数和 PPO 流程不变。
+
+从 `DQ_high-level` 目录运行：
+
+```bash
+python train_multistate_DQ_teacher.py \
+  --task B1Z1PickMulti --grasp_selector karl \
+  --karl_switch_margin_deg 30 --karl_orientation_preference none \
+  --vis_selected_grasp \
+  --num_envs 5 --object_name sugar_box \
+  --roboinfo --observe_gait_commands \
+  --sim_device cuda:0 --rl_device cuda:0 \
+  --timesteps 80000 --seed 43 \
+  --experiment_dir DQ_teacher/grasp_karl --wandb_name seed43
+```
+
+窗口中的标记含义：
+
+| 标记 | 含义 |
+|---|---|
+| 黄色线框小球 | 最终选中的抓取位置，球半径 1.5 cm |
+| 红色轴 | 该抓取坐标系的 +X 方向 |
+| 绿色轴 | 该抓取坐标系的 +Y 方向 |
+| 蓝色轴 | 该抓取坐标系的 +Z 方向 |
+
+三个轴长均为 12 cm。颜色表示所选候选自身的坐标轴，不能将它们当成固定世界方向。标记受到场景遮挡时，可以旋转窗口视角观察。
+
+默认显示前 8 个环境，本命令只有 5 个，因此全部绘制。可用 `--grasp_vis_envs 1` 只显示环境 0；该参数只限制标记数量，不改变实际并行环境数。第一次取得有效目标时，窗口自动看向环境 0 的目标附近，之后保留用户调整的视角。此功能需要窗口，不与 `--headless` 同用；不必开启 `--debugvis` 或相机图像观测。
+
+初始化、候选编号改变或环境重置后，终端会输出类似：
+
+```text
+[KARL grasp view] env 0 -> candidate 12; env 1 -> candidate 12
+```
+
+编号范围为 **0–29**，与离线候选顺序一致。没有编号变化时，标记仍会随每次新的高层观测更新位置和姿态；“保持候选编号”不意味着世界中的目标位姿固定。两次高层观测之间显示上一条实际送入策略的目标快照，绘图不会在低层物理子步中额外执行筛选。
+
+若某环境全部候选无效，该环境不画候选标记，并明确输出 `no valid candidate (EE fallback, marker hidden)`；策略原有的末端位姿回退逻辑保持不变。部分环境重置前先隐藏对应旧标记，拿到新观测后再更新，其他环境的目标不会因此清空。
+
+坐标处理先反变换选中的、未标准化的基座系观测：
+
+\[
+p^{E}=R_Bp^B+p_{\mathrm{arm}}^{E},\qquad
+q^{E}=q_B\otimes q^B.
+\]
+
+这里 \(E\) 表示本任务中每个环境自己的世界坐标系，与 `arm_base`、物体和末端状态一致。随后将位姿连同该环境的 handle 传给 Isaac Gym 绘图接口，由 viewer 处理多个环境的排列偏移。特别是，**不能再次减去 `get_env_origin()`**，否则其他环境的标记会错位到环境 0 附近。位置沿用观测已有的局部 z 裁剪，方向包含基座的 roll、pitch、yaw。
+
+实现位置：
+
+- [karl_teacher_wrapper.py](../DQ_high-level/utils/karl_teacher_wrapper.py)：在 `selector.select()` 完成后把同一目标交给绘图器，重置前清理对应缓存。
+- [karl_grasp_visualization.py](../DQ_high-level/utils/karl_grasp_visualization.py)：坐标反变换、目标标记、候选编号输出与初始视角。
+- [b1z1_pickmulti.py](../DQ_high-level/envs/b1z1_pickmulti.py)：每次 viewer 绘制前刷新标记，并与原相机调试标记共存。
+
+2026-10-07 验证：18 项 KARL 相关 CPU 测试通过；用实际 Isaac Gym GPU 环境运行 `sugar_box`、5 个环境、4 个高层步，检查窗口绘制、多个环境的位置、部分标记重置与 `--debugvis` 共存。以下是环境 1 的实际窗口截图；仅展示筛选结果，不表示策略已训练成功。
+
+![sugar_box 的 KARL 所选抓取位姿，环境 1](assets/dq_teacher_karl/05_selected_grasp_viewer.png)
+
+## 11. 几何改进：居中优先、上部偏好与稳定目标（geometric）
+
+### 11.1 改动范围与坐标约定
+
+新增独立模式 `--grasp_selector geometric`。它沿用 KARL 适配的“每个环境只选一个真实候选、同一目标供 Actor/Critic 使用”的方式，将评分改为物体几何与末端运动的组合。**这是针对 DQ/Z1 的工程改进，不是 KARL 论文原有的评分公式。** 原 `gfm`、`karl` 仍可运行，原奖励函数不变。
+
+- 物体中心取实际加载的 **URDF 碰撞几何包围盒中心**，随物体的真实位姿变换；不把物体根节点直接当作几何中心或质心。
+- 世界向下为 `−Z`；候选夹爪的接近方向为其自身 `+X`。机器人基座倾斜不会改变“向下”的定义。
+- 候选位置继续使用 DQ 当前工具坐标约定。Z1 的 `ee_gripper_link` 相对 `gripperStator` 在 `+X` 方向偏移 0.135 m；这里不另加 Contact-GraspNet 的工具长度，也不把候选平移到物体中心。
+- 几何模式取消原有候选基座系 z 的 `[-0.6, 0.6]` 裁剪，避免把候选移动到另一个物理位置后再判断碰撞。评分、送入网络和可视化使用同一位姿；原 `gfm/karl` 保持已有裁剪行为。
+- 物体尺寸遵循 URDF 中的 mesh scale 和 collision origin。当前环境虽然读取 `asset_multi.scale`，但未调用它来缩放仿真物体，因此筛选器也不额外乘这个配置值。
+
+“居中”是候选 TCP 在水平面的居中偏好，不能据此认定两指接触中点或受力中心已被标定。对碗口、把手等非凸形状，中心偏好仅参与评分，仍从已有候选中选择。
+
+### 11.2 先做几何有效性检查
+
+每个候选需要通过以下检查：
+
+1. 位姿数值有限，场景坐标变换有效。
+2. TCP 位于物体局部碰撞包围盒及其外扩 **2.5 cm** 范围内，用于排除明显远离物体的候选。
+3. 夹爪近似包络与外扩 **2 mm** 的桌子盒体不重叠。桌子使用真实 `_table_root_states` 和 `table_dims`，当前尺寸为 `0.2 × 0.2 × 0.1 m`。
+
+夹爪包络由机器人 URDF 的固定指、活动指碰撞几何及活动关节全行程推导。启动时采样关节角并增加覆盖采样间运动的解析余量；当前资产得到的 TCP 系包络约为：
+
+```text
+下界 [-0.14472, -0.04172, -0.03972] m
+上界 [+0.01672, +0.04172, +0.10012] m
+```
+
+运行时将包络的八个角点变换到桌子坐标系，再检查包围盒重叠。因此不只检查 TCP 是否高于桌面；位于桌子侧方的候选也按有限桌体处理。这个检查比较保守，可能排除部分实际上不碰撞的姿态；它不是全机械臂碰撞检测。
+
+没有加入“当前机械臂够不到就剔除”的硬约束，因为移动底盘需要先接近物体。本版也没有做逐候选 IK、关节限位、精确双指接触或开口宽度验证。当前离线 JSON 的 `width/depth/score` 是整个候选集的标量，不能作为 30 个候选各自的质量或所需开口宽度。
+
+### 11.3 有效候选的评分
+
+设物体几何中心为 \(c\)，世界坐标包围盒半尺寸为 \(h\)，候选位置为 \(p_i\)，接近方向为 \(a_i=R_i(1,0,0)^T\)，实际末端为 \((p_e,R_e)\)。代价越小越好：
+
+\[
+J_i=3d_{c,i}+1d_{\downarrow,i}+0.5d_{h,i}+0.1d_{p,i}+0.1d_{R,i}.
+\]
+
+\[
+\begin{aligned}
+d_{c,i}&=\frac{\|p_{i,xy}-c_{xy}\|_2}{\max(\|h_{xy}\|_2,0.01)},\\
+d_{\downarrow,i}&=\frac{\arccos(a_i\cdot(0,0,-1))}{\pi},\\
+\eta_i&=\frac{p_{i,z}-(c_z-h_z)}{\max(2h_z,0.01)},\\
+d_{h,i}&=\max(0,0.75-\eta_i),\\
+d_{p,i}&=\|p_i-p_e\|_2/(1\,\mathrm m),\\
+d_{R,i}&=\operatorname{angle}(R_e^TR_i)/\pi.
+\end{aligned}
+\]
+
+中心项占主要权重；下向接近和上部位置是软偏好。上部项只惩罚低于物体高度 75% 区域的候选，不会凭空生成物体上方的点。水平距离按物体尺寸归一化，末端平移、旋转的权重较小，防止最近的边缘候选压过居中的候选。上述权重是可调的工程初值，未通过抓取成功率搜索优化。
+
+| 参数键 | 默认值 | 含义 / CLI |
+|---|---:|---|
+| `center_weight` | 3.0 | `--geometric_center_weight` |
+| `topdown_weight` | 1.0 | `--geometric_topdown_weight` |
+| `height_weight` | 0.5 | `--geometric_height_weight` |
+| `distance_weight` | 0.1 | 末端平移代价权重 |
+| `rotation_weight` | 0.1 | 末端 SO(3) 旋转代价权重 |
+| `height_fraction` | 0.75 | 上部区域起点 |
+| `distance_scale` | 1.0 m | 末端距离归一化尺度 |
+| `object_padding` | 0.025 m | TCP 与物体包围盒的容差 |
+| `table_clearance` | 0.002 m | `--geometric_table_clearance` |
+| `switch_margin` | 0.10 | `--geometric_switch_margin`，无量纲评分差 |
+| `lock_distance` | 0.08 m | `--geometric_lock_distance` |
+
+没有独立 CLI 的参数可以在 `DQ_teacher.yaml` 的 `grasp_selection.geometric` 字典中设置；其余字段自动使用默认值。所有实际使用的参数都写入实验配置及检查点。使用其他权重比较时应建立新实验。
+
+例如在配置文件顶层添加以下内容可调整高度偏好（不要放入 `env` 字典内）：
+
+```yaml
+grasp_selection:
+  mode: geometric
+  geometric:
+    height_fraction: 0.75
+```
+
+### 11.4 初始化、切换与闭合保持
+
+- **第一次有效观测：**直接选择有效候选的最小代价项，不从索引 0 开始套用滞回门槛。
+- **普通跟踪：**当 `当前代价 > 最优代价 + 0.10` 时切换。这里的 `0.10` 是综合评分门槛，不是 30°。
+- **接近并闭合：**实际末端距当前目标不超过 8 cm，且 `actions[:, 6] < 0`（闭合指令）时，保持候选编号；之后即使距离变化，只要仍闭合且候选有效，就继续保持。收到张开指令或环境重置时解除保持。
+- **当前候选失效：**立即解除保持并选择其他有效候选，不受切换门槛限制。
+- **全部候选无效：**观测中的目标回退为当前末端位姿，输出索引 `−1` 和 `geometric_no_valid_grasp=True`，可视化隐藏目标。此回退仅防止无效目标污染网络输入，不代表已找到可抓取姿态，也不会自动阻止策略动作。
+
+环境终止时先保留终止观测对应的选择，实际执行部分重置时才清空该环境的索引、初始化状态和闭合保持状态。未重置环境不受影响。
+
+### 11.5 接入网络、可视化与日志
+
+```mermaid
+flowchart TD
+    C[原有 30 个候选位姿] --> W[变换到环境世界坐标]
+    G[物体碰撞几何与真实位姿 / 桌体 / Z1 夹爪包络] --> F[数值、物体邻近与桌面检查]
+    W --> F
+    F --> S[居中 + 向下 + 上部 + 少量末端运动代价]
+    E[实际末端位姿] --> S
+    S --> H[首次 argmin / 评分滞回 / 接近闭合保持]
+    H --> T[唯一真实候选：6 维]
+    T --> V[黄色位置标记 + RGB 方向轴]
+    T --> O[与特征、本体观测、上一动作拼接：1102 维]
+    O --> N[RunningStandardScaler / PPO 存储]
+    N --> A[Actor：特征编码 1024→512→128；拼接后 206→512→256→128→9]
+    N --> B[Critic：独立特征编码；拼接后 206→512→256→128→1]
+    A --> L[原 9 维高层动作与低层控制器]
+    L --> R[原 DQ 奖励 / 下一观测]
+    B --> P[PPO 价值学习]
+    R --> P
+```
+
+与原 KARL 适配使用同一网络结构、1102 维观测、PPO 参数和奖励。几何真值只用于该特权教师的筛选，不额外拼进观测。PPO 回放使用采样时保存的目标，不在优化阶段重新筛选。
+
+运行时 `info` 包含候选编号、有效数量、切换标志、闭合保持标志、中心距离、下向角、各分项与总代价。每 24 个高层步将汇总量交给原日志系统，标签为 `Grasp geometric / ...`，包括 `no_valid_grasp`、`valid_count`、`grasp_switched`、`locked`、`horizontal_distance`、`topdown_angle_deg`、`score`、`object_rejected_count`、`table_rejected_count`。全无效时连续评分指标置零，解读均值必须同时查看 `no_valid_grasp`，不能把回退的零当作高质量抓取。
+
+实现文件：
+
+- [geometric_grasp_selector.py](../DQ_high-level/modules/geometric_grasp_selector.py)：批量有效性检查、评分和有状态切换。
+- [grasp_geometry.py](../DQ_high-level/utils/grasp_geometry.py)：一次性加载真实资产几何，读取最新物体、桌子、基座位姿与闭合指令。
+- [geometric_teacher_wrapper.py](../DQ_high-level/utils/geometric_teacher_wrapper.py)：复用单目标观测打包、部分重置与可视化，汇总诊断日志。
+- [test_geometric_teacher.py](../tests/test_geometric_teacher.py)：几何、状态、配置、检查点和 PPO 回放回归测试。
+
+### 11.6 运行命令与已验证结果
+
+先用 5 个环境观察目标：
+
+```bash
+cd /home/hehui/DQ_WBC/DQ_high-level
+python train_multistate_DQ_teacher.py \
+  --task B1Z1PickMulti --grasp_selector geometric \
+  --vis_selected_grasp \
+  --num_envs 5 --object_name sugar_box \
+  --roboinfo --observe_gait_commands \
+  --sim_device cuda:0 --rl_device cuda:0 \
+  --timesteps 80000 --seed 43 \
+  --experiment_dir DQ_teacher/grasp_geometric --wandb_name seed43
+```
+
+正式训练时删除 `--vis_selected_grasp`，增加 `--headless`，将 `--num_envs 5` 改为 `--num_envs 512`。几何模式不要携带 `--karl_switch_margin_deg` 或 `--karl_orientation_preference`；模式专用参数混用会明确报错。
+
+新的几何实验从头训练；恢复自己的检查点时模式和几何参数自动恢复。已有 GFM/KARL 检查点不能直接当作几何实验继续训练，避免把改变输入语义误认为同一实验续训。
+
+2026-10-07，真实 Isaac Gym / GPU 验证：
+
+- `sugar_box`、5 个环境、4 个高层步，可视化、部分标记重置与原调试绘制正常；5 个环境均选中 **候选 13**。
+- 最后一帧水平中心距离约 **4.45–5.98 mm**，接近方向与世界向下夹角约 **9.8–11.1°**；候选位置处于物体上部。此前同类 KARL 可视化检查选中候选 12，靠近盒子边缘。这是特定初始场景的检查，不表示所有状态均选择同一编号。
+- 同物体、5 环境、24 步 rollout 完成一次原配置 PPO 更新，Actor/Critic 权重均变化，优势、回报、概率及模型参数有限；几何诊断日志正常，期间没有全无效回退。
+- 加载上述检查点，通过原 `play_multistate_DQ_teacher.py` 自动恢复几何模式与配置，完成 4 步 GPU 评估。
+- 24 项新增几何筛选测试和 18 项原 KARL 回归测试全部通过，共 42 项；覆盖基座倾斜、URDF 缩放、真实夹爪包络、部分重置、闭合保持、无效输入、日志统计与 PPO 回放一致性。
+
+以下为几何模式环境 1 的实际窗口截图，黄色球位于盒子上部靠近中心处。这里只验证筛选行为与训练通路，尚未进行完整 80000 步训练或抓取成功率对比。
+
+![sugar_box 几何筛选结果：候选 13](assets/dq_teacher_karl/06_geometric_selected_grasp_viewer.png)
+
+CPU 回归测试命令：
+
+```bash
+python -m unittest discover -s tests -p 'test_geometric_teacher.py' -v
+python -m unittest discover -s tests -p 'test_karl_teacher.py' -v
+```
+
+### 11.7 多物体检查中的已知限制
+
+进一步用配置中的 30 类物体、各自真实候选池和配置静止姿态做离线几何检查，29 类至少有一个有效候选。完整计数见 [geometric_initial_object_check.json](assets/dq_teacher_karl/geometric_initial_object_check.json)。这是配置姿态下的几何检查，不是仿真成功率测试。
+
+| 物体 | 有效候选 | 所选编号 | 说明 |
+|---|---:|---:|---|
+| `sugar_box` | 30/30 | 13 | 水平中心距离约 7.24 mm，接近方向距向下约 8.71° |
+| `green_bowl` | 4/30 | 6 | 候选位于碗口附近，中心距离约 61.31 mm；不能凭空生成空腔中心的可抓取点 |
+| `plastic_lemon` | 0/30 | −1 | 当前静止姿态、候选池与 Z1 几何组合未通过桌面检查 |
+
+近似包络会误删一些实际能避开桌面的候选。额外用更细的固定指及活动指全行程几何核对，`green_bowl` 可保留约 21 个候选，螺丝刀可保留约 20 个，而本版包络分别保留 4 个与 2 个。因此本版适合先做盒状物体对照；推广到小物体时，应先检查过滤比例，再考虑分部件包络或对少量候选精查，而不是直接把成功率变化都归因于“居中评分”。
+
+`plastic_lemon` 即使用更细的全行程几何，最好的候选仍有约 8.64 mm 的桌面侵入；它的全无效现象不只是包围盒过大的结果。代码会明确报告并回退，不把未通过检查的候选冒充有效目标。这类物体还需检查候选生成、工具参考点约定或抓取方式。

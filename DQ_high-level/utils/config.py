@@ -75,12 +75,28 @@ def get_params():
                         help="Number of environments to create. Overrides the config value.")
     parser.add_argument("--object_name", type=str, default=None,
                         help="Train/evaluate DQ_teacher on one object from env.asset.asset_multi (e.g. sugar_box).")
-    parser.add_argument("--grasp_selector", choices=("gfm", "karl"), default=None,
-                        help="Original privileged teacher: learned GFM (default) or KARL-style geometric selection. Restored from checkpoint when omitted.")
+    parser.add_argument("--grasp_selector", choices=("gfm", "karl", "geometric"), default=None,
+                        help="Privileged teacher: learned GFM (default), KARL orientation selection, or center/top-down geometric selection. Restored from checkpoint when omitted.")
     parser.add_argument("--karl_switch_margin_deg", type=float, default=None,
                         help="KARL selection: minimum total-cost improvement to switch, expressed in degrees (default 30).")
     parser.add_argument("--karl_orientation_preference", choices=("none", "karl"), default=None,
                         help="KARL selection: optional original UR5 0/1 orientation preference, evaluated in the DQ robot-base frame (default none).")
+    parser.add_argument("--geometric_switch_margin", type=float, default=None,
+                        help="Geometric selection: minimum normalized score improvement to switch targets (not an angle).")
+    parser.add_argument("--geometric_center_weight", type=float, default=None,
+                        help="Geometric selection: weight of horizontal distance from the object center.")
+    parser.add_argument("--geometric_topdown_weight", type=float, default=None,
+                        help="Geometric selection: weight of deviation from a downward approach.")
+    parser.add_argument("--geometric_height_weight", type=float, default=None,
+                        help="Geometric selection: weight of deviation from the preferred upper object region.")
+    parser.add_argument("--geometric_table_clearance", type=float, default=None,
+                        help="Geometric selection: padding around the table collision proxy in meters (default 0.002).")
+    parser.add_argument("--geometric_lock_distance", type=float, default=None,
+                        help="Geometric selection: distance in meters to latch a valid target while commanded closed (default 0.08).")
+    parser.add_argument("--vis_selected_grasp", action="store_true",
+                        help="KARL/geometric teacher: draw the selected grasp position and RGB axes in the viewer (requires non-headless mode).")
+    parser.add_argument("--grasp_vis_envs", type=int, default=8,
+                        help="Maximum number of environments with selected-grasp markers (default 8).")
     # Parsed here as well as by the new entrypoint because B1Z1PickMulti
     # reparses the process command line during environment construction.
     parser.add_argument("--vision_config", type=str, default=None,

@@ -100,6 +100,19 @@ python train_multistate_DQ_teacher.py \
   --headless
 ```
 
+hh1008优化版：
+去掉了GFM，改用几何关系进行筛选抓取位姿
+```bash
+python train_multistate_DQ_teacher.py \
+  --task B1Z1PickMulti --grasp_selector geometric \
+  --num_envs 4096 --object_name sugar_box \
+  --roboinfo --observe_gait_commands \
+  --headless --sim_device cuda:0 --rl_device cuda:0 \
+  --timesteps 80000 --seed 43 \
+  --experiment_dir DQ_teacher/grasp_geometric_sugar_box --wandb_name seed43
+```
+
+
 
 2. Play DQ_teacher:
    ```bash

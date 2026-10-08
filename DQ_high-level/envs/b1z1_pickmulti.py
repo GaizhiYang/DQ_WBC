@@ -38,6 +38,19 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.total_timesteps = args.timesteps
         self.train_reward_strict = args.timesteps / 2
 
+    def render(self, *args, **kwargs):
+        # The wrapper updates this only after KARL's hysteresis selection.
+        # Draw before EVERY viewer frame (including low-level physics frames),
+        # otherwise other debug drawing can clear the selected target overlay.
+        visualizer = getattr(self, "_karl_grasp_visualizer", None)
+        if visualizer is not None and self.viewer is not None:
+            if self.debug_vis and not (self.enable_camera or self.camera_test):
+                self._draw_camera_sensors()
+            else:
+                self.gym.clear_lines(self.viewer)
+            visualizer.draw()
+        return super().render(*args, **kwargs)
+
     def update_roboinfo(self):
         super().update_roboinfo()
         base_obj_dis = self._cube_root_states[:, :2] - self.arm_base[:, :2]
@@ -581,7 +594,7 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
                 base_quat_conj = quat_conjugate(base_quat)   # Inverse of base quaternion
                 #  Compute local quaternion: q_local = q_base^(-1) * q_global
                 ee_grasp_local_orn_quat = quat_mul(base_quat_conj, grasp_global_rot)
-                if self.cfg.get("grasp_selection", {}).get("mode") == "karl":
+                if self.cfg.get("grasp_selection", {}).get("mode") in ("karl", "geometric"):
                     # Geometric SO(3) selection needs true RPY, in the same
                     # convention as the observed end-effector orientation.
                     grasp_predict_local_rpy = quaternion_to_rpy(ee_grasp_local_orn_quat)
@@ -594,7 +607,11 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
                 arm_base = self.arm_base[env_ids].unsqueeze(1).repeat(1, grasp_global_rot.shape[1], 1)
                 relative_pos = grasp_predict_world_pos - arm_base
                 grasp_predict_local_pos = quat_rotate_inverse_batched(base_quat, relative_pos)
-                grasp_predict_local_pos[..., 2] = torch.clip(grasp_predict_local_pos[..., 2], -0.6, 0.6)
+                if self.cfg.get("grasp_selection", {}).get("mode") != "geometric":
+                    # Geometric validity checks, policy input and visualization
+                    # must refer to the original physical candidate position.
+                    # Preserve the legacy clipping for the GFM/KARL baselines.
+                    grasp_predict_local_pos[..., 2] = torch.clip(grasp_predict_local_pos[..., 2], -0.6, 0.6)
                 ####### related orientation ########
 
                 ####### grasp predict #######

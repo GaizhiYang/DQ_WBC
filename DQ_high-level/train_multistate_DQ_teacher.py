@@ -57,7 +57,14 @@ def create_env(cfg, args, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor ):
     # the step under is just to add some property to _env , just a small extension of _env(B1Z1PickMulti class)
     selection = cfg.get("grasp_selection", {})
     if selection.get("mode") == "karl":
-        wrapped_env = KarlTeacherWrapper(_env, selection["switch_margin_deg"], selection["orientation_preference"])
+        wrapped_env = KarlTeacherWrapper(
+            _env, selection["switch_margin_deg"], selection["orientation_preference"],
+            visualize_grasp=args.vis_selected_grasp, grasp_vis_envs=args.grasp_vis_envs)
+    elif selection.get("mode") == "geometric":
+        from utils.geometric_teacher_wrapper import GeometricTeacherWrapper
+        wrapped_env = GeometricTeacherWrapper(
+            _env, selection["geometric"],
+            visualize_grasp=args.vis_selected_grasp, grasp_vis_envs=args.grasp_vis_envs)
     else:
         wrapped_env = wrapper.IsaacGymPreview3Wrapper(_env)
     return wrapped_env
@@ -321,7 +328,7 @@ def get_trainer(is_eval=False):
     num_features = 0 if args.no_feature else 1024
     encode_dim = 0 if args.no_feature else 128
     models_ppo = {}
-    if selection["mode"] == "karl":
+    if selection["mode"] in ("karl", "geometric"):
         models_ppo["policy"] = KarlTeacherPolicy(env.observation_space, env.action_space, device,
                                                 use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=args.eval)
         models_ppo["value"] = KarlTeacherValue(env.observation_space, env.action_space, device)
@@ -367,6 +374,8 @@ def get_trainer(is_eval=False):
             observation_space=env.observation_space,
             action_space=env.action_space,
             device=device)
+    if selection["mode"] == "geometric":
+        env.diagnostics_callback = agent.track_data
     agent.checkpoint_modules["grasp_selection_state"] = TeacherGraspTrainingState(env, selection, experiment_cfg, args)
     agent.checkpoint_modules["scheduler"] = agent.scheduler
     

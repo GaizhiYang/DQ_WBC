@@ -534,12 +534,16 @@ class B1Z1Base(RewardVecTask):
         self.up_axis_idx = 2 # Y=1, Z=2;
         graphics_device = self.graphics_device_id if self.graphics_device_id >= 0 else self.sim_id
         self.sim = super().create_sim(self.sim_id, graphics_device, self.physics_engine, self.sim_params)
-        #### create the terrain in high-level ####
-        self.terrain = Terrain(self.cfg_terrain.terrain, )
-        self._create_trimesh()
-        #### create the terrain in high-level ####
+        # Create exactly one ground surface to avoid overlapping collisions and rendering.
+        mesh_type = self.cfg_terrain.terrain.mesh_type
+        if mesh_type == "plane":
+            self._create_grond_plane()
+        elif mesh_type == "trimesh":
+            self.terrain = Terrain(self.cfg_terrain.terrain)
+            self._create_trimesh()
+        else:
+            raise ValueError(f"Unsupported terrain mesh_type {mesh_type!r}; expected 'plane' or 'trimesh'")
 
-        self._create_grond_plane()
         self._create_envs()
         cube_count = self.gym.get_actor_rigid_body_index(self.envs[0], self.cube_handles[0], 0, gymapi.DOMAIN_SIM)
         print(f"rigid_body count is ",cube_count)    #280 when the num_envs = 10, each env has 28 rigid_body count
@@ -1761,7 +1765,7 @@ class B1Z1Base(RewardVecTask):
         self.table_commands[:,2] = 0
 
 
-    def compute_table_command_level_01(self): ## fixed 0--0.15m/s in y direction or cicle_trajectory movement
+    def compute_table_command_level_01(self): ## straight-line motion along local y at 0--0.15 m/s, without yaw rotation
         self.num_steps_to_change_mode[...] += 1
         mask_step_change = (self.num_steps_to_change_mode % (self.rand_change_step*6*self.increase_to_change_step)==0)
         self.increase_to_change_step[mask_step_change]+=1
@@ -1771,9 +1775,7 @@ class B1Z1Base(RewardVecTask):
 
         self.table_commands[:,0] = 0
         self.table_commands[:,1] = self.vel_line_forward_y
-        self.table_commands[self.lin_circle_select,5] = self.vel_angular_yaw[self.lin_circle_select]
-        # self.table_commands[self.lin_circle_select,5] = 0
-        self.table_commands[~self.lin_circle_select,5] = 0
+        self.table_commands[:,5] = 0
         self.table_commands[:,2] = 0
         
     def compute_table_command_level_02(self): ## fixed 0.15--0.30m/s in y direction or cicle_trajectory movement
