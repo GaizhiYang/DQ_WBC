@@ -1,0 +1,29 @@
+digraph proposal {
+graph [rankdir=TB, bgcolor="#FFFFFF", pad="0.35", nodesep="0.45", ranksep="0.65", splines=polyline, fontname="Noto Sans CJK SC", fontsize=23, fontcolor="#1E293B", labelloc=t, label="04｜感知状态连续性：时间戳、移动坐标系与恢复\n建议方案｜尚未实现 / 训练验证"];
+node [shape=box, style="rounded,filled", margin="0.06,0.04", penwidth=1.5, fontname="Noto Sans CJK SC", fontsize=15, fontcolor="#172B42"];
+edge [fontname="Noto Sans CJK SC", fontsize=12, color="#65758B", fontcolor="#52647B", penwidth=1.5, arrowsize=0.75];
+packet [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>带曝光时间戳 τ 的测量包</B></TD></TR><TR><TD ALIGN="LEFT">两路相机：RGB-D / mask → 位姿测量、质量、有效性</TD></TR><TR><TD ALIGN="LEFT">仿真：从真值生成相关噪声 / 延迟 / 丢帧测量包</TD></TR><TR><TD ALIGN="LEFT">机器人历史缓存：odom、关节、IMU、外参</TD></TR></TABLE>>, fillcolor="#E1F4EE", color="#398474"];
+capture [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>1. 用曝光时刻的外参消除相机运动</B></TD></TR><TR><TD ALIGN="LEFT">ᵂTᴼ(τ) = ᵂTᶜ(τ) · ᶜTᴼ(τ)</TD></TR><TR><TD ALIGN="LEFT">W：局部 odom；C：相机；O：物体</TD></TR><TR><TD ALIGN="LEFT">禁止用当前时刻外参代替曝光时刻外参</TD></TR></TABLE>>, fillcolor="#E1F4EE", color="#398474"];
+packet -> capture;
+filter [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>2. 在固定 odom 系 W 中维护状态</B></TD></TR><TR><TD ALIGN="LEFT">SE(3) 误差状态滤波 / 异常观测门控</TD></TR><TR><TD ALIGN="LEFT">位置、姿态、线 / 角速度与协方差</TD></TR><TR><TD ALIGN="LEFT">处理延迟到达观测后预测到当前控制时刻 t</TD></TR></TABLE>>, fillcolor="#E1F4EE", color="#398474"];
+capture -> filter;
+visible [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>有新观测</B></TD></TR><TR><TD ALIGN="LEFT">校验质量 / 创新残差 → 测量更新</TD></TR><TR><TD ALIGN="LEFT">用真实时间间隔 Δt 更新速度</TD></TR></TABLE>>, fillcolor="#E1F4EE", color="#398474"];
+lost [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>短暂失视</B></TD></TR><TR><TD ALIGN="LEFT">只预测，不重复把旧测量当新测量</TD></TR><TR><TD ALIGN="LEFT">年龄 / 不确定性增长并传给 Actor</TD></TR></TABLE>>, fillcolor="#FFF4D9", color="#BA9137"];
+reacquire [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>重现 / 长期失效</B></TD></TR><TR><TD ALIGN="LEFT">重注册、门控与状态重初始化</TD></TR><TR><TD ALIGN="LEFT">无初始有效目标时走显式等待 / 恢复模式</TD></TR></TABLE>>, fillcolor="#FFF4D9", color="#BA9137"];
+filter -> visible;
+filter -> lost;
+filter -> reacquire;
+{ rank=same; visible; lost; reacquire; }
+pool [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>3. 当前估计物体位姿更新抓取池</B></TD></TR><TR><TD ALIGN="LEFT">ᵂTᴳⱼ(t) = ᵂT̂ᴼ(t) · ᴼTᴳⱼ</TD></TR><TR><TD ALIGN="LEFT">局部候选只在初始化 / 失效重建时生成</TD></TR><TR><TD ALIGN="LEFT">CGN 输出必须先校准到 DQ 实际 TCP</TD></TR></TABLE>>, fillcolor="#E1F4EE", color="#398474"];
+visible -> pool;
+lost -> pool;
+reacquire -> pool;
+selector [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>4. 按估计几何选择候选</B></TD></TR><TR><TD ALIGN="LEFT">居中 / 上部 / 接近方向 / 桌面间隙</TD></TR><TR><TD ALIGN="LEFT">评分滞回、近闭合保持、无候选显式标志</TD></TR><TR><TD ALIGN="LEFT">不读取仿真真实物体位姿或真实桌面状态</TD></TR><TR><TD ALIGN="LEFT">缺少所需支撑面估计：目标无效 / 显式保持</TD></TR></TABLE>>, fillcolor="#E1F4EE", color="#398474"];
+pool -> selector;
+transform [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>5. 转换到当前机器人参考系 A</B></TD></TR><TR><TD ALIGN="LEFT">ᴬTᴳ(t) = inv(ᵂTᴬ(t)) · ᵂTᴳ(t)</TD></TR><TR><TD ALIGN="LEFT">A 原点为 arm_base，轴与当前机器人 base 一致</TD></TR><TR><TD ALIGN="LEFT">相对速度应补偿底盘平移 / 旋转</TD></TR><TR><TD ALIGN="LEFT">换候选 / 重初始化：刷新历史，显式写切换标志</TD></TR></TABLE>>, fillcolor="#E1F4EE", color="#398474"];
+selector -> transform;
+output [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>Gₜ [B,48] → 历史 H = 4 → Actor</B></TD></TR><TR><TD ALIGN="LEFT">有效性、测量年龄和不确定性跟随每帧数据</TD></TR><TR><TD ALIGN="LEFT">整条感知与筛选链在训练 / 真机共用</TD></TR><TR><TD ALIGN="LEFT">范围：DQ 无杂乱桌面；并非完整路径碰撞规划</TD></TR></TABLE>>, fillcolor="#E5EEFF", color="#416DC2"];
+transform -> output;
+legend [shape=plain, style="", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="10"><TR><TD BGCOLOR="#E5EEFF">蓝：训练 / 部署 Actor</TD><TD BGCOLOR="#F0E7FF">紫：仅训练 Critic</TD><TD BGCOLOR="#E1F4EE">绿：固定感知 / 控制</TD></TR><TR><TD BGCOLOR="#FCE8E5">红：仿真真值</TD><TD BGCOLOR="#F0F3F7">灰：观测 / 计算</TD><TD BGCOLOR="#FFF4D9">黄：设计约束</TD></TR></TABLE>>];
+{ rank=sink; legend; }
+}

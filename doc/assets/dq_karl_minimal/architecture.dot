@@ -1,0 +1,37 @@
+digraph Minimal {
+  graph [rankdir=TB, bgcolor="white", pad=0.24, nodesep=0.4, ranksep=0.46, fontname="Noto Sans CJK SC", fontsize=21, labelloc=t, label="最小方案：只裁剪 Actor，复用现有 Critic\n设计草案｜第一轮验证理想几何输入下的控制能力"];
+  node [shape=box, style="rounded,filled", fillcolor="#F0F3F7", color="#79869A", penwidth=1.4, fontname="Noto Sans CJK SC", fontsize=13, margin="0.16,0.11"];
+  edge [color="#768398", arrowsize=0.72, fontname="Noto Sans CJK SC", fontsize=11];
+  sim [label="仿真环境＋已有候选池\n对象真值更新候选；机器人状态", fillcolor="#FCE8E5", color="#C8756A"];
+  selector [label="复用 geometric 筛选器\n30 个候选 → 1 个目标位姿 [B,6]\n本轮上游仍使用对象 / 桌面真值", fillcolor="#E1F4EE", color="#489888"];
+  sim -> selector;
+  subgraph cluster_actor {
+    label="Actor：训练后保留"; color="#739ADD"; style="rounded"; fontname="Noto Sans CJK SC"; fontsize=16;
+    aobs [label="机器人61维＋单目标位姿6维\n[B,67]", fillcolor="#E5EEFF", color="#5987D3"];
+    a1 [label="Linear 67 → 512 ＋ ELU", fillcolor="#E5EEFF", color="#5987D3"];
+    a2 [label="Linear 512 → 256 ＋ ELU", fillcolor="#E5EEFF", color="#5987D3"];
+    a3 [label="Linear 256 → 128 ＋ ELU", fillcolor="#E5EEFF", color="#5987D3"];
+    aout [label="Linear 128 → 9：动作均值\n独立可训练 log_std[9]", fillcolor="#E5EEFF", color="#5987D3"];
+    aobs -> a1 -> a2 -> a3 -> aout;
+  }
+  subgraph cluster_critic {
+    label="Critic：原1102维价值网络，仅训练"; color="#AB86D6"; style="rounded"; fontname="Noto Sans CJK SC"; fontsize=16;
+    cobs [label="物体特征1024＋其余状态78\n78 = Actor信息67＋额外真值11", fillcolor="#F0E7FF", color="#9670C5"];
+    enc [label="特征：1024 → 512 → 128\n首层后 ELU；第二层后无激活\n其余78维直接保留", fillcolor="#F0E7FF", color="#9670C5"];
+    cf [label="拼接：128＋78 = 206", fillcolor="#F0E7FF", color="#9670C5"];
+    cv [label="206 → 512 → 256 → 128 → 1\n各隐藏层后 ELU\n输出价值 V", fillcolor="#F0E7FF", color="#9670C5"];
+    cobs -> enc -> cf -> cv;
+  }
+  selector -> aobs [label="同一个候选"];
+  selector -> cobs;
+  sim -> aobs [label="机器人61维", style=dashed];
+  sim -> cobs [label="额外训练状态", style=dashed];
+  {rank=same; aobs; cobs;}
+  execute [label="保留原9维动作与执行链\n末端目标增量6＋夹爪1＋底盘2\n累计目标 / IK / 冻结低层", fillcolor="#E1F4EE", color="#489888"];
+  ppo [label="原DQ奖励 ＋ PPO / GAE\n分别更新 Actor 和 Critic\n无动作蒸馏、无 α 退火", fillcolor="#FFF4D9", color="#C49B3D"];
+  aout -> execute [label="高斯采样"];
+  cv -> ppo [label="价值估计"];
+  execute -> ppo [label="环境转移 / 奖励"];
+  boundary [label="本轮不加入：图像网络、滤波、历史、延迟模拟、课程\n未来真实感知提供同一种抓取位姿接口；本轮不验证真机效果", fillcolor="#FFF4D9", color="#C49B3D"];
+  ppo -> boundary [style=invis];
+}

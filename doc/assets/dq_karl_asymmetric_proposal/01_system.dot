@@ -1,0 +1,37 @@
+digraph proposal {
+graph [rankdir=TB, bgcolor="#FFFFFF", pad="0.35", nodesep="0.45", ranksep="0.65", splines=polyline, fontname="Noto Sans CJK SC", fontsize=23, fontcolor="#1E293B", labelloc=t, label="01｜总体架构：估计几何 Actor + 特权 Critic\n建议方案｜尚未实现 / 训练验证"];
+node [shape=box, style="rounded,filled", margin="0.06,0.04", penwidth=1.5, fontname="Noto Sans CJK SC", fontsize=15, fontcolor="#172B42"];
+edge [fontname="Noto Sans CJK SC", fontsize=12, color="#65758B", fontcolor="#52647B", penwidth=1.5, arrowsize=0.75];
+subgraph cluster_train { label="训练侧：仿真环境"; color="#D89C96"; style="rounded,dashed";
+sim [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>训练：真实物理状态 sₜ</B></TD></TR><TR><TD ALIGN="LEFT">机器人 / 物体 / 桌面 / 接触</TD></TR></TABLE>>, fillcolor="#FCE8E5", color="#BB625A"];
+sensor [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>模拟传感器与测量包</B></TD></TR><TR><TD ALIGN="LEFT">时间相关噪声、延迟、丢帧、标定误差</TD></TR><TR><TD ALIGN="LEFT">输出带曝光时间戳的估计测量接口</TD></TR></TABLE>>, fillcolor="#E1F4EE", color="#398474"];
+sim -> sensor;
+}
+subgraph cluster_real { label="部署侧：真实传感器"; color="#80B6A8"; style="rounded,dashed";
+camera [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>部署：双相机 RGB-D / mask</B></TD></TR><TR><TD ALIGN="LEFT">机器人编码器、IMU、状态估计器</TD></TR></TABLE>>, fillcolor="#E1F4EE", color="#398474"];
+vision [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>外部预训练感知（冻结）</B></TD></TR><TR><TD ALIGN="LEFT">位姿初始化 / 跟踪 / 失视后重注册</TD></TR><TR><TD ALIGN="LEFT">CAD 可用性是显式部署前提</TD></TR></TABLE>>, fillcolor="#E1F4EE", color="#398474"];
+camera -> vision;
+}
+common [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>训练与部署复用相同的状态构造</B></TD></TR><TR><TD ALIGN="LEFT">时间对齐 → 运动补偿 → SE(3) 状态估计</TD></TR><TR><TD ALIGN="LEFT">局部候选池 → 几何筛选 / 滞回 / 有效性</TD></TR><TR><TD ALIGN="LEFT">所有筛选输入来自估计值</TD></TR></TABLE>>, fillcolor="#E1F4EE", color="#398474"];
+sensor -> common [label="训练测量包"];
+vision -> common [label="真机测量包"];
+obs [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>可部署观测 oₜᴬ : [B,268]</B></TD></TR><TR><TD ALIGN="LEFT">当前机器人 Pₜ : 76</TD></TR><TR><TD ALIGN="LEFT">目标历史 Gₜ₋₃:ₜ : 4 × 48 = 192</TD></TR></TABLE>>, fillcolor="#F0F3F7", color="#6C7B91"];
+common -> obs;
+actor [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>Actor πθ(a | oᴬ)</B></TD></TR><TR><TD ALIGN="LEFT">双分支 MLP → 9 维动作均值</TD></TR><TR><TD ALIGN="LEFT">训练：高斯采样；部署：均值</TD></TR></TABLE>>, fillcolor="#E5EEFF", color="#416DC2"];
+priv [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>仅训练：80 维特权状态</B></TD></TR><TR><TD ALIGN="LEFT">同一候选 ID 的真实抓取位姿</TD></TR><TR><TD ALIGN="LEFT">真实运动 / 接触 / 物理参数 / 任务状态</TD></TR></TABLE>>, fillcolor="#FCE8E5", color="#BB625A"];
+critic [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>独立 Critic Vφ(oᴬ, sᵖ)</B></TD></TR><TR><TD ALIGN="LEFT">268 维可部署观测 + 80 维特权状态</TD></TR><TR><TD ALIGN="LEFT">不向 Actor 提供特征或动作</TD></TR></TABLE>>, fillcolor="#F0E7FF", color="#8B63B8"];
+obs -> actor;
+obs -> critic;
+sim -> priv [style="dashed", color="#BB625A", label="真值仅用于训练支路"];
+priv -> critic;
+{ rank=same; actor; critic; }
+ctrl [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>DQ 现有执行接口</B></TD></TR><TR><TD ALIGN="LEFT">归一化动作 → 限幅 / 物理尺度 → 目标累加</TD></TR><TR><TD ALIGN="LEFT">累计 EE 目标 / IK → 冻结底层策略</TD></TR><TR><TD ALIGN="LEFT">冻结底层全身策略 → 机器人运动</TD></TR><TR><TD ALIGN="LEFT">默认：高层 6.25 Hz / 底层 50 Hz / 物理 200 Hz</TD></TR></TABLE>>, fillcolor="#E1F4EE", color="#398474"];
+ppo [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>训练时 PPO / GAE</B></TD></TR><TR><TD ALIGN="LEFT">真实奖励与终止 → 回报 / 优势</TD></TR><TR><TD ALIGN="LEFT">独立更新 Actor 与 Critic</TD></TR><TR><TD ALIGN="LEFT">无蒸馏、无 BC、无 α 混合</TD></TR></TABLE>>, fillcolor="#FFF4D9", color="#BA9137"];
+actor -> ctrl [label="唯一动作来源"];
+critic -> ppo [label="价值估计"];
+sim -> ppo [style="dashed", color="#BB625A", label="奖励与 done"];
+export [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>部署导出边界</B></TD></TR><TR><TD ALIGN="LEFT">Actor 权重 + Actor 归一化统计</TD></TR><TR><TD ALIGN="LEFT">固定估计器 / 历史 / 筛选状态与控制配置</TD></TR><TR><TD ALIGN="LEFT">Critic 与仿真特权状态不部署</TD></TR></TABLE>>, fillcolor="#FFF4D9", color="#BA9137"];
+ctrl -> export [style="invis"];
+legend [shape=plain, style="", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="10"><TR><TD BGCOLOR="#E5EEFF">蓝：训练 / 部署 Actor</TD><TD BGCOLOR="#F0E7FF">紫：仅训练 Critic</TD><TD BGCOLOR="#E1F4EE">绿：固定感知 / 控制</TD></TR><TR><TD BGCOLOR="#FCE8E5">红：仿真真值</TD><TD BGCOLOR="#F0F3F7">灰：观测 / 计算</TD><TD BGCOLOR="#FFF4D9">黄：设计约束</TD></TR></TABLE>>];
+{ rank=sink; legend; }
+}

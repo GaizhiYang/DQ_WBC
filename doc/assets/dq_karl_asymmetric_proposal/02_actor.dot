@@ -1,0 +1,34 @@
+digraph proposal {
+graph [rankdir=TB, bgcolor="#FFFFFF", pad="0.35", nodesep="0.45", ranksep="0.65", splines=polyline, fontname="Noto Sans CJK SC", fontsize=23, fontcolor="#1E293B", labelloc=t, label="02｜可部署 Actor：当前机器人状态 + 4 帧估计抓取历史\n建议方案｜尚未实现 / 训练验证"];
+node [shape=box, style="rounded,filled", margin="0.06,0.04", penwidth=1.5, fontname="Noto Sans CJK SC", fontsize=15, fontcolor="#172B42"];
+edge [fontname="Noto Sans CJK SC", fontsize=12, color="#65758B", fontcolor="#52647B", penwidth=1.5, arrowsize=0.75];
+p [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>当前机器人 Pₜ : [B,76]</B></TD></TR><TR><TD ALIGN="LEFT">关节位置 19 + 关节速度 18</TD></TR><TR><TD ALIGN="LEFT">当前 EE：位置 3 + Rot6 6 = 9</TD></TR><TR><TD ALIGN="LEFT">累计 EE 目标：位置 3 + Rot6 6 = 9</TD></TR><TR><TD ALIGN="LEFT">底盘命令 3 + 上次实际执行的归一化命令 9</TD></TR><TR><TD ALIGN="LEFT">重力方向 3 + 估计底盘线速度 3 + IMU 角速度 3</TD></TR></TABLE>>, fillcolor="#F0F3F7", color="#6C7B91"];
+g [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>单帧目标 Gₜ : [B,48]</B></TD></TR><TR><TD ALIGN="LEFT">估计抓取位姿：位置 3 + Rot6 6 = 9</TD></TR><TR><TD ALIGN="LEFT">4 个对应抓取关键点误差：4 × 3 = 12</TD></TR><TR><TD ALIGN="LEFT">相对抓取线速度 3 + 角速度 3</TD></TR><TR><TD ALIGN="LEFT">位置不确定性 3 + 姿态不确定性 3</TD></TR><TR><TD ALIGN="LEFT">两路相机有效标志 2 + 测量年龄 2</TD></TR><TR><TD ALIGN="LEFT">已初始化 / 融合年龄 / 跟踪质量：各 1</TD></TR><TR><TD ALIGN="LEFT">候选有效（含所需支撑面） / 本步切换：各 1</TD></TR><TR><TD ALIGN="LEFT">两路相机视野余量：2</TD></TR><TR><TD ALIGN="LEFT">估计支撑面法向量 3 + 平面偏移 1</TD></TR></TABLE>>, fillcolor="#F0F3F7", color="#6C7B91"];
+{ rank=same; p; g; }
+history [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>固定长度目标历史 H = 4</B></TD></TR><TR><TD ALIGN="LEFT">[Gₜ₋₃, Gₜ₋₂, Gₜ₋₁, Gₜ] → [B,192]</TD></TR><TR><TD ALIGN="LEFT">含当前帧：3 × 0.16 s = 0.48 s 历史跨度</TD></TR><TR><TD ALIGN="LEFT">只保存因果估计；reset 清历史</TD></TR><TR><TD ALIGN="LEFT">换候选时刷新目标历史并写切换标志</TD></TR></TABLE>>, fillcolor="#E1F4EE", color="#398474"];
+g -> history;
+pnorm [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>Actor 机器人归一化</B></TD></TR><TR><TD ALIGN="LEFT">[B,76]；部署固定统计量</TD></TR></TABLE>>, fillcolor="#F0F3F7", color="#6C7B91"];
+gnorm [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>Actor 目标归一化</B></TD></TR><TR><TD ALIGN="LEFT">[B,192]；部署固定统计量</TD></TR><TR><TD ALIGN="LEFT">标志 / 年龄的处理按字段显式规定</TD></TR></TABLE>>, fillcolor="#F0F3F7", color="#6C7B91"];
+p -> pnorm;
+history -> gnorm;
+penc [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>机器人编码器</B></TD></TR><TR><TD ALIGN="LEFT">Linear 76 → 128 + ELU</TD></TR><TR><TD ALIGN="LEFT">Linear 128 → 64 + ELU</TD></TR><TR><TD ALIGN="LEFT">输出 [B,64]</TD></TR></TABLE>>, fillcolor="#E5EEFF", color="#416DC2"];
+genc [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>目标历史编码器</B></TD></TR><TR><TD ALIGN="LEFT">Linear 192 → 128 + ELU</TD></TR><TR><TD ALIGN="LEFT">Linear 128 → 64 + ELU</TD></TR><TR><TD ALIGN="LEFT">输出 [B,64]</TD></TR></TABLE>>, fillcolor="#E5EEFF", color="#416DC2"];
+pnorm -> penc;
+gnorm -> genc;
+{ rank=same; penc; genc; }
+fusion [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>拼接机器人与目标特征</B></TD></TR><TR><TD ALIGN="LEFT">[B,64] ⊕ [B,64] → [B,128]</TD></TR></TABLE>>, fillcolor="#F0F3F7", color="#6C7B91"];
+penc -> fusion;
+genc -> fusion;
+trunk [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>控制 MLP</B></TD></TR><TR><TD ALIGN="LEFT">Linear 128 → 256 + ELU</TD></TR><TR><TD ALIGN="LEFT">Linear 256 → 128 + ELU</TD></TR><TR><TD ALIGN="LEFT">Linear 128 → 9 → μₜ [B,9]</TD></TR></TABLE>>, fillcolor="#E5EEFF", color="#416DC2"];
+fusion -> trunk;
+sigma [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>可训练 log_std : [9]</B></TD></TR><TR><TD ALIGN="LEFT">与状态无关，广播到 batch</TD></TR></TABLE>>, fillcolor="#E5EEFF", color="#416DC2"];
+action [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>9 维归一化命令 uₜ</B></TD></TR><TR><TD ALIGN="LEFT">训练：uₜ ~ Normal(μₜ, diag(exp(2 log_std)))</TD></TR><TR><TD ALIGN="LEFT">PPO 保存原始采样 uₜ 和对应 log_prob</TD></TR><TR><TD ALIGN="LEFT">部署：uₜ = μₜ → 相同执行适配器</TD></TR></TABLE>>, fillcolor="#E5EEFF", color="#416DC2"];
+trunk -> action;
+sigma -> action;
+adapter [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>部署与训练共用的执行适配器</B></TD></TR><TR><TD ALIGN="LEFT">归一化命令 → 限幅 / 物理尺度 → 原目标累加</TD></TR><TR><TD ALIGN="LEFT">Δp 3：0.02 m；ΔRPY 3：0.06 rad</TD></TR><TR><TD ALIGN="LEFT">vx：0.45 m/s；yaw：0.6 rad/s；夹爪：符号</TD></TR><TR><TD ALIGN="LEFT">估计几何约束 / 预抓取；不构成完整碰撞规划</TD></TR></TABLE>>, fillcolor="#E1F4EE", color="#398474"];
+action -> adapter;
+boundary [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD ALIGN="LEFT"><B>观测边界与参数规模</B></TD></TR><TR><TD ALIGN="LEFT">原始 Actor 输入：76 + 4 × 48 = 268</TD></TR><TR><TD ALIGN="LEFT">无图像 CNN / 1024 维离线特征 / GFM</TD></TR><TR><TD ALIGN="LEFT">118,162 个可训练参数（含 log_std）</TD></TR></TABLE>>, fillcolor="#FFF4D9", color="#BA9137"];
+adapter -> boundary [style="invis"];
+legend [shape=plain, style="", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="10"><TR><TD BGCOLOR="#E5EEFF">蓝：训练 / 部署 Actor</TD><TD BGCOLOR="#F0E7FF">紫：仅训练 Critic</TD><TD BGCOLOR="#E1F4EE">绿：固定感知 / 控制</TD></TR><TR><TD BGCOLOR="#FCE8E5">红：仿真真值</TD><TD BGCOLOR="#F0F3F7">灰：观测 / 计算</TD><TD BGCOLOR="#FFF4D9">黄：设计约束</TD></TR></TABLE>>];
+{ rank=sink; legend; }
+}

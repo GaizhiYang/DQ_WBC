@@ -1,0 +1,38 @@
+{
+  "status": "PROPOSAL ONLY: CPU shape / parameter-count verification; not trained",
+  "robot_dim": 76,
+  "target_frame_dim": 48,
+  "history_frames": 4,
+  "actor_input_dim": 268,
+  "privileged_dim": 80,
+  "critic_total_input_dim": 348,
+  "actor_mean_shape": [
+    3,
+    9
+  ],
+  "actor_log_std_shape": [
+    3,
+    9
+  ],
+  "critic_value_shape": [
+    3,
+    1
+  ],
+  "actor_parameters": 118162,
+  "actor_submodules": {
+    "robot": 18112,
+    "target": 32960,
+    "control": 67081
+  },
+  "actor_log_std_parameters": 9,
+  "critic_parameters": 203393,
+  "critic_submodules": {
+    "actor_observation": 50944,
+    "privileged": 53632,
+    "value": 98817
+  },
+  "total_trainable_parameters": 321555,
+  "parameter_sets_disjoint": true,
+  "normalization_statistics_counted_as_parameters": false,
+  "torch_version": "2.4.1+cu121"
+}
