@@ -1,5 +1,5 @@
 digraph Minimal {
-  graph [rankdir=TB, bgcolor="white", pad=0.24, nodesep=0.4, ranksep=0.46, fontname="Noto Sans CJK SC", fontsize=21, labelloc=t, label="最小方案：只裁剪 Actor，复用现有 Critic\n设计草案｜第一轮验证理想几何输入下的控制能力"];
+  graph [rankdir=TB, bgcolor="white", pad=0.24, nodesep=0.4, ranksep=0.46, fontname="Noto Sans CJK SC", fontsize=21, labelloc=t, label="最小方案：只裁剪 Actor，复用现有 Critic\n已实现结构｜理想几何输入下的控制实验"];
   node [shape=box, style="rounded,filled", fillcolor="#F0F3F7", color="#79869A", penwidth=1.4, fontname="Noto Sans CJK SC", fontsize=13, margin="0.16,0.11"];
   edge [color="#768398", arrowsize=0.72, fontname="Noto Sans CJK SC", fontsize=11];
   sim [label="仿真环境＋已有候选池\n对象真值更新候选；机器人状态", fillcolor="#FCE8E5", color="#C8756A"];

@@ -1,6 +1,6 @@
 # DQ-NET 借鉴 KARL 的最小非对称 Actor–Critic 方案
 
-**日期：2026-10-10。状态：设计草案，未实现训练代码。**
+**日期：2026-10-10。状态：最小版本已实现，已通过CPU测试与短仿真训练核验；完整训练效果尚待实验。** 运行命令见第8节。
 
 这一版只回答一个问题：**给策略一个明确的目标抓取位姿，Actor 能否在不额外读取物体特征、物体根状态和速度的情况下，通过 PPO 学会 DQ 的移动抓取？**
 
@@ -81,7 +81,7 @@
 - 九维动作继续表示：末端位置增量3、RPY增量3、夹爪1、底盘前向/偏航2。
 - 保留当前动作尺度、限幅、累计末端目标、IK和冻结低层策略；本轮不改控制频率。
 - 高斯采样、PPO超参数及观测标准化规则先保持与当前教师一致。导出Actor时同时导出67维输入对应的标准化统计。
-- 固定一个对象，例如sugar_box，关闭对象运动，保留底盘移动能力；先验证静态移动抓取，不增加课程。
+- 固定一个对象，例如sugar_box，使用obj_move_prob=0关闭高层步中的随机物体重置，保留底盘移动能力；不增加课程。该参数不关闭台面运动：当前DQ_teacher.yaml为Level01，台面仍可带动物体直线移动。若做静态目标实验，A/B均需将env.D1_bench_task_level设为Level00。
 
 无需为第一轮启动相机。当前候选由离线数据和仿真对象位姿更新，geometric筛选器直接复用。
 
@@ -137,7 +137,7 @@ Actor的输入形式将来可以由真实感知提供，但同一个Actor是否�
 
 ## 7. 代码改动可以缩到哪里
 
-本轮最少只需要**一个新Actor类和一个选择该Actor的训练分支**：
+本轮已实现**一个新Actor类和一个选择该Actor的训练分支**，并补齐检查点和导出支持：
 
 1. 新Actor从当前1102维packed观测中取61维机器人状态和6维选中位姿，调用上述67维MLP。
 2. 环境继续用GeometricTeacherWrapper；Critic继续用KarlTeacherValue；PPO及原有奖励继续使用。
@@ -162,3 +162,116 @@ actor67 = torch.cat([robot61, grasp6], dim=-1)
 - [当前筛选器真值上下文](../DQ_high-level/utils/grasp_geometry.py)
 - [原始观测和奖励说明](DQ_high_level_teacher_student_networks.md)
 - [KARL方法分析](../../karl-main/doc/KARL_论文方法与网络架构详解.md)
+
+新增/接入的文件：
+
+| 文件 | 用途 |
+|---|---|
+| [minimal_asymmetric_teacher.py](../DQ_high-level/modules/minimal_asymmetric_teacher.py) | 67维Actor、1102→67切片及高斯策略接口 |
+| [train_multistate_DQ_teacher.py](../DQ_high-level/train_multistate_DQ_teacher.py) | 新增teacher_actor=minimal分支，复用原Critic、环境和PPO |
+| [teacher_grasp_training.py](../DQ_high-level/utils/teacher_grasp_training.py) | 保存/恢复Actor类型，兼容旧检查点，拒绝混用模型 |
+| [minimal_asymmetric_deployment.py](../DQ_high-level/utils/minimal_asymmetric_deployment.py) | 导出Actor及对应67维标准化统计 |
+| [export_minimal_asymmetric_teacher.py](../DQ_high-level/export_minimal_asymmetric_teacher.py) | TorchScript导出入口 |
+
+## 8. 直接运行
+
+### 8.1 从头训练最小版本
+
+在原有dqwbc环境中执行，使用单张GPU：
+
+~~~bash
+cd /home/hehui/DQ_WBC/DQ_high-level
+conda activate dqwbc
+
+python train_multistate_DQ_teacher.py \
+  --task B1Z1PickMulti \
+  --grasp_selector geometric --teacher_actor minimal \
+  --num_envs 512 --object_name sugar_box --obj_move_prob 0 \
+  --roboinfo --observe_gait_commands \
+  --headless --sim_device cuda:0 --rl_device cuda:0 \
+  --timesteps 80000 --seed 43 \
+  --experiment_dir DQ_teacher/grasp_geometric_minimal_sugar_box \
+  --wandb_name seed43
+~~~
+
+不需要传初始教师权重。Actor和Critic随机初始化；底层继续加载已有模型。启动日志应出现：
+
+~~~text
+Minimal asymmetric teacher: Actor 67 -> 512 -> 256 -> 128 -> 9;
+original privileged Critic 1102; original DQ rewards; no cameras.
+~~~
+
+本入口沿用原教师的单进程PPO；用python启动，不使用torchrun。minimal仅支持geometric筛选和默认非tanh动作，不传use_tanh。相机保持关闭。
+
+日志默认写入上述实验目录；如需WandB再增加wandb选项。若加载Isaac Gym时提示找不到libpython，可在已激活环境的终端执行：
+
+~~~bash
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
+~~~
+
+### 8.2 对照组A
+
+将上面的teacher_actor改成privileged，并将experiment_dir改为：
+
+~~~text
+DQ_teacher/grasp_geometric_privileged_sugar_box
+~~~
+
+其余设置相同。这样比较的是67维Actor与原1102维Actor；筛选器、Critic、奖励、动作和训练预算一致。不要将两个实验写入同一目录。
+
+### 8.3 中断后继续训练
+
+~~~bash
+python train_multistate_DQ_teacher.py \
+  --resume --num_envs 512 \
+  --headless --sim_device cuda:0 --rl_device cuda:0 \
+  --timesteps 80000 \
+  --experiment_dir DQ_teacher/grasp_geometric_minimal_sugar_box \
+  --wandb_name seed43
+~~~
+
+resume从该目录寻找最新周期检查点；也可以用checkpoint指定文件。会自动恢复minimal类型、筛选参数、物体配置、机器人观测选项、权重、标准化、优化器和学习率调度。timesteps是目标总步数；物理状态从新回合开始。已有原教师或M0/M1/M2检查点不能作为minimal续训权重。
+
+### 8.4 加载并查看训练效果
+
+把路径中的agent_80000.pt替换为实际已保存的文件：
+
+~~~bash
+python play_multistate_DQ_teacher.py \
+  --checkpoint DQ_teacher/grasp_geometric_minimal_sugar_box/seed43/checkpoints/agent_80000.pt \
+  --num_envs 5 --timesteps 1000 \
+  --headless --sim_device cuda:0 --rl_device cuda:0 \
+  --experiment_dir DQ_teacher/grasp_geometric_minimal_eval \
+  --wandb_name seed43
+~~~
+
+省略teacher_actor和grasp_selector时，从检查点自动识别。播放使用动作均值，不更新网络或标准化统计。
+
+在有图形显示的机器上，去掉headless，并添加以下选项可查看机器人及选中的目标抓取：
+
+~~~text
+--graphics_device_id 0 --vis_selected_grasp --grasp_vis_envs 5
+~~~
+
+graphics_device_id按本机图形设备映射选择。A/B沿用相同的播放成功判据；首次抬升结果不能冒充持续保持结果。
+
+### 8.5 导出67维Actor
+
+~~~bash
+python export_minimal_asymmetric_teacher.py \
+  --checkpoint DQ_teacher/grasp_geometric_minimal_sugar_box/seed43/checkpoints/agent_80000.pt \
+  --output DQ_teacher/grasp_geometric_minimal_sugar_box/seed43/actor.ts.pt
+~~~
+
+导出的单个TorchScript文件只需要PyTorch即可加载，接受原始协议值[B,67]，内部完成标准化，输出未按环境限幅的动作均值[B,9]。不要再次标准化输入。关节速度仍按原协议乘0.05；关节顺序沿用reindex_all。上一动作是动作历史中的高层输入，不是每通道物理裁剪后的末端增量。
+
+模型内嵌metadata.json，记录切片、关节顺序、动作和筛选约定。实际部署仍需外部提供真实抓取位姿，并运行原DQ动作限幅、目标累计、IK和底层控制。
+
+## 9. 本次核验范围
+
+- 8项模型/导出CPU测试：67维切片正确；其他1035维即使被扰动或设为NaN，也不改变Actor；对应梯度为零；导出与训练标准化后的均值一致；仅依赖PyTorch的独立进程可加载。
+- 5项配置/PPO集成测试：新旧检查点识别与冲突检查；实际PPO更新、保存、恢复和确定性评估。
+- 42项原KARL/geometric回归测试通过。
+- 本机Isaac Gym、4个sugar_box环境完成24步训练，两个网络均更新且rollout有限；另完成检查点自动识别播放与续训核验。
+
+这些检查验证代码和训练链路，不代表80000步训练已收敛，也不代表已完成真机验证。本次只实现表中的B实验，候选对齐奖励和Critic消融未加入。

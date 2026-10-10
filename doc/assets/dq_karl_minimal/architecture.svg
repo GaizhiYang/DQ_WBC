@@ -10,7 +10,7 @@
 <title>Minimal</title>
 <polygon fill="white" stroke="transparent" points="-17.28,17.28 -17.28,-946.28 502.28,-946.28 502.28,17.28 -17.28,17.28"/>
 <text text-anchor="middle" x="242.5" y="-908.2" font-family="Noto Sans CJK SC" font-size="21.00">最小方案：只裁剪 Actor，复用现有 Critic</text>
-<text text-anchor="middle" x="242.5" y="-885.2" font-family="Noto Sans CJK SC" font-size="21.00">设计草案｜第一轮验证理想几何输入下的控制能力</text>
+<text text-anchor="middle" x="242.5" y="-885.2" font-family="Noto Sans CJK SC" font-size="21.00">已实现结构｜理想几何输入下的控制实验</text>
 <g id="clust1" class="cluster">
 <title>cluster_actor</title>
 <path fill="white" stroke="#739add" d="M20,-279C20,-279 190,-279 190,-279 196,-279 202,-285 202,-291 202,-291 202,-599 202,-599 202,-605 196,-611 190,-611 190,-611 20,-611 20,-611 14,-611 8,-605 8,-599 8,-599 8,-291 8,-291 8,-285 14,-279 20,-279"/>

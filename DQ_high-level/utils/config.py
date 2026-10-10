@@ -76,7 +76,9 @@ def get_params():
     parser.add_argument("--object_name", type=str, default=None,
                         help="Train/evaluate DQ_teacher on one object from env.asset.asset_multi (e.g. sugar_box).")
     parser.add_argument("--grasp_selector", choices=("gfm", "karl", "geometric"), default=None,
-                        help="Privileged teacher: learned GFM (default), KARL orientation selection, or center/top-down geometric selection. Restored from checkpoint when omitted.")
+                        help="Teacher grasp selection: learned GFM (default), KARL orientation selection, or center/top-down geometric selection. Restored from checkpoint when omitted.")
+    parser.add_argument("--teacher_actor", choices=("privileged", "minimal"), default=None,
+                        help="DQ_teacher Actor: privileged input (default), or minimal 67-D geometric Actor with the original privileged Critic. Minimal requires --grasp_selector geometric. Restored from checkpoint when omitted.")
     parser.add_argument("--karl_switch_margin_deg", type=float, default=None,
                         help="KARL selection: minimum total-cost improvement to switch, expressed in degrees (default 30).")
     parser.add_argument("--karl_orientation_preference", choices=("none", "karl"), default=None,

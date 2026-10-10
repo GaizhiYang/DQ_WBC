@@ -1,4 +1,4 @@
-"""Validate and checkpoint the original teacher's grasp-selection experiment."""
+"""Validate and checkpoint grasp selection and the teacher Actor architecture."""
 from copy import deepcopy
 import math
 import re
@@ -16,27 +16,37 @@ GEOMETRIC_OPTIONS = ("switch_margin", "center_weight", "topdown_weight",
                      "height_weight", "table_clearance", "lock_distance")
 
 
+def _normalized_settings(settings):
+    """Version-1 checkpoints predating the minimal Actor are privileged."""
+    settings = deepcopy(settings)
+    settings.setdefault("teacher_actor", "privileged")
+    return settings
+
+
 def resolve_selection(args, cfg, checkpoint=None):
     saved = None
     if checkpoint is not None:
         if "teacher_vision_state" in checkpoint or "asymmetric_teacher_state" in checkpoint:
-            raise ValueError("Use a GFM, KARL or geometric privileged-teacher checkpoint for this experiment")
+            raise ValueError("Use a GFM, KARL, geometric or minimal-teacher checkpoint for this experiment")
         state = checkpoint.get("grasp_selection_state")
         if state is not None:
             if state.get("version") != 1:
                 raise ValueError("Unsupported grasp-selection checkpoint version")
-            saved = state["settings"]
+            saved = _normalized_settings(state["settings"])
             cfg = deepcopy(state["experiment_config"])
             for name, value in state["environment_options"].items():
                 setattr(args, name, value)
         else:
             if "query_proj.weight" not in checkpoint.get("policy", {}):
                 raise ValueError("Unrecognized teacher checkpoint (missing GFM or grasp-selection metadata)")
-            saved = {"mode": "gfm", "switch_margin_deg": 30.0, "orientation_preference": "none"}
-    defaults = {"mode": "gfm", "switch_margin_deg": 30.0, "orientation_preference": "none"}
+            saved = {"mode": "gfm", "switch_margin_deg": 30.0, "orientation_preference": "none",
+                     "teacher_actor": "privileged"}
+    defaults = {"mode": "gfm", "switch_margin_deg": 30.0, "orientation_preference": "none",
+                "teacher_actor": "privileged"}
     settings = deepcopy(saved) if saved is not None else dict(defaults, **deepcopy(cfg.get("grasp_selection", {})))
     for arg, key in (("grasp_selector", "mode"), ("karl_switch_margin_deg", "switch_margin_deg"),
-                     ("karl_orientation_preference", "orientation_preference")):
+                     ("karl_orientation_preference", "orientation_preference"),
+                     ("teacher_actor", "teacher_actor")):
         value = getattr(args, arg, None)
         if value is not None:
             if saved is not None and value != saved[key]:
@@ -44,6 +54,16 @@ def resolve_selection(args, cfg, checkpoint=None):
             settings[key] = value
     if settings["mode"] not in ("gfm", "karl", "geometric") or settings["orientation_preference"] not in ("none", "karl"):
         raise ValueError("Invalid grasp-selection configuration")
+    if settings["teacher_actor"] not in ("privileged", "minimal"):
+        raise ValueError("teacher_actor must be privileged or minimal")
+    if settings["teacher_actor"] == "minimal":
+        if settings["mode"] != "geometric":
+            raise ValueError("--teacher_actor minimal requires --grasp_selector geometric")
+        if args.use_tanh:
+            raise ValueError("Minimal teacher uses the original unsquashed Gaussian; omit --use_tanh")
+        if getattr(args, "teacher_init_checkpoint", ""):
+            raise ValueError("Minimal teacher starts from scratch; omit --teacher_init_checkpoint. "
+                             "Use --checkpoint to resume a minimal experiment.")
     margin = settings["switch_margin_deg"]
     if not math.isfinite(margin) or margin < 0:
         raise ValueError("--karl_switch_margin_deg must be finite and non-negative")
@@ -101,7 +121,7 @@ def checkpoint_step(checkpoint, path):
 class TeacherGraspTrainingState:
     def __init__(self, env, settings, cfg, args):
         self.env = env
-        self.settings = deepcopy(settings)
+        self.settings = _normalized_settings(settings)
         self.cfg = deepcopy(cfg)
         self.options = {key: getattr(args, key) for key in ENVIRONMENT_OPTIONS}
 
@@ -112,7 +132,7 @@ class TeacherGraspTrainingState:
                 "global_step": int(self.env.global_step_counter)}
 
     def load_state_dict(self, state):
-        if state.get("version") != 1 or state["settings"] != self.settings:
+        if state.get("version") != 1 or _normalized_settings(state["settings"]) != self.settings:
             raise ValueError("Incompatible grasp-selection checkpoint")
         self.env._env.global_step_counter = int(state["global_step"])
         # Physics and rollouts are not serialized: each selector initializes

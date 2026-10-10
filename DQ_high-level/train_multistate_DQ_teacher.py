@@ -25,6 +25,7 @@ import time
 from legged_gym.envs.manip_loco.b1z1_config import B1Z1RoughCfg
 from modules.predictattention import PredictAttentionSelector
 from modules.karl_teacher import KarlTeacherPolicy, KarlTeacherValue
+from modules.minimal_asymmetric_teacher import MinimalAsymmetricTeacherPolicy
 from utils.karl_teacher_wrapper import KarlTeacherWrapper
 from utils.teacher_grasp_training import resolve_selection, checkpoint_step, TeacherGraspTrainingState
 
@@ -268,6 +269,9 @@ def get_trainer(is_eval=False):
     cfg = load_cfg(file_path)
     checkpoint = torch.load(args.checkpoint, map_location="cpu") if args.checkpoint else None
     cfg, selection = resolve_selection(args, cfg, checkpoint)
+    if selection["teacher_actor"] == "minimal" and int(os.environ.get("WORLD_SIZE", "1")) > 1:
+        raise ValueError("The minimal teacher uses the single-process teacher PPO entrypoint. "
+                         "Run it with python, not torchrun.")
     set_seed(args.seed)
     cprint(f"Grasp selection: {selection}", "cyan")
     checkpoint_steps = checkpoint_step(checkpoint, args.checkpoint) if checkpoint is not None else 0
@@ -329,12 +333,16 @@ def get_trainer(is_eval=False):
     encode_dim = 0 if args.no_feature else 128
     models_ppo = {}
     if selection["mode"] in ("karl", "geometric"):
-        models_ppo["policy"] = KarlTeacherPolicy(env.observation_space, env.action_space, device,
-                                                use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=args.eval)
+        policy_class = MinimalAsymmetricTeacherPolicy if selection["teacher_actor"] == "minimal" else KarlTeacherPolicy
+        models_ppo["policy"] = policy_class(env.observation_space, env.action_space, device,
+                                           use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=args.eval)
         models_ppo["value"] = KarlTeacherValue(env.observation_space, env.action_space, device)
     else:
         models_ppo["policy"] = Policy(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=args.eval)
         models_ppo["value"] = Value(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor)
+    if selection["teacher_actor"] == "minimal":
+        cprint("Minimal asymmetric teacher: Actor 67 -> 512 -> 256 -> 128 -> 9; "
+               "original privileged Critic 1102; original DQ rewards; no cameras.", "cyan")
     
     cfg_ppo = PPO_DEFAULT_CONFIG.copy()
     cfg_ppo["rollouts"] = 24  # memory_size

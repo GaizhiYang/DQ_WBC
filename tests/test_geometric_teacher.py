@@ -270,12 +270,14 @@ class GeometricConfigurationTests(unittest.TestCase):
         self.assertEqual(settings["mode"], "geometric")
         self.assertEqual(resolved_cfg["grasp_selection"], settings)
         for mode in ("gfm", "karl"):
-            original = {"mode": mode, "switch_margin_deg": 30., "orientation_preference": "none"}
+            original = {"mode": mode, "switch_margin_deg": 30., "orientation_preference": "none",
+                        "teacher_actor": "privileged"}
             _, baseline = resolve_selection(options(grasp_selector=mode, roboinfo=True), {"env": {}})
             self.assertEqual(baseline, original)
 
-    def test_defaults_are_complete_and_old_mode_metadata_is_unchanged(self):
-        baseline = {"mode": "gfm", "switch_margin_deg": 30., "orientation_preference": "none"}
+    def test_defaults_are_complete_and_old_modes_keep_privileged_actor(self):
+        baseline = {"mode": "gfm", "switch_margin_deg": 30., "orientation_preference": "none",
+                    "teacher_actor": "privileged"}
         self.assertEqual(resolve_selection(options(), {"env": {}})[1], baseline)
         karl = dict(baseline, mode="karl")
         self.assertEqual(resolve_selection(options(grasp_selector="karl", roboinfo=True),
