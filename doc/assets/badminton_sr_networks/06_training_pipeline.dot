@@ -1,0 +1,31 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.3", nodesep="0.3", ranksep="0.45", splines=polyline, fontname="Noto Sans CJK SC", fontsize=20, labelloc=t, label="图 6｜训练准备、连续目标任务与约束策略优化"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=12, margin="0.18,0.12", penwidth=1.2];
+edge [color="#64748b", arrowsize=0.7, fontname="Noto Sans CJK SC", fontsize=10];
+data [label="实机感知采集\n拟合轻量误差 / 检测概率模型", fillcolor="#fff0df", color="#bd9148"];
+sysid [label="系统辨识与执行器建模\n臂：CMA-ES、摩擦/阻尼/armature、皮带传动\n腿：SEA 执行器模型", fillcolor="#fff0df", color="#bd9148"];
+pool [label="预生成羽毛球轨迹池\n随机初始状态、空气动力学参数", fillcolor="#fff0df", color="#bd9148"];
+env [label="4096 环境 / 0.01 s 控制周期\n每回合 6 个目标，间隔 2 s\n10% 站立环境；域随机化与随机推扰", fillcolor="#fff0df", color="#bd9148"];
+policy [label="Actor 选择全身动作\nCritic 估计回报；未来任务信息只供 Critic", fillcolor="#eaf7f0", color="#49836a"];
+sparse [label="指定挥拍时刻的单步跟踪奖励\n位置 6400 / 拍面朝向 1200 / 速度 1200", fillcolor="#fceceb", color="#b87874"];
+dense [label="每步感知预测误差奖励（权重 3）\nrε = 1 / (1 + ||真实拦截点−预测点||²)\n无目标时站立奖励 + 运动正则化", fillcolor="#fceceb", color="#b87874"];
+cost [label="硬件约束信号\n机械臂总电流 |I_total| < 8 A\n关节力矩/速度限制仍含软惩罚", fillcolor="#fceceb", color="#b87874"];
+opt [label="N-P3O + AdamW\nγ=0.995、GAE λ=0.975、KL 目标=0.01\n更新 Actor 和 Critic", fillcolor="#fceceb", color="#b87874"];
+deploy [label="部署 Actor + EKF + 预测器\n不经过教师→学生行为蒸馏", fillcolor="#eaf7f0", color="#49836a"];
+data -> env;
+sysid -> env;
+pool -> env;
+env -> policy;
+env -> sparse;
+sparse -> opt;
+env -> dense;
+dense -> opt;
+env -> cost;
+cost -> opt;
+policy -> opt;
+opt -> policy [label="参数更新",style=dashed];
+policy -> env [label="环境交互",style=dashed];
+policy -> deploy [label="训练完成"];
+{rank=same; data;sysid;pool;}
+{rank=same; sparse;dense;cost;}
+}

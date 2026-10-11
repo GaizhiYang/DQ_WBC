@@ -114,6 +114,51 @@ concat([
 ], dim=-1)                  # 206维
 ```
 
+**可选消融：Actor 去掉两组线速度观测（2026-10-10）。** 在原始 GFM 教师训练命令中加入 `--actor_drop_velocity_obs`，去掉 Actor 输入中的机器人局部线速度 `[1082:1085]` 和物体相对机器人的平面速度 `[1085:1087]`，共 5 维。对应实现位于 `Policy.compute()`，先从 Actor 使用的观测张量中删除这 5 维，再执行特征编码、GFM 和动作 MLP。Critic 的 `Value` 类继续使用完整观测。
+
+| 项目 | 原始教师 | 开启 `--actor_drop_velocity_obs` |
+|---|---:|---:|
+| 环境输出、PPO 存储及标准化维数 | 1276 | 1276 |
+| Actor 实际使用的观测维数 | 1276 | 1271 |
+| Actor 当前状态分支 | 63 | 58 |
+| Actor 动作 MLP 输入 | 206 | 201 |
+| Actor 动作 MLP | `206→512→256→128→9` | `201→512→256→128→9` |
+| Critic 观测维数 | 1276 | 1276 |
+| Critic 价值 MLP | `206→512→256→128→1` | `206→512→256→128→1` |
+
+共享环境仍提供 1276 维数据，供 Critic、标准化器和 rollout 使用；Actor 在自己的计算路径中取出 1271 维，避免在共享环境中删除速度导致 Critic 同时丢失信息。标准化器按维度独立计算，删除的两组速度不会通过标准化混入其他 Actor 输入。物体位姿、1024 维特征、30 个候选、关节速度、底盘命令和上一动作继续保留。两套网络各自的 GFM 及物体编码器结构保持原设置，Actor 第一层减少 2560 个权重。
+
+该开关只用于 `B1Z1PickMulti` 的原始 `gfm` 教师，并要求 `--roboinfo`、1024 维特征、9 维动作、上一动作观测和 `sensor.enableCamera: false`。默认不开启；`--actor_keep_velocity_obs` 可显式指定原始 Actor。开启状态保存到 `grasp_selection_state.settings.actor_drop_velocity_obs` 和实验 YAML，训练恢复或 `play_multistate_DQ_teacher.py` 评估时自动恢复，不能在同一检查点上切换输入结构。
+
+从 `DQ_high-level` 目录重新训练消融组：
+
+```bash
+python train_multistate_DQ_teacher.py \
+  --task B1Z1PickMulti --grasp_selector gfm \
+  --actor_drop_velocity_obs \
+  --num_envs 4096 --object_name sugar_box \
+  --roboinfo --observe_gait_commands \
+  --headless --sim_device cuda:1 --rl_device cuda:1 \
+  --timesteps 80000 --seed 43 \
+  --experiment_dir DQ_teacher/grasp_gfm_sugar_box_actor_no_velocity \
+  --wandb_name seed43
+```
+
+对照组继续使用原命令，不带 `--actor_drop_velocity_obs`，保存到原 `DQ_teacher/grasp_gfm_sugar_box` 目录。两组都从头训练，保持物体、环境数、随机种子和训练步数一致。消融组不要加载原始教师的 206 维 Actor 检查点。
+
+示例恢复评估（替换为自己的检查点）：
+
+```bash
+python play_multistate_DQ_teacher.py \
+  --checkpoint DQ_teacher/grasp_gfm_sugar_box_actor_no_velocity/seed43/checkpoints/agent_5000.pt \
+  --num_envs 128 --timesteps 1000 \
+  --headless --sim_device cuda:1 --rl_device cuda:1
+```
+
+启动日志会打印 Actor/Critic 实际观测维数与消融状态。测试见 [test_teacher_velocity_ablation.py](../tests/test_teacher_velocity_ablation.py)：扰动这 5 维不会改变消融 Actor 的输出，它们对动作均值的输入梯度为零；Critic 仍对两组速度敏感，并验证 PPO 更新和检查点恢复。
+
+2026-10-10 验证：9 项新增消融测试、8 项已有视觉教师模型测试、18 项 KARL 回归测试通过，共 35 项；真实 Isaac Gym / `cuda:1` 上用 4 个 `sugar_box` 环境运行 24 步 rollout，Actor 和 Critic 均完成 PPO 权重更新，数值有限，速度扰动对 Actor 输出无影响且会改变 Critic 输出。加载该检查点时不传消融开关，原评估入口自动恢复 1271/1276 维配置并完成 4 步评估。这些检查验证实现与训练通路，完整训练的效果需要两组实验比较。
+
 **物体编码器把 1024 维输入压缩到 128 维。** Actor 和 Critic 分别拥有一份结构相同、参数独立的编码器。
 
 ![图3：物体特征编码器](assets/dq_high_level_networks/03_teacher_feature_encoder.svg)

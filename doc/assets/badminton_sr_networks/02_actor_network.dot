@@ -1,0 +1,25 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.3", nodesep="0.3", ranksep="0.45", splines=polyline, fontname="Noto Sans CJK SC", fontsize=20, labelloc=t, label="图 2｜Actor 的观测分组、MLP 和动作接口"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=12, margin="0.18,0.12", penwidth=1.2];
+edge [color="#64748b", arrowsize=0.7, fontname="Noto Sans CJK SC", fontsize=10];
+base [label="基座 / 定位\nvb(3)、ωb(3)、gb(3)\n球场朝向 h（编码未披露）、基座 xy(2)", fillcolor="#eaf3ff", color="#5487bd"];
+joint [label="本体 / 动作记忆\nq−qdefault(18)、qdot(18)、a_prev(18)\n18 维由控制关节数对应推导", fillcolor="#eaf3ff", color="#5487bd"];
+target [label="感知 / 任务命令\n相机系目标位置(3)、检测标志 D(1)\n拦截 cmd（编码未披露）、距拦截时间 t(1)", fillcolor="#eaf3ff", color="#5487bd"];
+cat [label="拼接并使用部署条件下的带噪观测\noA：[B,dA]；论文未给出总 dA", fillcolor="#f2efff", color="#8371ac"];
+fc1 [label="Linear(dA,512)\nELU\n[B,512]", fillcolor="#eaf7f0", color="#49836a"];
+fc2 [label="Linear(512,256)\nELU\n[B,256]", fillcolor="#eaf7f0", color="#49836a"];
+fc3 [label="Linear(256,128)\nELU\n[B,128]", fillcolor="#eaf7f0", color="#49836a"];
+out [label="策略输出 πθ(a|oA)\n动作命令维数 18\n状态相关标准差 σ(oA)", fillcolor="#eaf7f0", color="#49836a"];
+command [label="关节位置命令 qdes：[B,18]\n100 Hz；腿与臂统一控制", fillcolor="#eaf3ff", color="#5487bd"];
+note [label="论文给出三层隐藏宽度与 ELU\n未公布 μ/σ 头各自层数、共享方式及动作缩放\n图中输出框表示功能，不补造尾部网络", fillcolor="#f3f4f6", color="#949ca6"];
+base -> cat;
+joint -> cat;
+target -> cat;
+cat -> fc1;
+fc1 -> fc2;
+fc2 -> fc3;
+fc3 -> out;
+out -> command;
+out -> note [style=dashed];
+{rank=same; base;joint;target;}
+}

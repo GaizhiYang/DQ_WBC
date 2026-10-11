@@ -1,0 +1,25 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.3", nodesep="0.3", ranksep="0.45", splines=polyline, fontname="Noto Sans CJK SC", fontsize=20, labelloc=t, label="图 3｜Critic：增强状态 + 多目标任务信息"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=12, margin="0.18,0.12", penwidth=1.2];
+edge [color="#64748b", arrowsize=0.7, fontname="Noto Sans CJK SC", fontsize=10];
+shared [label="共享观测旁路\n最后 +noise 节点之前的本体 / 感知 / 命令\n共享感知通路本身已包含模拟测量误差", fillcolor="#eaf3ff", color="#5487bd"];
+sensor [label="增强传感与状态信息\n无噪本体与理想羽毛球状态\n末端位置 / 速度 / 拍面法向\n附加基座质量 / 摩擦 / 拦截预测误差 ε / FOV", fillcolor="#fff0df", color="#bd9148"];
+mdp [label="任务 MDP 信息（不进入 Actor）\n当前及下一羽毛球发射倒计时\n下一拦截位置 / 速度 / 朝向命令\n剩余目标数量、当前及下一目标/站立标志", fillcolor="#fff0df", color="#bd9148"];
+cat [label="拼接 Critic 输入 oC：[B,dC]\n论文未给出总 dC 与部分编码维数", fillcolor="#f2efff", color="#8371ac"];
+fc1 [label="Linear(dC,512) → ELU\n[B,512]", fillcolor="#eaf7f0", color="#49836a"];
+fc2 [label="Linear(512,256) → ELU\n[B,256]", fillcolor="#eaf7f0", color="#49836a"];
+fc3 [label="Linear(256,128) → ELU\n[B,128]", fillcolor="#eaf7f0", color="#49836a"];
+value [label="状态价值 Vφ(s)\n[B,1]", fillcolor="#eaf7f0", color="#49836a"];
+adv [label="回报 / 优势估计\n任务反馈进入 N-P3O 优化", fillcolor="#fceceb", color="#b87874"];
+note [label="未来任务信息用于区分相同观测下的不同回报\n部署时移除整个 Critic\n不添加论文未披露的独立 cost critic 网络", fillcolor="#f3f4f6", color="#949ca6"];
+shared -> cat;
+sensor -> cat;
+mdp -> cat;
+cat -> fc1;
+fc1 -> fc2;
+fc2 -> fc3;
+fc3 -> value;
+value -> adv;
+mdp -> note [style=dashed];
+{rank=same; shared;sensor;mdp;}
+}

@@ -77,6 +77,12 @@ def get_params():
                         help="Train/evaluate DQ_teacher on one object from env.asset.asset_multi (e.g. sugar_box).")
     parser.add_argument("--grasp_selector", choices=("gfm", "karl", "geometric"), default=None,
                         help="Privileged teacher: learned GFM (default), KARL orientation selection, or center/top-down geometric selection. Restored from checkpoint when omitted.")
+    actor_velocity = parser.add_mutually_exclusive_group()
+    actor_velocity.add_argument("--actor_drop_velocity_obs", dest="actor_drop_velocity_obs", action="store_true",
+                                help="GFM teacher ablation: remove robot local linear velocity (3) and relative object XY velocity (2) from the Actor; keep the full Critic.")
+    actor_velocity.add_argument("--actor_keep_velocity_obs", dest="actor_drop_velocity_obs", action="store_false",
+                                help="Explicitly retain the original GFM Actor velocity observations.")
+    parser.set_defaults(actor_drop_velocity_obs=None)
     parser.add_argument("--karl_switch_margin_deg", type=float, default=None,
                         help="KARL selection: minimum total-cost improvement to switch, expressed in degrees (default 30).")
     parser.add_argument("--karl_orientation_preference", choices=("none", "karl"), default=None,

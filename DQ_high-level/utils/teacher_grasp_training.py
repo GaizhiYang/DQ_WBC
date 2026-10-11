@@ -44,6 +44,35 @@ def resolve_selection(args, cfg, checkpoint=None):
             settings[key] = value
     if settings["mode"] not in ("gfm", "karl", "geometric") or settings["orientation_preference"] not in ("none", "karl"):
         raise ValueError("Invalid grasp-selection configuration")
+    saved_drop = settings.get("actor_drop_velocity_obs", False)
+    if not isinstance(saved_drop, bool):
+        raise ValueError("actor_drop_velocity_obs must be a boolean")
+    override_drop = getattr(args, "actor_drop_velocity_obs", None)
+    if override_drop is not None:
+        if not isinstance(override_drop, bool):
+            raise ValueError("actor_drop_velocity_obs must be a boolean")
+        if saved is not None and override_drop != saved_drop:
+            raise ValueError("Actor velocity observation option conflicts with checkpoint; start a new experiment")
+        saved_drop = override_drop
+    if saved_drop:
+        if settings["mode"] != "gfm":
+            raise ValueError("--actor_drop_velocity_obs requires --grasp_selector gfm")
+        if args.task != "B1Z1PickMulti" or not args.roboinfo:
+            raise ValueError("Actor velocity ablation requires --task B1Z1PickMulti and --roboinfo")
+        if args.no_feature or args.last_commands or cfg["env"].get("lastCommands", False) or args.pitch_control:
+            raise ValueError("Actor velocity ablation requires feature observations, last actions and 9 controls; omit --no_feature/--last_commands/--pitch_control")
+        if cfg.get("sensor", {}).get("enableCamera", False):
+            raise ValueError("Actor velocity ablation requires sensor.enableCamera: false")
+        settings["actor_drop_velocity_obs"] = True
+    else:
+        # Preserve old settings dictionaries so existing checkpoints still
+        # load exactly. Absence of this key denotes the original Actor.
+        settings.pop("actor_drop_velocity_obs", None)
+    args.actor_drop_velocity_obs = saved_drop
+    if checkpoint is not None and settings["mode"] == "gfm":
+        weight = checkpoint.get("policy", {}).get("net.0.weight")
+        if weight is not None and (saved_drop and weight.shape[1] != 201 or not saved_drop and weight.shape[1] == 201):
+            raise ValueError("Checkpoint Actor input shape conflicts with velocity-observation metadata")
     margin = settings["switch_margin_deg"]
     if not math.isfinite(margin) or margin < 0:
         raise ValueError("--karl_switch_margin_deg must be finite and non-negative")

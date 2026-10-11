@@ -1,0 +1,28 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.3", nodesep="0.3", ranksep="0.45", splines=polyline, fontname="Noto Sans CJK SC", fontsize=20, labelloc=t, label="图 8｜DQ-NET 迁移建议（提议，非论文原网络 / 非本次代码实现）"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=12, margin="0.18,0.12", penwidth=1.2];
+edge [color="#64748b", arrowsize=0.7, fontname="Noto Sans CJK SC", fontsize=10];
+camera [label="DQ 双相机的部署可得测量\nmask/depth 或已有视觉编码\n有效标志、时间戳", fillcolor="#eaf3ff", color="#5487bd"];
+filter [label="任务适配的持久估计器\n目标 6D 位姿/运动、漏检记忆\n训练部署共用；采用抓取物体运动模型", fillcolor="#f2efff", color="#8371ac"];
+grasp [label="候选抓取 / 接触目标\n使用估计物体位姿变换\n先验模型只在部署可得时使用", fillcolor="#f2efff", color="#8371ac"];
+actor [label="DQ Actor\n部署本体信息 + 感知估计 / 视觉特征\n保留当前 9 维高层动作接口", fillcolor="#eaf7f0", color="#49836a"];
+control [label="现有低层策略 / IK / 夹爪控制\n不在第一步改成全身 18 关节联合学习", fillcolor="#f2efff", color="#8371ac"];
+env [label="DQ 抓取仿真与真实执行\n控制动作反馈改变感知质量", fillcolor="#fff0df", color="#bd9148"];
+critic [label="DQ Critic\nGT 目标位姿/速度 + 本体状态\n任务阶段 / 保持计数 / 剩余时间\n运动模式与域随机化信息", fillcolor="#eaf7f0", color="#49836a"];
+loss [label="原抓取奖励 + 预测误差消融\n用真值接触/抓取目标评估预测误差\n不将可见表面均值直接当作真实中心", fillcolor="#fceceb", color="#b87874"];
+rl [label="直接非对称 RL\n先验证信息与训练闭环，再逐项比较", fillcolor="#fceceb", color="#b87874"];
+camera -> filter;
+filter -> grasp;
+grasp -> actor;
+actor -> control;
+control -> env;
+filter -> actor;
+env -> camera [label="运动—感知闭环",style=dashed];
+env -> critic;
+env -> loss;
+filter -> loss [label="估计误差"];
+critic -> rl;
+loss -> rl;
+rl -> actor [label="策略更新",style=dashed];
+rl -> critic [label="价值更新",style=dashed];
+}

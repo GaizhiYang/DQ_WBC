@@ -1,0 +1,17 @@
+digraph G {
+graph [rankdir=LR, bgcolor="white", pad="0.3", nodesep="0.3", ranksep="0.45", splines=polyline, fontname="Noto Sans CJK SC", fontsize=20, labelloc=t, label="图 7｜主动感知为何出现：动作影响最终预测误差"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=12, margin="0.18,0.12", penwidth=1.2];
+edge [color="#64748b", arrowsize=0.7, fontname="Noto Sans CJK SC", fontsize=10];
+action [label="Actor 的全身动作\n移动、转身、机身俯仰、挥臂", fillcolor="#eaf7f0", color="#49836a"];
+view [label="相机位姿 / 目标距离 / 角运动\n视野和运动模糊发生变化", fillcolor="#eaf3ff", color="#5487bd"];
+sensor [label="检测是否成功 + 位置误差\n真实数据拟合的运动相关感知模型", fillcolor="#f2efff", color="#8371ac"];
+belief [label="多次测量的 EKF 累积\n预测最终拦截点 p̂T", fillcolor="#f2efff", color="#8371ac"];
+task [label="任务跟踪与预测误差反馈\n对比 p̂T 与真值 pT\n通过 N-P3O 学习权衡感知与运动", fillcolor="#fceceb", color="#b87874"];
+note [label="奖励不是单纯的 FOV/目标可见面积\n不是 EKF 协方差奖励\n也不要求穿过感知模块做可微反向传播", fillcolor="#f3f4f6", color="#949ca6"];
+action -> view;
+view -> sensor;
+sensor -> belief;
+belief -> task;
+task -> action [label="强化学习策略更新",style=dashed];
+task -> note [style=dashed];
+}

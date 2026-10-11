@@ -1,0 +1,32 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.3", nodesep="0.3", ranksep="0.45", splines=polyline, fontname="Noto Sans CJK SC", fontsize=20, labelloc=t, label="图 4｜仿真感知：真实误差回归 + 有记忆滤波 + 任务预测"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=12, margin="0.18,0.12", penwidth=1.2];
+edge [color="#64748b", arrowsize=0.7, fontname="Noto Sans CJK SC", fontsize=10];
+offline [label="离线真实数据\n相机观察已知位置目标、动捕记录相机运动", fillcolor="#fff0df", color="#bd9148"];
+fit [label="线性回归：检测概率与位置测量误差\n依赖距离、角速度；论文未给出回归系数", fillcolor="#f2efff", color="#8371ac"];
+gt [label="仿真真值\n羽毛球位置 / 速度 / 预生成轨迹", fillcolor="#fff0df", color="#bd9148"];
+camera [label="机器人运动与相机位姿\n计算距离、相对运动、FOV\n水平 50° / 垂直 74°", fillcolor="#eaf3ff", color="#5487bd"];
+measure [label="FOV 门控 + 概率检测 + 带噪位置\nD、最新相机系位置/方向\n论文未给出完整误差分布", fillcolor="#f2efff", color="#8371ac"];
+delay [label="模拟异步传输 / 延迟\nFig.6：U(0.15,0.25) s\n滤波前完成 map 坐标与时间对齐", fillcolor="#f2efff", color="#8371ac"];
+ekf [label="时间自适应 EKF\n当前测量 + 上次滤波记忆 + 时间信息\n估计 p̂、v̂；论文未给出精确增广状态", fillcolor="#f2efff", color="#8371ac"];
+pred [label="动力学拦截预测\n训练采用真值轨迹附近的线性化偏移（S9）\n避免每步完整滚动预测", fillcolor="#f2efff", color="#8371ac"];
+cmd [label="Actor 的感知 / 任务输入\n最新相机系测量 + D、拦截命令与剩余时间\n目标位置误差以基座系表达\n目标速度 / 拍面法向按规则配置", fillcolor="#eaf3ff", color="#5487bd"];
+hold [label="漏检后保持最后预测\n最多 2 s；检测标志随时更新", fillcolor="#f2efff", color="#8371ac"];
+actor [label="Actor MLP → 全身运动", fillcolor="#eaf7f0", color="#49836a"];
+offline -> fit;
+fit -> measure;
+measure -> delay;
+delay -> ekf;
+ekf -> pred;
+pred -> cmd;
+cmd -> actor;
+gt -> measure;
+camera -> measure;
+gt -> pred [label="真值轨迹供训练近似"];
+delay -> cmd [label="最新已到达测量 + D"];
+pred -> hold;
+hold -> cmd [label="检测丢失时"];
+ekf -> ekf [label="递归状态"];
+actor -> camera [label="动作反馈改变感知质量",style=dashed];
+{rank=same; gt;camera;fit;}
+}

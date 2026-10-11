@@ -1,0 +1,34 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.3", nodesep="0.3", ranksep="0.45", splines=polyline, fontname="Noto Sans CJK SC", fontsize=20, labelloc=t, label="图 5｜部署数据流：60 Hz 感知 + 100 Hz 控制 + 400 Hz 估计"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=12, margin="0.18,0.12", penwidth=1.2];
+edge [color="#64748b", arrowsize=0.7, fontname="Noto Sans CJK SC", fontsize=10];
+cam [label="ZED X 双目相机\n全局快门 / 图像时间戳 / 60 Hz", fillcolor="#eaf3ff", color="#5487bd"];
+hsv [label="HSV 橙色阈值检测\nH<5 或 H>176、S>60、V>160\n不是神经网络检测器", fillcolor="#f2efff", color="#8371ac"];
+stereo [label="双目 3D 测量\n图像检测 → 相机系位置", fillcolor="#f2efff", color="#8371ac"];
+local [label="机器人状态估计：400 Hz\nMSF + CompSLAM / 位姿与本体状态", fillcolor="#f2efff", color="#8371ac"];
+map [label="坐标与时间对齐\n目标测量转换到稳定 map frame", fillcolor="#f2efff", color="#8371ac"];
+ekf [label="与训练一致的时间自适应 EKF\n感知估计链异步 60 Hz", fillcolor="#f2efff", color="#8371ac"];
+pred [label="解析羽毛球轨迹预测\n计算候选拦截点与命令时间", fillcolor="#f2efff", color="#8371ac"];
+rule [label="拦截规则\n轨迹通过网高 / 落地点区域\n配置挥拍高度、速度、拍面方向", fillcolor="#f2efff", color="#8371ac"];
+obs [label="Actor 观测\n最新已到达感知、检测标志、拦截命令、剩余时间\n本体状态、球场位置、上一动作\n60 Hz 测量保持到下一帧，供 100 Hz 策略使用", fillcolor="#eaf3ff", color="#5487bd"];
+actor [label="与训练相同的 Actor MLP\n100 Hz", fillcolor="#eaf7f0", color="#49836a"];
+drive [label="18 个全身关节位置命令\n机器人驱动与物理运动", fillcolor="#eaf3ff", color="#5487bd"];
+hold [label="失去目标时\n最后拦截预测保持 ≤2 s", fillcolor="#f2efff", color="#8371ac"];
+note [label="部署无需 Critic 或回归噪声模拟器\n真实测量自然带有误差；EKF 与 Actor 连续运行", fillcolor="#f3f4f6", color="#949ca6"];
+cam -> hsv;
+hsv -> stereo;
+stereo -> map;
+map -> ekf;
+ekf -> pred;
+pred -> rule;
+rule -> obs;
+obs -> actor;
+actor -> drive;
+local -> map;
+local -> obs;
+stereo -> obs [label="最新测量 / D"];
+pred -> hold;
+hold -> obs [label="漏检时"];
+drive -> cam [label="改变视野 / 成像质量",style=dashed];
+actor -> note [style=dashed];
+}

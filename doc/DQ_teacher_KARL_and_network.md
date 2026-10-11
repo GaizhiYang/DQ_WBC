@@ -228,11 +228,11 @@ cd /home/hehui/DQ_WBC/DQ_high-level
 
 python train_multistate_DQ_teacher.py \
   --task B1Z1PickMulti --grasp_selector gfm \
-  --num_envs 512 --object_name green_bowl \
+  --num_envs 4096 --object_name sugar_box \
   --roboinfo --observe_gait_commands \
-  --headless --sim_device cuda:0 --rl_device cuda:0 \
+  --headless --sim_device cuda:1 --rl_device cuda:1 \
   --timesteps 80000 --seed 43 \
-  --experiment_dir DQ_teacher/grasp_gfm --wandb_name seed43
+  --experiment_dir DQ_teacher/grasp_gfm_sugar_box --wandb_name seed43
 ```
 
 省略 `--grasp_selector` 且不加载检查点时，仍默认为 GFM。

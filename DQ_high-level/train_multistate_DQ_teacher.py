@@ -73,7 +73,8 @@ def create_env(cfg, args, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor ):
 class Policy(GaussianMixin, Model, PredictAttentionSelector):
     def __init__(self, observation_space, action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor,
                   use_tanh=False, clip_actions=False,
-                 clip_log_std=True, min_log_std=-20, max_log_std=2, reduction="sum", deterministic=False):
+                 clip_log_std=True, min_log_std=-20, max_log_std=2, reduction="sum", deterministic=False,
+                 actor_drop_velocity_obs=False):
         Model.__init__(self, observation_space, action_space, device)
         transform_func = torch.distributions.transforms.TanhTransform() if use_tanh else None
         GaussianMixin.__init__(self, clip_actions, clip_log_std, min_log_std, max_log_std, reduction, transform_func=transform_func, deterministic=deterministic)
@@ -82,6 +83,13 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
         self.to(device)
         self.num_features = num_features # 1024
         self.encode_dim = encode_dim # 128
+        self.actor_drop_velocity_obs = actor_drop_velocity_obs
+        if actor_drop_velocity_obs and (self.num_observations != 1276 or self.num_actions != 9
+                                        or num_features != 1024 or encode_dim != 128):
+            raise ValueError("Actor velocity ablation requires 1276 raw observations, 1024 features and 9 actions")
+        # PPO transports the full observation for the unchanged Critic. The
+        # Actor removes the five velocity entries before any network branch.
+        self.actor_num_observations = self.num_observations - (5 if actor_drop_velocity_obs else 0)
         self.cube_object_num = 30  # Candidate grasps per object, not the number of object assets.
         self.notrain_obs_num = 3*self.cube_object_num + 3*self.cube_object_num # 30 cube's pos + rpy feature_num
         
@@ -89,7 +97,7 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
             self.feature_encoder = nn.Sequential(nn.Linear(self.num_features, 512), # input : (envs,1024), output : (envs,512)
                                                   nn.ELU(),
                                                   nn.Linear(512, self.encode_dim),) # input : (envs,512), output : (envs,128)
-        self.net = nn.Sequential(nn.Linear(self.num_observations - self.num_features + self.encode_dim - self.notrain_obs_num + 6, 512), 
+        self.net = nn.Sequential(nn.Linear(self.actor_num_observations - self.num_features + self.encode_dim - self.notrain_obs_num + 6, 512),
                             nn.ELU(),
                             nn.Linear(512, 256),
                             nn.ELU(),
@@ -102,20 +110,27 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
         self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
 
     def compute(self, inputs, role):
-        grasp_predict_local_pos_flat = inputs["states"][...,-6*self.cube_object_num-9:-3*self.cube_object_num-9]
-        grasp_predict_local_rpy_flat = inputs["states"][...,-3*self.cube_object_num-9:-9]
+        states = inputs["states"]
+        if self.actor_drop_velocity_obs:
+            if states.shape[-1] != 1276:
+                raise ValueError("Actor velocity ablation expects the full 1276-dimensional PPO observation")
+            # [1082:1085]: robot local linear velocity (3).
+            # [1085:1087]: object velocity relative to robot in XY (2).
+            states = torch.cat((states[..., :1082], states[..., 1087:]), dim=-1)
+        grasp_predict_local_pos_flat = states[...,-6*self.cube_object_num-9:-3*self.cube_object_num-9]
+        grasp_predict_local_rpy_flat = states[...,-3*self.cube_object_num-9:-9]
         grasp_predict_local_pos = grasp_predict_local_pos_flat.view(-1, self.cube_object_num, 3)
         grasp_predict_local_rpy = grasp_predict_local_rpy_flat.view(-1, self.cube_object_num, 3)
         grasp_predict_local = torch.cat([grasp_predict_local_pos,grasp_predict_local_rpy],dim=-1)
-        cube_local_pos_rpy = inputs["states"][...,self.num_features:self.num_features+6]
-        last_action = inputs["states"][...,-9:]
+        cube_local_pos_rpy = states[...,self.num_features:self.num_features+6]
+        last_action = states[...,-9:]
 
         if self.num_features > 0:
-            features_encode = self.feature_encoder(inputs["states"][..., :self.num_features]) # input : (envs,1024), output : (envs,128)
+            features_encode = self.feature_encoder(states[..., :self.num_features]) # input : (envs,1024), output : (envs,128)
             right_predict_point = self.attention_forward(grasps=grasp_predict_local,obj_feat=features_encode,pose=cube_local_pos_rpy)
-            actions = self.net(torch.cat([inputs["states"][..., self.num_features:-self.notrain_obs_num-9],last_action , features_encode,right_predict_point], dim=-1)) # dim = 70+128? 意思就是先提取点云特征的encoder维度，然后再和后面70维度的其他本体观察值合并
+            actions = self.net(torch.cat([states[..., self.num_features:-self.notrain_obs_num-9],last_action , features_encode,right_predict_point], dim=-1))
         else:
-            actions = self.net(inputs["states"])
+            actions = self.net(states)
         return actions, self.log_std_parameter, {}
 
 class Value(DeterministicMixin, Model, PredictAttentionSelector):
@@ -333,8 +348,12 @@ def get_trainer(is_eval=False):
                                                 use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=args.eval)
         models_ppo["value"] = KarlTeacherValue(env.observation_space, env.action_space, device)
     else:
-        models_ppo["policy"] = Policy(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=args.eval)
+        models_ppo["policy"] = Policy(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=args.eval,
+                                       actor_drop_velocity_obs=selection.get("actor_drop_velocity_obs", False))
         models_ppo["value"] = Value(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor)
+    cprint("Actor observations: %d; Critic observations: %d; Actor velocity ablation: %s" % (
+        getattr(models_ppo["policy"], "actor_num_observations", models_ppo["policy"].num_observations),
+        models_ppo["value"].num_observations, selection.get("actor_drop_velocity_obs", False)), "cyan")
     
     cfg_ppo = PPO_DEFAULT_CONFIG.copy()
     cfg_ppo["rollouts"] = 24  # memory_size

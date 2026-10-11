@@ -1,0 +1,38 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.3", nodesep="0.3", ranksep="0.45", splines=polyline, fontname="Noto Sans CJK SC", fontsize=20, labelloc=t, label="图 1｜原论文：带感知闭环的非对称 Actor–Critic 训练"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=12, margin="0.18,0.12", penwidth=1.2];
+edge [color="#64748b", arrowsize=0.7, fontname="Noto Sans CJK SC", fontsize=10];
+env [label="4096 个并行仿真环境\nANYmal-D + DynaArm / 羽毛球轨迹 / 随机化", fillcolor="#fff0df", color="#bd9148"];
+prop [label="共享本体观测\n基座状态、关节状态、球场位置、上一动作", fillcolor="#eaf3ff", color="#5487bd"];
+per [label="回归感知模型 → 时间自适应 EKF → 拦截预测\n相机系目标观测、检测标志、拦截命令、倒计时", fillcolor="#f2efff", color="#8371ac"];
+cat [label="共享观测拼接\n注意：感知分支已经含测量误差", fillcolor="#f2efff", color="#8371ac"];
+noise [label="Actor 的附加观测噪声\n对应原 Fig. 6 的 +noise 节点", fillcolor="#f2efff", color="#8371ac"];
+actor [label="Actor MLP\ndA → 512 → 256 → 128\n部署可用的数值观测", fillcolor="#eaf7f0", color="#49836a"];
+act [label="全身 18 个关节位置命令\n12 个腿部 + 6 个机械臂关节", fillcolor="#eaf3ff", color="#5487bd"];
+enh [label="Critic 增强状态\n无噪本体 / 末端状态 / 完美感知 / 随机化参数", fillcolor="#fff0df", color="#bd9148"];
+future [label="Critic 任务信息\n下一目标 / 发射倒计时 / 剩余次数 / 任务标志", fillcolor="#fff0df", color="#bd9148"];
+critic [label="Critic MLP\ndC → 512 → 256 → 128 → V(s)\n额外信息只用于价值估计", fillcolor="#eaf7f0", color="#49836a"];
+feedback [label="仿真反馈\n指定时刻跟踪奖励 + 密集预测误差奖励\n运动正则化 + 电流约束", fillcolor="#fceceb", color="#b87874"];
+rl [label="N-P3O（约束 PPO）\n回报 / 优势 / 策略与价值优化", fillcolor="#fceceb", color="#b87874"];
+note [label="部署保留：Actor + EKF + 预测器\nCritic 与回归感知模拟器只用于训练", fillcolor="#f3f4f6", color="#949ca6"];
+env -> prop;
+env -> per;
+prop -> cat;
+per -> cat;
+cat -> noise;
+noise -> actor;
+actor -> act;
+act -> env [label="全身运动改变后续相机观测",style=dashed];
+cat -> critic [label="在最后 +noise 之前分支"];
+env -> enh;
+env -> future;
+enh -> critic;
+future -> critic;
+env -> feedback;
+feedback -> rl;
+critic -> rl;
+rl -> actor [label="更新策略参数",style=dashed];
+rl -> critic [label="更新价值参数",style=dashed];
+actor -> note [style=dashed];
+{rank=same; enh;future;prop;per;}
+}
