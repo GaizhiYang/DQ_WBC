@@ -1,0 +1,41 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.22", nodesep="0.32", ranksep="0.42", splines=polyline, compound=true, newrank=true, outputorder=edgesfirst, fontname="Noto Sans CJK SC", fontsize=21, labelloc=t, labeljust=c, label="图 5｜新多视角缓存制作、仿真查询与真机在线生成\n设计方案 / 尚未实现；两侧共用输入契约，缓存分布与真实感知分布仍需验证"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=12.5, fontcolor="#233247", color="#8893A2", penwidth=1.2, margin="0.12,0.09"];
+edge [fontname="Noto Sans CJK SC", fontsize=10.5, fontcolor="#516073", color="#68798D", penwidth=1.1, arrowsize=0.72];
+subgraph cluster_offline { label="A. 离线制作新缓存：各视角运行真实抓取检测"; fontsize=15; fontcolor="#33445A"; style="rounded"; color="#D7DEE8"; penwidth=1.6; margin=16;
+render [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>渲染目标ROI深度与可见点</B></TD></TR><TR><TD ALIGN="CENTER">覆盖视角、距离、遮挡/采集条件</TD></TR><TR><TD ALIGN="CENTER">对象坐标只用于离线储存变换</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+offline_log [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>冻结LoG → Z1适配/几何检查</B></TD></TR><TR><TD ALIGN="CENTER">保存检测候选、score、width；允许检测为空</TD></TR><TR><TD ALIGN="CENTER">保留检测器真正看见的表面点</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+newcache [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>新Z1多视角缓存</B></TD></TR><TR><TD ALIGN="CENTER">物体系抓取变换 + 可见表面点</TD></TR><TR><TD ALIGN="CENTER">检测元数据 + 视角/距离/采集条件</TD></TR><TR><TD ALIGN="CENTER">不是features.npy，也不是原DQ固定30库</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+}
+subgraph cluster_sim { label="B. 仿真训练侧：缓存近似感知输出"; fontsize=15; fontcolor="#33445A"; style="rounded"; color="#E5D89B"; penwidth=1.6; margin=16;
+sim_truth [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>采集时刻τ对象/相机真值</B></TD></TR><TR><TD ALIGN="CENTER">选缓存视角；放置缓存抓取与可见点</TD></TR><TR><TD ALIGN="CENTER">真值不作为新Actor输入字段</TD></TR></TABLE>>, fillcolor="#FFF7CC", color="#B79A35"];
+query [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>首版：最近单条视角记录</B></TD></TR><TR><TD ALIGN="CENTER">按相机ID/方向/距离选同一条候选与可见表面</TD></TR><TR><TD ALIGN="CENTER">surface做当前视锥筛选；不合并near4多视角</TD></TR><TR><TD ALIGN="CENTER">模拟漏检/假阳性/标定偏差/捕获延迟</TD></TR><TR><TD ALIGN="CENTER">静态缓存不能完整表达当前动态遮挡</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+sim_o [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>按捕获时真值放入O系</B></TD></TR><TR><TD ALIGN="CENTER">Tᴼ_G(τ) = Tᴼ_obj(τ) Tᵒᵇʲ_G</TD></TR><TR><TD ALIGN="CENTER">pᴼ(τ) = Tᴼ_obj(τ) pᵒᵇʲ</TD></TR><TR><TD ALIGN="CENTER">之后只随机器人转帧；不能改用t时刻对象真值</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+}
+subgraph cluster_real { label="C. 真机部署侧：在线感知产生同义字段"; fontsize=15; fontcolor="#33445A"; style="rounded"; color="#BED3E9"; penwidth=1.6; margin=16;
+real_cloud [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>真实深度 + 目标ROI点云</B></TD></TR><TR><TD ALIGN="CENTER">相机标定、capture timestamp、机器人FK</TD></TR><TR><TD ALIGN="CENTER">无需对象6D估计或按对象查询缓存</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+online_log [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>同一冻结LoG + Z1工具适配</B></TD></TR><TR><TD ALIGN="CENTER">在线预测候选、score、width与可见点</TD></TR><TR><TD ALIGN="CENTER">保留检测失败；可更新历史区域种子</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+real_o [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>按捕获时机器人测量放入O系</B></TD></TR><TR><TD ALIGN="CENTER">Tᴼ_G(τ) = Tᴼ_C(τ) Tᶜ_G</TD></TR><TR><TD ALIGN="CENTER">pᴼ(τ) = Tᴼ_C(τ) pᶜ</TD></TR><TR><TD ALIGN="CENTER">保存捕获时间；不使用对象真值</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+}
+adapter [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>两侧相同的时序/几何观测适配器</B></TD></TR><TR><TD ALIGN="CENTER">O系历史 → 当前EE候选 + B系可见表面；age/TTL判定</TD></TR><TR><TD ALIGN="CENTER">τ=最后目标ROI/深度有效包；空ROI新帧不刷新τ</TD></TR><TR><TD ALIGN="CENTER">分数/宽度/几何筛选 → 最多30个 + mask；不足项有限占位</TD></TR><TR><TD ALIGN="CENTER">取一路最近合格包：候选/表面同τ；robot61来自当前状态</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+contract [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>统一Actor契约：原始367D，融合418D</B></TD></TR><TR><TD ALIGN="CENTER">robot61；surface6=[medianᴮ3, visible1, depthfrac1, age1]</TD></TR><TR><TD ALIGN="CENTER">30×[t3,rot6] + mask30；固定工具模板χ[20,3]</TD></TR><TR><TD ALIGN="CENTER">67D候选token → masked max256；融合418D</TD></TR><TR><TD ALIGN="CENTER">score/width仅前端使用；无对象真值或原离线特征</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+actor [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>同一个Actor</B></TD></TR><TR><TD ALIGN="CENTER">仿真：PPO单阶段高斯采样训练</TD></TR><TR><TD ALIGN="CENTER">真机：最终固定统计 + 同一权重，输出μ[9]</TD></TR><TR><TD ALIGN="CENTER">不训练学生，不需要策略蒸馏</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+validation [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>验证感知分布差距</B></TD></TR><TR><TD ALIGN="CENTER">少量在线检测仿真rollout对比缓存训练rollout</TD></TR><TR><TD ALIGN="CENTER">比较候选分布、无候选率、延迟及任务成功率</TD></TR><TR><TD ALIGN="CENTER">缓存不能保证真实遮挡一致；需校准缓存与感知误差模型</TD></TR></TABLE>>, fillcolor="#FAFBFD", color="#A1AABA"];
+legend [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>阅读约定</B></TD></TR><TR><TD ALIGN="CENTER">蓝：观测  绿：学习模块  灰：冻结/确定性模块</TD></TR><TR><TD ALIGN="CENTER">橙：输出  黄：仿真训练真值  红：训练损失</TD></TR><TR><TD ALIGN="CENTER">缓存仅训练提速；部署能力取决于真实感知能否产生同义几何输入</TD></TR></TABLE>>, fillcolor="#FAFBFD", color="#A1AABA", fontsize="10.5"];
+{ rank=same; sim_truth; real_cloud; }
+{ rank=same; query; online_log; }
+{ rank=same; sim_o; real_o; }
+render -> offline_log;
+offline_log -> newcache;
+newcache -> query;
+sim_truth -> query;
+query -> sim_o;
+real_cloud -> online_log;
+online_log -> real_o;
+sim_o -> adapter;
+real_o -> adapter;
+adapter -> contract;
+contract -> actor;
+actor -> validation;
+validation -> legend [style="invis"];
+}

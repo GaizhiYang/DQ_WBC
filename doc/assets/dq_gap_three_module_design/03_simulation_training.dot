@@ -1,0 +1,58 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.25", nodesep="0.34", ranksep="0.40", splines=polyline, compound=true, newrank=true, outputorder=edgesfirst, fontname="Noto Sans CJK SC", fontsize=21, labelloc=t, labeljust=c, label="图 3｜仿真训练：先生成新缓存，再单阶段PPO\n设计 / 尚未实现；4096主训练用缓存近似感知，独立低并行在线评测检查分布差异"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=12.5, fontcolor="#233247", color="#8893A2", penwidth=1.2, margin="0.12,0.09"];
+edge [fontname="Noto Sans CJK SC", fontsize=10.5, fontcolor="#516073", color="#68798D", penwidth=1.1, arrowsize=0.72];
+subgraph cluster_offline { label="离线准备：运行GRE/LoG采集缓存"; fontsize=15; fontcolor="#33445A"; style="rounded"; color="#D0D7E2"; penwidth=1.6; margin=16;
+asset [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>GAP sugar_box 规范资产</B></TD></TR><TR><TD ALIGN="CENTER">004_sugar_box textured.obj + collision_coacd.obj</TD></TR><TR><TD ALIGN="CENTER">生成Isaac URDF、物理参数与语义ID映射</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+capture [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>独立小环境采集多视角深度</B></TD></TR><TR><TD ALIGN="CENTER">远/近相机、视角/距离/ROI/遮挡条件</TD></TR><TR><TD ALIGN="CENTER">不依赖已有sugar_box的v3缓存</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+offline_front [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>同一前端：GRE → 冻结LoG → Z1适配</B></TD></TR><TR><TD ALIGN="CENTER">固定工具轴/TCP/开口/夹爪几何兼容筛选</TD></TR><TR><TD ALIGN="CENTER">当前机器人IK可达性/场景碰撞在运行时校验</TD></TR><TR><TD ALIGN="CENTER">保存检测输出而非直接查询标注真值抓取</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+cache [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>新sugar_box多视角缓存</B></TD></TR><TR><TD ALIGN="CENTER">候选t/R + score/width + 可见目标点（物体系）</TD></TR><TR><TD ALIGN="CENTER">视角/距离/ROI条件 + 工具/相机/mesh版本</TD></TR><TR><TD ALIGN="CENTER">候选和可见点绑定同一条记录</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+}
+subgraph cluster_main { label="4096并行主训练：缓存观测生成器"; fontsize=15; fontcolor="#33445A"; style="rounded"; color="#CAD7EA"; penwidth=1.6; margin=16;
+world [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>DQ B1Z1PickMulti 仿真</B></TD></TR><TR><TD ALIGN="CENTER">对象与机器人动态；原DQ控制频率/动作链</TD></TR><TR><TD ALIGN="CENTER">sugar_box语义不变，实际加载GAP规范资产</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+truth [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>训练专用真值</B></TD></TR><TR><TD ALIGN="CENTER">捕获时刻τ的对象位姿/相机视角</TD></TR><TR><TD ALIGN="CENTER">当前特权状态、reward/done</TD></TR></TABLE>>, fillcolor="#FFF7CC", color="#B79A35"];
+query [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>查询单条最近缓存记录</B></TD></TR><TR><TD ALIGN="CENTER">按τ时视角/距离/相机ID选择一条记录</TD></TR><TR><TD ALIGN="CENTER">候选和表面用同条，不混合不同时刻/视角</TD></TR><TR><TD ALIGN="CENTER">τ时对象真值只用于放置该观测到固定里程计O</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+noise [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>感知扰动与时间缓存</B></TD></TR><TR><TD ALIGN="CENTER">ROI/候选漏检、深度缺失、检测误差、延迟</TD></TR><TR><TD ALIGN="CENTER">按可见包τ保存；空ROI帧不刷新τ</TD></TR><TR><TD ALIGN="CENTER">不用当前对象真值修补旧检测</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+align [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>当前控制时刻t的观测适配</B></TD></TR><TR><TD ALIGN="CENTER">O → 当前EE候选、O → 当前B包内目标点</TD></TR><TR><TD ALIGN="CENTER">仅补偿机器人自身运动；age/TTL一致</TD></TR><TR><TD ALIGN="CENTER">visible指捕获包有效</TD></TR><TR><TD ALIGN="CENTER">age=(t−τ)/TTL，裁剪[0,1]</TD></TR><TR><TD ALIGN="CENTER">最多40候选+mask；过期执行同一guard</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+actor_obs [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>Actor观测467D</B></TD></TR><TR><TD ALIGN="CENTER">robot61 + surface6 + grasp40×9 + mask40</TD></TR><TR><TD ALIGN="CENTER">不含物体真值 / features.npy / GFM</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+critic_obs [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>Critic观测478D</B></TD></TR><TR><TD ALIGN="CENTER">同包Actor467 + 训练专用特权11</TD></TR><TR><TD ALIGN="CENTER">对象pose6 + 基座局部线速度3 + 相对XY速度2</TD></TR></TABLE>>, fillcolor="#FFF7CC", color="#B79A35"];
+reward [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>原reward/done与timeout信号</B></TD></TR><TR><TD ALIGN="CENTER">可读取对象/机器人真值；不传给Actor</TD></TR></TABLE>>, fillcolor="#FFF7CC", color="#B79A35"];
+}
+subgraph cluster_ppo { label="唯一训练阶段：非对称PPO"; fontsize=15; fontcolor="#33445A"; style="rounded"; color="#BBDAC8"; penwidth=1.6; margin=16;
+actor [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>Actor θ（图2）</B></TD></TR><TR><TD ALIGN="CENTER">独立GGN/机器人/表面编码 → 418D</TD></TR><TR><TD ALIGN="CENTER">418→512→256→128 → Gaussian9</TD></TR><TR><TD ALIGN="CENTER">采样动作按原DQ低层执行</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+critic [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>Critic φ（图2）</B></TD></TR><TR><TD ALIGN="CENTER">独立复制编码器，不与Actor共享参数</TD></TR><TR><TD ALIGN="CENTER">418 + 特权11 → 429→512→256→128→V</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+rollout [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>固定rollout buffer</B></TD></TR><TR><TD ALIGN="CENTER">Actor/Critic观测、采样动作、old_log_prob、value</TD></TR><TR><TD ALIGN="CENTER">reward/done、next-value及timeout bootstrap信息</TD></TR><TR><TD ALIGN="CENTER">归一化统计：采集+全部PPO epochs内冻结</TD></TR><TR><TD ALIGN="CENTER">minibatch不重查缓存、不重采样历史/工具模板</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+loss [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>PPO损失</B></TD></TR><TR><TD ALIGN="CENTER">L_actor_clip + cV·L_value − cH·entropy</TD></TR><TR><TD ALIGN="CENTER">GAE/优势估计；无辅助监督、无蒸馏损失</TD></TR><TR><TD ALIGN="CENTER">按原训练超参起步，验证后再调参</TD></TR></TABLE>>, fillcolor="#FDEBEC", color="#C2626B"];
+export [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>导出同一个Actor θ</B></TD></TR><TR><TD ALIGN="CENTER">权重 + χ工具buffer + 固定归一化统计</TD></TR><TR><TD ALIGN="CENTER">观测schema/工具/坐标/版本清单</TD></TR></TABLE>>, fillcolor="#FFF0DF", color="#C68035"];
+}
+eval [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>独立低并行在线仿真评测</B></TD></TR><TR><TD ALIGN="CENTER">深度ROI → 真GRE → LoG → Z1适配 → 同一Actor</TD></TR><TR><TD ALIGN="CENTER">检查缓存/在线候选与surface分布、成功率差距</TD></TR><TR><TD ALIGN="CENTER">不更新权重；不是学生或第二训练阶段</TD></TR></TABLE>>, fillcolor="#FAFBFD", color="#A1AABA"];
+legend [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>阅读约定</B></TD></TR><TR><TD ALIGN="CENTER">蓝：可部署观测　绿：学习网络　灰：几何/冻结模块</TD></TR><TR><TD ALIGN="CENTER">黄：训练专用真值　橙：输出　红：PPO损失</TD></TR><TR><TD ALIGN="CENTER">物体真值可用于缓存生成/查询、Critic与奖励，但不会成为Actor字段</TD></TR><TR><TD ALIGN="CENTER">缓存近似三模块输出，不宣称等价于完整在线GRE闭环</TD></TR></TABLE>>, fillcolor="#FAFBFD", color="#A1AABA", fontsize="10.5"];
+{ rank=same; asset; world; }
+{ rank=same; capture; truth; }
+{ rank=same; actor_obs; critic_obs; reward; }
+{ rank=same; actor; critic; }
+asset -> capture;
+capture -> offline_front;
+offline_front -> cache;
+cache -> query;
+query -> noise;
+noise -> align;
+align -> actor_obs;
+actor_obs -> actor;
+actor -> rollout;
+rollout -> loss;
+loss -> export;
+world -> truth;
+truth -> query;
+truth -> critic_obs;
+actor_obs -> critic_obs;
+critic_obs -> critic;
+critic -> rollout;
+truth -> reward;
+reward -> rollout;
+loss -> actor [constraint="false", label="更新θ", style="dashed", color="#B35A66", fontcolor="#9F4C58"];
+loss -> critic [constraint="false", label="更新φ", style="dashed", color="#B35A66", fontcolor="#9F4C58"];
+actor -> world [style="dotted", constraint="false", label="DQ九维动作"];
+export -> eval;
+eval -> legend [style="invis"];
+}

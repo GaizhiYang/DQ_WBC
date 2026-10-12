@@ -433,7 +433,7 @@ class B1Z1RoughCfg( LeggedRobotCfg ):
         z_threshold = 0.1
 
     class terrain:
-        mesh_type = 'trimesh' # "heightfield" # none, plane, heightfield or trimesh
+        mesh_type = 'plane' # "heightfield" # none, plane, heightfield or trimesh
         hf2mesh_method = "fast"  # grid or fast
         max_error = 0.1 # for fast
         horizontal_scale = 0.12 # [m] influence computation time by a lot

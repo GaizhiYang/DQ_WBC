@@ -1,0 +1,41 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.25", nodesep="0.34", ranksep="0.40", splines=polyline, compound=true, newrank=true, outputorder=edgesfirst, fontname="Noto Sans CJK SC", fontsize=21, labelloc=t, labeljust=c, label="图 4｜Graspable Region Explorer：几何跟踪与探索\n设计 / 尚未实现；GRE不学习，LoG冻结；O为固定里程计系，EE为ee_gripper_link"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=12.5, fontcolor="#233247", color="#8893A2", penwidth=1.2, margin="0.12,0.09"];
+edge [fontname="Noto Sans CJK SC", fontsize=10.5, fontcolor="#516073", color="#68798D", penwidth=1.1, arrowsize=0.72];
+depth [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>当前深度帧 + 目标ROI（捕获时刻τ）</B></TD></TR><TR><TD ALIGN="CENTER">完整有效场景点保留桌面/障碍上下文</TD></TR><TR><TD ALIGN="CENTER">目标ROI由关联/分割提供，仅用于目标流</TD></TR><TR><TD ALIGN="CENTER">无有效目标包时不刷新历史时间戳</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+calib [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>捕获时标定、FK与里程计</B></TD></TR><TR><TD ALIGN="CENTER">深度反投影pC → pEE(τ) → pO</TD></TR><TR><TD ALIGN="CENTER">使用τ时机器人位姿，不用控制t时位姿替代</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+cloud [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>当前目标可见点云 pO</B></TD></TR><TR><TD ALIGN="CENTER">固定O系中进行历史区域匹配</TD></TR><TR><TD ALIGN="CENTER">初始帧无历史则直接进入探索</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+scene [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>完整场景上下文 scene_E(τ)</B></TD></TR><TR><TD ALIGN="CENTER">完整有效深度点：含桌面/障碍</TD></TR><TR><TD ALIGN="CENTER">不以目标ROI裁剪LoG场景上下文</TD></TR><TR><TD ALIGN="CENTER">去无效深度/异常噪点，保留遮挡与接触几何</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+history [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>上一次有效区域记忆</B></TD></TR><TR><TD ALIGN="CENTER">历史可抓中心/抓取中心 cO + capture_time</TD></TR><TR><TD ALIGN="CENTER">以捕获时变换写入O，不保存无时间的旧EE坐标</TD></TR><TR><TD ALIGN="CENTER">几何状态，不是Actor隐状态或GRU</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+ball [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>跟踪历史可抓区域</B></TD></TR><TR><TD ALIGN="CENTER">在当前pO对历史cO做球查询</TD></TR><TR><TD ALIGN="CENTER">参考半径0.05m；Z1需实测确认</TD></TR><TR><TD ALIGN="CENTER">丢弃无点支持或过TTL历史中心</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+track [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>Track region：局部区域FPS</B></TD></TR><TR><TD ALIGN="CENTER">有当前深度支持的局部点集 → 区域中心</TD></TR><TR><TD ALIGN="CENTER">保留仍可见、仍有检测意义的区域</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+explore [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>Explore region：目标点云FPS</B></TD></TR><TR><TD ALIGN="CENTER">从当前ROI可见点补充新区域中心</TD></TR><TR><TD ALIGN="CENTER">首帧全部来自探索；避免只盯旧区域</TD></TR><TR><TD ALIGN="CENTER">GAP初始84中心仅参考，不硬套Z1预算</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+centers [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>合并并筛选区域中心</B></TD></TR><TR><TD ALIGN="CENTER">Track + Explore → 去重/预算限制</TD></TR><TR><TD ALIGN="CENTER">DBSCAN等去噪；保留当前点云支持</TD></TR><TR><TD ALIGN="CENTER">cO → 捕获时cEE(τ)</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+log [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>Grasp Detection：冻结LoG</B></TD></TR><TR><TD ALIGN="CENTER">infer_from_centers(scene_E(τ), cEE(τ))</TD></TR><TR><TD ALIGN="CENTER">中心来自targetROI，场景上下文来自完整深度</TD></TR><TR><TD ALIGN="CENTER">输出抓取t/R、score、width等</TD></TR><TR><TD ALIGN="CENTER">LoG实现含.so，适配需实际运行验证</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+z1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>Z1固定工具与几何适配</B></TD></TR><TR><TD ALIGN="CENTER">转换工具轴、TCP、开口宽度与长度约定</TD></TR><TR><TD ALIGN="CENTER">筛选固定夹爪几何不兼容候选</TD></TR><TR><TD ALIGN="CENTER">IK可达性/场景碰撞由运行时另行校验</TD></TR><TR><TD ALIGN="CENTER">最多40候选；不足补有限占位+mask</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+save [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>写入下一帧区域记忆</B></TD></TR><TR><TD ALIGN="CENTER">新可抓中心/候选中心经τ时EE→O保存</TD></TR><TR><TD ALIGN="CENTER">历史是机器人自运动补偿，不预测物体运动</TD></TR><TR><TD ALIGN="CENTER">目标关联失败/过TTL时清空</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+out [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>统一感知观测包</B></TD></TR><TR><TD ALIGN="CENTER">O系抓取候选 + O系目标可见点 + capture_time</TD></TR><TR><TD ALIGN="CENTER">同包坐标/时间/标定/工具版本 → 图5时序适配</TD></TR><TR><TD ALIGN="CENTER">score/width用于前端筛选，不输入GGN</TD></TR></TABLE>>, fillcolor="#FFF0DF", color="#C68035"];
+legend [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>阅读约定</B></TD></TR><TR><TD ALIGN="CENTER">蓝：可部署观测　绿：学习网络　灰：几何/冻结模块</TD></TR><TR><TD ALIGN="CENTER">黄：训练专用真值　橙：输出　红：PPO损失</TD></TR><TR><TD ALIGN="CENTER">当前深度证据修正历史区域；不需要对象规范坐标系或对象6D位姿</TD></TR><TR><TD ALIGN="CENTER">GAP示例默认ws_filter；拟议DQ运行时明确启用explorer流程</TD></TR></TABLE>>, fillcolor="#FAFBFD", color="#A1AABA", fontsize="10.5"];
+{ rank=same; depth; calib; history; }
+{ rank=same; cloud; scene; }
+{ rank=same; track; explore; }
+{ rank=same; save; out; }
+depth -> cloud;
+calib -> cloud;
+depth -> scene;
+calib -> scene;
+cloud -> ball;
+history -> ball;
+ball -> track;
+track -> centers;
+centers -> log;
+log -> z1;
+cloud -> explore;
+explore -> centers;
+scene -> log [style="dotted", constraint="false", label="完整场景上下文"];
+z1 -> save;
+z1 -> out;
+save -> history [style="dotted", constraint="false", label="下一帧使用"];
+out -> legend [style="invis"];
+save -> legend [style="invis"];
+}

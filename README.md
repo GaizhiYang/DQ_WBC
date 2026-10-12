@@ -76,8 +76,8 @@ python train_multistate_DQ_teacher.py \
   --sim_device cuda:0 \
   --timesteps 120000 \
   --task B1Z1PickMulti \
-  --object_name green_bowl \
-  --experiment_dir DQ_teacher/b1-pick-green_bowl \
+  --object_name sugar_box \
+  --experiment_dir DQ_teacher/b1-pick-sugar-box \
   --roboinfo \
   --observe_gait_commands \
   --small_value_set_zero \
@@ -105,6 +105,39 @@ python train_multi_bc_deter_DQ_stu.py \
   --rand_control \
   --headless
    ```
+   For single-object distillation, add `--object_name sugar_box`, use a separate
+   output such as `--experiment_dir DQ_stu/b1-pick-sugar-box`, and point
+   `--teacher_ckpt_path` to
+   `DQ_teacher/b1-pick-sugar-box/isaacgym/checkpoints/agent_120000.pt`.
+   The student selects the object's initial pose and grasp predictions using
+   its original `dict_idx`; each object still has 30 candidate grasps.
+   `--num_envs` overrides the default 200 student environments. Student runs
+   save the selected objects and environment count in their experiment YAML,
+   so `--resume` retains the single-object selection.
+
+   The DQ teacher and student configs use the same terrain, table motion,
+   start distance (0.85–1.1 m), lifting threshold (0.2 m), and hold time
+   (15 steps). `cameraVisibilityReset: False` keeps camera-only termination
+   rules from changing the student's episode distribution. The student
+   enables cameras for its visual observations; the teacher uses privileged
+   object features and grasp poses.
+
+
+```bash
+python train_multi_bc_deter_DQ_stu.py \
+  --task B1Z1PickMulti \
+  --object_name sugar_box \
+  --rl_device cuda:0 \
+  --sim_device cuda:0 \
+  --timesteps 240000 \
+  --experiment_dir DQ_stu/b1-pick-sugar-box \
+  --teacher_ckpt_path DQ_teacher/b1-pick-sugar-box/isaacgym/checkpoints/agent_120000.pt \
+  --roboinfo \
+  --observe_gait_commands \
+  --small_value_set_zero \
+  --rand_control \
+  --headless
+```
 4. Play DQ_stu:
    ```bash
    python play_multi_bc_deter_DQ_stu.py --task B1Z1PickMulti --checkpoint your_stu_checkpoint_path --roboinfo --observe_gait_commands --small_value_set_zero --rand_control --rl_device cuda:0 --sim_device cuda:0   --headless

@@ -1,0 +1,67 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.22", nodesep="0.32", ranksep="0.42", splines=polyline, compound=true, newrank=true, outputorder=edgesfirst, fontname="Noto Sans CJK SC", fontsize=21, labelloc=t, labeljust=c, label="图 3｜仿真训练侧：缓存生成观测与非对称PPO\n设计方案 / 尚未实现；单阶段训练同一Actor；Critic与奖励可以使用仿真真值"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=12.5, fontcolor="#233247", color="#8893A2", penwidth=1.2, margin="0.12,0.09"];
+edge [fontname="Noto Sans CJK SC", fontsize=10.5, fontcolor="#516073", color="#68798D", penwidth=1.1, arrowsize=0.72];
+world [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>4096并行DQ仿真环境</B></TD></TR><TR><TD ALIGN="CENTER">采集时刻τ：对象/相机状态；控制时刻t：机器人状态</TD></TR><TR><TD ALIGN="CENTER">动作通过原DQ低层执行；与部署使用相同的观测过期处理</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+truth [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>训练专用真值</B></TD></TR><TR><TD ALIGN="CENTER">对象6D位姿、对象速度、任务状态</TD></TR><TR><TD ALIGN="CENTER">只供捕获时缓存查询/变换、Critic与reward/done</TD></TR></TABLE>>, fillcolor="#FFF7CC", color="#B79A35"];
+cache [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>新Z1适配LoG多视角缓存</B></TD></TR><TR><TD ALIGN="CENTER">检测候选（物体系）+ 可见表面点</TD></TR><TR><TD ALIGN="CENTER">score/width + 视角/距离/采集条件</TD></TR><TR><TD ALIGN="CENTER">深度ROI离线检测生成；不是原DQ30库</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+obsgen [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>模拟感知：按采集时刻τ查询</B></TD></TR><TR><TD ALIGN="CENTER">按相机ID/方向/距离选最近单条记录，不合并near4</TD></TR><TR><TD ALIGN="CENTER">用τ时对象位姿将候选/表面放入O系</TD></TR><TR><TD ALIGN="CENTER">surface来自同记录可见点并做视锥筛选，非GT中心</TD></TR><TR><TD ALIGN="CENTER">模拟漏检/假阳性/标定偏差/延迟</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+current [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>时序适配：O → 当前EE/B</B></TD></TR><TR><TD ALIGN="CENTER">只补偿自身运动；age/TTL基于最后目标有效τ</TD></TR><TR><TD ALIGN="CENTER">空ROI帧不刷新τ；无抓取但有效表面可刷新</TD></TR><TR><TD ALIGN="CENTER">每tick一路最近合格包，候选/表面同τ</TD></TR><TR><TD ALIGN="CENTER">Z1几何与宽度筛选 → 最多30候选 + mask</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+obs [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>新Actor原始观测367D</B></TD></TR><TR><TD ALIGN="CENTER">robot61 + surface6 + 30×(t3+rot6) + mask30</TD></TR><TR><TD ALIGN="CENTER">无对象真值、features.npy或原固定候选库</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+priv [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>原Critic特权观测1276D</B></TD></TR><TR><TD ALIGN="CENTER">features.npy 1024 + 原状态72 + 原候选180</TD></TR><TR><TD ALIGN="CENTER">状态含对象位姿6、机器人61、线速度5</TD></TR><TR><TD ALIGN="CENTER">原30库由对象真值变换，仅供Critic</TD></TR></TABLE>>, fillcolor="#FFF7CC", color="#B79A35"];
+reward [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>原任务reward/done</B></TD></TR><TR><TD ALIGN="CENTER">读取对象/机器人真值</TD></TR><TR><TD ALIGN="CENTER">保持原任务定义；仅训练使用</TD></TR></TABLE>>, fillcolor="#FFF7CC", color="#B79A35"];
+buffer [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>一次rollout的固定记录</B></TD></TR><TR><TD ALIGN="CENTER">Actor/Critic观测、动作、old_log_prob、old_value</TD></TR><TR><TD ALIGN="CENTER">reward/done、next_critic/value、timeout bootstrap信息</TD></TR><TR><TD ALIGN="CENTER">Actor归一化统计在采集与全部PPO epochs内冻结</TD></TR><TR><TD ALIGN="CENTER">minibatch复用原观测，不重查缓存/更新历史/重采样模板</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+subgraph cluster_actor { label="Actor参数θ：唯一导出部署的网络"; fontsize=15; fontcolor="#33445A"; style="rounded"; color="#BBDAC8"; penwidth=1.6; margin=16;
+actor_enc [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>可部署编码器（图2）</B></TD></TR><TR><TD ALIGN="CENTER">GGN67→64→256 → masked max256</TD></TR><TR><TD ALIGN="CENTER">robot61→128；surface6→32；有效性2</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+actor_trunk [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>Actor融合与主干</B></TD></TR><TR><TD ALIGN="CENTER">418 → 512 → 256 → 128</TD></TR><TR><TD ALIGN="CENTER">每个隐藏层ELU；无辅助头</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+policy [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>Normal(μ[9], σ[9])</B></TD></TR><TR><TD ALIGN="CENTER">μ：128→9；log_std独立参数[9]</TD></TR><TR><TD ALIGN="CENTER">σ = exp(clamp(log_std, -20, 2))</TD></TR><TR><TD ALIGN="CENTER">采样动作、log_prob、entropy</TD></TR></TABLE>>, fillcolor="#FFF0DF", color="#C68035"];
+}
+subgraph cluster_critic { label="Critic参数φ：独立训练，不导出"; fontsize=15; fontcolor="#33445A"; style="rounded"; color="#D6CF9E"; penwidth=1.6; margin=16;
+critic_features [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>对象特征编码128D</B></TD></TR><TR><TD ALIGN="CENTER">原1024D → Linear512 → ELU</TD></TR><TR><TD ALIGN="CENTER">→ Linear128（按原实现）</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+critic_gfm [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>保留原GFM → 6D</B></TD></TR><TR><TD ALIGN="CENTER">Query：对象编码128 + 对象位姿6</TD></TR><TR><TD ALIGN="CENTER">Key/Value：原候选30×6</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+critic_state [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>原状态72D</B></TD></TR><TR><TD ALIGN="CENTER">对象位姿6 + 机器人61 + 线速度5</TD></TR></TABLE>>, fillcolor="#FFF7CC", color="#B79A35"];
+critic_trunk [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>Critic融合与主干</B></TD></TR><TR><TD ALIGN="CENTER">编码128 + GFM6 + 状态72 = 206</TD></TR><TR><TD ALIGN="CENTER">206 → 512 → 256 → 128 → 1</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+value [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>标量价值Vφ(s)</B></TD></TR><TR><TD ALIGN="CENTER">仅估计训练回报；无参数共享到Actor</TD></TR></TABLE>>, fillcolor="#FFF0DF", color="#C68035"];
+}
+gae [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>GAE与回报目标</B></TD></TR><TR><TD ALIGN="CENTER">reward/done、old_value、next_value构造</TD></TR><TR><TD ALIGN="CENTER">区分timeout与terminal；固定目标stop-gradient</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+ppo [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>PPO Actor损失</B></TD></TR><TR><TD ALIGN="CENTER">clipped ratio × advantage − entropy系数 × H</TD></TR><TR><TD ALIGN="CENTER">仅更新θ：编码器、主干、均值头和log_std</TD></TR></TABLE>>, fillcolor="#FDEBEC", color="#C2626B"];
+value_loss [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>Critic价值损失</B></TD></TR><TR><TD ALIGN="CENTER">回归return（沿用现有PPO设置）</TD></TR><TR><TD ALIGN="CENTER">仅更新φ；真值不进入Actor前向</TD></TR></TABLE>>, fillcolor="#FDEBEC", color="#C2626B"];
+export [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>单阶段训练产物</B></TD></TR><TR><TD ALIGN="CENTER">导出Actor权重 + χ + 归一化统计 + 观测/动作契约</TD></TR><TR><TD ALIGN="CENTER">周期边界才更新统计；部署使用最终固定统计</TD></TR><TR><TD ALIGN="CENTER">无学生网络、无第二阶段蒸馏</TD></TR></TABLE>>, fillcolor="#FFF0DF", color="#C68035"];
+legend [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>阅读约定</B></TD></TR><TR><TD ALIGN="CENTER">蓝：观测  绿：学习模块  灰：冻结/确定性模块</TD></TR><TR><TD ALIGN="CENTER">橙：输出  黄：仿真训练真值  红：训练损失</TD></TR><TR><TD ALIGN="CENTER">黄框为真值边界；真值生成训练观测不等于Actor直接读取对象位姿</TD></TR></TABLE>>, fillcolor="#FAFBFD", color="#A1AABA", fontsize="10.5"];
+{ rank=same; truth; cache; }
+{ rank=same; obs; priv; reward; }
+{ rank=same; actor_enc; critic_features; critic_state; }
+{ rank=same; actor_trunk; critic_gfm; }
+{ rank=same; policy; critic_trunk; }
+{ rank=same; value; gae; }
+{ rank=same; ppo; value_loss; }
+world -> truth;
+truth -> obsgen;
+cache -> obsgen;
+obsgen -> current;
+current -> obs;
+truth -> priv;
+truth -> reward;
+obs -> buffer;
+priv -> buffer;
+reward -> buffer;
+buffer -> actor_enc;
+buffer -> critic_features;
+buffer -> critic_state;
+actor_enc -> actor_trunk;
+actor_trunk -> policy;
+critic_features -> critic_gfm;
+critic_features -> critic_trunk;
+critic_gfm -> critic_trunk;
+critic_state -> critic_trunk;
+critic_trunk -> value;
+policy -> ppo;
+gae -> ppo;
+value -> value_loss;
+gae -> value_loss;
+buffer -> gae [constraint="false", label="reward/done/old_value"];
+buffer -> critic_gfm [style="dotted", label="原候选与对象pose"];
+ppo -> export [style="dashed", color="#B35A66", fontcolor="#9F4C58"];
+value_loss -> export [style="invis"];
+export -> legend [style="invis"];
+}

@@ -1,0 +1,40 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.22", nodesep="0.32", ranksep="0.42", splines=polyline, compound=true, newrank=true, outputorder=edgesfirst, fontname="Noto Sans CJK SC", fontsize=21, labelloc=t, labeljust=c, label="图 4｜真机部署侧：在线深度感知到原DQ控制链\n设计方案 / 尚未实现；同一Actor；无需对象6D估计、对象离线特征、Critic或学生"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=12.5, fontcolor="#233247", color="#8893A2", penwidth=1.2, margin="0.12,0.09"];
+edge [fontname="Noto Sans CJK SC", fontsize=10.5, fontcolor="#516073", color="#68798D", penwidth=1.1, arrowsize=0.72];
+camera [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>深度相机（前向/腕部，1或2台）</B></TD></TR><TR><TD ALIGN="CENTER">深度 + 可部署目标ROI；各自采集时间τ</TD></TR><TR><TD ALIGN="CENTER">内参/外参已标定；双相机不假定同步</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+measure [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>时间同步机器人测量</B></TD></TR><TR><TD ALIGN="CENTER">FK、关节反馈、IMU/里程计、控制器内部状态</TD></TR><TR><TD ALIGN="CENTER">提供τ与当前t的坐标变换；构造robot61</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+cloud [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>目标ROI → 可见深度点云</B></TD></TR><TR><TD ALIGN="CENTER">反投影、去噪、工作区/桌面过滤</TD></TR><TR><TD ALIGN="CENTER">保留有效深度比例；不可用仿真GT分割</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+log [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>冻结LoG + Z1抓取适配</B></TD></TR><TR><TD ALIGN="CENTER">可见点云 → 候选[R,t]、score、width</TD></TR><TR><TD ALIGN="CENTER">工具轴转换与Z1尺度/开口/传感器几何检查</TD></TR><TR><TD ALIGN="CENTER">score/width只筛选候选，不进入GGN</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+history [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>捕获时统一到固定O系</B></TD></TR><TR><TD ALIGN="CENTER">Tᴼ_G(τ) = Tᴼ_C(τ) Tᶜ_G；表面点同τ存O系</TD></TR><TR><TD ALIGN="CENTER">τ是最后目标ROI与深度有效的包；空ROI帧不刷新</TD></TR><TR><TD ALIGN="CENTER">无抓取但目标表面有效，可更新τ；age/TTL从τ计算</TD></TR><TR><TD ALIGN="CENTER">历史区域种子维护；失配后用新有效点云重初始化</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+align [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>控制时刻t：转到当前EE/B</B></TD></TR><TR><TD ALIGN="CENTER">Tᴱ_G(t) = inv(Tᴼ_E(t)) Tᴼ_G(τ)</TD></TR><TR><TD ALIGN="CENTER">pᴮ(t) = inv(Tᴼ_B(t)) pᴼ(τ)</TD></TR><TR><TD ALIGN="CENTER">取一路最近合格包：候选/表面同τ，不混合多帧</TD></TR><TR><TD ALIGN="CENTER">只补偿机器人自身运动；不预测对象运动</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+grasp [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>抓取输入270D + mask30</B></TD></TR><TR><TD ALIGN="CENTER">筛选/去重/限额30个 → EE系[t3,rot6]</TD></TR><TR><TD ALIGN="CENTER">过期/非法mask=0；有限占位t0、R=I</TD></TR><TR><TD ALIGN="CENTER">全无候选时集合特征显式置零</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+surface [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>表面摘要6D</B></TD></TR><TR><TD ALIGN="CENTER">B系可见点median3 + visible1</TD></TR><TR><TD ALIGN="CENTER">+ validDepthFraction1 + age1</TD></TR><TR><TD ALIGN="CENTER">表面可见但无抓取时，仍支持靠近目标</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+robot [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>机器人状态61D</B></TD></TR><TR><TD ALIGN="CENTER">EE6 + joints19 + velocities18</TD></TR><TR><TD ALIGN="CENTER">+ base commands3 + goal6 + last action9</TD></TR><TR><TD ALIGN="CENTER">沿用训练重排、缩放和最终固定统计</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+contract [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>同训练字段的Actor输入367D</B></TD></TR><TR><TD ALIGN="CENTER">robot61 + surface6 + grasp270 + mask30</TD></TR><TR><TD ALIGN="CENTER">同一χ[20,3]、长度单位、工具轴和固定归一化</TD></TR><TR><TD ALIGN="CENTER">any_valid与valid_count/30由mask计算</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+actor [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>训练导出的同一Actor</B></TD></TR><TR><TD ALIGN="CENTER">GGN masked max256 + robot128 + surface32 + valid2</TD></TR><TR><TD ALIGN="CENTER">418 → 512 → 256 → 128 → μ[9]</TD></TR><TR><TD ALIGN="CENTER">冻结推理；执行确定性均值</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+action [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>沿用DQ高层9D动作语义</B></TD></TR><TR><TD ALIGN="CENTER">a0:3 → 累积B系EE位置目标，逐轴±0.02m</TD></TR><TR><TD ALIGN="CENTER">a3:6 → 累积目标RPY，逐轴±0.06rad</TD></TR><TR><TD ALIGN="CENTER">a6≥0开夹爪；a6&lt;0闭夹爪</TD></TR><TR><TD ALIGN="CENTER">a7:9 → 底盘vx/yaw；并非GAP的EE残差动作</TD></TR></TABLE>>, fillcolor="#FFF0DF", color="#C68035"];
+execute [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>现有DQ低层执行接口</B></TD></TR><TR><TD ALIGN="CENTER">机械臂：IK → 关节目标 / PD；底盘：原低层/WBC接口</TD></TR><TR><TD ALIGN="CENTER">过TTL目标失效：停底盘、EE目标设当前FK保持</TD></TR><TR><TD ALIGN="CENTER">夹爪保留上次命令（不是a6=0）；仿真执行器同样处理</TD></TR><TR><TD ALIGN="CENTER">更新累积目标/上次动作，下一周期重复感知</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+frames [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>坐标与时间约定</B></TD></TR><TR><TD ALIGN="CENTER">O：固定里程计系；EE：ee_gripper_link</TD></TR><TR><TD ALIGN="CENTER">B：机械臂安装点为原点 + 完整机身姿态</TD></TR><TR><TD ALIGN="CENTER">实测感知/策略/执行耗时；TTL与丢帧处理训练一致</TD></TR><TR><TD ALIGN="CENTER">对象运动会使旧候选失效，坐标补偿无法消除该误差</TD></TR></TABLE>>, fillcolor="#FAFBFD", color="#A1AABA"];
+legend [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>阅读约定</B></TD></TR><TR><TD ALIGN="CENTER">蓝：观测  绿：学习模块  灰：冻结/确定性模块</TD></TR><TR><TD ALIGN="CENTER">橙：输出  黄：仿真训练真值  红：训练损失</TD></TR><TR><TD ALIGN="CENTER">LoG、Z1适配、标定和真机接口均需实现/验证；本图不是已部署系统</TD></TR></TABLE>>, fillcolor="#FAFBFD", color="#A1AABA", fontsize="10.5"];
+{ rank=same; camera; measure; }
+{ rank=same; grasp; surface; robot; }
+camera -> cloud;
+cloud -> log;
+log -> history;
+cloud -> history;
+measure -> history;
+history -> align;
+align -> grasp;
+align -> surface;
+measure -> robot;
+grasp -> contract;
+surface -> contract;
+robot -> contract;
+contract -> actor;
+actor -> action;
+action -> execute;
+measure -> align [style="dotted", constraint="false", label="当前t FK/里程计"];
+execute -> frames [style="invis"];
+frames -> legend [style="invis"];
+}

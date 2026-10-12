@@ -137,6 +137,7 @@ class B1Z1Base(RewardVecTask):
             print("camera_num_envs is",cfg["env"]["numEnvs"])
             
         self.robot_start_pose = robot_start_pose
+        self.robot_start_distance_range = self.cfg["env"].get("robotStartDistanceRange")
 
         self._extra_env_settings()
         
@@ -527,12 +528,17 @@ class B1Z1Base(RewardVecTask):
     def create_sim(self):
         self.up_axis_idx = 2 # Y=1, Z=2;
         self.sim = super().create_sim(self.sim_id, self.sim_id, self.physics_engine, self.sim_params)
-        #### create the terrain in high-level ####
-        self.terrain = Terrain(self.cfg_terrain.terrain, )
-        self._create_trimesh()
-        #### create the terrain in high-level ####
-
-        self._create_grond_plane()
+        # Load exactly one ground surface to avoid overlapping geometry and flicker.
+        terrain_type = self.cfg["env"].get("terrainType", "plane")
+        if terrain_type == "plane":
+            self._create_grond_plane()
+        elif terrain_type == "trimesh":
+            self.terrain = Terrain(self.cfg_terrain.terrain)
+            self._create_trimesh()
+        else:
+            raise ValueError(f"Unsupported terrainType {terrain_type!r}; expected 'plane' or 'trimesh'")
+        print(f"Environment source: {os.path.realpath(__file__)}")
+        print(f"Ground terrain: {terrain_type}")
         self._create_envs()
         cube_count = self.gym.get_actor_rigid_body_index(self.envs[0], self.cube_handles[0], 0, gymapi.DOMAIN_SIM)
         print(f"rigid_body count is ",cube_count)    #280 when the num_envs = 10, each env has 28 rigid_body count
@@ -893,8 +899,10 @@ class B1Z1Base(RewardVecTask):
 
             self.gym.set_asset_rigid_shape_properties(robot_asset, rigid_shape_props_asset)
             robot_start_pose = gymapi.Transform()
-            # robot_start_pose.p = gymapi.Vec3(*self.robot_start_pose) # gymapi.Vec3(-1.55, 0, 0.66) # 0.95 - 1.35
-            robot_start_pose.p = gymapi.Vec3(-2.0,2.0,0.66) # gymapi.Vec3(-1.55, 0, 0.66) # 0.95 - 1.35
+            start_distance = 2.0
+            if self.robot_start_distance_range is not None:
+                start_distance = np.random.uniform(*self.robot_start_distance_range)
+            robot_start_pose.p = gymapi.Vec3(-start_distance, 2.0, 0.66)
             robot_start_pose.r = gymapi.Quat(0, 0, 0, 1)
             robot_handle = self.gym.create_actor(env_ptr, robot_asset, robot_start_pose, "robot", col_group, col_filter, 0)
             self.robot_handles.append(robot_handle)
@@ -999,6 +1007,12 @@ class B1Z1Base(RewardVecTask):
         self._robot_root_states[env_ids] = self._initial_robot_root_states[env_ids]
         # self._robot_root_states[env_ids, :2] += torch_rand_float(-0.2, 0.2, (len(env_ids), 2), device=self.device) # small randomization
         self._robot_root_states[env_ids, :2] += torch_rand_float(-0., 0., (len(env_ids), 2), device=self.device) # small randomization
+        if self.robot_start_distance_range is not None:
+            min_distance, max_distance = self.robot_start_distance_range
+            start_distance = torch_rand_float(min_distance, max_distance, (len(env_ids), 1), device=self.device).squeeze(1)
+            # Objects are reset before the robot; align y and sample the base-to-object distance.
+            self._robot_root_states[env_ids, 0] = self._cube_root_states[env_ids, 0] - start_distance
+            self._robot_root_states[env_ids, 1] = self._cube_root_states[env_ids, 1]
         self._robot_root_states[env_ids, 2] = 0.60
         # print("self._robot_root_states[env_ids, :2] is",self._robot_root_states[env_ids, :2])
         # self._robot_root_states[env_ids, 0] += torch_rand_float(-0.2, 0.2, (len(env_ids), 1), device=self.device) # small randomization ############ my change ##########
@@ -1742,7 +1756,7 @@ class B1Z1Base(RewardVecTask):
         self.table_commands[:,2] = 0
 
 
-    def compute_table_command_level_01(self): ## fixed 0--0.15m/s in y direction or cicle_trajectory movement
+    def compute_table_command_level_01(self): ## straight-line translation at 0--0.15m/s along y, without rotation
         self.num_steps_to_change_mode[...] += 1
         mask_step_change = (self.num_steps_to_change_mode % (self.rand_change_step*6*self.increase_to_change_step)==0)
         self.increase_to_change_step[mask_step_change]+=1
@@ -1752,9 +1766,7 @@ class B1Z1Base(RewardVecTask):
 
         self.table_commands[:,0] = 0
         self.table_commands[:,1] = self.vel_line_forward_y
-        self.table_commands[self.lin_circle_select,5] = self.vel_angular_yaw[self.lin_circle_select]
-        # self.table_commands[self.lin_circle_select,5] = 0
-        self.table_commands[~self.lin_circle_select,5] = 0
+        self.table_commands[:,5] = 0
         self.table_commands[:,2] = 0
         
     def compute_table_command_level_02(self): ## fixed 0.15--0.30m/s in y direction or cicle_trajectory movement
@@ -1867,6 +1879,11 @@ class B1Z1Base(RewardVecTask):
         actor_root_state_copy = self._root_states.clone()
         table_root_pos = self._root_states[self._table_actor_ids, :2]
         table_root_quat = self._root_states[self._table_actor_ids, 3:7]
+        if self.table_level == "Level01":
+            # Keep the heading fixed so contact-induced rotation cannot curve the path.
+            table_root_quat = torch.zeros_like(table_root_quat)
+            table_root_quat[:, 3] = 1.0
+            actor_root_state_copy[self._table_actor_ids, 3:7] = table_root_quat
         #  [v_x, v_y, 0]
         v_local = torch.zeros((self.num_envs, 3), device=self._root_states.device, dtype=self._root_states.dtype)
         v_local[:, 0] = self.table_commands[:, 0]  

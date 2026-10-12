@@ -1,0 +1,40 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.22", nodesep="0.32", ranksep="0.42", splines=polyline, compound=true, newrank=true, outputorder=edgesfirst, fontname="Noto Sans CJK SC", fontsize=21, labelloc=t, labeljust=c, label="图 1｜当前教师与拟议单阶段可部署教师\n设计方案 / 尚未实现；仿真和真机使用不同观测生成路径、同一个Actor"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=12.5, fontcolor="#233247", color="#8893A2", penwidth=1.2, margin="0.12,0.09"];
+edge [fontname="Noto Sans CJK SC", fontsize=10.5, fontcolor="#516073", color="#68798D", penwidth=1.1, arrowsize=0.72];
+subgraph cluster_baseline { label="当前训练：gfm + actor_drop_velocity_obs"; fontsize=15; fontcolor="#33445A"; style="rounded"; color="#CAD7EA"; penwidth=1.6; margin=16;
+b_raw [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>原 PPO 观测 1276D</B></TD></TR><TR><TD ALIGN="CENTER">对象特征1024 + 对象位姿6 + 机器人61</TD></TR><TR><TD ALIGN="CENTER">+ 线速度5 + 原候选30×6</TD></TR></TABLE>>, fillcolor="#FFF7CC", color="#B79A35"];
+b_drop [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>Actor 仅删除线速度5D</B></TD></TR><TR><TD ALIGN="CENTER">1276 → 1271；物体位姿依赖仍在</TD></TR><TR><TD ALIGN="CENTER">Critic继续读取原始1276D</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+b_shape [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>对象特征编码</B></TD></TR><TR><TD ALIGN="CENTER">features.npy：1024 → 512 → 128</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+b_gfm [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>原 GFM</B></TD></TR><TR><TD ALIGN="CENTER">Query：对象编码128 + 对象位姿6</TD></TR><TR><TD ALIGN="CENTER">原候选30×6 → 潜表示6</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+b_fusion [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>当前 Actor 融合 201D</B></TD></TR><TR><TD ALIGN="CENTER">对象编码128 + GFM6 + 状态67</TD></TR><TR><TD ALIGN="CENTER">状态67 = 对象位姿6 + 机器人61</TD></TR><TR><TD ALIGN="CENTER">201 → 512 → 256 → 128</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+b_out [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>原动作头</B></TD></TR><TR><TD ALIGN="CENTER">μ[9] + log_std[9]</TD></TR><TR><TD ALIGN="CENTER">当前输入需对象位姿，无法直接感知部署</TD></TR></TABLE>>, fillcolor="#FFF0DF", color="#C68035"];
+}
+subgraph cluster_proposal { label="提出方案：感知抓取集合替换Actor的物体真值依赖"; fontsize=15; fontcolor="#33445A"; style="rounded"; color="#BBDAC8"; penwidth=1.6; margin=16;
+p_sim [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>仿真训练侧</B></TD></TR><TR><TD ALIGN="CENTER">新LoG多视角缓存 + 仿真机器人状态</TD></TR><TR><TD ALIGN="CENTER">真值只用于缓存查询/坐标放置及训练</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+p_real [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>真机部署侧</B></TD></TR><TR><TD ALIGN="CENTER">深度 + 目标ROI → 在线冻结LoG</TD></TR><TR><TD ALIGN="CENTER">标定 + FK + 里程计 → 当前坐标</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+p_contract [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>两侧统一 Actor 原始观测367D</B></TD></TR><TR><TD ALIGN="CENTER">机器人61 + 可见表面6 + 30×抓取9 + mask30</TD></TR><TR><TD ALIGN="CENTER">抓取9=t3+rot6；无对象真值/原离线特征</TD></TR><TR><TD ALIGN="CENTER">同一观测包候选与表面来自同一捕获时间</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+p_encode [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>简化共享 Actor 编码</B></TD></TR><TR><TD ALIGN="CENTER">机器人61→128；表面6→32</TD></TR><TR><TD ALIGN="CENTER">抓取点编码 + 67D候选GGN → masked max256</TD></TR><TR><TD ALIGN="CENTER">检测分数/宽度仅在前端筛选</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+p_fusion [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>新 Actor 融合 418D</B></TD></TR><TR><TD ALIGN="CENTER">256 + 128 + 32 + any_valid1 + count/30 1</TD></TR><TR><TD ALIGN="CENTER">418 → 512 → 256 → 128</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+p_out [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>同一动作策略训练与导出</B></TD></TR><TR><TD ALIGN="CENTER">μ[9] + 独立log_std[9]；无tanh高斯</TD></TR><TR><TD ALIGN="CENTER">训练：采样；部署：均值μ</TD></TR><TR><TD ALIGN="CENTER">无注意力、辅助头、GRU或学生</TD></TR></TABLE>>, fillcolor="#FFF0DF", color="#C68035"];
+}
+critic [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>仅仿真训练保留原独立 Critic</B></TD></TR><TR><TD ALIGN="CENTER">特权1276 → 对象编码128 + 原GFM6 + 状态72 = 206</TD></TR><TR><TD ALIGN="CENTER">206 → 512 → 256 → 128 → V(s)；不与Actor共享参数</TD></TR><TR><TD ALIGN="CENTER">物体真值可以训练价值与奖励，不作为新Actor输入</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+legend [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>阅读约定</B></TD></TR><TR><TD ALIGN="CENTER">蓝：观测  绿：学习模块  灰：冻结/确定性模块</TD></TR><TR><TD ALIGN="CENTER">橙：输出  黄：仿真训练真值  红：训练损失</TD></TR><TR><TD ALIGN="CENTER">新方案需重新训练；保留DQ原高层9D动作与现有低层执行链</TD></TR></TABLE>>, fillcolor="#FAFBFD", color="#A1AABA", fontsize="10.5"];
+{ rank=same; b_raw; p_sim; p_real; }
+{ rank=same; b_out; p_out; }
+b_raw -> b_drop;
+b_drop -> b_shape;
+b_drop -> b_gfm;
+b_shape -> b_gfm;
+b_shape -> b_fusion;
+b_gfm -> b_fusion;
+b_fusion -> b_out;
+p_sim -> p_contract;
+p_real -> p_contract;
+p_contract -> p_encode;
+p_encode -> p_fusion;
+p_fusion -> p_out;
+b_out -> critic [style="invis"];
+p_out -> critic [style="invis"];
+critic -> legend [style="invis"];
+}

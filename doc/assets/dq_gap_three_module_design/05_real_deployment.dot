@@ -1,0 +1,40 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.25", nodesep="0.34", ranksep="0.40", splines=polyline, compound=true, newrank=true, outputorder=edgesfirst, fontname="Noto Sans CJK SC", fontsize=21, labelloc=t, labeljust=c, label="图 5｜真机部署：在线三模块前端 + 同一DQ Actor\n设计 / 尚未实现；不读取对象6D位姿或features.npy；不更换原DQ动作和低层控制"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=12.5, fontcolor="#233247", color="#8893A2", penwidth=1.2, margin="0.12,0.09"];
+edge [fontname="Noto Sans CJK SC", fontsize=10.5, fontcolor="#516073", color="#68798D", penwidth=1.1, arrowsize=0.72];
+sensor [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>选择一个有效感知包（捕获时刻τ）</B></TD></TR><TR><TD ALIGN="CENTER">前向远距离 / 腕部近距离深度 + 目标ROI</TD></TR><TR><TD ALIGN="CENTER">每tick选择一路最近合格包；不跨时间硬拼</TD></TR><TR><TD ALIGN="CENTER">相机内外参 + depth scale + 目标关联</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+fk [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>时间对齐的机器人反馈</B></TD></TR><TR><TD ALIGN="CENTER">τ时FK/IMU/里程计；t时FK/关节/命令</TD></TR><TR><TD ALIGN="CENTER">O：固定里程计系；E：ee_gripper_link</TD></TR><TR><TD ALIGN="CENTER">B：机械臂安装原点 + 完整机身朝向</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+cloud [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>捕获时点云构建：两条数据流</B></TD></TR><TR><TD ALIGN="CENTER">scene_E(τ)：完整有效场景，含桌面/障碍</TD></TR><TR><TD ALIGN="CENTER">target_E(τ)：目标ROI点，仅供GRE/表面摘要</TD></TR><TR><TD ALIGN="CENTER">target_E(τ)→O用于区域匹配与观测记录</TD></TR><TR><TD ALIGN="CENTER">不恢复对象6D</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+gre [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>① Graspable Region Explorer</B></TD></TR><TR><TD ALIGN="CENTER">O系历史区域 + 当前可见点云</TD></TR><TR><TD ALIGN="CENTER">区域跟踪/球查询 + FPS新区域探索（图4）</TD></TR><TR><TD ALIGN="CENTER">输出E(τ)系区域中心</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+gd [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>② Grasp Detection</B></TD></TR><TR><TD ALIGN="CENTER">冻结LoG：完整scene_E(τ) + GRE中心</TD></TR><TR><TD ALIGN="CENTER">目标ROI中心引导检测，保留桌面/障碍上下文</TD></TR><TR><TD ALIGN="CENTER">Z1工具轴/TCP/开口/固定夹爪几何适配</TD></TR><TR><TD ALIGN="CENTER">最多40个有效候选，余槽mask=False</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+packet [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>记录 O系感知包</B></TD></TR><TR><TD ALIGN="CENTER">τ时EE→O转换候选，表面点也保存在O</TD></TR><TR><TD ALIGN="CENTER">candidate/visible points/mask/capture_time</TD></TR><TR><TD ALIGN="CENTER">ROI空帧不刷新τ；有效ROI无抓取可刷新</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+align [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>控制时刻t的适配器</B></TD></TR><TR><TD ALIGN="CENTER">O→E(t)抓取；O→B(t)包内目标点</TD></TR><TR><TD ALIGN="CENTER">只补偿机器人自身运动，不推断物体运动</TD></TR><TR><TD ALIGN="CENTER">当前FK下候选可达性再筛，更新mask</TD></TR><TR><TD ALIGN="CENTER">表面median3 + visible + depth fraction + age</TD></TR><TR><TD ALIGN="CENTER">visible为τ时包有效；TTL与仿真一致</TD></TR><TR><TD ALIGN="CENTER">age=(t−τ)/TTL，裁剪[0,1]</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+obs [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>Actor原始观测467D</B></TD></TR><TR><TD ALIGN="CENTER">robot61 + surface6 + grasp40×9 + mask40</TD></TR><TR><TD ALIGN="CENTER">robot按训练契约重排/缩放，固定导出stats</TD></TR><TR><TD ALIGN="CENTER">抓取合法R用前两列rot6；无效槽有限占位</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+encoder [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>③ Grasp Encoder + 状态编码</B></TD></TR><TR><TD ALIGN="CENTER">工具点GGN67→64→256 → masked max256</TD></TR><TR><TD ALIGN="CENTER">robot61→128；surface6→32；有效性2</TD></TR><TR><TD ALIGN="CENTER">融合418D（图2）</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+actor [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>训练得到的同一Actor</B></TD></TR><TR><TD ALIGN="CENTER">418→512→256→128 → μ[9]</TD></TR><TR><TD ALIGN="CENTER">部署只取均值；不采样log_std</TD></TR><TR><TD ALIGN="CENTER">无Critic、学生、辅助头或在线更新</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+decoder [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>沿用DQ九维动作解释</B></TD></TR><TR><TD ALIGN="CENTER">a₀…a₅更新B系累计EE目标：位置±0.02m</TD></TR><TR><TD ALIGN="CENTER">RPY±0.06rad；限幅、IK和原频率沿用</TD></TR><TR><TD ALIGN="CENTER">a₆ ≥ 0打开夹爪，a₆ &lt; 0关闭</TD></TR><TR><TD ALIGN="CENTER">a₇底盘vx（原幅度±0.45），a₈底盘yaw</TD></TR></TABLE>>, fillcolor="#FFF0DF", color="#C68035"];
+guard [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>感知过期 guard（训练/真机同样执行）</B></TD></TR><TR><TD ALIGN="CENTER">最后目标有效包超过TTL：全部候选/表面失效</TD></TR><TR><TD ALIGN="CENTER">底盘vx/yaw置0；累计EE目标设当前FK保持</TD></TR><TR><TD ALIGN="CENTER">维持上次夹爪命令；a₆=0不是保持</TD></TR><TR><TD ALIGN="CENTER">有效ROI无抓取但未过期：允许Actor按表面接近</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+control [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>DQ执行目标校验与原低层执行</B></TD></TR><TR><TD ALIGN="CENTER">动作目标IK / 场景碰撞约束在运行时校验</TD></TR><TR><TD ALIGN="CENTER">执行动作IK / 原低层策略 / PD或WBC接口</TD></TR><TR><TD ALIGN="CENTER">关节/末端/底盘反馈 → 下一次感知与robot61</TD></TR></TABLE>>, fillcolor="#FFF0DF", color="#C68035"];
+required [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>部署前必须验证的接口</B></TD></TR><TR><TD ALIGN="CENTER">LoG运行依赖 + Z1工具适配；ROI目标关联</TD></TR><TR><TD ALIGN="CENTER">相机标定/时间同步/里程计误差；数据契约</TD></TR><TR><TD ALIGN="CENTER">GGN导出数值一致性 + 缓存/在线分布差距</TD></TR></TABLE>>, fillcolor="#FAFBFD", color="#A1AABA"];
+legend [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>阅读约定</B></TD></TR><TR><TD ALIGN="CENTER">蓝：可部署观测　绿：学习网络　灰：几何/冻结模块</TD></TR><TR><TD ALIGN="CENTER">黄：训练专用真值　橙：输出　红：PPO损失</TD></TR><TR><TD ALIGN="CENTER">沿用DQ累计目标增量，不采用GAP的直接EE残差动作</TD></TR><TR><TD ALIGN="CENTER">虚点线：姿态/有效性/反馈依赖；图示为设计，不代表模块已接入</TD></TR></TABLE>>, fillcolor="#FAFBFD", color="#A1AABA", fontsize="10.5"];
+{ rank=same; sensor; fk; }
+{ rank=same; decoder; guard; }
+sensor -> cloud;
+cloud -> gre;
+gre -> gd;
+gd -> packet;
+packet -> align;
+align -> obs;
+obs -> encoder;
+encoder -> actor;
+actor -> decoder;
+decoder -> control;
+control -> required;
+fk -> cloud [label="τ时变换"];
+cloud -> gd [style="dotted", constraint="false", label="完整scene_E(τ)"];
+fk -> align [style="dotted", constraint="false", label="t时变换"];
+fk -> obs [style="dotted", constraint="false", label="robot61"];
+align -> guard [label="age/TTL状态"];
+guard -> control [style="dotted", label="过期时覆盖命令"];
+required -> legend [style="invis"];
+}

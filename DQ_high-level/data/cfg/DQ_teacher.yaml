@@ -2,6 +2,7 @@ env:
   numEnvs: 5000 
   numAgents: 1
   envSpacing: 3
+  terrainType: plane # Flat ground; use trimesh to load rough terrain instead
   enableDebugVis: False
   isFlagrun: False
   maxEpisodeLength: 100 
@@ -11,11 +12,13 @@ env:
   controlFrequencyLow: 8
   imgDelayFrame: 4
   D1_bench_task_level : "Level01"
+  robotStartDistanceRange: [0.85, 1.1] # Horizontal distance from robot base to object [m]
+  cameraVisibilityReset: False # Keep termination rules consistent with visual distillation
 
-  liftedSuccessThreshold: 0.35
+  liftedSuccessThreshold: 0.2
   liftedInitThreshold: 0.05
   baseObjectDisThreshold: 0.2
-  holdSteps: 25
+  holdSteps: 15
   lastCommands: False
 
   low_policy_path: "/home/hehui/DQ_WBC/DQ_high-level/data/low_model/model_44000.pt" 

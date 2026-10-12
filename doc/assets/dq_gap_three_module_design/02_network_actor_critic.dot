@@ -1,0 +1,69 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.25", nodesep="0.34", ranksep="0.40", splines=polyline, compound=true, newrank=true, outputorder=edgesfirst, fontname="Noto Sans CJK SC", fontsize=21, labelloc=t, labeljust=c, label="图 2｜逐层网络：GGN、418D Actor 与 429D Critic\n设计 / 尚未实现；省略批维B，N=40，L=20；所有维度指单环境输入"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=12.5, fontcolor="#233247", color="#8893A2", penwidth=1.2, margin="0.12,0.09"];
+edge [fontname="Noto Sans CJK SC", fontsize=10.5, fontcolor="#516073", color="#68798D", penwidth=1.1, arrowsize=0.72];
+subgraph cluster_ggn { label="Actor 的 Grasp Encoder（可学习）"; fontsize=15; fontcolor="#33445A"; style="rounded"; color="#BBDAC8"; penwidth=1.6; margin=16;
+template [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>固定工具模板 χ[20,3]</B></TD></TR><TR><TD ALIGN="CENTER">固定种子Gaussian点、去均值</TD></TR><TR><TD ALIGN="CENTER">Z1实际工具尺度；模型buffer随权重导出</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+grasps [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>当前EE系候选与mask</B></TD></TR><TR><TD ALIGN="CENTER">[40,9] = t3 + R前两列rot6；mask[40]</TD></TR><TR><TD ALIGN="CENTER">恢复合法R；无效槽有限占位、mask=False</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+points [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>候选工具点 + 参考组</B></TD></TR><TR><TD ALIGN="CENTER">Pⱼ = χRⱼᵀ + tⱼ → [40,20,3]</TD></TR><TR><TD ALIGN="CENTER">concat(χ, P₁,…,P₄₀) → [41,20,3]</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+point_mlp [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>所有组/点共享点MLP</B></TD></TR><TR><TD ALIGN="CENTER">Linear 3→16 → LayerNorm16 → ReLU</TD></TR><TR><TD ALIGN="CENTER">Linear 16→32 → LayerNorm32 → ReLU</TD></TR><TR><TD ALIGN="CENTER">[41,20,3] → [41,20,32]</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+point_max [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>组内 max（20点轴）</B></TD></TR><TR><TD ALIGN="CENTER">[41,20,32] → [41,32]</TD></TR><TR><TD ALIGN="CENTER">参考 h_ref[32] 与每候选 hⱼ[32]</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+tokens [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>每候选67D组合</B></TD></TR><TR><TD ALIGN="CENTER">hⱼ32 + h_ref32 + mean(Pⱼ)3</TD></TR><TR><TD ALIGN="CENTER">χ去均值：mean(Pⱼ)=tⱼ</TD></TR><TR><TD ALIGN="CENTER">[40,67]；不拼score/width</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+token_mlp [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>所有候选共享GGN MLP</B></TD></TR><TR><TD ALIGN="CENTER">Linear 67→64 → LayerNorm64 → ReLU</TD></TR><TR><TD ALIGN="CENTER">Linear 64→256 → LayerNorm256 → ReLU</TD></TR><TR><TD ALIGN="CENTER">[40,67] → [40,256]</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+masked_max [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>候选 masked max</B></TD></TR><TR><TD ALIGN="CENTER">有效候选上max → z_grasp[256]</TD></TR><TR><TD ALIGN="CENTER">无效项屏蔽；全部无效显式返回0</TD></TR><TR><TD ALIGN="CENTER">候选排列不改变集合编码</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+}
+subgraph cluster_context { label="Actor 的机器人/可见表面编码"; fontsize=15; fontcolor="#33445A"; style="rounded"; color="#CAD7EA"; penwidth=1.6; margin=16;
+robot [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>机器人61D</B></TD></TR><TR><TD ALIGN="CENTER">EE pose6 + q19 + q̇18 + base commands3</TD></TR><TR><TD ALIGN="CENTER">+ 累积EE目标6 + 上次高层动作9</TD></TR><TR><TD ALIGN="CENTER">原关节重排/缩放；使用导出的归一化统计</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+robot_mlp [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>机器人编码128D</B></TD></TR><TR><TD ALIGN="CENTER">Linear 61→128 → ELU</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+surface [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>可见表面6D（捕获包摘要）</B></TD></TR><TR><TD ALIGN="CENTER">B系包内目标点median3 + visible1</TD></TR><TR><TD ALIGN="CENTER">+ 捕获时有效深度比例1 + age1</TD></TR><TR><TD ALIGN="CENTER">visible指τ时包有效</TD></TR><TR><TD ALIGN="CENTER">age=(t−τ)/TTL，裁剪[0,1]</TD></TR><TR><TD ALIGN="CENTER">不是对象真值中心；含无候选远处接近线索</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+surface_mlp [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>表面编码32D</B></TD></TR><TR><TD ALIGN="CENTER">固定量纲归一化</TD></TR><TR><TD ALIGN="CENTER">Linear 6→32 → ELU</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+valid [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>候选有效性2D</B></TD></TR><TR><TD ALIGN="CENTER">any_valid ∈ {0,1}</TD></TR><TR><TD ALIGN="CENTER">valid_count/40 ∈ [0,1]</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+}
+subgraph cluster_actor { label="Actor参数θ：仅此网络导出部署"; fontsize=15; fontcolor="#33445A"; style="rounded"; color="#BBDAC8"; penwidth=1.6; margin=16;
+fusion [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>融合418D</B></TD></TR><TR><TD ALIGN="CENTER">z_grasp256 + z_robot128 + z_surface32</TD></TR><TR><TD ALIGN="CENTER">+ any_valid1 + count/40 1 = 418</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+trunk [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>Actor主干（隐藏层ELU）</B></TD></TR><TR><TD ALIGN="CENTER">Linear 418→512 → ELU</TD></TR><TR><TD ALIGN="CENTER">Linear 512→256 → ELU</TD></TR><TR><TD ALIGN="CENTER">Linear 256→128 → ELU</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+mean [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>动作均值头</B></TD></TR><TR><TD ALIGN="CENTER">Linear 128→9 → μ[9]</TD></TR><TR><TD ALIGN="CENTER">不加输出tanh</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+std [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>独立策略方差参数</B></TD></TR><TR><TD ALIGN="CENTER">可学习log_std[9]</TD></TR><TR><TD ALIGN="CENTER">σ=exp(clamp(log_std, −20, 2))</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+policy [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>Normal(μ, σ)</B></TD></TR><TR><TD ALIGN="CENTER">训练：采样9D动作、log_prob、entropy</TD></TR><TR><TD ALIGN="CENTER">部署：确定性μ[9]</TD></TR></TABLE>>, fillcolor="#FFF0DF", color="#C68035"];
+}
+subgraph cluster_critic { label="Critic参数φ：完全独立，不导出"; fontsize=15; fontcolor="#33445A"; style="rounded"; color="#D6CF9E"; penwidth=1.6; margin=16;
+critic_raw [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>Critic原始观测478D</B></TD></TR><TR><TD ALIGN="CENTER">Actor同包观测467 + 训练专用特权11</TD></TR><TR><TD ALIGN="CENTER">特权11：对象位姿6 + 基座局部线速度3</TD></TR><TR><TD ALIGN="CENTER">+ 对象相对XY速度2</TD></TR></TABLE>>, fillcolor="#FFF7CC", color="#B79A35"];
+critic_enc [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>独立复制观测编码器</B></TD></TR><TR><TD ALIGN="CENTER">GGN：点3→16→32；候选67→64→256</TD></TR><TR><TD ALIGN="CENTER">masked max256 + robot61→128</TD></TR><TR><TD ALIGN="CENTER">+ surface6→32 + 有效性2 = 418</TD></TR><TR><TD ALIGN="CENTER">χ模板相同；所有学习权重与Actor独立</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+critic_fusion [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>Critic融合429D</B></TD></TR><TR><TD ALIGN="CENTER">独立观测编码418 + 特权11 = 429</TD></TR><TR><TD ALIGN="CENTER">不含GFM或features.npy</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+critic_trunk [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>Critic主干（隐藏层ELU）</B></TD></TR><TR><TD ALIGN="CENTER">Linear 429→512 → ELU</TD></TR><TR><TD ALIGN="CENTER">Linear 512→256 → ELU</TD></TR><TR><TD ALIGN="CENTER">Linear 256→128 → ELU</TD></TR><TR><TD ALIGN="CENTER">Linear 128→1 → V(s)</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+value [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>价值V[1]</B></TD></TR><TR><TD ALIGN="CENTER">仅PPO训练、GAE/timeout bootstrap使用</TD></TR></TABLE>>, fillcolor="#FFF0DF", color="#C68035"];
+}
+legend [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>阅读约定</B></TD></TR><TR><TD ALIGN="CENTER">蓝：可部署观测　绿：学习网络　灰：几何/冻结模块</TD></TR><TR><TD ALIGN="CENTER">黄：训练专用真值　橙：输出　红：PPO损失</TD></TR><TR><TD ALIGN="CENTER">原始Actor467D ≠ 融合418D；原始Critic478D ≠ 融合429D</TD></TR><TR><TD ALIGN="CENTER">mask不参与点MLP数值归一化；归一化统计在整次rollout和PPO epochs内冻结</TD></TR></TABLE>>, fillcolor="#FAFBFD", color="#A1AABA", fontsize="10.5"];
+{ rank=same; template; grasps; robot; critic_raw; }
+{ rank=same; point_mlp; surface; critic_enc; }
+{ rank=same; tokens; surface_mlp; valid; critic_fusion; }
+{ rank=same; masked_max; critic_trunk; }
+{ rank=same; mean; std; value; }
+template -> points;
+grasps -> points;
+points -> point_mlp;
+point_mlp -> point_max;
+point_max -> tokens;
+tokens -> token_mlp;
+token_mlp -> masked_max;
+masked_max -> fusion;
+fusion -> trunk;
+trunk -> mean;
+mean -> policy;
+robot -> robot_mlp;
+robot_mlp -> fusion;
+surface -> surface_mlp;
+surface_mlp -> fusion;
+valid -> fusion;
+std -> policy;
+critic_raw -> critic_enc;
+critic_enc -> critic_fusion;
+critic_fusion -> critic_trunk;
+critic_trunk -> value;
+critic_raw -> critic_fusion [style="dotted", constraint="false", label="特权11旁路"];
+robot_mlp -> surface [style="invis"];
+grasps -> masked_max [style="dotted", constraint="false", label="mask"];
+grasps -> valid [style="dotted", constraint="false", label="mask统计"];
+policy -> legend [style="invis"];
+value -> legend [style="invis"];
+}

@@ -70,7 +70,7 @@ def get_params():
     parser.add_argument("--num_envs", type=int, default=None,
                         help="Number of environments to create. Overrides the config value.")
     parser.add_argument("--object_name", type=str, default=None,
-                        help="Train/evaluate DQ_teacher on one object from env.asset.asset_multi (e.g. sugar_box).")
+                        help="Train/evaluate DQ_teacher or DQ_stu on one object from env.asset.asset_multi (e.g. sugar_box).")
     
     args = parser.parse_args()
     

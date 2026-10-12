@@ -1,0 +1,41 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.25", nodesep="0.34", ranksep="0.40", splines=polyline, compound=true, newrank=true, outputorder=edgesfirst, fontname="Noto Sans CJK SC", fontsize=21, labelloc=t, labeljust=c, label="图 1｜用 GRE、Grasp Detection、Grasp Encoder 替换原 GFM\n设计 / 尚未实现；保留 DQ 的 PPO、九维动作与低层控制，单阶段训练同一部署 Actor"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=12.5, fontcolor="#233247", color="#8893A2", penwidth=1.2, margin="0.12,0.09"];
+edge [fontname="Noto Sans CJK SC", fontsize=10.5, fontcolor="#516073", color="#68798D", penwidth=1.1, arrowsize=0.72];
+subgraph cluster_old { label="当前基线：gfm + actor_drop_velocity_obs"; fontsize=15; fontcolor="#33445A"; style="rounded"; color="#CAD7EA"; penwidth=1.6; margin=16;
+old_raw [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>原始观测 1276D</B></TD></TR><TR><TD ALIGN="CENTER">features.npy 1024 + 对象位姿6 + 机器人61</TD></TR><TR><TD ALIGN="CENTER">+ 基座线速度3 + 对象相对XY速度2 + 30×6候选</TD></TR></TABLE>>, fillcolor="#FFF7CC", color="#B79A35"];
+old_feature [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>原物体特征编码</B></TD></TR><TR><TD ALIGN="CENTER">1024 → 512 → 128</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+old_gfm [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>原 GFM</B></TD></TR><TR><TD ALIGN="CENTER">对象编码128 + 对象位姿6作为Query</TD></TR><TR><TD ALIGN="CENTER">固定30候选经对象真值搬运 → 潜表示6</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+old_actor [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>当前 Actor 融合 201D</B></TD></TR><TR><TD ALIGN="CENTER">对象编码128 + GFM6 + 对象位姿6 + 机器人61</TD></TR><TR><TD ALIGN="CENTER">201 → 512 → 256 → 128 → μ[9]</TD></TR><TR><TD ALIGN="CENTER">删除速度5D后，仍读取对象位姿</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+old_critic [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>当前 Critic：独立参数，融合206D</B></TD></TR><TR><TD ALIGN="CENTER">独立对象编码128 + 独立GFM6 + 状态72</TD></TR><TR><TD ALIGN="CENTER">206 → 512 → 256 → 128 → V</TD></TR><TR><TD ALIGN="CENTER">仅作为独立实验基线</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+}
+subgraph cluster_new { label="拟议方案：Actor 与 Critic 都去除 GFM / features.npy"; fontsize=15; fontcolor="#33445A"; style="rounded"; color="#BBDAC8"; penwidth=1.6; margin=16;
+sim [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>4096并行训练：缓存近似感知</B></TD></TR><TR><TD ALIGN="CENTER">新sugar_box视角缓存 + 捕获时仿真状态</TD></TR><TR><TD ALIGN="CENTER">近似 GRE/LoG 的输出，不逐步在线检测</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+real [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>真机：真实感知前端</B></TD></TR><TR><TD ALIGN="CENTER">深度目标ROI + 标定/FK/里程计</TD></TR><TR><TD ALIGN="CENTER">GRE → 冻结LoG → Z1工具适配</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+contract [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>两侧相同 Actor 观测 467D</B></TD></TR><TR><TD ALIGN="CENTER">机器人61 + 可见表面6</TD></TR><TR><TD ALIGN="CENTER">+ 40×(位置3 + rot6) + mask40</TD></TR><TR><TD ALIGN="CENTER">当前EE/B坐标；候选和表面来自同一观测包</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+encoder [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>可学习 Grasp Encoder：GGN</B></TD></TR><TR><TD ALIGN="CENTER">参考与候选工具点 → 共享点MLP</TD></TR><TR><TD ALIGN="CENTER">67D候选 → 64 → 256 → masked max256</TD></TR><TR><TD ALIGN="CENTER">robot61→128；surface6→32；有效性2</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+actor [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>新 Actor：融合418D</B></TD></TR><TR><TD ALIGN="CENTER">256 + 128 + 32 + 2 = 418</TD></TR><TR><TD ALIGN="CENTER">418 → 512 → 256 → 128 → μ[9]</TD></TR><TR><TD ALIGN="CENTER">独立可学习log_std[9]；训练采样，部署均值</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+new_critic [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>新 Critic：独立复制编码器</B></TD></TR><TR><TD ALIGN="CENTER">同一467D观测 + 特权11 = 原始478D</TD></TR><TR><TD ALIGN="CENTER">独立编码418 + 特权11 = 融合429D</TD></TR><TR><TD ALIGN="CENTER">429 → 512 → 256 → 128 → V</TD></TR></TABLE>>, fillcolor="#E9F6EE", color="#438B64"];
+}
+execution [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>DQ 执行链保持不变</B></TD></TR><TR><TD ALIGN="CENTER">9D：末端累计目标增量6 + 夹爪1 + 底盘vx/yaw2</TD></TR><TR><TD ALIGN="CENTER">原IK / 低层策略 / PD或WBC接口</TD></TR></TABLE>>, fillcolor="#FFF0DF", color="#C68035"];
+legend [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>阅读约定</B></TD></TR><TR><TD ALIGN="CENTER">蓝：可部署观测　绿：学习网络　灰：几何/冻结模块</TD></TR><TR><TD ALIGN="CENTER">黄：训练专用真值　橙：输出　红：PPO损失</TD></TR><TR><TD ALIGN="CENTER">Actor/Critic 不共享权重；无学生、注意力、辅助头或GRU</TD></TR><TR><TD ALIGN="CENTER">单阶段高层PPO；另做低并行真实前端评测，评测不训练</TD></TR></TABLE>>, fillcolor="#FAFBFD", color="#A1AABA", fontsize="10.5"];
+{ rank=same; old_raw; sim; real; }
+{ rank=same; old_feature; contract; }
+{ rank=same; old_gfm; encoder; }
+{ rank=same; old_actor; actor; }
+{ rank=same; old_critic; new_critic; execution; }
+old_raw -> old_feature;
+old_feature -> old_gfm;
+old_gfm -> old_actor;
+old_raw -> old_critic [style="dotted", constraint="false", label="独立编码分支"];
+old_raw -> old_gfm [style="dotted", constraint="false", label="原候选/真值"];
+sim -> contract;
+real -> contract;
+contract -> encoder;
+encoder -> actor;
+actor -> execution;
+contract -> new_critic;
+execution -> legend [style="invis"];
+old_critic -> legend [style="invis"];
+new_critic -> legend [style="invis"];
+}

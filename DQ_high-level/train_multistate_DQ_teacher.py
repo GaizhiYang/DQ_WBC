@@ -247,7 +247,8 @@ def get_trainer(is_eval=False):
             file_path = os.path.join(experiment_dir, cfg_file)
         
         print("Find the latest checkpoint: ", args.checkpoint)
-    cprint(f"Using config file: {file_path}","red" )
+    cprint(f"Training script: {os.path.realpath(__file__)}", "yellow")
+    cprint(f"Using config file: {os.path.realpath(file_path)}", "red")
         
     cfg = load_cfg(file_path)
     multi_obj = cfg["env"]["asset"]["asset_multi"]

@@ -8,6 +8,7 @@ except:
 import numpy as np
 import torch
 import os
+from copy import deepcopy
 from termcolor import cprint
 
 import torch.nn as nn
@@ -140,6 +141,7 @@ def create_env(cfg, args, mode, camera_6p_tensor, grasp_cv_tensor, cube_init_ten
     cfg["sensor"]["enableCamera"] = True
     cfg["env"]["enableDebugVis"] = args.debugvis
     cfg["env"]["cameraMode"] = mode
+    cfg["env"]["smallValueSetZero"] = args.small_value_set_zero
     if args.last_commands:
         cfg["env"]["lastCommands"] = True
     if args.record_video:
@@ -148,7 +150,7 @@ def create_env(cfg, args, mode, camera_6p_tensor, grasp_cv_tensor, cube_init_ten
         cfg["env"]["controlFrequencyLow"] = int(args.control_freq)
     robot_start_pose = (-2.00, 0, 0.55)
     if args.eval:
-        robot_start_pose = (-1.5, 0, 0.55)
+        robot_start_pose = (-0.85, 0, 0.55)
     _env = eval(args.task)(cfg=cfg, rl_device=args.rl_device, sim_device=args.sim_device, 
                          graphics_device_id=args.graphics_device_id, headless=args.headless, 
                          use_roboinfo=args.roboinfo, observe_gait_commands=args.observe_gait_commands, robot_start_pose=robot_start_pose,
@@ -158,7 +160,7 @@ def create_env(cfg, args, mode, camera_6p_tensor, grasp_cv_tensor, cube_init_ten
     wrapped_env = wrapper.IsaacGymPreview3Wrapper(_env)
     return wrapped_env
 
-def get_predict_point(camera_6p_info=None, cube_predict_info_path=None, cube_root_states_info_path=None, num_env=None, intervel=None, delta_height=None):
+def get_predict_point(camera_6p_info=None, cube_predict_info_path=None, cube_root_states_info_path=None, num_env=None, intervel=None, delta_height=None, object_indices=None):
     import json
     import os
     import torch
@@ -168,11 +170,14 @@ def get_predict_point(camera_6p_info=None, cube_predict_info_path=None, cube_roo
     curr_dir = os.getcwd()
     data_dir = os.path.join(curr_dir,"PredictPiontTransform" , "transform_info")
     cube_root_states_info_path = os.path.join(data_dir, cube_root_states_info_path)
-    save_dir = os.path.join(data_dir, "grasp_videos")
-    os.makedirs(save_dir, exist_ok=True)
-
     # load cubes's states（position + quaternion + velocity...）
-    cube_states = torch.load(cube_root_states_info_path)[0].cpu()
+    cube_states = torch.load(cube_root_states_info_path, map_location="cpu")[0]
+    if object_indices is None:
+        object_indices = list(range(cube_states.shape[0]))
+    if not object_indices or any(i < 0 or i >= cube_states.shape[0] for i in object_indices):
+        raise ValueError(f"Object dict_idx values must be in [0, {cube_states.shape[0] - 1}]")
+    # Keep initial poses and grasp predictions in the same order as asset_multi.
+    cube_states = cube_states[object_indices]
     cprint(f"cube_states.shape is {cube_states.shape}", "yellow")
 
     cube_pos = cube_states[:, :3]
@@ -185,7 +190,7 @@ def get_predict_point(camera_6p_info=None, cube_predict_info_path=None, cube_roo
     T_grasp_cv_all = []
 
     # read base_num sample's all transform
-    for i in range(base_n):
+    for i in object_indices:
         sample_dir = os.path.join(data_dir, cube_predict_info_path)
         json_path = os.path.join(sample_dir, f"predictions_image_{(i):02d}.json")
         with open(json_path, 'r') as f:
@@ -193,7 +198,7 @@ def get_predict_point(camera_6p_info=None, cube_predict_info_path=None, cube_roo
         grasp_matrices = np.array(data['transform'])  
         T_grasp_cv_all.append(grasp_matrices)
 
-    # turn to tensor，shape is [base_n, n, 4, 4]   # base_n=cube_onject_num=30, n=num_grasptransform_per_object 
+    # Shape: [number of selected objects, candidate grasps per object, 4, 4].
     T_grasp_cv_all = np.stack(T_grasp_cv_all, axis=0)
     n_grasps = T_grasp_cv_all.shape[1]  # get n
     T_grasp_cv_all = torch.tensor(T_grasp_cv_all, dtype=torch.float32)
@@ -267,7 +272,15 @@ def get_trainer(is_eval=False):
         print("Find the latest checkpoint: ", args.checkpoint)
         
     cfg = load_cfg(file_path)
-    cprint(f"Using config file: {file_path}","red" )
+    cprint(f"Using config file: {os.path.realpath(file_path)}", "red")
+    multi_obj = cfg["env"]["asset"]["asset_multi"]
+    if args.object_name is not None:
+        if args.object_name not in multi_obj:
+            raise ValueError(f"Unknown --object_name {args.object_name!r}. Available objects: {', '.join(multi_obj)}")
+        multi_obj = {args.object_name: multi_obj[args.object_name]}
+        cfg["env"]["asset"]["asset_multi"] = multi_obj
+    object_indices = [obj["dict_idx"] for obj in multi_obj.values()]
+    cprint(f"Using {len(multi_obj)} object asset(s): {', '.join(multi_obj)}", "yellow")
     cfg['env']['wandb'] = args.wandb
     cfg['env']["useTanh"] = args.use_tanh
     cfg['env']["near_goal_stop"] = args.near_goal_stop
@@ -277,6 +290,13 @@ def get_trainer(is_eval=False):
         if args.checkpoint:
             checkpoint_steps = int(args.checkpoint.split("_")[-1].split(".")[0])
             cfg["env"]["globalStepCounter"] = checkpoint_steps
+
+    # Override the YAML value and the evaluation/debug default before building
+    # grasp tensors, so their first dimension matches the environment count.
+    if args.num_envs is not None:
+        if args.num_envs <= 0:
+            raise ValueError("--num_envs must be a positive integer")
+        cfg["env"]["numEnvs"] = args.num_envs
 
     """
     To clarify, when capturing images of each object, the images were taken from a car. 
@@ -293,10 +313,13 @@ def get_trainer(is_eval=False):
     cube_root_states_info_path = "30all_nomove_cube_root_states5.pt"
     camera_6p_tensor, grasp_cv_tensor, cube_init_tensor = get_predict_point(cube_predict_info_path=cube_predict_info_path
                                                                             ,cube_root_states_info_path=cube_root_states_info_path,num_env=cfg['env']['numEnvs'],
-                                                                            intervel=intervel,delta_height=0.1)
+                                                                            intervel=intervel,delta_height=0.1,object_indices=object_indices)
     env_num = cfg['env']['numEnvs']
     cprint(f"env_num is {env_num}", "yellow")
     cprint(f"camera_6p_tensor.shape is {camera_6p_tensor.shape}", "yellow")
+    # Save the selected assets and environment count before env construction
+    # adds observation/action dimensions to cfg.
+    experiment_cfg = deepcopy(cfg)
     env = create_env(cfg=cfg, args=args, mode=mode,  camera_6p_tensor=camera_6p_tensor, grasp_cv_tensor=grasp_cv_tensor, cube_init_tensor=cube_init_tensor,intervel=intervel)
     device = env.rl_device
     memory = RandomMemory(memory_size=24, num_envs=env.num_envs, device=device) # 原本是24
@@ -389,7 +412,7 @@ def get_trainer(is_eval=False):
     cfg_ppo["value_preprocessor_kwargs"] = {"size": 1, "device": device}
 
     ppo_models = {}
-    ppo_models["policy"] = PPOPolicy(teacher_obs_space, teacher_action_space, device, num_features=1024, encode_dim=128, camera_6p_tensor=camera_6p_tensor, grasp_cv_tensor=grasp_cv_tensor, cube_init_tensor=cube_init_tensor ,clip_actions=args.use_tanh, deterministic=True)
+    ppo_models["policy"] = PPOPolicy(teacher_obs_space, teacher_action_space, device, num_features=1024, encode_dim=128, camera_6p_tensor=camera_6p_tensor, grasp_cv_tensor=grasp_cv_tensor, cube_init_tensor=cube_init_tensor, use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=True)
     ppo_models["value"] = PPOValue(teacher_obs_space, teacher_action_space, device, num_features=1024, encode_dim=128, camera_6p_tensor=camera_6p_tensor, grasp_cv_tensor=grasp_cv_tensor, cube_init_tensor=cube_init_tensor)
     ppo_agent = PPO(models=ppo_models,
                 memory=memory,
@@ -403,7 +426,7 @@ def get_trainer(is_eval=False):
         ppo_agent.load(args.teacher_ckpt_path)
     
     # cfg_trainer = {"timesteps": args.timesteps, "headless": True, "teacher_pretrain": True}
-    cfg_trainer = {"timesteps": args.timesteps, "teacher_pretrain": True}
+    cfg_trainer = {"timesteps": args.timesteps, "headless": args.headless, "teacher_pretrain": True}
     cfg_trainer["pretrain_timesteps"] = 8000 if args.depth_random else 4000
     if args.checkpoint:
         print("Resuming from checkpoint: ", args.checkpoint)
@@ -426,7 +449,7 @@ def get_trainer(is_eval=False):
         wandb.save("train_multi_bc_deter_full.py", policy="now")
     if not args.eval:
         if not os.path.exists(os.path.join(args.experiment_dir, args.wandb_name, cfg_file)):
-            copy_cfg(file_path, os.path.join(args.experiment_dir, args.wandb_name))
+            copy_cfg(file_path, os.path.join(args.experiment_dir, args.wandb_name), cfg=experiment_cfg)
     return trainer
     
     

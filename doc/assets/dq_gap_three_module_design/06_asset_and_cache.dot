@@ -1,0 +1,42 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.25", nodesep="0.34", ranksep="0.40", splines=polyline, compound=true, newrank=true, outputorder=edgesfirst, fontname="Noto Sans CJK SC", fontsize=21, labelloc=t, labeljust=c, label="图 6｜GAP-YCB资产复用：可直接读取文件，不可直接假定训练兼容\n设计 / 尚未实现；sugar_box 主方案使用GAP规范mesh，重新生成Z1多视角缓存"];
+node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=12.5, fontcolor="#233247", color="#8893A2", penwidth=1.2, margin="0.12,0.09"];
+edge [fontname="Noto Sans CJK SC", fontsize=10.5, fontcolor="#516073", color="#68798D", penwidth=1.1, arrowsize=0.72];
+folder [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>GAP-RL/gap_rl/data/mani_skill2_ycb</B></TD></TR><TR><TD ALIGN="CENTER">共享资产来源；保留原文件，新增数据写DQ侧</TD></TR><TR><TD ALIGN="CENTER">语义映射：sugar_box ↔ 004_sugar_box</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+subgraph cluster_existing { label="现有GAP文件：实际可复用内容"; fontsize=15; fontcolor="#33445A"; style="rounded"; color="#CAD7EA"; penwidth=1.6; margin=16;
+mesh [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>models/004_sugar_box</B></TD></TR><TR><TD ALIGN="CENTER">textured.obj：可视mesh</TD></TR><TR><TD ALIGN="CENTER">collision_coacd.obj：碰撞mesh</TD></TR><TR><TD ALIGN="CENTER">现有模型目录无Isaac URDF</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+info [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>info_pick_v1.json</B></TD></TR><TR><TD ALIGN="CENTER">scale=1、density=50、bbox等</TD></TR><TR><TD ALIGN="CENTER">密度/惯量/接触参数需明确设定与验证</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+v3 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>info_localgrasp_v3.json</B></TD></TR><TR><TD ALIGN="CENTER">12物体 × 72视角；不包含sugar_box</TD></TR><TR><TD ALIGN="CENTER">每抓取7D：t3 + quaternion_xyzw4</TD></TR><TR><TD ALIGN="CENTER">附score/width/height/depth；并非4×4矩阵</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+v0 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>info_localgrasp_v0.json</B></TD></TR><TR><TD ALIGN="CENTER">含sugar_box，110个4×4抓取变换</TD></TR><TR><TD ALIGN="CENTER">单组抓取，并非72视角检测缓存</TD></TR><TR><TD ALIGN="CENTER">不能替代目标所需的新多视角观测</TD></TR></TABLE>>, fillcolor="#EAF3FF", color="#3D77B1"];
+limits [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>现有缓存缺少的观测字段</B></TD></TR><TR><TD ALIGN="CENTER">目标可见点 / 深度ROI / 捕获条件与时间</TD></TR><TR><TD ALIGN="CENTER">相机标定版本 / GRE历史轨迹 / Z1工具版本</TD></TR><TR><TD ALIGN="CENTER">info_graspnet_v1.json也没有sugar_box</TD></TR></TABLE>>, fillcolor="#FAFBFD", color="#A1AABA"];
+}
+subgraph cluster_adapt { label="主方案：统一规范资产与数据约定"; fontsize=15; fontcolor="#33445A"; style="rounded"; color="#BBDAC8"; penwidth=1.6; margin=16;
+canonical [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>采用GAP mesh为规范物体系</B></TD></TR><TR><TD ALIGN="CENTER">原DQ sugar URDF长轴x，GAP mesh长轴z</TD></TR><TR><TD ALIGN="CENTER">不同mesh版本不能只改路径假定坐标一致</TD></TR><TR><TD ALIGN="CENTER">相机、候选、可见点、物理尺寸用同一版本</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+urdf [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>生成Isaac资产包装</B></TD></TR><TR><TD ALIGN="CENTER">GAP可视/碰撞mesh → 新URDF与物理配置</TD></TR><TR><TD ALIGN="CENTER">记录尺度、质量、惯量、接触/碰撞设置</TD></TR><TR><TD ALIGN="CENTER">DQ任务保留sugar_box语义与原动作控制</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+gen [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>独立小环境重新采集</B></TD></TR><TR><TD ALIGN="CENTER">无需已有v3 sugar缓存即可启动</TD></TR><TR><TD ALIGN="CENTER">同GRE + 冻结LoG + Z1适配生成检测</TD></TR><TR><TD ALIGN="CENTER">多视角/距离/相机/ROI/遮挡条件</TD></TR></TABLE>>, fillcolor="#F0F2F5", color="#7C8795"];
+newcache [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>新Z1-compatible sugar缓存（拟新增）</B></TD></TR><TR><TD ALIGN="CENTER">DQ数据目录：004_sugar_box/manifest + records</TD></TR><TR><TD ALIGN="CENTER">每记录：抓取t/R、score/width、可见目标点</TD></TR><TR><TD ALIGN="CENTER">规范物体系数据 + 采集条件 + 版本hash</TD></TR><TR><TD ALIGN="CENTER">查询时单条记录同时产生候选与surface6</TD></TR></TABLE>>, fillcolor="#FFF0DF", color="#C68035"];
+train [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>DQ 4096缓存训练入口</B></TD></TR><TR><TD ALIGN="CENTER">按τ时视角选记录；只在前端用真值放置</TD></TR><TR><TD ALIGN="CENTER">Actor467、Critic478；N=40，L=20</TD></TR><TR><TD ALIGN="CENTER">不再加载features.npy或原GFM抓取库</TD></TR></TABLE>>, fillcolor="#FFF0DF", color="#C68035"];
+}
+reuse [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>已有v3其他物体的复用边界</B></TD></TR><TR><TD ALIGN="CENTER">可读取作为格式参考/其他物体候选源</TD></TR><TR><TD ALIGN="CENTER">先校验对象mesh、坐标轴、工具、相机与尺度</TD></TR><TR><TD ALIGN="CENTER">补齐可见点/ROI字段；不能直接充当sugar缓存</TD></TR></TABLE>>, fillcolor="#FAFBFD", color="#A1AABA"];
+legend [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="CENTER"><B>阅读约定</B></TD></TR><TR><TD ALIGN="CENTER">蓝：可部署观测　绿：学习网络　灰：几何/冻结模块</TD></TR><TR><TD ALIGN="CENTER">黄：训练专用真值　橙：输出　红：PPO损失</TD></TR><TR><TD ALIGN="CENTER">新缓存路径与格式是设计建议，当前尚未生成</TD></TR><TR><TD ALIGN="CENTER">GAP缓存生成脚本原路径有环境/标注依赖，主版使用独立采集器</TD></TR></TABLE>>, fillcolor="#FAFBFD", color="#A1AABA", fontsize="10.5"];
+{ rank=same; mesh; info; canonical; }
+{ rank=same; v3; v0; urdf; }
+{ rank=same; limits; gen; reuse; }
+folder -> mesh;
+folder -> info;
+folder -> v3;
+folder -> v0;
+mesh -> canonical;
+info -> urdf;
+canonical -> urdf;
+urdf -> gen;
+gen -> newcache;
+newcache -> train;
+v3 -> reuse;
+v0 -> limits [style="invis"];
+limits -> gen [style="dotted", label="必须补齐"];
+mesh -> v3 [style="invis"];
+info -> v0 [style="invis"];
+train -> legend [style="invis"];
+reuse -> legend [style="invis"];
+}
