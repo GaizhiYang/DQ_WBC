@@ -978,6 +978,9 @@ class B1Z1Base(RewardVecTask):
                                                     num_prop=self.num_proprio,
                                                     )
         policy_path = self.cfg["env"]["low_policy_path"]
+        if not os.path.isabs(policy_path):
+            project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            policy_path = os.path.join(project_dir, policy_path)
         loaded_dict = torch.load(policy_path, map_location=self.device)
         low_actor_critic.load_state_dict(loaded_dict["model_state_dict"])
         low_actor_critic = low_actor_critic.to(self.device)
