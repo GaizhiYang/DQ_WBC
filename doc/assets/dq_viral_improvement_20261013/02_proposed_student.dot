@@ -1,0 +1,37 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.3", nodesep="0.28", ranksep="0.48", fontname="Noto Sans CJK SC", fontsize=19, labelloc=t];
+node [shape=box, style="rounded,filled", fillcolor="#e6f3ea", color="#46785b", fontname="Noto Sans CJK SC", fontsize=12, margin="0.15,0.10"];
+edge [color="#58677c", fontname="Noto Sans CJK SC", fontsize=10, arrowsize=0.7];
+
+label="DQ-NET 改进学生：完整建议结构（待实现、待消融）";
+images [label="双视角历史 I：B×2×4×2×108×192\n每帧 mask + metric depth；有效像素另存mask", fillcolor="#e5effb", color="#4875a5"];
+sync [label="与每张图同步的 p(τ)：61D\n相机到当前机体变换估计9D + 年龄1D + 有效标记1D", fillcolor="#e5effb", color="#4875a5"];
+now [label="当前可部署本体状态 p(t)：B×61\n含上次提交的raw action；无物体真值", fillcolor="#e5effb", color="#4875a5"];
+vision [label="共享2通道ResNet18 + 空间读出\n单帧128D；全窗 B×8×128\n详细层与尺寸见图3"];
+pro [label="本体编码 61→64→64"];
+meta [label="时间/外参编码 11→32→32"];
+token [label="每帧拼接128+64+32=224\nLinear224→256 + 视角embedding", fillcolor="#eee8fa", color="#8872aa"];
+query [label="当前状态查询：61→128→256"];
+seq [label="按采集时间排序8个视觉token\n末尾附当前状态query：B×9×256\nepisode mask + 有效帧mask", fillcolor="#eee8fa", color="#8872aa"];
+tr [label="因果Transformer ×2\nD=256，4 heads，FFN=512，Pre-LN\n仅历史→当前；取末尾query输出 h(t)：256D"];
+belief [label="运动状态头：256→128→10\n当前物体p̂ 3 + 相对速度v̂ 3\n位置log variance 3 + 可见性概率1"];
+concat [label="动作条件：[h(t), p(t), b̂(t)]\n256 + 61 + 10 = 327D", fillcolor="#eee8fa", color="#8872aa"];
+actor [label="动作主干 MLP\n327→256→128→64，ELU"];
+ee [label="末端头64→6\nΔ目标位置3 + Δ目标RPY3", fillcolor="#fff0d8", color="#b7873a"];
+base [label="底盘头64→2\nvx + yaw rate", fillcolor="#fff0d8", color="#b7873a"];
+grip [label="夹爪头64→1\n保持原命令符号语义", fillcolor="#fff0d8", color="#b7873a"];
+action [label="组装：[Δp3, ΔRPY3, grip1, vx1, yaw1]\n逆标签归一化 → 现有clip/积分/阈值适配", fillcolor="#fff0d8", color="#b7873a"];
+ll [label="现有冻结底层腿部策略 + 机械臂IK + 夹爪控制\n仿真周期先保持140–160ms；实际推理延迟待测", fillcolor="#edf0f4", color="#8994a5"];
+geomloss [label="仅训练：当前位置/速度标签\n监督 b̂；真值不进入actor输入", fillcolor="#fde7e6", color="#b76562"];
+opt [label="可选训练头（默认关闭）\n未来位置2×3D；教师隐变量128+6D\n不影响部署输入接口", style="rounded,filled,dashed", fillcolor="#fde7e6", color="#b76562"];
+images -> vision -> token;
+sync -> pro; sync -> meta; pro -> token; meta -> token;
+now -> query -> seq; token -> seq -> tr;
+tr -> belief -> concat; tr -> concat; now -> concat;
+concat -> actor; actor -> ee; actor -> base; actor -> grip;
+ee -> action; base -> action; grip -> action; action -> ll;
+geomloss -> belief [style=dashed, label="监督"];
+tr -> opt [style=dashed];
+{rank=same; ee; base; grip;}
+
+}

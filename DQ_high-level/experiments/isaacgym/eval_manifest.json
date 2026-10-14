@@ -1,0 +1,2347 @@
+{
+  "schema_version": 1,
+  "created_at_utc": "2026-10-13T05:32:08.740693Z",
+  "role": "teacher",
+  "seed": 43,
+  "arguments": {
+    "task": "B1Z1PickMulti",
+    "timesteps": 24000,
+    "control_freq": null,
+    "rl_device": "cuda:0",
+    "sim_device": "cuda:0",
+    "graphics_device_id": -1,
+    "headless": false,
+    "wandb": false,
+    "wandb_project": "isaacgym",
+    "wandb_name": "isaacgym",
+    "checkpoint": "DQ_teacher/b1-pick-sugar-box/1015/checkpoints/agent_120000.pt",
+    "experiment_dir": "experiments",
+    "debugvis": false,
+    "save_image": false,
+    "debug": false,
+    "wrist_seg": false,
+    "front_only": false,
+    "seperate": false,
+    "teacher_ckpt_path": "",
+    "resume": false,
+    "roboinfo": true,
+    "observe_gait_commands": true,
+    "small_value_set_zero": true,
+    "fixed_base": false,
+    "use_tanh": false,
+    "reach_only": false,
+    "record_video": false,
+    "last_commands": false,
+    "no_feature": false,
+    "mask_arm": false,
+    "mlp_stu": false,
+    "depth_random": false,
+    "pitch_control": false,
+    "pred_success": false,
+    "near_goal_stop": false,
+    "obj_move_prob": 0.0,
+    "rand_control": true,
+    "arm_delay": false,
+    "rand_cmd_scale": false,
+    "rand_depth_clip": false,
+    "stop_pick": false,
+    "arm_kp": 40,
+    "arm_kd": 2,
+    "table_height": null,
+    "seed": 43,
+    "num_envs": 10,
+    "object_name": null,
+    "eval_episodes": null,
+    "enable_residual": false,
+    "residual_scale": 1.0,
+    "residual_learning_starts": null,
+    "collection_mode": "mixed_episode",
+    "teacher_ratio": 0.5,
+    "teacher_warmup_steps": null,
+    "teacher_ratio_final": null,
+    "teacher_ratio_anneal_steps": 0,
+    "replay_capacity": 0,
+    "replay_history_fraction": 0.25,
+    "uniform_replay": false,
+    "replay_load_path": "",
+    "replay_save_path": "",
+    "eval": true,
+    "intervel": 23
+  },
+  "selected_configuration": {
+    "env": {
+      "numEnvs": 10,
+      "numAgents": 1,
+      "envSpacing": 3,
+      "terrainType": "plane",
+      "enableDebugVis": false,
+      "isFlagrun": false,
+      "maxEpisodeLength": 100,
+      "pdControl": true,
+      "powerScale": 1.0,
+      "controlFrequencyInv": 4,
+      "controlFrequencyLow": 8,
+      "imgDelayFrame": 4,
+      "D1_bench_task_level": "Level01",
+      "robotStartDistanceRange": [
+        0.85,
+        1.1
+      ],
+      "cameraVisibilityReset": false,
+      "liftedSuccessThreshold": 0.2,
+      "liftedInitThreshold": 0.05,
+      "baseObjectDisThreshold": 0.2,
+      "holdSteps": 15,
+      "holdDurationSeconds": 2.1,
+      "lastCommands": false,
+      "low_policy_path": "/home/hehui/DQ_WBC/DQ_high-level/data/low_model/model_44000.pt",
+      "taskddescription": "023",
+      "asset": {
+        "assetRoot": "data/asset",
+        "assetFileRobot": "b1z1-col/urdf/b1z1.urdf",
+        "assetFileObj": "obj_set/",
+        "asset_multi": {
+          "green_bowl": {
+            "dict_idx": 0,
+            "height": 0.026,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "sugar_box": {
+            "dict_idx": 1,
+            "height": 0.045,
+            "orientation": [
+              0.707,
+              0,
+              0,
+              0.707
+            ],
+            "scale": 1.0
+          },
+          "potato_chip_1": {
+            "dict_idx": 2,
+            "height": 0.086,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 0.8
+          },
+          "plastic_peach": {
+            "dict_idx": 3,
+            "height": 0.0,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "plastic_banana": {
+            "dict_idx": 4,
+            "height": 0.019,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "green_cup": {
+            "dict_idx": 5,
+            "height": 0.031,
+            "orientation": [
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            "scale": 1.0
+          },
+          "magic_clean": {
+            "dict_idx": 6,
+            "height": 0.127,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "power_drill": {
+            "dict_idx": 7,
+            "height": 0.094,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "soap_dish": {
+            "dict_idx": 8,
+            "height": 0.021,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "yellow_bowl": {
+            "dict_idx": 9,
+            "height": 0.026,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "pitcher": {
+            "dict_idx": 10,
+            "height": 0.12,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "blue_tea_box": {
+            "dict_idx": 11,
+            "height": 0.037,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "mug": {
+            "dict_idx": 12,
+            "height": 0.042,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "lipton_tea": {
+            "dict_idx": 13,
+            "height": 0.043,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "plastic_lemon": {
+            "dict_idx": 14,
+            "height": 0.0,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "plastic_apple": {
+            "dict_idx": 15,
+            "height": 0.0,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "plate_holder": {
+            "dict_idx": 16,
+            "height": 0.052,
+            "orientation": [
+              0.7071,
+              0.0,
+              0.0,
+              0.7071
+            ],
+            "scale": 1.0
+          },
+          "book_holder_3": {
+            "dict_idx": 17,
+            "height": 0.078,
+            "orientation": [
+              0,
+              0,
+              0.7071,
+              0.7071
+            ],
+            "scale": 1.0
+          },
+          "blue_moon": {
+            "dict_idx": 18,
+            "height": 0.124,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "plastic_orange": {
+            "dict_idx": 19,
+            "height": 0.0,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "pink_tea_box": {
+            "dict_idx": 20,
+            "height": 0.038,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "bleach_cleanser": {
+            "dict_idx": 21,
+            "height": 0.124,
+            "orientation": [
+              0,
+              0,
+              0.7071,
+              0.7071
+            ],
+            "scale": 0.5
+          },
+          "phillips_screwdriver": {
+            "dict_idx": 22,
+            "height": 0.016,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "doraemon_bowl": {
+            "dict_idx": 23,
+            "height": 0.027,
+            "orientation": [
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            "scale": 1.0
+          },
+          "orange_cup": {
+            "dict_idx": 24,
+            "height": 0.031,
+            "orientation": [
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            "scale": 1.0
+          },
+          "blue_cup": {
+            "dict_idx": 25,
+            "height": 0.031,
+            "orientation": [
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            "scale": 1.0
+          },
+          "cleanser": {
+            "dict_idx": 26,
+            "height": 0.088,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "bowl": {
+            "dict_idx": 27,
+            "height": 0.029,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "clear_box": {
+            "dict_idx": 28,
+            "height": 0.051,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          },
+          "suger_1": {
+            "dict_idx": 29,
+            "height": 0.04,
+            "orientation": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "scale": 1.0
+          }
+        },
+        "control": {
+          "stiffness": {
+            "joint": 80,
+            "z1": 5
+          },
+          "damping": {
+            "joint": 2.0,
+            "z1": 0.5
+          }
+        }
+      },
+      "plane": {
+        "staticFriction": 0.0,
+        "dynamicFriction": 0.0,
+        "restitution": 0.0
+      },
+      "smallValueSetZero": true,
+      "useTanh": false,
+      "near_goal_stop": false,
+      "obj_move_prob": 0.0,
+      "wandb": false,
+      "globalStepCounter": 120000,
+      "cameraMode": "full",
+      "img_numObservations": 1276,
+      "numObservations": 1276,
+      "numActions": 9
+    },
+    "physics_engine": "physx",
+    "sim": {
+      "substeps": 1,
+      "use_gpu_pipeline": true,
+      "up_axis": "z",
+      "gravity": [
+        0.0,
+        0.0,
+        -9.81
+      ],
+      "dt": 0.005,
+      "physx": {
+        "use_gpu": true,
+        "num_threads": 4,
+        "solver_type": 1,
+        "num_position_iterations": 8,
+        "num_velocity_iterations": 0,
+        "contact_offset": 0.04,
+        "rest_offset": 0.0,
+        "bounce_threshold_velocity": 0.2,
+        "max_depenetration_velocity": 50.0,
+        "default_buffer_size_multiplier": 100.0,
+        "max_gpu_contact_pairs": 1000000
+      }
+    },
+    "reward": {
+      "base_height_target": 0.55,
+      "only_positive_rewards": false,
+      "scales": {
+        "approaching": 0.5,
+        "lifting": 0.8,
+        "pick_up": 3.5,
+        "acc_penalty": -0.001,
+        "command_reward": 0.05,
+        "action_rate": -0.001,
+        "ee_orn": 0.01,
+        "base_dir": 0.05,
+        "base_approaching": 0.01,
+        "grasp_base_height": 0.5,
+        "limit_yaw_rotation_penalty": 0.4
+      }
+    },
+    "sensor": {
+      "depth_clip_lower": 0.15,
+      "depth_clip_rand_range": [
+        0.18,
+        0.25
+      ],
+      "enableCamera": false,
+      "resized_resolution": [
+        96,
+        54
+      ],
+      "onboard_camera": {
+        "horizontal_fov": 69,
+        "resolution": [
+          96,
+          54
+        ],
+        "position": [
+          0.425,
+          0.04,
+          0.12
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "wrist_camera": {
+        "horizontal_fov": [
+          63,
+          65
+        ],
+        "resolution": [
+          96,
+          54
+        ],
+        "position": [
+          0.0955,
+          0.22,
+          -0.03175
+        ],
+        "rotation": [
+          -1.57,
+          0.0,
+          -0.87
+        ],
+        "rand_position": [
+          0.005,
+          0.005,
+          0.005
+        ]
+      },
+      "fix_camera": {
+        "horizontal_fov": 69,
+        "resolution": [
+          2,
+          3
+        ],
+        "position": [
+          0.0,
+          -0.3,
+          0.8
+        ],
+        "rotation": [
+          0.0,
+          0.7,
+          1.57
+        ]
+      }
+    }
+  },
+  "contract": {
+    "objects_in_environment_order": [
+      {
+        "name": "green_bowl",
+        "properties": {
+          "dict_idx": 0,
+          "height": 0.026,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "sugar_box",
+        "properties": {
+          "dict_idx": 1,
+          "height": 0.045,
+          "orientation": [
+            0.707,
+            0,
+            0,
+            0.707
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "potato_chip_1",
+        "properties": {
+          "dict_idx": 2,
+          "height": 0.086,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 0.8
+        }
+      },
+      {
+        "name": "plastic_peach",
+        "properties": {
+          "dict_idx": 3,
+          "height": 0.0,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "plastic_banana",
+        "properties": {
+          "dict_idx": 4,
+          "height": 0.019,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "green_cup",
+        "properties": {
+          "dict_idx": 5,
+          "height": 0.031,
+          "orientation": [
+            0.0,
+            0.0,
+            1.0,
+            0.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "magic_clean",
+        "properties": {
+          "dict_idx": 6,
+          "height": 0.127,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "power_drill",
+        "properties": {
+          "dict_idx": 7,
+          "height": 0.094,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "soap_dish",
+        "properties": {
+          "dict_idx": 8,
+          "height": 0.021,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "yellow_bowl",
+        "properties": {
+          "dict_idx": 9,
+          "height": 0.026,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "pitcher",
+        "properties": {
+          "dict_idx": 10,
+          "height": 0.12,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "blue_tea_box",
+        "properties": {
+          "dict_idx": 11,
+          "height": 0.037,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "mug",
+        "properties": {
+          "dict_idx": 12,
+          "height": 0.042,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "lipton_tea",
+        "properties": {
+          "dict_idx": 13,
+          "height": 0.043,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "plastic_lemon",
+        "properties": {
+          "dict_idx": 14,
+          "height": 0.0,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "plastic_apple",
+        "properties": {
+          "dict_idx": 15,
+          "height": 0.0,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "plate_holder",
+        "properties": {
+          "dict_idx": 16,
+          "height": 0.052,
+          "orientation": [
+            0.7071,
+            0.0,
+            0.0,
+            0.7071
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "book_holder_3",
+        "properties": {
+          "dict_idx": 17,
+          "height": 0.078,
+          "orientation": [
+            0,
+            0,
+            0.7071,
+            0.7071
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "blue_moon",
+        "properties": {
+          "dict_idx": 18,
+          "height": 0.124,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "plastic_orange",
+        "properties": {
+          "dict_idx": 19,
+          "height": 0.0,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "pink_tea_box",
+        "properties": {
+          "dict_idx": 20,
+          "height": 0.038,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "bleach_cleanser",
+        "properties": {
+          "dict_idx": 21,
+          "height": 0.124,
+          "orientation": [
+            0,
+            0,
+            0.7071,
+            0.7071
+          ],
+          "scale": 0.5
+        }
+      },
+      {
+        "name": "phillips_screwdriver",
+        "properties": {
+          "dict_idx": 22,
+          "height": 0.016,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "doraemon_bowl",
+        "properties": {
+          "dict_idx": 23,
+          "height": 0.027,
+          "orientation": [
+            0.0,
+            0.0,
+            1.0,
+            0.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "orange_cup",
+        "properties": {
+          "dict_idx": 24,
+          "height": 0.031,
+          "orientation": [
+            0.0,
+            0.0,
+            1.0,
+            0.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "blue_cup",
+        "properties": {
+          "dict_idx": 25,
+          "height": 0.031,
+          "orientation": [
+            0.0,
+            0.0,
+            1.0,
+            0.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "cleanser",
+        "properties": {
+          "dict_idx": 26,
+          "height": 0.088,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "bowl",
+        "properties": {
+          "dict_idx": 27,
+          "height": 0.029,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "clear_box",
+        "properties": {
+          "dict_idx": 28,
+          "height": 0.051,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      },
+      {
+        "name": "suger_1",
+        "properties": {
+          "dict_idx": 29,
+          "height": 0.04,
+          "orientation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": 1.0
+        }
+      }
+    ],
+    "environment": {
+      "numAgents": 1,
+      "terrainType": "plane",
+      "isFlagrun": false,
+      "maxEpisodeLength": 100,
+      "pdControl": true,
+      "powerScale": 1.0,
+      "controlFrequencyInv": 4,
+      "controlFrequencyLow": 8,
+      "imgDelayFrame": 4,
+      "D1_bench_task_level": "Level01",
+      "robotStartDistanceRange": [
+        0.85,
+        1.1
+      ],
+      "cameraVisibilityReset": false,
+      "liftedSuccessThreshold": 0.2,
+      "liftedInitThreshold": 0.05,
+      "baseObjectDisThreshold": 0.2,
+      "holdSteps": 15,
+      "holdDurationSeconds": 2.1,
+      "lastCommands": false,
+      "plane": {
+        "staticFriction": 0.0,
+        "dynamicFriction": 0.0,
+        "restitution": 0.0
+      },
+      "smallValueSetZero": true,
+      "useTanh": false,
+      "near_goal_stop": false,
+      "obj_move_prob": 0.0,
+      "asset_control": {
+        "stiffness": {
+          "joint": 80,
+          "z1": 5
+        },
+        "damping": {
+          "joint": 2.0,
+          "z1": 0.5
+        }
+      }
+    },
+    "simulator": {
+      "substeps": 1,
+      "use_gpu_pipeline": true,
+      "up_axis": "z",
+      "gravity": [
+        0.0,
+        0.0,
+        -9.81
+      ],
+      "dt": 0.005,
+      "physx": {
+        "use_gpu": true,
+        "num_threads": 4,
+        "solver_type": 1,
+        "num_position_iterations": 8,
+        "num_velocity_iterations": 0,
+        "contact_offset": 0.04,
+        "rest_offset": 0.0,
+        "bounce_threshold_velocity": 0.2,
+        "max_depenetration_velocity": 50.0,
+        "default_buffer_size_multiplier": 100.0,
+        "max_gpu_contact_pairs": 1000000
+      }
+    },
+    "physics_engine": "physx",
+    "rewards": {
+      "base_height_target": 0.55,
+      "only_positive_rewards": false,
+      "scales": {
+        "approaching": 0.5,
+        "lifting": 0.8,
+        "pick_up": 3.5,
+        "acc_penalty": -0.001,
+        "command_reward": 0.05,
+        "action_rate": -0.001,
+        "ee_orn": 0.01,
+        "base_dir": 0.05,
+        "base_approaching": 0.01,
+        "grasp_base_height": 0.5,
+        "limit_yaw_rotation_penalty": 0.4
+      }
+    },
+    "shared_arguments": {
+      "task": "B1Z1PickMulti",
+      "roboinfo": true,
+      "observe_gait_commands": true,
+      "no_feature": false,
+      "pitch_control": false,
+      "pred_success": false,
+      "rand_control": true,
+      "arm_delay": false,
+      "rand_cmd_scale": false,
+      "stop_pick": false,
+      "table_height": null,
+      "arm_kp": 40,
+      "arm_kd": 2
+    },
+    "action": {
+      "dimension": 9,
+      "order": [
+        "delta_ee_xyz",
+        "delta_ee_rpy",
+        "gripper_sign",
+        "base_vx",
+        "base_yaw_rate"
+      ],
+      "previous_action": "selected raw 9-vector, before physical actuator conversion"
+    }
+  },
+  "assets": {
+    "robot_urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/b1z1-col/urdf/b1z1.urdf",
+      "exists": true,
+      "sha256": "ae5b8df32d72ebed9193ca0e23204b05757f8fcb71ea366a5a1f22209184cd65"
+    },
+    "robot/mesh:../meshes/calf.dae": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/b1z1-col/meshes/calf.dae",
+      "exists": true,
+      "sha256": "1c2557ccfe87c93d38c231cddc7696316563ac66c3d9774c5386598323259e06"
+    },
+    "robot/mesh:../meshes/gripper_fix_90d.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/b1z1-col/meshes/gripper_fix_90d.obj",
+      "exists": true,
+      "sha256": "dda649c02f4ede2be072ef75a56d1b841da52406346de7857d54da60bb872fa9"
+    },
+    "robot/mesh:../meshes/hip.dae": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/b1z1-col/meshes/hip.dae",
+      "exists": true,
+      "sha256": "68d96295a2fe620a912d14bb8acc6933631a1b6913c750a06a11a596535802ef"
+    },
+    "robot/mesh:../meshes/thigh.dae": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/b1z1-col/meshes/thigh.dae",
+      "exists": true,
+      "sha256": "c4aa24df150b66d359c38f7d0b482c6e5fad0d377c65b1147382d33c14e1bf1f"
+    },
+    "robot/mesh:../meshes/thigh_mirror.dae": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/b1z1-col/meshes/thigh_mirror.dae",
+      "exists": true,
+      "sha256": "1a4177901d2069b6139d431dedfa77bbfc21a2a749ef990d2481825994768ee0"
+    },
+    "robot/mesh:../meshes/trunk.dae": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/b1z1-col/meshes/trunk.dae",
+      "exists": true,
+      "sha256": "7133267a536a3bdb9914dd0b205a3a7a058d1ada1d42fb85e33d0157e2a73eea"
+    },
+    "robot/mesh:../meshes/z1_GripperMover.dae": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/b1z1-col/meshes/z1_GripperMover.dae",
+      "exists": true,
+      "sha256": "22070433a988290de089b572483e0e080bd48aed42ed978ed3d0e17a0a90b12d"
+    },
+    "robot/mesh:../meshes/z1_GripperStator.dae": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/b1z1-col/meshes/z1_GripperStator.dae",
+      "exists": true,
+      "sha256": "86bea214534cc45b432198f6b1db90713563406cc2f7545fac74f64edcdac0fc"
+    },
+    "robot/mesh:../meshes/z1_Link00.dae": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/b1z1-col/meshes/z1_Link00.dae",
+      "exists": true,
+      "sha256": "df276eb556db351f8136d25a023347021fe5e1ff61ecde87f84d18da440073ff"
+    },
+    "robot/mesh:../meshes/z1_Link01.dae": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/b1z1-col/meshes/z1_Link01.dae",
+      "exists": true,
+      "sha256": "c3838b573d4881a046b56b561bb0bcead15e28eddcec891f4df7d2dabe5fc7dc"
+    },
+    "robot/mesh:../meshes/z1_Link02.dae": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/b1z1-col/meshes/z1_Link02.dae",
+      "exists": true,
+      "sha256": "fcc86e640824d447f393b60751fc4d5391490d76074c2feffc7cce02d7dcce12"
+    },
+    "robot/mesh:../meshes/z1_Link03.dae": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/b1z1-col/meshes/z1_Link03.dae",
+      "exists": true,
+      "sha256": "d28522a8eb04cf19dcd997e3c06e8d1f490bb61416a5609fb4ec8ec0e98de5b8"
+    },
+    "robot/mesh:../meshes/z1_Link04.dae": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/b1z1-col/meshes/z1_Link04.dae",
+      "exists": true,
+      "sha256": "b785d8dcb7e618b70c92356189c355143152e7cf3ccfdb21cdc055ab55693ba7"
+    },
+    "robot/mesh:../meshes/z1_Link05.dae": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/b1z1-col/meshes/z1_Link05.dae",
+      "exists": true,
+      "sha256": "23174b5a0cb554a8d18248fda1064f2ae7fbcab03af03d70f6d7edb221a423b1"
+    },
+    "robot/mesh:../meshes/z1_Link06.dae": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/b1z1-col/meshes/z1_Link06.dae",
+      "exists": true,
+      "sha256": "a71e4bb0a1e85dbc0f712e3581333f49526a9e3e30dc272b1839a0a696aa4cf0"
+    },
+    "object:green_bowl/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/green_bowl/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:green_bowl/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/green_bowl/collision.obj",
+      "exists": true,
+      "sha256": "e0cf9597eea9951ba23d7a7c624076f9f241152a3f39bf314a9c81c3856d7045"
+    },
+    "object:green_bowl/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/green_bowl/textured.obj",
+      "exists": true,
+      "sha256": "91cea580ec0f23d03a26b5ef20e3b90c2d72f98aab090e1fce2195b5e9ec9d07"
+    },
+    "object:green_bowl/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/green_bowl/features.npy",
+      "exists": true,
+      "sha256": "9ed6129d9dad1d5e1478ea583c2473fbe5dd16fd94ad44168e4da246fbff0dba"
+    },
+    "object:green_bowl/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/green_bowl/collision.obj",
+      "exists": true,
+      "sha256": "e0cf9597eea9951ba23d7a7c624076f9f241152a3f39bf314a9c81c3856d7045"
+    },
+    "object:green_bowl/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/green_bowl/textured.obj",
+      "exists": true,
+      "sha256": "91cea580ec0f23d03a26b5ef20e3b90c2d72f98aab090e1fce2195b5e9ec9d07"
+    },
+    "grasp:green_bowl:0": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_00.json",
+      "exists": true,
+      "sha256": "b6d221b76bb0d70bdfa859f66d039280960d5c276ced88b0e42d518d71761583"
+    },
+    "object:sugar_box/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/sugar_box/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:sugar_box/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/sugar_box/collision.obj",
+      "exists": true,
+      "sha256": "78f645ac14b9d73a5c48cef95e9b363bd81103ad696be39408803efdb0810065"
+    },
+    "object:sugar_box/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/sugar_box/textured.obj",
+      "exists": true,
+      "sha256": "357bfb474a387655778907f757ac1e1ec97a0672ca48fcf4bc68f2bebd7dc8b6"
+    },
+    "object:sugar_box/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/sugar_box/features.npy",
+      "exists": true,
+      "sha256": "7924030eb0259117bb4fe0124364d35ad3b5067ef4a6ec66ebefc83164060da7"
+    },
+    "object:sugar_box/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/sugar_box/collision.obj",
+      "exists": true,
+      "sha256": "78f645ac14b9d73a5c48cef95e9b363bd81103ad696be39408803efdb0810065"
+    },
+    "object:sugar_box/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/sugar_box/textured.obj",
+      "exists": true,
+      "sha256": "357bfb474a387655778907f757ac1e1ec97a0672ca48fcf4bc68f2bebd7dc8b6"
+    },
+    "grasp:sugar_box:1": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_01.json",
+      "exists": true,
+      "sha256": "4f0b7d8f43deb20c9890d7d37deba5391982b57f4e6d0bdee23213fdd3469a65"
+    },
+    "object:potato_chip_1/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/potato_chip_1/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:potato_chip_1/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/potato_chip_1/collision.obj",
+      "exists": true,
+      "sha256": "8479cc39bb1334066eca95c1578e327fa0816c85ada1ac164b5c9327950f354d"
+    },
+    "object:potato_chip_1/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/potato_chip_1/textured.obj",
+      "exists": true,
+      "sha256": "1d2b37a933250fef86edd6746244f5971ad02e959517408c9cd5021328848821"
+    },
+    "object:potato_chip_1/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/potato_chip_1/features.npy",
+      "exists": true,
+      "sha256": "25868300b711c11aa705caccd4f1c81864e3a7a0f50eb9d3042a0aad9c9602e9"
+    },
+    "object:potato_chip_1/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/potato_chip_1/collision.obj",
+      "exists": true,
+      "sha256": "8479cc39bb1334066eca95c1578e327fa0816c85ada1ac164b5c9327950f354d"
+    },
+    "object:potato_chip_1/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/potato_chip_1/textured.obj",
+      "exists": true,
+      "sha256": "1d2b37a933250fef86edd6746244f5971ad02e959517408c9cd5021328848821"
+    },
+    "grasp:potato_chip_1:2": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_02.json",
+      "exists": true,
+      "sha256": "e48125ba1eb0fe9ef1a9cc00d508b10d29c033c5eef126c336a63da397efe880"
+    },
+    "object:plastic_peach/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_peach/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:plastic_peach/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_peach/collision.obj",
+      "exists": true,
+      "sha256": "3f8df86d1c4a361e2f07bce85f748635a8c61645d73444e9a2b4f719a87d6aee"
+    },
+    "object:plastic_peach/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_peach/textured.obj",
+      "exists": true,
+      "sha256": "2dd2d0fdc3cc41ee5651fe189e67a71d8627e1b24c452144ff1f22feba15601b"
+    },
+    "object:plastic_peach/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_peach/features.npy",
+      "exists": true,
+      "sha256": "347ce8cf946c61fbc288750562cc65772dbb8e7f8d1999825e73112144cc604a"
+    },
+    "object:plastic_peach/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_peach/collision.obj",
+      "exists": true,
+      "sha256": "3f8df86d1c4a361e2f07bce85f748635a8c61645d73444e9a2b4f719a87d6aee"
+    },
+    "object:plastic_peach/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_peach/textured.obj",
+      "exists": true,
+      "sha256": "2dd2d0fdc3cc41ee5651fe189e67a71d8627e1b24c452144ff1f22feba15601b"
+    },
+    "grasp:plastic_peach:3": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_03.json",
+      "exists": true,
+      "sha256": "0d3a21f62ccea8a5c0421f84c99df89e8d3ec9aa4b493f6b2cf06a933c9167cf"
+    },
+    "object:plastic_banana/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_banana/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:plastic_banana/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_banana/collision.obj",
+      "exists": true,
+      "sha256": "385b3ba805c400a95004f566868cde69244f94a47d28ba250780a9afd957e47d"
+    },
+    "object:plastic_banana/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_banana/textured.obj",
+      "exists": true,
+      "sha256": "471256c3ad9562f444d2a3c5ea01fcad10c861969cf684c210060618e7e3c802"
+    },
+    "object:plastic_banana/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_banana/features.npy",
+      "exists": true,
+      "sha256": "2fb01ec38504ea4ac24704bc29adff7f8b777202fd06718f1aa1c0dd90ba1a8e"
+    },
+    "object:plastic_banana/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_banana/collision.obj",
+      "exists": true,
+      "sha256": "385b3ba805c400a95004f566868cde69244f94a47d28ba250780a9afd957e47d"
+    },
+    "object:plastic_banana/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_banana/textured.obj",
+      "exists": true,
+      "sha256": "471256c3ad9562f444d2a3c5ea01fcad10c861969cf684c210060618e7e3c802"
+    },
+    "grasp:plastic_banana:4": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_04.json",
+      "exists": true,
+      "sha256": "6201df2fccfdc0b369a837c1030ee1f2e4e1b695998d54a88b9a0ac33f651e04"
+    },
+    "object:green_cup/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/green_cup/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:green_cup/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/green_cup/collision.obj",
+      "exists": true,
+      "sha256": "a2d692202098c4784c4b1a9d417089d553b47268e980e2547a02839a7d7339c5"
+    },
+    "object:green_cup/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/green_cup/textured.obj",
+      "exists": true,
+      "sha256": "746c7effce26fa353ddf0da52c20a90ae1f4ddbd5a3c246982b2564b6aab7e65"
+    },
+    "object:green_cup/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/green_cup/features.npy",
+      "exists": true,
+      "sha256": "4aa73ded535af0effb94ae7736c07efa3e999698f3907dc90191974cf4b1ae33"
+    },
+    "object:green_cup/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/green_cup/collision.obj",
+      "exists": true,
+      "sha256": "a2d692202098c4784c4b1a9d417089d553b47268e980e2547a02839a7d7339c5"
+    },
+    "object:green_cup/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/green_cup/textured.obj",
+      "exists": true,
+      "sha256": "746c7effce26fa353ddf0da52c20a90ae1f4ddbd5a3c246982b2564b6aab7e65"
+    },
+    "grasp:green_cup:5": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_05.json",
+      "exists": true,
+      "sha256": "0368d76ca673ac975ebf5395d4b7ca8d4aa1572f6a30ee220e6b5f8b783c2ec8"
+    },
+    "object:magic_clean/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/magic_clean/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:magic_clean/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/magic_clean/collision.obj",
+      "exists": true,
+      "sha256": "a40a1cabee4c09ec9daf331f0c7d7265069d1940c45f2c217579509fbe312d28"
+    },
+    "object:magic_clean/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/magic_clean/textured.obj",
+      "exists": true,
+      "sha256": "8fde915185e9e9ae1da91e46e33930ad6abcc476ca5358b70000c8e25995e4a1"
+    },
+    "object:magic_clean/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/magic_clean/features.npy",
+      "exists": true,
+      "sha256": "661927f4bfc63753c7afc45ebb16794174f7835994f5275de9a3eb0ca0705ae4"
+    },
+    "object:magic_clean/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/magic_clean/collision.obj",
+      "exists": true,
+      "sha256": "a40a1cabee4c09ec9daf331f0c7d7265069d1940c45f2c217579509fbe312d28"
+    },
+    "object:magic_clean/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/magic_clean/textured.obj",
+      "exists": true,
+      "sha256": "8fde915185e9e9ae1da91e46e33930ad6abcc476ca5358b70000c8e25995e4a1"
+    },
+    "grasp:magic_clean:6": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_06.json",
+      "exists": true,
+      "sha256": "006cb43c4c1efe19888ad6a55e584f1bc53e0822752d9b8ce2eb023859246652"
+    },
+    "object:power_drill/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/power_drill/model.urdf",
+      "exists": true,
+      "sha256": "9abd860ba821c7b84b079c7de015ea033ddb378613b5b9588db51cbf2d34618f"
+    },
+    "object:power_drill/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/power_drill/collision.obj",
+      "exists": true,
+      "sha256": "d95e75942d2908be8d4be8fc8c5814d485550cb2597d55646f9214ce92d0596d"
+    },
+    "object:power_drill/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/power_drill/textured.obj",
+      "exists": true,
+      "sha256": "4003707dbe5530aa63a3f0084eecae8c3efd79edf662a7afefc4b55ff2733d09"
+    },
+    "object:power_drill/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/power_drill/features.npy",
+      "exists": true,
+      "sha256": "6c40e08648b4412b45757138a5a826295ea513e258c8b0b5ee1211359c54c9b7"
+    },
+    "object:power_drill/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/power_drill/collision.obj",
+      "exists": true,
+      "sha256": "d95e75942d2908be8d4be8fc8c5814d485550cb2597d55646f9214ce92d0596d"
+    },
+    "object:power_drill/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/power_drill/textured.obj",
+      "exists": true,
+      "sha256": "4003707dbe5530aa63a3f0084eecae8c3efd79edf662a7afefc4b55ff2733d09"
+    },
+    "grasp:power_drill:7": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_07.json",
+      "exists": true,
+      "sha256": "1cdf5f850898630628a2613ff9acafba6759cc637f870fad33196043885f7bf4"
+    },
+    "object:soap_dish/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/soap_dish/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:soap_dish/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/soap_dish/collision.obj",
+      "exists": true,
+      "sha256": "3d6be9c1a71726fc22356cf53b5044ad1979863dfcd73f30b28765d9c087485a"
+    },
+    "object:soap_dish/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/soap_dish/textured.obj",
+      "exists": true,
+      "sha256": "25239accb47839a97281057cfbe0844a20749ec8a113ee7c2b5cefb5817e761d"
+    },
+    "object:soap_dish/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/soap_dish/features.npy",
+      "exists": true,
+      "sha256": "97c80cf7fe8c3b1cdb0c797fea7d69ea3d78bd847321d0f86aa388887eae51f0"
+    },
+    "object:soap_dish/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/soap_dish/collision.obj",
+      "exists": true,
+      "sha256": "3d6be9c1a71726fc22356cf53b5044ad1979863dfcd73f30b28765d9c087485a"
+    },
+    "object:soap_dish/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/soap_dish/textured.obj",
+      "exists": true,
+      "sha256": "25239accb47839a97281057cfbe0844a20749ec8a113ee7c2b5cefb5817e761d"
+    },
+    "grasp:soap_dish:8": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_08.json",
+      "exists": true,
+      "sha256": "bdb9cebc89b6b661d63b7987ee2fa73e2b94e34243738c7ab8db4728ead8e350"
+    },
+    "object:yellow_bowl/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/yellow_bowl/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:yellow_bowl/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/yellow_bowl/collision.obj",
+      "exists": true,
+      "sha256": "b926b41b8b74fbc35854b727f9378ae8ef804d60a79048f505bc5fd09f708c77"
+    },
+    "object:yellow_bowl/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/yellow_bowl/textured.obj",
+      "exists": true,
+      "sha256": "27cd137fd9bc9a46617da8daa05b1dbd7e873cbe78260487c0bbb984348bd028"
+    },
+    "object:yellow_bowl/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/yellow_bowl/features.npy",
+      "exists": true,
+      "sha256": "97cb37607269c96c3e58ad76fd6877552521fea3fdf81ffab4f9ff0008d092f2"
+    },
+    "object:yellow_bowl/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/yellow_bowl/collision.obj",
+      "exists": true,
+      "sha256": "b926b41b8b74fbc35854b727f9378ae8ef804d60a79048f505bc5fd09f708c77"
+    },
+    "object:yellow_bowl/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/yellow_bowl/textured.obj",
+      "exists": true,
+      "sha256": "27cd137fd9bc9a46617da8daa05b1dbd7e873cbe78260487c0bbb984348bd028"
+    },
+    "grasp:yellow_bowl:9": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_09.json",
+      "exists": true,
+      "sha256": "3fcf36020441e2dc3d9ea2dbdd5a66c808655831a1d6d342dcfcd120a2c9c235"
+    },
+    "object:pitcher/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/pitcher/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:pitcher/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/pitcher/collision.obj",
+      "exists": true,
+      "sha256": "9ded4c5daaf14d1210766340ddad9ac45460ad19b024b6ea5ab0e507b2391422"
+    },
+    "object:pitcher/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/pitcher/textured.obj",
+      "exists": true,
+      "sha256": "8674e1c72f12444c2d52354b0f63a7a9f45eaa3513f11475432595503a7687f7"
+    },
+    "object:pitcher/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/pitcher/features.npy",
+      "exists": true,
+      "sha256": "c6c42c3256dd013184d828c47f08ac6f369b41f1c1a5e5c03ea1c2d6b7d6b9fc"
+    },
+    "object:pitcher/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/pitcher/collision.obj",
+      "exists": true,
+      "sha256": "9ded4c5daaf14d1210766340ddad9ac45460ad19b024b6ea5ab0e507b2391422"
+    },
+    "object:pitcher/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/pitcher/textured.obj",
+      "exists": true,
+      "sha256": "8674e1c72f12444c2d52354b0f63a7a9f45eaa3513f11475432595503a7687f7"
+    },
+    "grasp:pitcher:10": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_10.json",
+      "exists": true,
+      "sha256": "a0557939d211387fdb6df1df71974c58e6040c9e5c7a66393aaf317812d493b8"
+    },
+    "object:blue_tea_box/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/blue_tea_box/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:blue_tea_box/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/blue_tea_box/collision.obj",
+      "exists": true,
+      "sha256": "12ea907829af19c27a3418595b3c107c986c9894f8201771b93074d61bf620c0"
+    },
+    "object:blue_tea_box/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/blue_tea_box/textured.obj",
+      "exists": true,
+      "sha256": "3e714453104cb7bb316ebc629e9ddc5f02b5a9bd1dba0fd59a6d3fb84b3c162f"
+    },
+    "object:blue_tea_box/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/blue_tea_box/features.npy",
+      "exists": true,
+      "sha256": "37947c72f539ef425816e2a83068a29ea94def1739332c4a53d2661bac58d6f6"
+    },
+    "object:blue_tea_box/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/blue_tea_box/collision.obj",
+      "exists": true,
+      "sha256": "12ea907829af19c27a3418595b3c107c986c9894f8201771b93074d61bf620c0"
+    },
+    "object:blue_tea_box/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/blue_tea_box/textured.obj",
+      "exists": true,
+      "sha256": "3e714453104cb7bb316ebc629e9ddc5f02b5a9bd1dba0fd59a6d3fb84b3c162f"
+    },
+    "grasp:blue_tea_box:11": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_11.json",
+      "exists": true,
+      "sha256": "7cc38f1a6c6beb5cc951058d3be4c1d9b83f9a544337ffa5c33b8a216e0cc440"
+    },
+    "object:mug/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/mug/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:mug/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/mug/collision.obj",
+      "exists": true,
+      "sha256": "2eebaca5aa6706ee022ca33d382da3616b996543215768caf26dfa55c6bdd0db"
+    },
+    "object:mug/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/mug/textured.obj",
+      "exists": true,
+      "sha256": "95c12c35216f456fefbb33d465a2a67bf7f3b75ab1ce62a64892f8ccd01bef6d"
+    },
+    "object:mug/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/mug/features.npy",
+      "exists": true,
+      "sha256": "bee0e4ed7f70d42962dcdb33ea62bdf02614a3b39fc2150f050a877f2411eccd"
+    },
+    "object:mug/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/mug/collision.obj",
+      "exists": true,
+      "sha256": "2eebaca5aa6706ee022ca33d382da3616b996543215768caf26dfa55c6bdd0db"
+    },
+    "object:mug/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/mug/textured.obj",
+      "exists": true,
+      "sha256": "95c12c35216f456fefbb33d465a2a67bf7f3b75ab1ce62a64892f8ccd01bef6d"
+    },
+    "grasp:mug:12": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_12.json",
+      "exists": true,
+      "sha256": "242df98eb7300bb44ee5172631118c23133264d8e06919c97f78010052332707"
+    },
+    "object:lipton_tea/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/lipton_tea/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:lipton_tea/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/lipton_tea/collision.obj",
+      "exists": true,
+      "sha256": "05c91ce282c334a0cbf03f4f29240e5bbdf76c2093f4daebb51400c4d20fae6c"
+    },
+    "object:lipton_tea/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/lipton_tea/textured.obj",
+      "exists": true,
+      "sha256": "cc00d3bc04c21bdc3bf4af502940a26efee3369343206dbb72a52cc9d80f4b6e"
+    },
+    "object:lipton_tea/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/lipton_tea/features.npy",
+      "exists": true,
+      "sha256": "38864bc2dfd54e5183284b160e566b21c62186918aeefc7dc053389be5749b16"
+    },
+    "object:lipton_tea/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/lipton_tea/collision.obj",
+      "exists": true,
+      "sha256": "05c91ce282c334a0cbf03f4f29240e5bbdf76c2093f4daebb51400c4d20fae6c"
+    },
+    "object:lipton_tea/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/lipton_tea/textured.obj",
+      "exists": true,
+      "sha256": "cc00d3bc04c21bdc3bf4af502940a26efee3369343206dbb72a52cc9d80f4b6e"
+    },
+    "grasp:lipton_tea:13": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_13.json",
+      "exists": true,
+      "sha256": "bf00427772c399d9a817bd3d4f7a5ed38e61f5095f40ba6f51a28a25b62a6850"
+    },
+    "object:plastic_lemon/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_lemon/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:plastic_lemon/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_lemon/collision.obj",
+      "exists": true,
+      "sha256": "8f2619bac69928c6539f0ce23888c72a5e3bcaec888bf06b3e56618a7673b62d"
+    },
+    "object:plastic_lemon/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_lemon/textured.obj",
+      "exists": true,
+      "sha256": "6fc6dba940e82cf6b72dc2288925c80d7915c2aa6b8c502fe322c802f8b69959"
+    },
+    "object:plastic_lemon/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_lemon/features.npy",
+      "exists": true,
+      "sha256": "d72b707a669d49bf961732869c0a5107b30f611047c3a8928595632eace5d749"
+    },
+    "object:plastic_lemon/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_lemon/collision.obj",
+      "exists": true,
+      "sha256": "8f2619bac69928c6539f0ce23888c72a5e3bcaec888bf06b3e56618a7673b62d"
+    },
+    "object:plastic_lemon/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_lemon/textured.obj",
+      "exists": true,
+      "sha256": "6fc6dba940e82cf6b72dc2288925c80d7915c2aa6b8c502fe322c802f8b69959"
+    },
+    "grasp:plastic_lemon:14": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_14.json",
+      "exists": true,
+      "sha256": "acae218fab3e0f2c3d080e384af60780e562301a0a0f451da89413400aa02f73"
+    },
+    "object:plastic_apple/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_apple/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:plastic_apple/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_apple/collision.obj",
+      "exists": true,
+      "sha256": "6b9f4cf9fc89d35ffb2f48a0e1a42745a07baa698bb0881cc615736c2191a4d4"
+    },
+    "object:plastic_apple/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_apple/textured.obj",
+      "exists": true,
+      "sha256": "177ffa09845dfc95b657c98d56bad663c8c7454e7fc66e230db084832eedb01c"
+    },
+    "object:plastic_apple/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_apple/features.npy",
+      "exists": true,
+      "sha256": "0350b2290cc5de0f93b554e955157cddadecb35e6c135d90e5a4b0240943f134"
+    },
+    "object:plastic_apple/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_apple/collision.obj",
+      "exists": true,
+      "sha256": "6b9f4cf9fc89d35ffb2f48a0e1a42745a07baa698bb0881cc615736c2191a4d4"
+    },
+    "object:plastic_apple/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_apple/textured.obj",
+      "exists": true,
+      "sha256": "177ffa09845dfc95b657c98d56bad663c8c7454e7fc66e230db084832eedb01c"
+    },
+    "grasp:plastic_apple:15": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_15.json",
+      "exists": true,
+      "sha256": "465d698d42e7450c16197b47913cfc1c4f4ebe7688ee5a69b7aa74addccd2de0"
+    },
+    "object:plate_holder/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plate_holder/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:plate_holder/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plate_holder/collision.obj",
+      "exists": true,
+      "sha256": "750d999a5557ae564fa920898cdaf447f73f7e7a5d5aff98ff4b74513fcc3788"
+    },
+    "object:plate_holder/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plate_holder/textured.obj",
+      "exists": true,
+      "sha256": "efb00ce33390f0a1c08896ed4c86841dda7cf7c4b112a957ed59127cf3a9de29"
+    },
+    "object:plate_holder/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plate_holder/features.npy",
+      "exists": true,
+      "sha256": "970db03c430a1a78fcfa1c6c201ba792498d0286b02087fba2d181194894c49c"
+    },
+    "object:plate_holder/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plate_holder/collision.obj",
+      "exists": true,
+      "sha256": "750d999a5557ae564fa920898cdaf447f73f7e7a5d5aff98ff4b74513fcc3788"
+    },
+    "object:plate_holder/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plate_holder/textured.obj",
+      "exists": true,
+      "sha256": "efb00ce33390f0a1c08896ed4c86841dda7cf7c4b112a957ed59127cf3a9de29"
+    },
+    "grasp:plate_holder:16": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_16.json",
+      "exists": true,
+      "sha256": "2ddabf4af48e88e200f61683e1052623a52d06882925a6fa582b034d84d579bc"
+    },
+    "object:book_holder_3/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/book_holder_3/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:book_holder_3/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/book_holder_3/collision.obj",
+      "exists": true,
+      "sha256": "e315845e78acb4c1693baec658388fcf714bee5270adeb373b5677bf3b427dc5"
+    },
+    "object:book_holder_3/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/book_holder_3/textured.obj",
+      "exists": true,
+      "sha256": "755a8a7ec1da7c3fa2172a8d528c0ccbab58576acc30f2bcc28e5910b9cc0993"
+    },
+    "object:book_holder_3/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/book_holder_3/features.npy",
+      "exists": true,
+      "sha256": "48bb07f5f1134b807aa2082760636f7a3f25e546971543b183f3a58e91e985b2"
+    },
+    "object:book_holder_3/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/book_holder_3/collision.obj",
+      "exists": true,
+      "sha256": "e315845e78acb4c1693baec658388fcf714bee5270adeb373b5677bf3b427dc5"
+    },
+    "object:book_holder_3/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/book_holder_3/textured.obj",
+      "exists": true,
+      "sha256": "755a8a7ec1da7c3fa2172a8d528c0ccbab58576acc30f2bcc28e5910b9cc0993"
+    },
+    "grasp:book_holder_3:17": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_17.json",
+      "exists": true,
+      "sha256": "7048ba6bb826033bb04395713e9b72b2b75513935290526893fbe7508a913a72"
+    },
+    "object:blue_moon/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/blue_moon/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:blue_moon/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/blue_moon/collision.obj",
+      "exists": true,
+      "sha256": "eafc27b40723f0e74304f0850b3760012eadc2fac1b69b2cd932a70d3a4d861a"
+    },
+    "object:blue_moon/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/blue_moon/textured.obj",
+      "exists": true,
+      "sha256": "74ba03ebb5b9584c301ebaee041bedb86b3f288b6981410e77aabca055fbc4ab"
+    },
+    "object:blue_moon/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/blue_moon/features.npy",
+      "exists": true,
+      "sha256": "faa4c4dcb842e45e7eea325084593cca82f0f5a3a64f7322eb9790ec575041ac"
+    },
+    "object:blue_moon/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/blue_moon/collision.obj",
+      "exists": true,
+      "sha256": "eafc27b40723f0e74304f0850b3760012eadc2fac1b69b2cd932a70d3a4d861a"
+    },
+    "object:blue_moon/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/blue_moon/textured.obj",
+      "exists": true,
+      "sha256": "74ba03ebb5b9584c301ebaee041bedb86b3f288b6981410e77aabca055fbc4ab"
+    },
+    "grasp:blue_moon:18": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_18.json",
+      "exists": true,
+      "sha256": "ddef2ccd906da97803a3e189a3c568221c209ef4232cd9ffd56407cdafa9404e"
+    },
+    "object:plastic_orange/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_orange/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:plastic_orange/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_orange/collision.obj",
+      "exists": true,
+      "sha256": "a29e6d7ba5dc2f18b59baeed4e33ae7fd967e0ace8b8687205aa371f898b4a29"
+    },
+    "object:plastic_orange/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_orange/textured.obj",
+      "exists": true,
+      "sha256": "5cda847d2ab3f9bcfca009a4eeeebe76bf08f1d7daab253c4db13e8b8e57ed97"
+    },
+    "object:plastic_orange/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_orange/features.npy",
+      "exists": true,
+      "sha256": "c4299ed5cd8a3e6f4869f3630082b0b6be32f51be9e7083097c197b0554a1126"
+    },
+    "object:plastic_orange/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_orange/collision.obj",
+      "exists": true,
+      "sha256": "a29e6d7ba5dc2f18b59baeed4e33ae7fd967e0ace8b8687205aa371f898b4a29"
+    },
+    "object:plastic_orange/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/plastic_orange/textured.obj",
+      "exists": true,
+      "sha256": "5cda847d2ab3f9bcfca009a4eeeebe76bf08f1d7daab253c4db13e8b8e57ed97"
+    },
+    "grasp:plastic_orange:19": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_19.json",
+      "exists": true,
+      "sha256": "7fa314aca8253cd0a654f74c02c41076735acb9d6e2830993203309eb04e34cd"
+    },
+    "object:pink_tea_box/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/pink_tea_box/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:pink_tea_box/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/pink_tea_box/collision.obj",
+      "exists": true,
+      "sha256": "6eb59b3888820c72c2a64d7c503d777c696bf92d7f018e7b940b569bfe611ca6"
+    },
+    "object:pink_tea_box/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/pink_tea_box/textured.obj",
+      "exists": true,
+      "sha256": "a54fad66d53a964b698bb70e18fb740509c6454c02a1eaee84b33d55d77c2cfe"
+    },
+    "object:pink_tea_box/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/pink_tea_box/features.npy",
+      "exists": true,
+      "sha256": "805191b206cbe7aba34b02fc1ef8164b06596f46cde853f88ab290cdda0f73c1"
+    },
+    "object:pink_tea_box/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/pink_tea_box/collision.obj",
+      "exists": true,
+      "sha256": "6eb59b3888820c72c2a64d7c503d777c696bf92d7f018e7b940b569bfe611ca6"
+    },
+    "object:pink_tea_box/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/pink_tea_box/textured.obj",
+      "exists": true,
+      "sha256": "a54fad66d53a964b698bb70e18fb740509c6454c02a1eaee84b33d55d77c2cfe"
+    },
+    "grasp:pink_tea_box:20": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_20.json",
+      "exists": true,
+      "sha256": "262bb179c632b8b077cd4b22aef364726f8d1baf07edb87e9f47d4907d858f99"
+    },
+    "object:bleach_cleanser/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/bleach_cleanser/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:bleach_cleanser/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/bleach_cleanser/collision.obj",
+      "exists": true,
+      "sha256": "e17afa239b90f10af8758ebd65435cde9d4f44a93db00c1ce4eeeab3d53c4665"
+    },
+    "object:bleach_cleanser/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/bleach_cleanser/textured.obj",
+      "exists": true,
+      "sha256": "dd7ea6b6e4c6b6b9ad9bc5dbebe33717fb2d5a8cf0b3eacfece39f1bf3d6f383"
+    },
+    "object:bleach_cleanser/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/bleach_cleanser/features.npy",
+      "exists": true,
+      "sha256": "1c3e84f82273d8165299b8b62882b0748029ba7ea6dd2182b719892332d95510"
+    },
+    "object:bleach_cleanser/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/bleach_cleanser/collision.obj",
+      "exists": true,
+      "sha256": "e17afa239b90f10af8758ebd65435cde9d4f44a93db00c1ce4eeeab3d53c4665"
+    },
+    "object:bleach_cleanser/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/bleach_cleanser/textured.obj",
+      "exists": true,
+      "sha256": "dd7ea6b6e4c6b6b9ad9bc5dbebe33717fb2d5a8cf0b3eacfece39f1bf3d6f383"
+    },
+    "grasp:bleach_cleanser:21": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_21.json",
+      "exists": true,
+      "sha256": "d457c72a7ddeb5f498a7131ce9ecf2fd728e0229c93ddc47ceed0eaa7be17a8d"
+    },
+    "object:phillips_screwdriver/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/phillips_screwdriver/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:phillips_screwdriver/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/phillips_screwdriver/collision.obj",
+      "exists": true,
+      "sha256": "12ce34620ca6124d4a3c139d5097431438cfd2ecbd919ae541ca7cb9e1c51a65"
+    },
+    "object:phillips_screwdriver/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/phillips_screwdriver/textured.obj",
+      "exists": true,
+      "sha256": "a4f786e74a2b3b58d984e97afec67dbf65e917e819b47384b2c9990bf365ad2b"
+    },
+    "object:phillips_screwdriver/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/phillips_screwdriver/features.npy",
+      "exists": true,
+      "sha256": "522652ce2674042007a4fc7915550b086e054e05009c9df47356ab0ed3e5d51d"
+    },
+    "object:phillips_screwdriver/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/phillips_screwdriver/collision.obj",
+      "exists": true,
+      "sha256": "12ce34620ca6124d4a3c139d5097431438cfd2ecbd919ae541ca7cb9e1c51a65"
+    },
+    "object:phillips_screwdriver/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/phillips_screwdriver/textured.obj",
+      "exists": true,
+      "sha256": "a4f786e74a2b3b58d984e97afec67dbf65e917e819b47384b2c9990bf365ad2b"
+    },
+    "grasp:phillips_screwdriver:22": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_22.json",
+      "exists": true,
+      "sha256": "05e7fd8ed8b20ba717a5c0d47ca839cbef8d897ab885b4603ab31a30b60e0cb2"
+    },
+    "object:doraemon_bowl/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/doraemon_bowl/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:doraemon_bowl/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/doraemon_bowl/collision.obj",
+      "exists": true,
+      "sha256": "ef4193ac3b7ab78be5024eeb5606cff879690419e108f96be24a5b89c4473817"
+    },
+    "object:doraemon_bowl/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/doraemon_bowl/textured.obj",
+      "exists": true,
+      "sha256": "5963968fbd40c4908a9fea445937be3ed3cc2d4d5cb03f8dbb933516ccf6f7b8"
+    },
+    "object:doraemon_bowl/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/doraemon_bowl/features.npy",
+      "exists": true,
+      "sha256": "e80c6cad565930a2a5aeccf321d3f084853f85b5a9bbc9aa3afbfea9264263a6"
+    },
+    "object:doraemon_bowl/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/doraemon_bowl/collision.obj",
+      "exists": true,
+      "sha256": "ef4193ac3b7ab78be5024eeb5606cff879690419e108f96be24a5b89c4473817"
+    },
+    "object:doraemon_bowl/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/doraemon_bowl/textured.obj",
+      "exists": true,
+      "sha256": "5963968fbd40c4908a9fea445937be3ed3cc2d4d5cb03f8dbb933516ccf6f7b8"
+    },
+    "grasp:doraemon_bowl:23": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_23.json",
+      "exists": true,
+      "sha256": "34955b12b431ad28e6b72d369596e3ee18c6de9a62bd37e6b13ecd33c96e96cb"
+    },
+    "object:orange_cup/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/orange_cup/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:orange_cup/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/orange_cup/collision.obj",
+      "exists": true,
+      "sha256": "a2d692202098c4784c4b1a9d417089d553b47268e980e2547a02839a7d7339c5"
+    },
+    "object:orange_cup/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/orange_cup/textured.obj",
+      "exists": true,
+      "sha256": "746c7effce26fa353ddf0da52c20a90ae1f4ddbd5a3c246982b2564b6aab7e65"
+    },
+    "object:orange_cup/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/orange_cup/features.npy",
+      "exists": true,
+      "sha256": "716d945545c7d5849894557e3f648406aa4d8278c75e145d7a3ece9c98710890"
+    },
+    "object:orange_cup/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/orange_cup/collision.obj",
+      "exists": true,
+      "sha256": "a2d692202098c4784c4b1a9d417089d553b47268e980e2547a02839a7d7339c5"
+    },
+    "object:orange_cup/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/orange_cup/textured.obj",
+      "exists": true,
+      "sha256": "746c7effce26fa353ddf0da52c20a90ae1f4ddbd5a3c246982b2564b6aab7e65"
+    },
+    "grasp:orange_cup:24": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_24.json",
+      "exists": true,
+      "sha256": "826f8e8bb9a6782f688f6f27f7f6197827a2335f2245bba8dbb54bb9e0738daf"
+    },
+    "object:blue_cup/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/blue_cup/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:blue_cup/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/blue_cup/collision.obj",
+      "exists": true,
+      "sha256": "09839b10945f2a8f305ff322f45ff5de463bcdd65059c86281141ddcf805c023"
+    },
+    "object:blue_cup/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/blue_cup/textured.obj",
+      "exists": true,
+      "sha256": "746c7effce26fa353ddf0da52c20a90ae1f4ddbd5a3c246982b2564b6aab7e65"
+    },
+    "object:blue_cup/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/blue_cup/features.npy",
+      "exists": true,
+      "sha256": "6d0712c29d32129e5d96f1f5873e4616bccb8bb0b363dc206dd93bdace912093"
+    },
+    "object:blue_cup/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/blue_cup/collision.obj",
+      "exists": true,
+      "sha256": "09839b10945f2a8f305ff322f45ff5de463bcdd65059c86281141ddcf805c023"
+    },
+    "object:blue_cup/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/blue_cup/textured.obj",
+      "exists": true,
+      "sha256": "746c7effce26fa353ddf0da52c20a90ae1f4ddbd5a3c246982b2564b6aab7e65"
+    },
+    "grasp:blue_cup:25": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_25.json",
+      "exists": true,
+      "sha256": "e5bd0bb4054c8b41ef4a15775eb7cdd58ac818b2d12a7e15abb4c59c8689033b"
+    },
+    "object:cleanser/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/cleanser/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:cleanser/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/cleanser/collision.obj",
+      "exists": true,
+      "sha256": "515b7d9adc823261cf5c8eb55c73f87ea05ea2ad75d985dca969b6112bb55180"
+    },
+    "object:cleanser/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/cleanser/textured.obj",
+      "exists": true,
+      "sha256": "af6ac7ace82af0657b17026adb4ea55c83b6dff461e5d036b0bec1d3609305b0"
+    },
+    "object:cleanser/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/cleanser/features.npy",
+      "exists": true,
+      "sha256": "3edd3143779b7183e21cc39e608a6b662ea19ab3f71d3bb42ca4eb58f959dc67"
+    },
+    "object:cleanser/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/cleanser/collision.obj",
+      "exists": true,
+      "sha256": "515b7d9adc823261cf5c8eb55c73f87ea05ea2ad75d985dca969b6112bb55180"
+    },
+    "object:cleanser/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/cleanser/textured.obj",
+      "exists": true,
+      "sha256": "af6ac7ace82af0657b17026adb4ea55c83b6dff461e5d036b0bec1d3609305b0"
+    },
+    "grasp:cleanser:26": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_26.json",
+      "exists": true,
+      "sha256": "b423434556962efd1970d429bb8c4dbb453a2def3db6afc7cccaef2d96f343a4"
+    },
+    "object:bowl/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/bowl/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:bowl/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/bowl/collision.obj",
+      "exists": true,
+      "sha256": "d759fd9ce1cc054a3fd31f2a7bd1fb071f08a55f0ea3bb9e05fd859ebd74a284"
+    },
+    "object:bowl/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/bowl/textured.obj",
+      "exists": true,
+      "sha256": "01497e9a7005892eb0a82b28affae0752354350c75bd53d571c66c65d0d093eb"
+    },
+    "object:bowl/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/bowl/features.npy",
+      "exists": true,
+      "sha256": "94d661aa585623a2f2b7e2e1555826be1abb3716f3afb54672a99b1684c87d76"
+    },
+    "object:bowl/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/bowl/collision.obj",
+      "exists": true,
+      "sha256": "d759fd9ce1cc054a3fd31f2a7bd1fb071f08a55f0ea3bb9e05fd859ebd74a284"
+    },
+    "object:bowl/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/bowl/textured.obj",
+      "exists": true,
+      "sha256": "01497e9a7005892eb0a82b28affae0752354350c75bd53d571c66c65d0d093eb"
+    },
+    "grasp:bowl:27": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_27.json",
+      "exists": true,
+      "sha256": "b62a650d806774defa861b841b7b762f809e423a3393232912650c0cf8c56f57"
+    },
+    "object:clear_box/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/clear_box/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:clear_box/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/clear_box/collision.obj",
+      "exists": true,
+      "sha256": "3c8658e49cac57d6e2597865d7d5c0348aff571ac08cb0af88147486da006093"
+    },
+    "object:clear_box/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/clear_box/textured.obj",
+      "exists": true,
+      "sha256": "0e55375ec3cd170eb8a24ff40dff9ceec6977d115e29c60f5ccf571316092c1b"
+    },
+    "object:clear_box/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/clear_box/features.npy",
+      "exists": true,
+      "sha256": "8fbbff65b086028d89628533d3eaeed260d4d76c3812feab741db8b40f8f8b7d"
+    },
+    "object:clear_box/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/clear_box/collision.obj",
+      "exists": true,
+      "sha256": "3c8658e49cac57d6e2597865d7d5c0348aff571ac08cb0af88147486da006093"
+    },
+    "object:clear_box/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/clear_box/textured.obj",
+      "exists": true,
+      "sha256": "0e55375ec3cd170eb8a24ff40dff9ceec6977d115e29c60f5ccf571316092c1b"
+    },
+    "grasp:clear_box:28": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_28.json",
+      "exists": true,
+      "sha256": "7cb554f02cbef3034316cf371fd86e68ddc3cdc042933f1197aceedbe303b257"
+    },
+    "object:suger_1/model.urdf": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/suger_1/model.urdf",
+      "exists": true,
+      "sha256": "8ce0f5dd69d3ac9770dc02a8c8f999f0f91c8287328f0bc8723f5eece5d6320d"
+    },
+    "object:suger_1/collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/suger_1/collision.obj",
+      "exists": true,
+      "sha256": "0e29784b53851ac88ede808df4b9038d6d69afd8393726fad1b06079443ed9d0"
+    },
+    "object:suger_1/textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/suger_1/textured.obj",
+      "exists": true,
+      "sha256": "6f8f6405a3980abbe6f1e08db0d49403e062580d847e6644c8303371ccdf4f15"
+    },
+    "object:suger_1/features.npy": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/suger_1/features.npy",
+      "exists": true,
+      "sha256": "3c784d35d3a3486b397c475c874fa064e53d9e724639e00114e470f19a88e2c5"
+    },
+    "object:suger_1/mesh:collision.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/suger_1/collision.obj",
+      "exists": true,
+      "sha256": "0e29784b53851ac88ede808df4b9038d6d69afd8393726fad1b06079443ed9d0"
+    },
+    "object:suger_1/mesh:textured.obj": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/obj_set/suger_1/textured.obj",
+      "exists": true,
+      "sha256": "6f8f6405a3980abbe6f1e08db0d49403e062580d847e6644c8303371ccdf4f15"
+    },
+    "grasp:suger_1:29": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/contact_grasp_info_mul/predictions_image_29.json",
+      "exists": true,
+      "sha256": "f641dba8139edd3e3335427852567ff651787362df703b8b488dcc4d7161849a"
+    },
+    "grasp_initial_object_states": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/PredictPiontTransform/transform_info/30all_nomove_cube_root_states5.pt",
+      "exists": true,
+      "sha256": "746aff8efd557fef59ff68b04df426c5bc2f9e6c27a4ef17847cdb7199ba38e8"
+    },
+    "low_controller": {
+      "path": "/home/hehui/DQ_WBC/DQ_high-level/data/low_model/model_44000.pt",
+      "exists": true,
+      "sha256": "12b6ae2f3ed31d1e9dbef254c95eff500747d5b76fcbdc0f193cb973c45eaa02"
+    }
+  },
+  "source": {
+    "git_revision": "db7309e3341ea65b1d0427ad81f954c614bffe94",
+    "files": {
+      "envs/b1z1_base.py": {
+        "path": "/home/hehui/DQ_WBC/DQ_high-level/envs/b1z1_base.py",
+        "exists": true,
+        "sha256": "e5a0dc671c71501a5760096a90afb7555751e970958356e5108517e50590c615"
+      },
+      "envs/b1z1_pickmulti.py": {
+        "path": "/home/hehui/DQ_WBC/DQ_high-level/envs/b1z1_pickmulti.py",
+        "exists": true,
+        "sha256": "fb58e1d8291e28194b0d11c8952fb7c779f50cfb73b1daad40517586869e8b60"
+      },
+      "envs/reward_vec_task.py": {
+        "path": "/home/hehui/DQ_WBC/DQ_high-level/envs/reward_vec_task.py",
+        "exists": true,
+        "sha256": "0508173187e8668e679d468f9ca61f3f120a9e5119bbac02dba59e33f4024213"
+      },
+      "envs/vec_task.py": {
+        "path": "/home/hehui/DQ_WBC/DQ_high-level/envs/vec_task.py",
+        "exists": true,
+        "sha256": "3c0d5ab882e3637bc7e2c45ba81b31866d8d434cd8628e27962294719b2a046c"
+      },
+      "learning/dagger_trainer.py": {
+        "path": "/home/hehui/DQ_WBC/DQ_high-level/learning/dagger_trainer.py",
+        "exists": true,
+        "sha256": "1876023ebe1395840319a9d905b2a024f0fe354a8c1e0a2ff1ded271839dc397"
+      },
+      "learning/dagger_rnn.py": {
+        "path": "/home/hehui/DQ_WBC/DQ_high-level/learning/dagger_rnn.py",
+        "exists": true,
+        "sha256": "264876dfb20b42a3cb248d8a3f2a49519d92ee2f60de728ab22a768fd5144ad4"
+      },
+      "train_multistate_DQ_teacher.py": {
+        "path": "/home/hehui/DQ_WBC/DQ_high-level/train_multistate_DQ_teacher.py",
+        "exists": true,
+        "sha256": "e53a0c29ac7c86abbafa31e9c85d81c29edbf86a3bdc2b36b7c7bd8b1680b830"
+      },
+      "train_multi_bc_deter_DQ_stu.py": {
+        "path": "/home/hehui/DQ_WBC/DQ_high-level/train_multi_bc_deter_DQ_stu.py",
+        "exists": true,
+        "sha256": "3acf2ffcf012b047dd0fb5b6bab9adb918ae85f2da3ac941801d7a63ddb9bbd8"
+      },
+      "utils/experiment_manifest.py": {
+        "path": "/home/hehui/DQ_WBC/DQ_high-level/utils/experiment_manifest.py",
+        "exists": true,
+        "sha256": "5635ecda7a2e1f59a850f062788185bbaa3f555a89aaafeb7765a1936277aae8"
+      },
+      "utils/config.py": {
+        "path": "/home/hehui/DQ_WBC/DQ_high-level/utils/config.py",
+        "exists": true,
+        "sha256": "0ea3ff796194ccbfdb736159f6b6f00be98e4d1c0003a7d0b314cc7832ccc704"
+      },
+      "learning/mixed_collection.py": {
+        "path": "/home/hehui/DQ_WBC/DQ_high-level/learning/mixed_collection.py",
+        "exists": true,
+        "sha256": "2e4b809ca60e70bdcf4f8e5c488c8b582d57a7df35e87dfc280a83ca4d2cce32"
+      },
+      "learning/episode_replay.py": {
+        "path": "/home/hehui/DQ_WBC/DQ_high-level/learning/episode_replay.py",
+        "exists": true,
+        "sha256": "89c8f01967e81e590dc3b702a1d54a6cb9317ba0117554e2a07b5fdac706993e"
+      }
+    }
+  },
+  "checkpoint": {
+    "path": "/home/hehui/DQ_WBC/DQ_high-level/DQ_teacher/b1-pick-sugar-box/1015/checkpoints/agent_120000.pt",
+    "exists": true,
+    "sha256": "75553c6bc8db54ac68fd9966a9dcfd1b920066c321518fefa0b5f6b333984852"
+  },
+  "teacher_checkpoint": null,
+  "state_scaler": {
+    "binding": "embedded state is bound by the checkpoint SHA256",
+    "state_sha256": null
+  },
+  "success_definition": {
+    "first_lift": "diagnostic first lift in one episode; never substitutes for stable hold",
+    "stable_hold": "continuous lift satisfying lift/distance checks, completed before physical failure",
+    "hold_steps": 15,
+    "hold_duration_seconds": 2.1,
+    "evaluation_start": "normal reset; no teacher rollout or RSI"
+  },
+  "observation_schemas": {
+    "teacher": "shape features, object pose, robot state, base velocity, object relative velocity, 30 grasp candidates, previous raw action",
+    "student": "3 causal image frames; front mask, wrist mask, front masked depth, wrist masked depth; robot proprioception and previous raw action",
+    "teacher_dimension": 1276,
+    "student_dimension": null,
+    "roboinfo": true,
+    "camera_resolution": [
+      96,
+      54
+    ],
+    "image_delay_low_steps": 4
+  },
+  "distillation": null
+}

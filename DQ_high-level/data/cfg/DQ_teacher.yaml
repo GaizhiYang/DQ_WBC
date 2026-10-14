@@ -11,7 +11,7 @@ env:
   controlFrequencyInv: 4
   controlFrequencyLow: 8
   imgDelayFrame: 4
-  D1_bench_task_level : "Level01"
+  D1_bench_task_level : "Level02"
   robotStartDistanceRange: [0.85, 1.1] # Horizontal distance from robot base to object [m]
   cameraVisibilityReset: False # Keep termination rules consistent with visual distillation
 

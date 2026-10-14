@@ -1,0 +1,28 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.3", nodesep="0.28", ranksep="0.48", fontname="Noto Sans CJK SC", fontsize=19, labelloc=t];
+node [shape=box, style="rounded,filled", fillcolor="#e6f3ea", color="#46785b", fontname="Noto Sans CJK SC", fontsize=12, margin="0.15,0.10"];
+edge [color="#58677c", fontname="Noto Sans CJK SC", fontsize=10, arrowsize=0.7];
+
+label="现有 DQ-NET：教师与学生之间的信息和训练差异";
+subgraph cluster_t { label="教师：当前源码"; color="#b6c7dc";
+t0 [label="当前特权观测 1276D\n物体特征1024 + 物体位姿/速度\n机器人状态 + 30×6 抓取候选 + 上次动作", fillcolor="#e5effb", color="#4875a5"];
+t1 [label="冻结标准化器 + 物体编码128D\nGFM：30个候选 → 学习表征6D", fillcolor="#edf0f4", color="#8994a5"];
+t2 [label="Actor MLP 206→512→256→128→9", fillcolor="#edf0f4", color="#8994a5"];
+t0 -> t1 -> t2;
+}
+subgraph cluster_s { label="学生：当前源码"; color="#b6c7dc";
+s0 [label="双视角 × 3帧 × (mask+depth)\n54×96 + 当前本体状态61D\n没有逐帧本体状态和实际采集时间戳", fillcolor="#e5effb", color="#4875a5"];
+s1 [label="共享浅层CNN → 每帧64D\n腕部/前向各一个2层Transformer\n每路由当前本体状态引导"];
+s2 [label="融合189D → 主动作9D + 残差9D"];
+s0 -> s1 -> s2;
+}
+gap [label="关键假设：有限历史能否恢复教师决策所需信息？\n视觉年龄60–80ms；当前真值教师无需完成这种预测\n高难度下位姿/速度误差会放大闭环动作误差", fillcolor="#fde7e6", color="#b76562"];
+loss [label="现有在线DAgger：动作MSE\n短暂教师预热后完全由学生rollout\n无显式物体运动监督", fillcolor="#fde7e6", color="#b76562"];
+t2 -> loss [label="当前状态的确定性教师动作"];
+s2 -> loss;
+t1 -> gap [style=dashed, arrowhead=none];
+s1 -> gap [style=dashed, arrowhead=none];
+note [label="证据边界：信息差与采样方式可由代码确认；各自贡献需消融\n21万步残差问题只影响相应长训练，不能解释论文8万步结果", fillcolor="#edf0f4", color="#8994a5"];
+gap -> note [style=invis]; loss -> note [style=invis];
+
+}

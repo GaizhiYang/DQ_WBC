@@ -1,0 +1,27 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.3", nodesep="0.28", ranksep="0.48", fontname="Noto Sans CJK SC", fontsize=19, labelloc=t];
+node [shape=box, style="rounded,filled", fillcolor="#e6f3ea", color="#46785b", fontname="Noto Sans CJK SC", fontsize=12, margin="0.15,0.10"];
+edge [color="#58677c", fontname="Noto Sans CJK SC", fontsize=10, arrowsize=0.7];
+
+label="建议训练流程：持续混合rollout + 同状态教师标签 + 纯学生验证";
+env [label="统一仿真任务分布 / episode ID / 时间戳\n教师组与学生组使用相同物体和难度分层", fillcolor="#e5effb", color="#4875a5"];
+priv [label="当前真实状态 s(t)\n仅供冻结教师和训练标签", fillcolor="#e5effb", color="#4875a5"];
+obs [label="延迟双视角历史 + 同步本体历史\n当前本体状态（可部署观测）", fillcolor="#e5effb", color="#4875a5"];
+teacher [label="冻结原DQ教师 + 冻结RunningStandardScaler\nno_grad / eval / deterministic mean", fillcolor="#edf0f4", color="#8994a5"];
+student [label="改进学生（图2）\n训练时输入也只含可部署观测"];
+mix [label="rollout角色选择（整回合固定）\n约50%教师环境 + 50%学生环境\n选择完整动作；不做动作向量平均", fillcolor="#eee8fa", color="#8872aa"];
+step [label="现有动作适配器 → 冻结底层控制 → env.step", fillcolor="#fff0d8", color="#b7873a"];
+buffer [label="记录每个当前状态的教师标签与学生观测\n包括教师组、学生组、失败和恢复片段\n当前rollout为主；少量分层旧片段为可选", fillcolor="#edf0f4", color="#8994a5"];
+loss [label="L = L_action + λg L_gripper + λb L_belief\n可选：λf L_future + λz L_latent + λΔ L_delta\n先归一化标签，再逐项消融；原残差分支关闭", fillcolor="#fde7e6", color="#b76562"];
+update [label="更新学生所有启用模块\n单一动作主干端到端训练；不在21万步改换损失"];
+eval [label="独立验证：100%学生闭环\nteacher action mask恒为0，完整起点，固定测试种子\n同时记录GSR / OSSR / 时间 / 分阶段失败", fillcolor="#fff0d8", color="#b7873a"];
+reset [label="done/truncated：只清理对应环境\n刷新reset观测、图像缓存、时间戳、历史有效标记\n可选阶段快照仅用于训练，不用于正式成功率", fillcolor="#edf0f4", color="#8994a5"];
+env -> priv -> teacher; env -> obs -> student;
+teacher -> mix [label="aT"]; student -> mix [label="aS"]; mix -> step;
+step -> env [constraint=false, label="环境闭环"];
+teacher -> buffer [label="两组都重标注"]; obs -> buffer; priv -> buffer [label="辅助真值标签"];
+buffer -> loss; student -> loss; loss -> update -> student [constraint=false];
+student -> eval [style=dashed, label="checkpoint"];
+step -> reset [label="结束回合"]; reset -> env [constraint=false];
+
+}

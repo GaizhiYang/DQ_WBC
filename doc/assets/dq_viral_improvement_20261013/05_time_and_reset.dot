@@ -1,0 +1,24 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.3", nodesep="0.28", ranksep="0.48", fontname="Noto Sans CJK SC", fontsize=19, labelloc=t];
+node [shape=box, style="rounded,filled", fillcolor="#e6f3ea", color="#46785b", fontname="Noto Sans CJK SC", fontsize=12, margin="0.15,0.10"];
+edge [color="#58677c", fontname="Noto Sans CJK SC", fontsize=10, arrowsize=0.7];
+
+label="时间对齐与重置：不能把旧图像当作当前物体状态";
+subgraph cluster_old { label="现有时间关系（按当前配置推算）"; color="#b6c7dc";
+i0 [label="图像 τ(t−2)\n约340–400ms前", fillcolor="#e5effb", color="#4875a5"];
+i1 [label="图像 τ(t−1)\n约200–240ms前", fillcolor="#e5effb", color="#4875a5"];
+i2 [label="最新图像 τ(t)\n约60–80ms前", fillcolor="#e5effb", color="#4875a5"];
+cur [label="决策时刻 t\n当前本体状态 + 当前教师真值标签", fillcolor="#fff0d8", color="#b7873a"];
+i0 -> i1 -> i2 -> cur;
+}
+subgraph cluster_new { label="建议每个视觉token的数据契约"; color="#b6c7dc";
+image [label="图像 I(τ) + 采集时间 τ", fillcolor="#e5effb", color="#4875a5"];
+match [label="插值/采样本体状态 p(τ)\nFK + 可部署里程计估计 T_B(t)C(τ)\n禁止使用仿真真值机体轨迹", fillcolor="#e5effb", color="#4875a5"];
+delta [label="Δt = t−τ\n独立记录相机年龄和控制间隔", fillcolor="#eee8fa", color="#8872aa"];
+infer [label="历史Transformer估计当前 b̂(t)\n损失目标用 t 时刻真值\n如做未来预测，标签须同一回合、统一坐标系"];
+image -> infer; match -> infer; delta -> infer;
+}
+reset [label="回合重置必须原子更新\n新的物理状态 → 刷新渲染/本体 → 同episode缓存\n无新图时标记invalid；不得伪装成新图\n只清理done环境，保留其它环境的有效历史", fillcolor="#fde7e6", color="#b76562"];
+cur -> image [style=invis]; infer -> reset [style=dashed];
+
+}

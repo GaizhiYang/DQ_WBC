@@ -1,0 +1,27 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.3", nodesep="0.28", ranksep="0.48", fontname="Noto Sans CJK SC", fontsize=19, labelloc=t];
+node [shape=box, style="rounded,filled", fillcolor="#e6f3ea", color="#46785b", fontname="Noto Sans CJK SC", fontsize=12, margin="0.15,0.10"];
+edge [color="#58677c", fontname="Noto Sans CJK SC", fontsize=10, arrowsize=0.7];
+
+label="建议视觉编码器细节：保留空间信息，并显式记录相机运动";
+inp [label="单帧 B×2×108×192\nmask∈[0,1] + 归一化有效深度", fillcolor="#e5effb", color="#4875a5"];
+stem [label="Conv7×7：2→64，stride2，padding3\nGN + ReLU → 64×54×96\nMaxPool3×3，stride2 → 64×27×48"];
+r1 [label="ResNet stage1：BasicBlock×2\n64通道，stride1 → 64×27×48"];
+r2 [label="stage2：BasicBlock×2\n128通道，首块stride2 → 128×14×24"];
+r3 [label="stage3：BasicBlock×2\n256通道，首块stride2 → 256×7×12"];
+r4 [label="stage4：BasicBlock×2\n512通道，首块改stride1 → 512×7×12\n所有BN替换GN；共享两相机权重"];
+heat [label="1×1Conv 512→32\n空间softmax × 深度有效性后再归一化\n32张共同权重图；全无效时置0"];
+xy [label="加权空间坐标\n32×(x,y) = 64D", fillcolor="#eee8fa", color="#8872aa"];
+dep [label="与xy相同权重下加权深度\n每张权重图1个深度值，共32D\n全无效时置0并传有效标记", fillcolor="#eee8fa", color="#8872aa"];
+global [label="GlobalAvgPool 512D\nLinear512→32 = 32D"];
+out [label="concat：64 + 32 + 32 = 128D\n不是绝对世界位姿；后续结合本体状态/外参", fillcolor="#eee8fa", color="#8872aa"];
+note [label="迁移来源边界\nVIRAL已启用：ResNet18 / 全局池化 / 可训练视觉特征\n本图新增：2通道、GN、stride16、空间/深度读出\n先做标准ResNet18+全局池化基线，再验证新增项", fillcolor="#edf0f4", color="#8994a5"];
+inp -> stem -> r1 -> r2 -> r3 -> r4;
+r4 -> heat; heat -> xy; heat -> dep;
+inp -> heat [style=dashed, label="缩放后的有效性"];
+inp -> dep [style=dashed, label="缩放后的深度"];
+r4 -> global; xy -> out; dep -> out; global -> out;
+out -> note [style=invis];
+{rank=same; xy; dep; global;}
+
+}
