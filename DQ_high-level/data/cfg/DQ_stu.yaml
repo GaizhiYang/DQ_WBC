@@ -222,7 +222,7 @@ sim:
     bounce_threshold_velocity: 0.2
     max_depenetration_velocity: 50.0
     default_buffer_size_multiplier: 100.0
-    max_gpu_contact_pairs: 1000000 #284032
+    max_gpu_contact_pairs: 2097152
 
 reward:
   base_height_target: 0.55

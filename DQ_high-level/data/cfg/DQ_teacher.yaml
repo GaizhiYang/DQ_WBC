@@ -12,7 +12,7 @@ env:
   controlFrequencyLow: 8
   imgDelayFrame: 4
   D1_bench_task_level : "Level02"
-  robotStartDistanceRange: [0.85, 1.1] # Horizontal distance from robot base to object [m]
+  robotStartDistanceRange: [2.0, 2.0] # Horizontal distance from robot base to object [m]
   cameraVisibilityReset: False # Keep termination rules consistent with visual distillation
 
   liftedSuccessThreshold: 0.2
@@ -222,7 +222,7 @@ sim:
     bounce_threshold_velocity: 0.2
     max_depenetration_velocity: 50.0
     default_buffer_size_multiplier: 100.0
-    max_gpu_contact_pairs: 1000000 #284032
+    max_gpu_contact_pairs: 2097152
 
 reward:
   base_height_target: 0.55

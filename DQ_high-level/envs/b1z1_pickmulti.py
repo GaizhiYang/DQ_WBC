@@ -6,6 +6,7 @@ from typing import Dict, Any, Tuple, List, Set
 from collections import defaultdict
 import wandb
 from termcolor import cprint    
+from tqdm import tqdm
 
 from .b1z1_base import B1Z1Base, reindex_all, reindex_feet, LIN_VEL_X_CLIP, ANG_VEL_YAW_CLIP, torch_rand_int
 from utils.low_level_model import ActorCritic
@@ -220,6 +221,7 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             )
         if self.cfg["env"]["wandb"]:
             self.extras.setdefault("success_rate", {}).update(rates)
+            print({"success_rate": rates, "episodes": episodes})
         else:
             print({"success_rate": rates, "episodes": episodes})
 
@@ -324,6 +326,7 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         
         if self.cfg["env"]["wandb"]:
             self.extras.update(wandb_dict)
+            tqdm.write(str(wandb_dict))
             # wandb.log(wandb_dict, step=self.global_step_counter)
         else:
             print("\n",wandb_dict)
@@ -446,6 +449,7 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             
             if self.cfg["env"]["wandb"]:
                 self.extras.update(wandb_dict)
+                tqdm.write(str(wandb_dict))
                 # wandb.log(wandb_dict, step=self.global_step_counter)
             else:
                 print(wandb_dict)
