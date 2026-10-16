@@ -82,7 +82,7 @@ python train_multistate_DQ_teacher.py \
   --observe_gait_commands \
   --small_value_set_zero \
   --rand_control \
-  --headless
+  --headless --wandb --wandb_name xxxx
 ```
 
 
