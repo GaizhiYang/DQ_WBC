@@ -26,6 +26,7 @@
 | 任务 | `B1Z1PickMulti` |
 | 机器人状态 | 启用 `--roboinfo` |
 | 底层步态观测 | 启用 `--observe_gait_commands` |
+| 教师速度观测 | 默认保留，不启用 `--no_velocity_obs`；消融实验见下文 |
 | 底座与动作 | 非 `floating_base`，不启用 `--pitch_control`，9 维高层动作 |
 | 物体特征 | 启用，1024 维；不启用 `--no_feature` |
 | 教师动作分布 | 默认 `use_tanh=False` |
@@ -86,6 +87,39 @@ num_obs = 38 + 30×6 + 2 + 1024 - 1
 第三，`PredictPoint` 根据物体当前位姿更新候选变换，环境再将候选转换为机器人相关坐标中的位置和姿态。这个模块执行坐标变换，没有可训练神经网络。`compute_robot_observations` 临时返回的最后 6 维物体世界位姿用于该变换，随后被候选数据替换，不能把这 6 维再次加到最终 1276 维中。物体观测本身也有坐标约定：位置的水平分量在机器人 yaw 相关坐标中表达，z 分量保留物体世界高度；候选位置则相对机械臂基座并使用机身旋转转换。见 [`PredictPoint.get_grasp_world`](../DQ_high-level/PredictPiontTransform/predictpoint_mul.py#L167)。
 
 **送入教师网络前，全部 1276 维观测先经过 `RunningStandardScaler`。** 这包含预计算物体特征与抓取候选，并不只是机器人状态。该预处理器维护运行均值和方差，默认将标准化值裁剪到 `[-5,5]`；它不是可学习的神经网络。后面的教师网络图均以这个实际预处理顺序为准。来源：[`PPO 配置`](../DQ_high-level/train_multistate_DQ_teacher.py#L313)、[`PPO.act`](../third_party/skrl/skrl/agents/torch/ppo/ppo.py#L199)、[`RunningStandardScaler`](../third_party/skrl/skrl/resources/preprocessors/torch/running_standard_scaler.py)。
+
+**速度观测消融：`--no_velocity_obs`。** 对 `B1Z1PickMulti`，该开关同时从教师 Actor 和 Critic 的输入中删除机器人局部线速度 3 维、物体相对机器人的平面速度 2 维，即 baseline 的 `[1082:1087]`。这 5 维从观测张量中实际移除，不是置零；观测空间、PPO 内存及 `RunningStandardScaler` 随之缩小。默认不开启，本文其余结构图和参数表仍描述 baseline。
+
+| 项目 | baseline | 开启 `--no_velocity_obs` |
+|---|---|---|
+| 教师观测维度 | 1276 | 1271 |
+| 抓取候选位置切片 | `[1087:1177]` | `[1082:1172]` |
+| 抓取候选 RPY 切片 | `[1177:1267]` | `[1172:1262]` |
+| 上一步高层动作切片 | `[1267:1276]` | `[1262:1271]` |
+| Actor / Critic 主 MLP 输入 | 206 | 201 |
+| 学生数值状态 / 完整输入 | 61 / 62269 | 61 / 62269 |
+
+教师的特征编码器、抓取注意力和 9 维动作输出保持原结构；局部线速度等仿真状态仍可供环境内部计算使用。关节速度观测、奖励和底层控制器不受此开关影响。学生本来就排除了这两项速度，环境会同步调整学生状态切片及维度计算。
+
+在 `DQ_high-level` 目录执行单物体消融训练：
+
+```bash
+python train_multistate_DQ_teacher.py \
+  --rl_device cuda:0 \
+  --sim_device cuda:0 \
+  --timesteps 120000 \
+  --task B1Z1PickMulti \
+  --object_name sugar_box \
+  --experiment_dir DQ_teacher/b1-pick-sugar-box-no-velocity \
+  --roboinfo \
+  --observe_gait_commands \
+  --small_value_set_zero \
+  --rand_control \
+  --no_velocity_obs \
+  --headless --wandb --wandb_name no_velocity_obs
+```
+
+开关会写入实验 YAML 的 `env.noVelocityObs`，使用 `--resume` 从该实验恢复时会保留。直接用 `--checkpoint` 回放不会自动读取实验 YAML，因此运行 `play_multistate_DQ_teacher.py` 时也要传 `--no_velocity_obs`；用该教师首次训练学生时，在 `train_multi_bc_deter_DQ_stu.py` 命令中同样加入该参数。baseline 的 checkpoint 与消融模型的首层和标准化器维度不同，此实验应使用新实验目录从头训练，后续恢复使用对应消融 checkpoint。
 
 ---
 

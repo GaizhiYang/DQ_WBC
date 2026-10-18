@@ -272,6 +272,8 @@ def get_trainer(is_eval=False):
         print("Find the latest checkpoint: ", args.checkpoint)
         
     cfg = load_cfg(file_path)
+    if args.no_velocity_obs:
+        cfg["env"]["noVelocityObs"] = True
     cprint(f"Using config file: {os.path.realpath(file_path)}", "red")
     multi_obj = cfg["env"]["asset"]["asset_multi"]
     if args.object_name is not None:

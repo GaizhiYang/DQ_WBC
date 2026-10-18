@@ -20,6 +20,7 @@ env:
   baseObjectDisThreshold: 0.2
   holdSteps: 15
   lastCommands: False
+  noVelocityObs: False # Set --no_velocity_obs to remove 3D robot + 2D relative object velocity
 
   low_policy_path: "/home/hehui/DQ_WBC/DQ_high-level/data/low_model/model_44000.pt" 
   taskddescription: "023"

@@ -43,6 +43,8 @@ def get_params():
     parser.add_argument("--teacher_ckpt_path", type=str, default="")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--roboinfo", action="store_true")
+    parser.add_argument("--no_velocity_obs", action="store_true",
+                        help="Remove robot local linear velocity (3D) and object-relative planar velocity (2D) from B1Z1PickMulti teacher observations.")
     parser.add_argument("--observe_gait_commands", action="store_true")
     parser.add_argument("--small_value_set_zero", action="store_true")
     parser.add_argument("--fixed_base", action="store_true")

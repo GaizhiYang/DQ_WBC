@@ -44,8 +44,14 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.base_obj_dis = torch.norm(base_obj_dis, dim=-1)
         
     def _setup_obs_and_action_info(self):
-        super()._setup_obs_and_action_info(removed_dim=9+30*6+2, num_action=9, num_obs=38+30*6+2+self.num_features-1)
-        # super()._setup_obs_and_action_info(removed_dim=9, num_action=9, num_obs=38+self.one_img_features-1) ## my change
+        self.num_velocity_obs = 0 if self.cfg["env"].get("noVelocityObs", False) else 5
+        removed_velocity_dim = 5 - self.num_velocity_obs
+        # Student states already exclude both velocities, so their size stays fixed.
+        super()._setup_obs_and_action_info(
+            removed_dim=9+30*6+2-removed_velocity_dim,
+            num_action=9,
+            num_obs=38+30*6+2+self.num_features-1-removed_velocity_dim,
+        )
         
         
     def _extra_env_settings(self):
@@ -653,6 +659,10 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         obs = compute_robot_observations(robot_root_state, table_root_state, cube_root_state, body_pos,
                                          body_rot, body_vel, body_ang_vel, dof_pos, dof_vel, base_quat_yaw, spherical_center, commands, self.gripper_idx, table_dim,
                                          ee_goal_cart, ee_goal_orn_rpy, ee_goal_global_cart, ee_goal_orn_quat, self.use_roboinfo, self.floating_base)
+        if self.num_velocity_obs == 0:
+            # Tail: robot velocity (3), relative object velocity (2), world pose (6).
+            # Keep the world pose for get_grasp_world; remove velocities, not zero them.
+            obs = torch.cat([obs[..., :-11], obs[..., -6:]], dim=-1)
         
         return obs
     

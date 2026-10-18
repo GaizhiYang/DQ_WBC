@@ -251,6 +251,9 @@ def get_trainer(is_eval=False):
     cprint(f"Using config file: {os.path.realpath(file_path)}", "red")
         
     cfg = load_cfg(file_path)
+    if args.no_velocity_obs:
+        cfg["env"]["noVelocityObs"] = True
+    cprint(f"Teacher velocity observations: {'disabled' if cfg['env'].get('noVelocityObs', False) else 'enabled'}", "yellow")
     multi_obj = cfg["env"]["asset"]["asset_multi"]
     if args.object_name is not None:
         if args.object_name not in multi_obj:
