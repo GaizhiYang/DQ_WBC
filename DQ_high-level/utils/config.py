@@ -18,7 +18,23 @@ def copy_cfg(file_path, target_path, cfg=None):
         return
     subprocess.run(["cp", file_path, target_path])
 
-def get_params():
+
+def apply_pose_prediction_config(cfg, args):
+    """Apply only explicit CLI overrides, preserving saved experiment settings."""
+    settings = cfg["env"].setdefault("posePrediction", {})
+    defaults = dict(enabled=False, horizons=[0.30, 0.60], history=5, qScale=1.0, rScale=0.01)
+    for key, value in defaults.items():
+        settings.setdefault(key, value)
+    overrides = dict(enabled="future_pose_obs", horizons="future_pose_horizons",
+                     history="ekf_history", qScale="ekf_q_scale", rScale="ekf_r_scale")
+    for key, argument in overrides.items():
+        value = getattr(args, argument, None)
+        if value is not None:
+            settings[key] = value
+    return settings
+
+
+def get_parser():
     parser = argparse.ArgumentParser(
         prog="Z1 training",
     )
@@ -45,6 +61,16 @@ def get_params():
     parser.add_argument("--roboinfo", action="store_true")
     parser.add_argument("--no_velocity_obs", action="store_true",
                         help="Remove robot local linear velocity (3D) and object-relative planar velocity (2D) from B1Z1PickMulti teacher observations.")
+    prediction = parser.add_mutually_exclusive_group()
+    prediction.add_argument("--future_pose_obs", dest="future_pose_obs", action="store_true",
+                            help="Add EKF future object poses to teacher observations (default horizons: 0.30/0.60 seconds).")
+    prediction.add_argument("--no_future_pose_obs", dest="future_pose_obs", action="store_false",
+                            help="Disable future pose observations, e.g. for an original teacher checkpoint.")
+    parser.set_defaults(future_pose_obs=None)
+    parser.add_argument("--future_pose_horizons", type=float, nargs="+", default=None, metavar="SECONDS")
+    parser.add_argument("--ekf_history", type=int, default=None, help="Rolling history length (default: 5 poses).")
+    parser.add_argument("--ekf_q_scale", type=float, default=None)
+    parser.add_argument("--ekf_r_scale", type=float, default=None)
     parser.add_argument("--observe_gait_commands", action="store_true")
     parser.add_argument("--small_value_set_zero", action="store_true")
     parser.add_argument("--fixed_base", action="store_true")
@@ -74,6 +100,8 @@ def get_params():
     parser.add_argument("--object_name", type=str, default=None,
                         help="Train/evaluate DQ_teacher or DQ_stu on one object from env.asset.asset_multi (e.g. sugar_box).")
     
-    args = parser.parse_args()
-    
-    return args
+    return parser
+
+
+def get_params(argv=None):
+    return get_parser().parse_args(argv)

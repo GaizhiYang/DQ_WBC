@@ -21,8 +21,14 @@ env:
   holdSteps: 15
   lastCommands: False
   noVelocityObs: False # Set --no_velocity_obs to remove 3D robot + 2D relative object velocity
+  posePrediction:
+    enabled: False # Enable with --future_pose_obs; original checkpoints keep their original observation size
+    horizons: [0.30, 0.60] # Seconds from the current observation, independent of control frequency
+    history: 5
+    qScale: 1.0
+    rScale: 0.01
 
-  low_policy_path: "/home/hehui/DQ_WBC/DQ_high-level/data/low_model/model_44000.pt" 
+  low_policy_path: "/home/ldc/DQ_WBC/DQ_high-level/data/low_model/model_44000.pt" 
   taskddescription: "023"
 
   asset:

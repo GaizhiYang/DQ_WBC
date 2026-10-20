@@ -232,7 +232,7 @@ def get_predict_point(camera_6p_info=None, cube_predict_info_path=None, cube_roo
     return camera_tensor, grasp_cv_tensor, cube_init_tensor
 
 def get_trainer(is_eval=False):
-    from utils.config import load_cfg, get_params, copy_cfg
+    from utils.config import load_cfg, get_params, copy_cfg, apply_pose_prediction_config
     
     args = get_params()
     set_seed(args.seed)
@@ -272,6 +272,7 @@ def get_trainer(is_eval=False):
         print("Find the latest checkpoint: ", args.checkpoint)
         
     cfg = load_cfg(file_path)
+    apply_pose_prediction_config(cfg, args)
     if args.no_velocity_obs:
         cfg["env"]["noVelocityObs"] = True
     cprint(f"Using config file: {os.path.realpath(file_path)}", "red")
