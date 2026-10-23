@@ -1,0 +1,2642 @@
+{
+  "bank": "/home/hehui/DQ_WBC/DQ_high-level/data/sgs/sugar_box_v5.pt",
+  "fingerprint": "8cb9d378dd36ee28435e38167577ecc5841fc00617750ba6bc41294875d52cf8",
+  "preview_physics_ticks": 1,
+  "seed": 43,
+  "foot_names": [
+    "FR_foot",
+    "FL_foot",
+    "RR_foot",
+    "RL_foot"
+  ],
+  "foot_collision_radius_m": 0.04,
+  "ground_z_m": 0.0,
+  "grounding_limits": {
+    "min_foot_bottom_m": -0.005,
+    "max_foot_bottom_m": 0.02
+  },
+  "grounding_note": "feet_near_ground checks only collision-bottom geometry; contact forces are diagnostic, not a standing requirement.",
+  "sampling": "uniform without replacement within each family",
+  "selected_config_ids": {
+    "full_task": [
+      39,
+      292,
+      147
+    ],
+    "pregrasp": [
+      985,
+      890,
+      610
+    ],
+    "at_grasp": [
+      1488,
+      1534,
+      1043
+    ]
+  },
+  "controller": "Low-level balance/IK; zero high-level deltas; saved gripper target; Level02 table motion",
+  "note": "EE-to-object-center distance is not the distance to the grasp candidate.",
+  "initial": [
+    {
+      "family": "full_task",
+      "config_id": 39,
+      "family_sample_index": 39,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 2.0001182556152344,
+      "ee_to_object_center_m": 1.3453150987625122,
+      "lift_above_original_support_m": 0.001425042748451233,
+      "foot_bottom_z_m": [
+        -0.00014422833919525146,
+        -2.9668211936950684e-05,
+        1.8633902072906494e-05,
+        -4.608184099197388e-05
+      ],
+      "foot_contact_force_z_N": [
+        302.0718078613281,
+        343.8879089355469,
+        235.6452178955078,
+        59.5711784362793
+      ],
+      "feet_near_ground": true,
+      "gripper_joint_rad": -1.5707898139953613,
+      "gripper_opening_normalized": 0.9999958259956234,
+      "gripper_target_opening_normalized": 1.0,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "saved"
+    },
+    {
+      "family": "full_task",
+      "config_id": 292,
+      "family_sample_index": 292,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 2.0001113414764404,
+      "ee_to_object_center_m": 1.3406106233596802,
+      "lift_above_original_support_m": 0.0013735443353652954,
+      "foot_bottom_z_m": [
+        -0.00017199665307998657,
+        -0.00018006563186645508,
+        4.4368207454681396e-05,
+        -3.5136938095092773e-05
+      ],
+      "foot_contact_force_z_N": [
+        288.0729064941406,
+        336.9895324707031,
+        221.20361328125,
+        49.802162170410156
+      ],
+      "feet_near_ground": true,
+      "gripper_joint_rad": -1.5707868337631226,
+      "gripper_opening_normalized": 0.9999939287209068,
+      "gripper_target_opening_normalized": 1.0,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "saved"
+    },
+    {
+      "family": "full_task",
+      "config_id": 147,
+      "family_sample_index": 147,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 2.000131130218506,
+      "ee_to_object_center_m": 1.3505853414535522,
+      "lift_above_original_support_m": 0.0014051944017410278,
+      "foot_bottom_z_m": [
+        -0.0001672804355621338,
+        -0.0002150014042854309,
+        3.8139522075653076e-05,
+        -4.637986421585083e-05
+      ],
+      "foot_contact_force_z_N": [
+        240.71998596191406,
+        333.4709777832031,
+        231.6753692626953,
+        56.64189529418945
+      ],
+      "feet_near_ground": true,
+      "gripper_joint_rad": -1.5707887411117554,
+      "gripper_opening_normalized": 0.9999951429767254,
+      "gripper_target_opening_normalized": 1.0,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "saved"
+    },
+    {
+      "family": "pregrasp",
+      "config_id": 985,
+      "family_sample_index": 473,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 0.8147774338722229,
+      "ee_to_object_center_m": 0.14168119430541992,
+      "lift_above_original_support_m": 0.0013653188943862915,
+      "foot_bottom_z_m": [
+        -4.1931867599487305e-05,
+        -0.00021757930517196655,
+        2.4050474166870117e-05,
+        -3.6776065826416016e-05
+      ],
+      "foot_contact_force_z_N": [
+        132.58216857910156,
+        201.40309143066406,
+        252.74514770507812,
+        96.8178939819336
+      ],
+      "feet_near_ground": true,
+      "gripper_joint_rad": -1.570727825164795,
+      "gripper_opening_normalized": 0.999956362681517,
+      "gripper_target_opening_normalized": 1.0,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "saved"
+    },
+    {
+      "family": "pregrasp",
+      "config_id": 890,
+      "family_sample_index": 378,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 0.7939682602882385,
+      "ee_to_object_center_m": 0.20385313034057617,
+      "lift_above_original_support_m": 0.0013384371995925903,
+      "foot_bottom_z_m": [
+        -7.471442222595215e-05,
+        -0.00023071467876434326,
+        4.926323890686035e-05,
+        -4.193931818008423e-05
+      ],
+      "foot_contact_force_z_N": [
+        172.6582794189453,
+        239.9586944580078,
+        265.8392333984375,
+        98.43124389648438
+      ],
+      "feet_near_ground": true,
+      "gripper_joint_rad": -1.570802927017212,
+      "gripper_opening_normalized": 1.0000041740043766,
+      "gripper_target_opening_normalized": 1.0,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "saved"
+    },
+    {
+      "family": "pregrasp",
+      "config_id": 610,
+      "family_sample_index": 98,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 0.7414612174034119,
+      "ee_to_object_center_m": 0.13695257902145386,
+      "lift_above_original_support_m": 0.0011662393808364868,
+      "foot_bottom_z_m": [
+        -6.881356239318848e-05,
+        -0.00014854222536087036,
+        4.363805055618286e-05,
+        -3.641098737716675e-05
+      ],
+      "foot_contact_force_z_N": [
+        144.17849731445312,
+        247.5341796875,
+        249.5341339111328,
+        97.6802978515625
+      ],
+      "feet_near_ground": true,
+      "gripper_joint_rad": -1.5707284212112427,
+      "gripper_opening_normalized": 0.9999567421364604,
+      "gripper_target_opening_normalized": 1.0,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "saved"
+    },
+    {
+      "family": "at_grasp",
+      "config_id": 1488,
+      "family_sample_index": 464,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 0.7355299592018127,
+      "ee_to_object_center_m": 0.02814745344221592,
+      "lift_above_original_support_m": 0.0006187111139297485,
+      "foot_bottom_z_m": [
+        -0.00012702494859695435,
+        -0.00017410516738891602,
+        5.393475294113159e-05,
+        -5.8025121688842773e-05
+      ],
+      "foot_contact_force_z_N": [
+        179.24838256835938,
+        240.82200622558594,
+        261.4012145996094,
+        110.31874084472656
+      ],
+      "feet_near_ground": true,
+      "gripper_joint_rad": -0.9027583599090576,
+      "gripper_opening_normalized": 0.5747138055953667,
+      "gripper_target_opening_normalized": 0.5747197250924827,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "saved"
+    },
+    {
+      "family": "at_grasp",
+      "config_id": 1534,
+      "family_sample_index": 510,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 0.8074497580528259,
+      "ee_to_object_center_m": 0.05083182826638222,
+      "lift_above_original_support_m": 0.0010858327150344849,
+      "foot_bottom_z_m": [
+        -7.18235969543457e-05,
+        -0.00021364539861679077,
+        6.08786940574646e-05,
+        -1.695007085800171e-05
+      ],
+      "foot_contact_force_z_N": [
+        145.76925659179688,
+        189.14431762695312,
+        279.2841491699219,
+        118.01773071289062
+      ],
+      "feet_near_ground": true,
+      "gripper_joint_rad": -0.5623008608818054,
+      "gripper_opening_normalized": 0.3579718360951961,
+      "gripper_target_opening_normalized": 0.3579412140812694,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "saved"
+    },
+    {
+      "family": "at_grasp",
+      "config_id": 1043,
+      "family_sample_index": 19,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 0.7961068749427795,
+      "ee_to_object_center_m": 0.03787301853299141,
+      "lift_above_original_support_m": 0.0009446889162063599,
+      "foot_bottom_z_m": [
+        -6.535649299621582e-05,
+        -0.00024130195379257202,
+        5.474686622619629e-05,
+        -1.9595026969909668e-05
+      ],
+      "foot_contact_force_z_N": [
+        141.4827880859375,
+        191.7517852783203,
+        263.8410949707031,
+        119.95675659179688
+      ],
+      "feet_near_ground": true,
+      "gripper_joint_rad": -0.6897777915000916,
+      "gripper_opening_normalized": 0.4391261683892024,
+      "gripper_target_opening_normalized": 0.43909027195156336,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "saved"
+    }
+  ],
+  "hold_traces": {
+    "39": [
+      {
+        "family": "full_task",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 2.0001182556152344,
+        "ee_to_object_center_m": 1.3453150987625122,
+        "lift_above_original_support_m": 0.001425042748451233,
+        "foot_bottom_z_m": [
+          -0.00014422833919525146,
+          -2.9668211936950684e-05,
+          1.8633902072906494e-05,
+          -4.608184099197388e-05
+        ],
+        "foot_contact_force_z_N": [
+          302.0718078613281,
+          343.8879089355469,
+          235.6452178955078,
+          59.5711784362793
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5707898139953613,
+        "gripper_opening_normalized": 0.9999958259956234,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.14499999675899744,
+        "base_to_object_xy_m": 2.0055501461029053,
+        "ee_to_object_center_m": 1.3555446863174438,
+        "lift_above_original_support_m": 0.0009971410036087036,
+        "foot_bottom_z_m": [
+          0.017723947763442993,
+          1.4409422874450684e-05,
+          8.285045623779297e-06,
+          5.9157609939575195e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          300.94775390625,
+          199.47576904296875,
+          115.67768096923828
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5706571340560913,
+        "gripper_opening_normalized": 0.999911359325238,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.2849999936297536,
+        "base_to_object_xy_m": 2.006169319152832,
+        "ee_to_object_center_m": 1.3890153169631958,
+        "lift_above_original_support_m": 0.001090720295906067,
+        "foot_bottom_z_m": [
+          7.002800703048706e-05,
+          3.725290298461914e-08,
+          0.0004091337323188782,
+          1.5027821063995361e-05
+        ],
+        "foot_contact_force_z_N": [
+          236.7076873779297,
+          31.611507415771484,
+          0.0,
+          173.36990356445312
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5706359148025513,
+        "gripper_opening_normalized": 0.9998978507292555,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.4449999900534749,
+        "base_to_object_xy_m": 2.00832462310791,
+        "ee_to_object_center_m": 1.4090360403060913,
+        "lift_above_original_support_m": 0.0010031014680862427,
+        "foot_bottom_z_m": [
+          0.02762284129858017,
+          3.594905138015747e-05,
+          1.9155442714691162e-05,
+          -8.270889520645142e-05
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          362.723876953125,
+          241.65017700195312,
+          179.1624755859375
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.570766806602478,
+        "gripper_opening_normalized": 0.9999811790348108,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.6049999864771962,
+        "base_to_object_xy_m": 2.0023727416992188,
+        "ee_to_object_center_m": 1.4165966510772705,
+        "lift_above_original_support_m": 0.0009791404008865356,
+        "foot_bottom_z_m": [
+          9.664148092269897e-05,
+          7.353723049163818e-06,
+          0.03910655528306961,
+          3.8817524909973145e-06
+        ],
+        "foot_contact_force_z_N": [
+          352.4101867675781,
+          82.65155792236328,
+          0.0,
+          228.0843505859375
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5707038640975952,
+        "gripper_opening_normalized": 0.9999411085927952,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.7449999833479524,
+        "base_to_object_xy_m": 2.011559247970581,
+        "ee_to_object_center_m": 1.4167531728744507,
+        "lift_above_original_support_m": 0.0009791404008865356,
+        "foot_bottom_z_m": [
+          3.234297037124634e-05,
+          0.00012023001909255981,
+          3.030151128768921e-05,
+          0.018067769706249237
+        ],
+        "foot_contact_force_z_N": [
+          191.33876037597656,
+          318.38079833984375,
+          248.3685302734375,
+          0.0
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.570709466934204,
+        "gripper_opening_normalized": 0.9999446754692625,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.9049999797716737,
+        "base_to_object_xy_m": 2.018564462661743,
+        "ee_to_object_center_m": 1.4200091361999512,
+        "lift_above_original_support_m": 0.0009791404008865356,
+        "foot_bottom_z_m": [
+          2.983957529067993e-05,
+          1.3045966625213623e-05,
+          0.0031481459736824036,
+          7.53253698348999e-06
+        ],
+        "foot_contact_force_z_N": [
+          132.07032775878906,
+          214.2075958251953,
+          0.0,
+          221.1986541748047
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5707894563674927,
+        "gripper_opening_normalized": 0.9999955983226574,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 1.064999976195395,
+        "base_to_object_xy_m": 2.0249128341674805,
+        "ee_to_object_center_m": 1.433962345123291,
+        "lift_above_original_support_m": 0.0009791404008865356,
+        "foot_bottom_z_m": [
+          7.332116365432739e-05,
+          0.03531470149755478,
+          3.2879412174224854e-05,
+          3.509223461151123e-06
+        ],
+        "foot_contact_force_z_N": [
+          333.8999938964844,
+          0.0,
+          255.90321350097656,
+          145.2592315673828
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5707006454467773,
+        "gripper_opening_normalized": 0.9999390595361012,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 1.2049999730661511,
+        "base_to_object_xy_m": 2.0404515266418457,
+        "ee_to_object_center_m": 1.4473851919174194,
+        "lift_above_original_support_m": 0.0009791404008865356,
+        "foot_bottom_z_m": [
+          0.042740777134895325,
+          1.5310943126678467e-05,
+          7.040798664093018e-06,
+          4.775822162628174e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          250.48727416992188,
+          245.75538635253906,
+          242.41073608398438
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.570796251296997,
+        "gripper_opening_normalized": 0.9999999241090113,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      }
+    ],
+    "292": [
+      {
+        "family": "full_task",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 2.0001113414764404,
+        "ee_to_object_center_m": 1.3406106233596802,
+        "lift_above_original_support_m": 0.0013735443353652954,
+        "foot_bottom_z_m": [
+          -0.00017199665307998657,
+          -0.00018006563186645508,
+          4.4368207454681396e-05,
+          -3.5136938095092773e-05
+        ],
+        "foot_contact_force_z_N": [
+          288.0729064941406,
+          336.9895324707031,
+          221.20361328125,
+          49.802162170410156
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5707868337631226,
+        "gripper_opening_normalized": 0.9999939287209068,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.14499999675899744,
+        "base_to_object_xy_m": 2.0065481662750244,
+        "ee_to_object_center_m": 1.3515830039978027,
+        "lift_above_original_support_m": 0.0011039525270462036,
+        "foot_bottom_z_m": [
+          0.018265843391418457,
+          1.4938414096832275e-05,
+          7.443130016326904e-06,
+          1.774728298187256e-05
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          312.5354309082031,
+          186.15725708007812,
+          132.85714721679688
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5706769227981567,
+        "gripper_opening_normalized": 0.9999239572293566,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.2849999936297536,
+        "base_to_object_xy_m": 2.0067267417907715,
+        "ee_to_object_center_m": 1.3841896057128906,
+        "lift_above_original_support_m": 0.0010180026292800903,
+        "foot_bottom_z_m": [
+          3.968179225921631e-05,
+          -2.0638108253479004e-06,
+          -1.5497207641601562e-06,
+          1.5445053577423096e-05
+        ],
+        "foot_contact_force_z_N": [
+          217.74911499023438,
+          14.612349510192871,
+          10.396162033081055,
+          179.87411499023438
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5706398487091064,
+        "gripper_opening_normalized": 0.9999003551318815,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.42499999050050974,
+        "base_to_object_xy_m": 2.007277250289917,
+        "ee_to_object_center_m": 1.4015765190124512,
+        "lift_above_original_support_m": 0.000988975167274475,
+        "foot_bottom_z_m": [
+          0.010738752782344818,
+          2.977997064590454e-05,
+          2.177804708480835e-05,
+          0.026999332010746002
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          341.81890869140625,
+          243.03770446777344,
+          0.0
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.570693016052246,
+        "gripper_opening_normalized": 0.9999342025128265,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.5649999873712659,
+        "base_to_object_xy_m": 1.9980454444885254,
+        "ee_to_object_center_m": 1.4060872793197632,
+        "lift_above_original_support_m": 0.000988975167274475,
+        "foot_bottom_z_m": [
+          9.138137102127075e-05,
+          1.726299524307251e-05,
+          0.021039418876171112,
+          7.323920726776123e-06
+        ],
+        "foot_contact_force_z_N": [
+          339.1670837402344,
+          130.69602966308594,
+          0.0,
+          189.80299377441406
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5707155466079712,
+        "gripper_opening_normalized": 0.9999485459096844,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.7249999837949872,
+        "base_to_object_xy_m": 1.9992527961730957,
+        "ee_to_object_center_m": 1.406044602394104,
+        "lift_above_original_support_m": 0.000988975167274475,
+        "foot_bottom_z_m": [
+          6.746500730514526e-05,
+          0.027301616966724396,
+          3.003329038619995e-05,
+          0.0026440247893333435
+        ],
+        "foot_contact_force_z_N": [
+          291.5854187011719,
+          0.0,
+          262.9100646972656,
+          0.0
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5707627534866333,
+        "gripper_opening_normalized": 0.9999785987411962,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.8849999802187085,
+        "base_to_object_xy_m": 2.0057711601257324,
+        "ee_to_object_center_m": 1.408555507659912,
+        "lift_above_original_support_m": 0.000988975167274475,
+        "foot_bottom_z_m": [
+          0.007761083543300629,
+          1.51023268699646e-05,
+          -3.084540367126465e-06,
+          6.951391696929932e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          227.5860137939453,
+          33.0351448059082,
+          213.62721252441406
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5707963705062866,
+        "gripper_opening_normalized": 1.0,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 1.0249999770894647,
+        "base_to_object_xy_m": 2.0047242641448975,
+        "ee_to_object_center_m": 1.4147822856903076,
+        "lift_above_original_support_m": 0.000988975167274475,
+        "foot_bottom_z_m": [
+          8.305162191390991e-05,
+          2.2351741790771484e-08,
+          0.023128516972064972,
+          3.956258296966553e-06
+        ],
+        "foot_contact_force_z_N": [
+          345.61883544921875,
+          4.356209754943848,
+          0.0,
+          222.51260375976562
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5705794095993042,
+        "gripper_opening_normalized": 0.9998618784006278,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 1.1649999739602208,
+        "base_to_object_xy_m": 2.0161192417144775,
+        "ee_to_object_center_m": 1.4241546392440796,
+        "lift_above_original_support_m": 0.000988975167274475,
+        "foot_bottom_z_m": [
+          0.015608534216880798,
+          2.6829540729522705e-05,
+          2.5637447834014893e-05,
+          0.023654930293560028
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          327.0642395019531,
+          250.48678588867188,
+          0.0
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5706552267074585,
+        "gripper_opening_normalized": 0.9999101450694193,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      }
+    ],
+    "147": [
+      {
+        "family": "full_task",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 2.000131130218506,
+        "ee_to_object_center_m": 1.3505853414535522,
+        "lift_above_original_support_m": 0.0014051944017410278,
+        "foot_bottom_z_m": [
+          -0.0001672804355621338,
+          -0.0002150014042854309,
+          3.8139522075653076e-05,
+          -4.637986421585083e-05
+        ],
+        "foot_contact_force_z_N": [
+          240.71998596191406,
+          333.4709777832031,
+          231.6753692626953,
+          56.64189529418945
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5707887411117554,
+        "gripper_opening_normalized": 0.9999951429767254,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.14499999675899744,
+        "base_to_object_xy_m": 2.008406639099121,
+        "ee_to_object_center_m": 1.362998127937317,
+        "lift_above_original_support_m": 0.0010996609926223755,
+        "foot_bottom_z_m": [
+          0.017524272203445435,
+          1.5109777450561523e-05,
+          7.0035457611083984e-06,
+          2.4206936359405518e-05
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          318.2547912597656,
+          188.48956298828125,
+          193.12782287597656
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.570792317390442,
+        "gripper_opening_normalized": 0.9999974197063853,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.30499999318271875,
+        "base_to_object_xy_m": 2.007244348526001,
+        "ee_to_object_center_m": 1.3947842121124268,
+        "lift_above_original_support_m": 0.0009869486093521118,
+        "foot_bottom_z_m": [
+          3.970414400100708e-05,
+          0.01603003591299057,
+          1.4513731002807617e-05,
+          6.757676601409912e-06
+        ],
+        "foot_contact_force_z_N": [
+          235.24386596679688,
+          0.0,
+          113.41605377197266,
+          165.86993408203125
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.570656657218933,
+        "gripper_opening_normalized": 0.9999110557612834,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.4449999900534749,
+        "base_to_object_xy_m": 2.004940986633301,
+        "ee_to_object_center_m": 1.4119889736175537,
+        "lift_above_original_support_m": 0.0009758025407791138,
+        "foot_bottom_z_m": [
+          0.03917517513036728,
+          3.314763307571411e-05,
+          9.872019290924072e-06,
+          1.5504658222198486e-05
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          295.5966796875,
+          228.5379180908203,
+          191.8012237548828
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5707963705062866,
+        "gripper_opening_normalized": 1.0,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.584999986924231,
+        "base_to_object_xy_m": 1.9960094690322876,
+        "ee_to_object_center_m": 1.4171185493469238,
+        "lift_above_original_support_m": 0.0009758025407791138,
+        "foot_bottom_z_m": [
+          8.118897676467896e-05,
+          6.2212347984313965e-06,
+          0.02107437700033188,
+          4.686415195465088e-06
+        ],
+        "foot_contact_force_z_N": [
+          331.3222351074219,
+          73.63054656982422,
+          0.0,
+          228.2764129638672
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5706640481948853,
+        "gripper_opening_normalized": 0.9999157610025807,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.7449999833479524,
+        "base_to_object_xy_m": 2.0044641494750977,
+        "ee_to_object_center_m": 1.4201902151107788,
+        "lift_above_original_support_m": 0.0009758025407791138,
+        "foot_bottom_z_m": [
+          2.3014843463897705e-05,
+          2.177804708480835e-05,
+          2.1398067474365234e-05,
+          0.040607891976833344
+        ],
+        "foot_contact_force_z_N": [
+          116.4770736694336,
+          279.7561950683594,
+          220.03326416015625,
+          0.0
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5706888437271118,
+        "gripper_opening_normalized": 0.9999315463282232,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.9049999797716737,
+        "base_to_object_xy_m": 2.0056376457214355,
+        "ee_to_object_center_m": 1.422510027885437,
+        "lift_above_original_support_m": 0.0009758621454238892,
+        "foot_bottom_z_m": [
+          9.121745824813843e-05,
+          1.1958181858062744e-05,
+          0.0068696364760398865,
+          8.42660665512085e-06
+        ],
+        "foot_contact_force_z_N": [
+          330.1033020019531,
+          111.62456512451172,
+          0.0,
+          205.70484924316406
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5706630945205688,
+        "gripper_opening_normalized": 0.9999151538746713,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 1.0449999766424298,
+        "base_to_object_xy_m": 2.0111937522888184,
+        "ee_to_object_center_m": 1.4318745136260986,
+        "lift_above_original_support_m": 0.0009758621454238892,
+        "foot_bottom_z_m": [
+          7.412582635879517e-05,
+          0.03261334449052811,
+          3.343820571899414e-05,
+          4.641711711883545e-06
+        ],
+        "foot_contact_force_z_N": [
+          343.56610107421875,
+          0.0,
+          252.23538208007812,
+          154.2126922607422
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5707623958587646,
+        "gripper_opening_normalized": 0.9999783710682302,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "full_task",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 1.2049999730661511,
+        "base_to_object_xy_m": 2.0254383087158203,
+        "ee_to_object_center_m": 1.442802906036377,
+        "lift_above_original_support_m": 0.0009758025407791138,
+        "foot_bottom_z_m": [
+          0.028707101941108704,
+          1.878291368484497e-05,
+          -7.696449756622314e-06,
+          3.1068921089172363e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          254.3041229248047,
+          122.66478729248047,
+          194.1312713623047
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5707924365997314,
+        "gripper_opening_normalized": 0.999997495597374,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      }
+    ],
+    "985": [
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 0.8147774338722229,
+        "ee_to_object_center_m": 0.14168119430541992,
+        "lift_above_original_support_m": 0.0013653188943862915,
+        "foot_bottom_z_m": [
+          -4.1931867599487305e-05,
+          -0.00021757930517196655,
+          2.4050474166870117e-05,
+          -3.6776065826416016e-05
+        ],
+        "foot_contact_force_z_N": [
+          132.58216857910156,
+          201.40309143066406,
+          252.74514770507812,
+          96.8178939819336
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.570727825164795,
+        "gripper_opening_normalized": 0.999956362681517,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.1649999963119626,
+        "base_to_object_xy_m": 0.832804262638092,
+        "ee_to_object_center_m": 0.13743330538272858,
+        "lift_above_original_support_m": 0.0011753588914871216,
+        "foot_bottom_z_m": [
+          0.03527042269706726,
+          3.635883331298828e-05,
+          1.2561678886413574e-05,
+          1.9438564777374268e-05
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          272.3192443847656,
+          181.00254821777344,
+          217.0520477294922
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5679786205291748,
+        "gripper_opening_normalized": 0.9982061647009003,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.30499999318271875,
+        "base_to_object_xy_m": 0.8431993722915649,
+        "ee_to_object_center_m": 0.13977152109146118,
+        "lift_above_original_support_m": 0.001048758625984192,
+        "foot_bottom_z_m": [
+          5.5067241191864014e-05,
+          6.549060344696045e-06,
+          -8.866190910339355e-07,
+          9.529292583465576e-06
+        ],
+        "foot_contact_force_z_N": [
+          211.09986877441406,
+          114.82689666748047,
+          29.179153442382812,
+          150.3544464111328
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5670498609542847,
+        "gripper_opening_normalized": 0.997614898008203,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.4449999900534749,
+        "base_to_object_xy_m": 0.8595693111419678,
+        "ee_to_object_center_m": 0.14551199972629547,
+        "lift_above_original_support_m": 0.001020088791847229,
+        "foot_bottom_z_m": [
+          1.8209218978881836e-05,
+          8.814036846160889e-06,
+          1.1824071407318115e-05,
+          -1.6167759895324707e-06
+        ],
+        "foot_contact_force_z_N": [
+          233.2785186767578,
+          103.33477020263672,
+          182.4357452392578,
+          83.25588989257812
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.565700650215149,
+        "gripper_opening_normalized": 0.9967559637984806,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.6049999864771962,
+        "base_to_object_xy_m": 0.8814055919647217,
+        "ee_to_object_center_m": 0.16638852655887604,
+        "lift_above_original_support_m": 0.0009862333536148071,
+        "foot_bottom_z_m": [
+          2.6650726795196533e-05,
+          8.99285078048706e-06,
+          1.3627111911773682e-05,
+          3.7476420402526855e-06
+        ],
+        "foot_contact_force_z_N": [
+          156.45095825195312,
+          173.6903839111328,
+          240.25958251953125,
+          91.14441680908203
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5638760328292847,
+        "gripper_opening_normalized": 0.9955943763259578,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.7649999829009175,
+        "base_to_object_xy_m": 0.901344358921051,
+        "ee_to_object_center_m": 0.20059733092784882,
+        "lift_above_original_support_m": 0.0009862333536148071,
+        "foot_bottom_z_m": [
+          1.1622905731201172e-05,
+          2.2709369659423828e-05,
+          3.807246685028076e-06,
+          7.97957181930542e-06
+        ],
+        "foot_contact_force_z_N": [
+          156.0192413330078,
+          179.06927490234375,
+          145.61610412597656,
+          143.320556640625
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5627907514572144,
+        "gripper_opening_normalized": 0.994903464765142,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.9249999793246388,
+        "base_to_object_xy_m": 0.9177728891372681,
+        "ee_to_object_center_m": 0.24181847274303436,
+        "lift_above_original_support_m": 0.0009862929582595825,
+        "foot_bottom_z_m": [
+          1.1727213859558105e-05,
+          2.1763145923614502e-05,
+          8.17328691482544e-06,
+          9.201467037200928e-06
+        ],
+        "foot_contact_force_z_N": [
+          159.38369750976562,
+          182.33705139160156,
+          119.77738952636719,
+          156.51669311523438
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5621527433395386,
+        "gripper_opening_normalized": 0.9944972961938013,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 1.064999976195395,
+        "base_to_object_xy_m": 0.9303864240646362,
+        "ee_to_object_center_m": 0.2774191200733185,
+        "lift_above_original_support_m": 0.0009862333536148071,
+        "foot_bottom_z_m": [
+          4.106760025024414e-05,
+          2.0712614059448242e-05,
+          1.173466444015503e-05,
+          8.963048458099365e-06
+        ],
+        "foot_contact_force_z_N": [
+          183.62413024902344,
+          173.20248413085938,
+          134.51998901367188,
+          138.23040771484375
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.561684489250183,
+        "gripper_opening_normalized": 0.9941991963903211,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 1.2049999730661511,
+        "base_to_object_xy_m": 0.942983865737915,
+        "ee_to_object_center_m": 0.311319500207901,
+        "lift_above_original_support_m": 0.0009862929582595825,
+        "foot_bottom_z_m": [
+          3.93986701965332e-05,
+          2.0392239093780518e-05,
+          4.954636096954346e-06,
+          7.413327693939209e-06
+        ],
+        "foot_contact_force_z_N": [
+          186.02755737304688,
+          167.74368286132812,
+          153.53302001953125,
+          129.98294067382812
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.561155915260315,
+        "gripper_opening_normalized": 0.9938626957465757,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      }
+    ],
+    "890": [
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 0.7939682602882385,
+        "ee_to_object_center_m": 0.20385313034057617,
+        "lift_above_original_support_m": 0.0013384371995925903,
+        "foot_bottom_z_m": [
+          -7.471442222595215e-05,
+          -0.00023071467876434326,
+          4.926323890686035e-05,
+          -4.193931818008423e-05
+        ],
+        "foot_contact_force_z_N": [
+          172.6582794189453,
+          239.9586944580078,
+          265.8392333984375,
+          98.43124389648438
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.570802927017212,
+        "gripper_opening_normalized": 1.0000041740043766,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.14499999675899744,
+        "base_to_object_xy_m": 0.8035979866981506,
+        "ee_to_object_center_m": 0.21524973213672638,
+        "lift_above_original_support_m": 0.0009560734033584595,
+        "foot_bottom_z_m": [
+          0.02688761055469513,
+          2.6091933250427246e-05,
+          6.32554292678833e-06,
+          1.1026859283447266e-05
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          257.88458251953125,
+          205.26742553710938,
+          177.62130737304688
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5694246292114258,
+        "gripper_opening_normalized": 0.9991267223934196,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.2849999936297536,
+        "base_to_object_xy_m": 0.8064935803413391,
+        "ee_to_object_center_m": 0.23444509506225586,
+        "lift_above_original_support_m": 0.0009969621896743774,
+        "foot_bottom_z_m": [
+          6.370991468429565e-05,
+          1.268833875656128e-05,
+          1.1004507541656494e-05,
+          8.858740329742432e-06
+        ],
+        "foot_contact_force_z_N": [
+          226.9636688232422,
+          90.72208404541016,
+          0.0,
+          160.1798858642578
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.56722891330719,
+        "gripper_opening_normalized": 0.9977288862731795,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.4449999900534749,
+        "base_to_object_xy_m": 0.8208809494972229,
+        "ee_to_object_center_m": 0.25400251150131226,
+        "lift_above_original_support_m": 0.0010255128145217896,
+        "foot_bottom_z_m": [
+          7.164478302001953e-05,
+          4.194676876068115e-06,
+          6.161630153656006e-06,
+          6.370246410369873e-06
+        ],
+        "foot_contact_force_z_N": [
+          290.97637939453125,
+          78.2942123413086,
+          93.43317413330078,
+          186.4886474609375
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5651732683181763,
+        "gripper_opening_normalized": 0.9964202220646219,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.584999986924231,
+        "base_to_object_xy_m": 0.8425873517990112,
+        "ee_to_object_center_m": 0.27480825781822205,
+        "lift_above_original_support_m": 0.000987723469734192,
+        "foot_bottom_z_m": [
+          4.213303327560425e-05,
+          6.511807441711426e-06,
+          1.695007085800171e-05,
+          -6.705522537231445e-08
+        ],
+        "foot_contact_force_z_N": [
+          214.49978637695312,
+          108.61432647705078,
+          203.32943725585938,
+          99.29592895507812
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5638072490692139,
+        "gripper_opening_normalized": 0.9955505872254975,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.7249999837949872,
+        "base_to_object_xy_m": 0.8622597455978394,
+        "ee_to_object_center_m": 0.3077116310596466,
+        "lift_above_original_support_m": 0.000987723469734192,
+        "foot_bottom_z_m": [
+          1.3031065464019775e-05,
+          7.3909759521484375e-06,
+          1.12876296043396e-05,
+          4.403293132781982e-06
+        ],
+        "foot_contact_force_z_N": [
+          161.22467041015625,
+          154.7498779296875,
+          180.9459686279297,
+          143.17071533203125
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5627093315124512,
+        "gripper_opening_normalized": 0.9948516312198832,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.8649999806657434,
+        "base_to_object_xy_m": 0.8796104788780212,
+        "ee_to_object_center_m": 0.3472052812576294,
+        "lift_above_original_support_m": 0.000987723469734192,
+        "foot_bottom_z_m": [
+          1.3172626495361328e-05,
+          1.990795135498047e-05,
+          8.128583431243896e-06,
+          5.863606929779053e-06
+        ],
+        "foot_contact_force_z_N": [
+          157.94113159179688,
+          172.57569885253906,
+          124.82489013671875,
+          168.7091522216797
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5612987279891968,
+        "gripper_opening_normalized": 0.9939536131509976,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 1.0249999770894647,
+        "base_to_object_xy_m": 0.89649897813797,
+        "ee_to_object_center_m": 0.3920700252056122,
+        "lift_above_original_support_m": 0.000987723469734192,
+        "foot_bottom_z_m": [
+          1.3805925846099854e-05,
+          1.967698335647583e-05,
+          2.1830201148986816e-06,
+          6.474554538726807e-06
+        ],
+        "foot_contact_force_z_N": [
+          170.2071990966797,
+          173.68898010253906,
+          110.40386199951172,
+          181.67674255371094
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5597622394561768,
+        "gripper_opening_normalized": 0.9929754541980808,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 1.184999973513186,
+        "base_to_object_xy_m": 0.9118871688842773,
+        "ee_to_object_center_m": 0.4343699514865875,
+        "lift_above_original_support_m": 0.000987723469734192,
+        "foot_bottom_z_m": [
+          4.342198371887207e-05,
+          1.6927719116210938e-05,
+          3.777444362640381e-06,
+          5.997717380523682e-06
+        ],
+        "foot_contact_force_z_N": [
+          199.48965454101562,
+          161.13323974609375,
+          122.378173828125,
+          167.99594116210938
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5584800243377686,
+        "gripper_opening_normalized": 0.9921591707239886,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      }
+    ],
+    "610": [
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 0.7414612174034119,
+        "ee_to_object_center_m": 0.13695257902145386,
+        "lift_above_original_support_m": 0.0011662393808364868,
+        "foot_bottom_z_m": [
+          -6.881356239318848e-05,
+          -0.00014854222536087036,
+          4.363805055618286e-05,
+          -3.641098737716675e-05
+        ],
+        "foot_contact_force_z_N": [
+          144.17849731445312,
+          247.5341796875,
+          249.5341339111328,
+          97.6802978515625
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5707284212112427,
+        "gripper_opening_normalized": 0.9999567421364604,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.1649999963119626,
+        "base_to_object_xy_m": 0.7515762448310852,
+        "ee_to_object_center_m": 0.14016196131706238,
+        "lift_above_original_support_m": 0.0010330229997634888,
+        "foot_bottom_z_m": [
+          0.03843306750059128,
+          1.4536082744598389e-05,
+          1.309812068939209e-05,
+          2.0273029804229736e-05
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          260.9542541503906,
+          181.697998046875,
+          217.99855041503906
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5679136514663696,
+        "gripper_opening_normalized": 0.9981648041120773,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.3249999927356839,
+        "base_to_object_xy_m": 0.7539864778518677,
+        "ee_to_object_center_m": 0.1460278481245041,
+        "lift_above_original_support_m": 0.0010459572076797485,
+        "foot_bottom_z_m": [
+          1.9937753677368164e-05,
+          1.3932585716247559e-05,
+          1.214444637298584e-06,
+          7.517635822296143e-06
+        ],
+        "foot_contact_force_z_N": [
+          195.50677490234375,
+          108.07274627685547,
+          47.35097885131836,
+          147.485595703125
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.56686270236969,
+        "gripper_opening_normalized": 0.9974957491559974,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.46499998960644007,
+        "base_to_object_xy_m": 0.764419674873352,
+        "ee_to_object_center_m": 0.14723606407642365,
+        "lift_above_original_support_m": 0.0009935647249221802,
+        "foot_bottom_z_m": [
+          1.7344951629638672e-05,
+          9.052455425262451e-06,
+          1.4059245586395264e-05,
+          -3.2261013984680176e-06
+        ],
+        "foot_contact_force_z_N": [
+          232.6343994140625,
+          106.4706802368164,
+          199.99099731445312,
+          68.85958862304688
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5654534101486206,
+        "gripper_opening_normalized": 0.9965985658879872,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.6049999864771962,
+        "base_to_object_xy_m": 0.7726170420646667,
+        "ee_to_object_center_m": 0.14981161057949066,
+        "lift_above_original_support_m": 0.000990942120552063,
+        "foot_bottom_z_m": [
+          7.964670658111572e-06,
+          2.4184584617614746e-05,
+          1.4610588550567627e-05,
+          3.1068921089172363e-06
+        ],
+        "foot_contact_force_z_N": [
+          130.33734130859375,
+          191.9207000732422,
+          248.75267028808594,
+          91.11449432373047
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5639338493347168,
+        "gripper_opening_normalized": 0.9956311834554609,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.7449999833479524,
+        "base_to_object_xy_m": 0.7753015756607056,
+        "ee_to_object_center_m": 0.149211585521698,
+        "lift_above_original_support_m": 0.000990942120552063,
+        "foot_bottom_z_m": [
+          3.626197576522827e-05,
+          8.48621129989624e-06,
+          4.597008228302002e-06,
+          6.951391696929932e-06
+        ],
+        "foot_contact_force_z_N": [
+          173.8285369873047,
+          172.21275329589844,
+          148.77545166015625,
+          134.2777099609375
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5629910230636597,
+        "gripper_opening_normalized": 0.995030961626101,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.9049999797716737,
+        "base_to_object_xy_m": 0.7763720750808716,
+        "ee_to_object_center_m": 0.15206821262836456,
+        "lift_above_original_support_m": 0.000990942120552063,
+        "foot_bottom_z_m": [
+          3.729015588760376e-05,
+          9.112060070037842e-06,
+          2.2426247596740723e-06,
+          9.350478649139404e-06
+        ],
+        "foot_contact_force_z_N": [
+          163.57359313964844,
+          180.5126495361328,
+          121.62957000732422,
+          154.7642059326172
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5623642206192017,
+        "gripper_opening_normalized": 0.9946319268076949,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 1.064999976195395,
+        "base_to_object_xy_m": 0.7801746129989624,
+        "ee_to_object_center_m": 0.16279442608356476,
+        "lift_above_original_support_m": 0.000990942120552063,
+        "foot_bottom_z_m": [
+          4.018843173980713e-05,
+          7.741153240203857e-06,
+          3.419816493988037e-06,
+          8.054077625274658e-06
+        ],
+        "foot_contact_force_z_N": [
+          187.89181518554688,
+          166.31663513183594,
+          138.37429809570312,
+          135.726318359375
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.561826467514038,
+        "gripper_opening_normalized": 0.9942895825578223,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 1.2249999726191163,
+        "base_to_object_xy_m": 0.7851454615592957,
+        "ee_to_object_center_m": 0.18139439821243286,
+        "lift_above_original_support_m": 0.000990942120552063,
+        "foot_bottom_z_m": [
+          3.886967897415161e-05,
+          2.1591782569885254e-05,
+          5.014240741729736e-06,
+          5.804002285003662e-06
+        ],
+        "foot_contact_force_z_N": [
+          186.18190002441406,
+          171.1615753173828,
+          155.26007080078125,
+          125.00730895996094
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5612767934799194,
+        "gripper_opening_normalized": 0.9939396492090831,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      }
+    ],
+    "1488": [
+      {
+        "family": "at_grasp",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 0.7355299592018127,
+        "ee_to_object_center_m": 0.02814745344221592,
+        "lift_above_original_support_m": 0.0006187111139297485,
+        "foot_bottom_z_m": [
+          -0.00012702494859695435,
+          -0.00017410516738891602,
+          5.393475294113159e-05,
+          -5.8025121688842773e-05
+        ],
+        "foot_contact_force_z_N": [
+          179.24838256835938,
+          240.82200622558594,
+          261.4012145996094,
+          110.31874084472656
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.9027583599090576,
+        "gripper_opening_normalized": 0.5747138055953667,
+        "gripper_target_opening_normalized": 0.5747197250924827,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.14499999675899744,
+        "base_to_object_xy_m": 0.7472165822982788,
+        "ee_to_object_center_m": 0.028616275638341904,
+        "lift_above_original_support_m": 0.0023499876260757446,
+        "foot_bottom_z_m": [
+          0.03950615972280502,
+          1.341104507446289e-05,
+          -3.948807716369629e-07,
+          6.087124347686768e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          242.49818420410156,
+          198.39630126953125,
+          163.79685974121094
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -0.9016163349151611,
+        "gripper_opening_normalized": 0.5739867699239458,
+        "gripper_target_opening_normalized": 0.5747197250924827,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.2849999936297536,
+        "base_to_object_xy_m": 0.7445946931838989,
+        "ee_to_object_center_m": 0.02969142235815525,
+        "lift_above_original_support_m": 0.0028916150331497192,
+        "foot_bottom_z_m": [
+          4.485994577407837e-05,
+          6.623566150665283e-06,
+          -1.8998980522155762e-06,
+          9.350478649139404e-06
+        ],
+        "foot_contact_force_z_N": [
+          119.107666015625,
+          122.17063903808594,
+          32.19178009033203,
+          174.4330596923828
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.8991784453392029,
+        "gripper_opening_normalized": 0.5724347612602306,
+        "gripper_target_opening_normalized": 0.5747197250924827,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.42499999050050974,
+        "base_to_object_xy_m": 0.7490618824958801,
+        "ee_to_object_center_m": 0.02942272089421749,
+        "lift_above_original_support_m": 0.00297333300113678,
+        "foot_bottom_z_m": [
+          5.070120096206665e-05,
+          9.34302806854248e-06,
+          1.6026198863983154e-05,
+          4.626810550689697e-06
+        ],
+        "foot_contact_force_z_N": [
+          168.628173828125,
+          118.87914276123047,
+          137.9176025390625,
+          159.9972686767578
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.8973697423934937,
+        "gripper_opening_normalized": 0.5712833052346947,
+        "gripper_target_opening_normalized": 0.5747197250924827,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.5649999873712659,
+        "base_to_object_xy_m": 0.7586371898651123,
+        "ee_to_object_center_m": 0.02869943529367447,
+        "lift_above_original_support_m": 0.0028548985719680786,
+        "foot_bottom_z_m": [
+          5.0514936447143555e-06,
+          9.551644325256348e-06,
+          2.3759901523590088e-05,
+          -4.842877388000488e-07
+        ],
+        "foot_contact_force_z_N": [
+          55.27052307128906,
+          133.2847137451172,
+          238.0250701904297,
+          98.47606658935547
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.896216630935669,
+        "gripper_opening_normalized": 0.570549211701328,
+        "gripper_target_opening_normalized": 0.5747197250924827,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.704999984242022,
+        "base_to_object_xy_m": 0.7551320195198059,
+        "ee_to_object_center_m": 0.026643937453627586,
+        "lift_above_original_support_m": 0.002466335892677307,
+        "foot_bottom_z_m": [
+          0.0139952152967453,
+          5.6549906730651855e-06,
+          2.4490058422088623e-05,
+          7.651746273040771e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          157.53323364257812,
+          201.36380004882812,
+          164.59217834472656
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.8946802616119385,
+        "gripper_opening_normalized": 0.5695711286393998,
+        "gripper_target_opening_normalized": 0.5747197250924827,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.8649999806657434,
+        "base_to_object_xy_m": 0.7316440939903259,
+        "ee_to_object_center_m": 0.02446773275732994,
+        "lift_above_original_support_m": 0.002048864960670471,
+        "foot_bottom_z_m": [
+          0.035342879593372345,
+          1.6294419765472412e-05,
+          3.5025179386138916e-05,
+          3.285706043243408e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          171.53573608398438,
+          219.69146728515625,
+          122.4132308959961
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -0.893128514289856,
+        "gripper_opening_normalized": 0.5685832556399337,
+        "gripper_target_opening_normalized": 0.5747197250924827,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 1.0049999775364995,
+        "base_to_object_xy_m": 0.7056503891944885,
+        "ee_to_object_center_m": 0.019553164020180702,
+        "lift_above_original_support_m": 0.000867202877998352,
+        "foot_bottom_z_m": [
+          0.01881442219018936,
+          7.614493370056152e-06,
+          2.553313970565796e-05,
+          -5.237758159637451e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          197.09132385253906,
+          224.86521911621094,
+          106.81468200683594
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.8919862508773804,
+        "gripper_opening_normalized": 0.5678560681865354,
+        "gripper_target_opening_normalized": 0.5747197250924827,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 1.1649999739602208,
+        "base_to_object_xy_m": 0.6831226348876953,
+        "ee_to_object_center_m": 0.016088366508483887,
+        "lift_above_original_support_m": 0.005308881402015686,
+        "foot_bottom_z_m": [
+          0.009695291519165039,
+          1.7307698726654053e-05,
+          2.940744161605835e-05,
+          -5.207955837249756e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          230.5581817626953,
+          266.6789855957031,
+          89.32701110839844
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.9072801470756531,
+        "gripper_opening_normalized": 0.5775924646319534,
+        "gripper_target_opening_normalized": 0.5747197250924827,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      }
+    ],
+    "1534": [
+      {
+        "family": "at_grasp",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 0.8074497580528259,
+        "ee_to_object_center_m": 0.05083182826638222,
+        "lift_above_original_support_m": 0.0010858327150344849,
+        "foot_bottom_z_m": [
+          -7.18235969543457e-05,
+          -0.00021364539861679077,
+          6.08786940574646e-05,
+          -1.695007085800171e-05
+        ],
+        "foot_contact_force_z_N": [
+          145.76925659179688,
+          189.14431762695312,
+          279.2841491699219,
+          118.01773071289062
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.5623008608818054,
+        "gripper_opening_normalized": 0.3579718360951961,
+        "gripper_target_opening_normalized": 0.3579412140812694,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.14499999675899744,
+        "base_to_object_xy_m": 0.8184523582458496,
+        "ee_to_object_center_m": 0.050583720207214355,
+        "lift_above_original_support_m": 0.0032699257135391235,
+        "foot_bottom_z_m": [
+          0.01376739889383316,
+          1.420825719833374e-05,
+          -3.9711594581604e-06,
+          5.37186861038208e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          233.46023559570312,
+          192.11480712890625,
+          139.683349609375
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.6319389939308167,
+        "gripper_opening_normalized": 0.4023048472712826,
+        "gripper_target_opening_normalized": 0.3579412140812694,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.2849999936297536,
+        "base_to_object_xy_m": 0.8225067257881165,
+        "ee_to_object_center_m": 0.05846237391233444,
+        "lift_above_original_support_m": 0.004688695073127747,
+        "foot_bottom_z_m": [
+          4.30867075920105e-05,
+          1.2136995792388916e-05,
+          -8.650124073028564e-06,
+          8.93324613571167e-06
+        ],
+        "foot_contact_force_z_N": [
+          163.40049743652344,
+          88.60806274414062,
+          32.507442474365234,
+          163.00694274902344
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.7434425354003906,
+        "gripper_opening_normalized": 0.4732902044844744,
+        "gripper_target_opening_normalized": 0.3579412140812694,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.4449999900534749,
+        "base_to_object_xy_m": 0.831817626953125,
+        "ee_to_object_center_m": 0.07665979117155075,
+        "lift_above_original_support_m": 0.0031715184450149536,
+        "foot_bottom_z_m": [
+          3.8996338844299316e-05,
+          5.587935447692871e-06,
+          1.1123716831207275e-05,
+          3.2261013984680176e-06
+        ],
+        "foot_contact_force_z_N": [
+          177.37098693847656,
+          60.53569412231445,
+          180.0841827392578,
+          121.46127319335938
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.8789595365524292,
+        "gripper_opening_normalized": 0.559563004509063,
+        "gripper_target_opening_normalized": 0.3579412140812694,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.584999986924231,
+        "base_to_object_xy_m": 0.8400245904922485,
+        "ee_to_object_center_m": 0.09700904041528702,
+        "lift_above_original_support_m": -0.024660930037498474,
+        "foot_bottom_z_m": [
+          7.815659046173096e-06,
+          1.2584030628204346e-05,
+          1.8067657947540283e-05,
+          7.227063179016113e-07
+        ],
+        "foot_contact_force_z_N": [
+          124.88168334960938,
+          135.95787048339844,
+          173.7873077392578,
+          117.9184341430664
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.9164039492607117,
+        "gripper_opening_normalized": 0.583400857340499,
+        "gripper_target_opening_normalized": 0.3579412140812694,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.7449999833479524,
+        "base_to_object_xy_m": 0.846428632736206,
+        "ee_to_object_center_m": 0.12482556700706482,
+        "lift_above_original_support_m": -0.010357484221458435,
+        "foot_bottom_z_m": [
+          2.4236738681793213e-05,
+          5.62518835067749e-06,
+          -6.183981895446777e-07,
+          1.5906989574432373e-05
+        ],
+        "foot_contact_force_z_N": [
+          105.50851440429688,
+          131.17706298828125,
+          112.75930786132812,
+          190.43418884277344
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.1192150115966797,
+        "gripper_opening_normalized": 0.712514386085539,
+        "gripper_target_opening_normalized": 0.3579412140812694,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.8849999802187085,
+        "base_to_object_xy_m": 0.8352141976356506,
+        "ee_to_object_center_m": 0.1353643238544464,
+        "lift_above_original_support_m": -0.0569407194852829,
+        "foot_bottom_z_m": [
+          1.3425946235656738e-05,
+          1.887977123260498e-05,
+          8.93324613571167e-06,
+          1.198798418045044e-05
+        ],
+        "foot_contact_force_z_N": [
+          192.58421325683594,
+          182.41326904296875,
+          96.41310119628906,
+          168.73902893066406
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.0566558837890625,
+        "gripper_opening_normalized": 0.6726880094894092,
+        "gripper_target_opening_normalized": 0.3579412140812694,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 1.0249999770894647,
+        "base_to_object_xy_m": 0.8285507559776306,
+        "ee_to_object_center_m": 0.13821089267730713,
+        "lift_above_original_support_m": -0.13525350391864777,
+        "foot_bottom_z_m": [
+          4.5590102672576904e-05,
+          1.9900500774383545e-05,
+          2.9280781745910645e-06,
+          5.237758159637451e-06
+        ],
+        "foot_contact_force_z_N": [
+          241.7225341796875,
+          168.84817504882812,
+          125.51468658447266,
+          138.3495635986328
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.9908963441848755,
+        "gripper_opening_normalized": 0.6308241875205617,
+        "gripper_target_opening_normalized": 0.3579412140812694,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": true,
+        "gripper_command": "saved"
+      }
+    ],
+    "1043": [
+      {
+        "family": "at_grasp",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 0.7961068749427795,
+        "ee_to_object_center_m": 0.03787301853299141,
+        "lift_above_original_support_m": 0.0009446889162063599,
+        "foot_bottom_z_m": [
+          -6.535649299621582e-05,
+          -0.00024130195379257202,
+          5.474686622619629e-05,
+          -1.9595026969909668e-05
+        ],
+        "foot_contact_force_z_N": [
+          141.4827880859375,
+          191.7517852783203,
+          263.8410949707031,
+          119.95675659179688
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.6897777915000916,
+        "gripper_opening_normalized": 0.4391261683892024,
+        "gripper_target_opening_normalized": 0.43909027195156336,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.14499999675899744,
+        "base_to_object_xy_m": 0.8034669160842896,
+        "ee_to_object_center_m": 0.03608483448624611,
+        "lift_above_original_support_m": 0.002118244767189026,
+        "foot_bottom_z_m": [
+          0.03944999724626541,
+          3.155320882797241e-05,
+          2.9653310775756836e-06,
+          6.146728992462158e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          249.21469116210938,
+          217.43722534179688,
+          160.6617431640625
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -0.688801109790802,
+        "gripper_opening_normalized": 0.43850439351906134,
+        "gripper_target_opening_normalized": 0.43909027195156336,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.30499999318271875,
+        "base_to_object_xy_m": 0.7977001667022705,
+        "ee_to_object_center_m": 0.03566725552082062,
+        "lift_above_original_support_m": 0.002643182873725891,
+        "foot_bottom_z_m": [
+          1.4722347259521484e-05,
+          1.49458646774292e-05,
+          -7.972121238708496e-07,
+          1.0438263416290283e-05
+        ],
+        "foot_contact_force_z_N": [
+          90.91114807128906,
+          140.81092834472656,
+          55.380470275878906,
+          164.34323120117188
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.686209499835968,
+        "gripper_opening_normalized": 0.4368545234254612,
+        "gripper_target_opening_normalized": 0.43909027195156336,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.46499998960644007,
+        "base_to_object_xy_m": 0.7993052005767822,
+        "ee_to_object_center_m": 0.03632883355021477,
+        "lift_above_original_support_m": 0.00300385057926178,
+        "foot_bottom_z_m": [
+          3.571808338165283e-05,
+          4.410743713378906e-06,
+          1.961737871170044e-05,
+          5.148351192474365e-06
+        ],
+        "foot_contact_force_z_N": [
+          119.5942153930664,
+          104.99634552001953,
+          179.10316467285156,
+          144.89219665527344
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.6845210194587708,
+        "gripper_opening_normalized": 0.4357796034619951,
+        "gripper_target_opening_normalized": 0.43909027195156336,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.6049999864771962,
+        "base_to_object_xy_m": 0.8065286874771118,
+        "ee_to_object_center_m": 0.03816141188144684,
+        "lift_above_original_support_m": 0.0021364837884902954,
+        "foot_bottom_z_m": [
+          -1.043081283569336e-06,
+          4.954636096954346e-06,
+          2.590566873550415e-05,
+          6.087124347686768e-06
+        ],
+        "foot_contact_force_z_N": [
+          3.7953615188598633,
+          126.96448516845703,
+          228.87258911132812,
+          178.7518310546875
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.683402955532074,
+        "gripper_opening_normalized": 0.43506782187929616,
+        "gripper_target_opening_normalized": 0.43909027195156336,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.7449999833479524,
+        "base_to_object_xy_m": 0.8034272789955139,
+        "ee_to_object_center_m": 0.046968962997198105,
+        "lift_above_original_support_m": -0.018054112792015076,
+        "foot_bottom_z_m": [
+          0.004305332899093628,
+          8.814036846160889e-06,
+          -1.1183321475982666e-05,
+          2.2180378437042236e-05
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          74.51685333251953,
+          90.58179473876953,
+          216.7795867919922
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.6821261048316956,
+        "gripper_opening_normalized": 0.43425495349969395,
+        "gripper_target_opening_normalized": 0.43909027195156336,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.8849999802187085,
+        "base_to_object_xy_m": 0.7993531227111816,
+        "ee_to_object_center_m": 0.04769597202539444,
+        "lift_above_original_support_m": -0.024151310324668884,
+        "foot_bottom_z_m": [
+          0.012149691581726074,
+          2.6382505893707275e-05,
+          2.7902424335479736e-05,
+          0.0036967769265174866
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          174.80291748046875,
+          313.1420593261719,
+          0.0
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.681259036064148,
+        "gripper_opening_normalized": 0.4337029603936314,
+        "gripper_target_opening_normalized": 0.43909027195156336,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 1.0449999766424298,
+        "base_to_object_xy_m": 0.7950627207756042,
+        "ee_to_object_center_m": 0.04697287455201149,
+        "lift_above_original_support_m": -0.0241423100233078,
+        "foot_bottom_z_m": [
+          0.06863434612751007,
+          1.564621925354004e-06,
+          -5.093961954116821e-05,
+          2.508610486984253e-05
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          97.12437438964844,
+          252.8638916015625,
+          235.19554138183594
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -0.6798356175422668,
+        "gripper_opening_normalized": 0.4327967840434643,
+        "gripper_target_opening_normalized": 0.43909027195156336,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 1.184999973513186,
+        "base_to_object_xy_m": 0.7846500277519226,
+        "ee_to_object_center_m": 0.04748339578509331,
+        "lift_above_original_support_m": -0.024558410048484802,
+        "foot_bottom_z_m": [
+          0.04797744005918503,
+          5.088746547698975e-06,
+          -6.504356861114502e-06,
+          9.931623935699463e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          107.23562622070312,
+          244.140625,
+          123.40143585205078
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -0.6785012483596802,
+        "gripper_opening_normalized": 0.43194729826183076,
+        "gripper_target_opening_normalized": 0.43909027195156336,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved"
+      }
+    ]
+  }
+}

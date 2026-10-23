@@ -1,0 +1,2676 @@
+{
+  "bank": "/home/hehui/DQ_WBC/DQ_high-level/data/sgs/sugar_box_v3.pt",
+  "fingerprint": "683871f797e2434df606dbf53084f8ec08c884ad0131659a64b6741e01ab325a",
+  "preview_physics_ticks": 1,
+  "seed": 43,
+  "foot_names": [
+    "FR_foot",
+    "FL_foot",
+    "RR_foot",
+    "RL_foot"
+  ],
+  "foot_collision_radius_m": 0.04,
+  "ground_z_m": 0.0,
+  "grounding_limits": {
+    "min_foot_bottom_m": -0.003,
+    "max_foot_bottom_m": 0.01,
+    "min_contact_force_z_n": 2.0,
+    "min_support_feet": 3,
+    "max_base_linear_speed_m_s": 0.15,
+    "max_base_angular_speed_rad_s": 0.5
+  },
+  "reset_min_support_feet": 2,
+  "grounding_note": "grounded checks all foot gaps and at least two bearing feet; settled also requires three bearing feet and low base speed.",
+  "sampling": "uniform without replacement within each family",
+  "selected_config_ids": {
+    "full": [
+      39,
+      292,
+      147
+    ],
+    "pregrasp": [
+      985,
+      890,
+      610
+    ],
+    "grasped": [
+      1488,
+      1534,
+      1043
+    ]
+  },
+  "controller": "Low-level balance/IK; zero high-level deltas; Level02 table motion",
+  "note": "EE-to-object-center distance is not the distance to the grasp candidate.",
+  "initial": [
+    {
+      "family": "full",
+      "config_id": 39,
+      "family_sample_index": 39,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 2.0025177001953125,
+      "ee_to_object_center_m": 1.333113670349121,
+      "lift_above_original_support_m": 0.0010087639093399048,
+      "foot_bottom_z_m": [
+        1.5817582607269287e-05,
+        1.9706785678863525e-05,
+        4.366040229797363e-06,
+        0.0006486997008323669
+      ],
+      "foot_contact_force_z_N": [
+        76.53846740722656,
+        213.6094970703125,
+        97.01193237304688,
+        0.0
+      ],
+      "ground_support_count": 3,
+      "grounded": true,
+      "settled": true,
+      "gripper_joint_rad": -1.570796251296997,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "open"
+    },
+    {
+      "family": "full",
+      "config_id": 292,
+      "family_sample_index": 292,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 2.0011110305786133,
+      "ee_to_object_center_m": 1.3295223712921143,
+      "lift_above_original_support_m": 0.0010692626237869263,
+      "foot_bottom_z_m": [
+        1.942366361618042e-05,
+        2.985447645187378e-05,
+        -1.4536082744598389e-05,
+        4.3213367462158203e-07
+      ],
+      "foot_contact_force_z_N": [
+        118.40587615966797,
+        213.4499053955078,
+        54.80316925048828,
+        16.67683982849121
+      ],
+      "ground_support_count": 4,
+      "grounded": true,
+      "settled": true,
+      "gripper_joint_rad": -1.570796251296997,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "open"
+    },
+    {
+      "family": "full",
+      "config_id": 147,
+      "family_sample_index": 147,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 1.999936819076538,
+      "ee_to_object_center_m": 1.3084230422973633,
+      "lift_above_original_support_m": 0.0010537654161453247,
+      "foot_bottom_z_m": [
+        2.2456049919128418e-05,
+        3.121793270111084e-05,
+        -1.0356307029724121e-06,
+        3.2782554626464844e-07
+      ],
+      "foot_contact_force_z_N": [
+        119.40839385986328,
+        226.89125061035156,
+        36.54561996459961,
+        11.497148513793945
+      ],
+      "ground_support_count": 4,
+      "grounded": true,
+      "settled": true,
+      "gripper_joint_rad": -1.5707964897155762,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "open"
+    },
+    {
+      "family": "pregrasp",
+      "config_id": 985,
+      "family_sample_index": 473,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 0.7943426370620728,
+      "ee_to_object_center_m": 0.09017882496118546,
+      "lift_above_original_support_m": 0.001010611653327942,
+      "foot_bottom_z_m": [
+        6.146728992462158e-06,
+        4.35560941696167e-05,
+        0.003338061273097992,
+        0.0022167786955833435
+      ],
+      "foot_contact_force_z_N": [
+        122.13111877441406,
+        306.59857177734375,
+        0.0,
+        0.0
+      ],
+      "ground_support_count": 2,
+      "grounded": true,
+      "settled": false,
+      "gripper_joint_rad": -1.561530351638794,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "open"
+    },
+    {
+      "family": "pregrasp",
+      "config_id": 890,
+      "family_sample_index": 378,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 0.8221287727355957,
+      "ee_to_object_center_m": 0.09926270693540573,
+      "lift_above_original_support_m": 0.0010280758142471313,
+      "foot_bottom_z_m": [
+        9.939074516296387e-06,
+        3.7923455238342285e-05,
+        -1.6860663890838623e-05,
+        0.0032416805624961853
+      ],
+      "foot_contact_force_z_N": [
+        115.55722045898438,
+        221.64208984375,
+        1.6784439086914062,
+        0.0
+      ],
+      "ground_support_count": 2,
+      "grounded": true,
+      "settled": false,
+      "gripper_joint_rad": -1.5590702295303345,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "open"
+    },
+    {
+      "family": "pregrasp",
+      "config_id": 610,
+      "family_sample_index": 98,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 0.7087289690971375,
+      "ee_to_object_center_m": 0.11704020947217941,
+      "lift_above_original_support_m": 0.0009789615869522095,
+      "foot_bottom_z_m": [
+        1.987069845199585e-05,
+        3.590434789657593e-05,
+        0.00011252611875534058,
+        0.0012852177023887634
+      ],
+      "foot_contact_force_z_N": [
+        147.14151000976562,
+        257.143798828125,
+        0.0,
+        0.0
+      ],
+      "ground_support_count": 2,
+      "grounded": true,
+      "settled": false,
+      "gripper_joint_rad": -1.5646947622299194,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "open"
+    },
+    {
+      "family": "grasped",
+      "config_id": 1488,
+      "family_sample_index": 464,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 0.7981885075569153,
+      "ee_to_object_center_m": 0.03886155039072037,
+      "lift_above_original_support_m": 0.07863660156726837,
+      "foot_bottom_z_m": [
+        -1.2442469596862793e-06,
+        3.469735383987427e-05,
+        0.0022498443722724915,
+        0.004142634570598602
+      ],
+      "foot_contact_force_z_N": [
+        181.5469207763672,
+        246.17977905273438,
+        0.0,
+        0.0
+      ],
+      "ground_support_count": 2,
+      "grounded": true,
+      "settled": false,
+      "gripper_joint_rad": -0.5259950160980225,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "closed"
+    },
+    {
+      "family": "grasped",
+      "config_id": 1534,
+      "family_sample_index": 510,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 0.7867427468299866,
+      "ee_to_object_center_m": 0.06781931966543198,
+      "lift_above_original_support_m": 0.05788107216358185,
+      "foot_bottom_z_m": [
+        7.733702659606934e-06,
+        -3.874301910400391e-06,
+        0.002517811954021454,
+        0.00493592768907547
+      ],
+      "foot_contact_force_z_N": [
+        149.39089965820312,
+        271.25164794921875,
+        0.0,
+        0.0
+      ],
+      "ground_support_count": 2,
+      "grounded": true,
+      "settled": false,
+      "gripper_joint_rad": -0.43515291810035706,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "closed"
+    },
+    {
+      "family": "grasped",
+      "config_id": 1043,
+      "family_sample_index": 19,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 0.8387504816055298,
+      "ee_to_object_center_m": 0.08469456434249878,
+      "lift_above_original_support_m": 0.0628712922334671,
+      "foot_bottom_z_m": [
+        9.2238187789917e-06,
+        2.890080213546753e-05,
+        0.0018540248274803162,
+        0.0033341720700263977
+      ],
+      "foot_contact_force_z_N": [
+        170.0440673828125,
+        290.4750061035156,
+        0.0,
+        0.0
+      ],
+      "ground_support_count": 2,
+      "grounded": true,
+      "settled": false,
+      "gripper_joint_rad": -0.5010921359062195,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "closed"
+    }
+  ],
+  "hold_traces": {
+    "39": [
+      {
+        "family": "full",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 2.0025177001953125,
+        "ee_to_object_center_m": 1.333113670349121,
+        "lift_above_original_support_m": 0.0010087639093399048,
+        "foot_bottom_z_m": [
+          1.5817582607269287e-05,
+          1.9706785678863525e-05,
+          4.366040229797363e-06,
+          0.0006486997008323669
+        ],
+        "foot_contact_force_z_N": [
+          76.53846740722656,
+          213.6094970703125,
+          97.01193237304688,
+          0.0
+        ],
+        "ground_support_count": 3,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.570796251296997,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.14499999675899744,
+        "base_to_object_xy_m": 1.999687910079956,
+        "ee_to_object_center_m": 1.3182321786880493,
+        "lift_above_original_support_m": 0.0010063201189041138,
+        "foot_bottom_z_m": [
+          7.527321577072144e-05,
+          7.040798664093018e-06,
+          3.150850534439087e-05,
+          3.1366944313049316e-06
+        ],
+        "foot_contact_force_z_N": [
+          343.1282043457031,
+          104.8858642578125,
+          223.1199493408203,
+          92.7834701538086
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5705455541610718,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.2849999936297536,
+        "base_to_object_xy_m": 2.0016160011291504,
+        "ee_to_object_center_m": 1.3305284976959229,
+        "lift_above_original_support_m": 0.0012659579515457153,
+        "foot_bottom_z_m": [
+          0.040516436100006104,
+          2.0213425159454346e-05,
+          1.2315809726715088e-05,
+          1.1704862117767334e-05
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          322.7669372558594,
+          237.41615295410156,
+          169.99205017089844
+        ],
+        "ground_support_count": 3,
+        "grounded": false,
+        "settled": false,
+        "gripper_joint_rad": -1.570516586303711,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.4449999900534749,
+        "base_to_object_xy_m": 1.99252188205719,
+        "ee_to_object_center_m": 1.3375847339630127,
+        "lift_above_original_support_m": 0.0010407119989395142,
+        "foot_bottom_z_m": [
+          8.968263864517212e-05,
+          1.401454210281372e-05,
+          0.04400438815355301,
+          5.237758159637451e-06
+        ],
+        "foot_contact_force_z_N": [
+          303.1108093261719,
+          128.6851348876953,
+          0.0,
+          200.82847595214844
+        ],
+        "ground_support_count": 3,
+        "grounded": false,
+        "settled": false,
+        "gripper_joint_rad": -1.5700690746307373,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.6049999864771962,
+        "base_to_object_xy_m": 1.999808430671692,
+        "ee_to_object_center_m": 1.3433523178100586,
+        "lift_above_original_support_m": 0.0010302811861038208,
+        "foot_bottom_z_m": [
+          5.933642387390137e-05,
+          0.007387317717075348,
+          1.6413629055023193e-05,
+          0.0016246363520622253
+        ],
+        "foot_contact_force_z_N": [
+          262.7383117675781,
+          0.0,
+          244.67417907714844,
+          0.0
+        ],
+        "ground_support_count": 2,
+        "grounded": true,
+        "settled": false,
+        "gripper_joint_rad": -1.5701615810394287,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.7449999833479524,
+        "base_to_object_xy_m": 2.0052645206451416,
+        "ee_to_object_center_m": 1.3512065410614014,
+        "lift_above_original_support_m": 0.001057639718055725,
+        "foot_bottom_z_m": [
+          0.013902775943279266,
+          1.280754804611206e-05,
+          -4.67151403427124e-06,
+          3.5390257835388184e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          250.8482208251953,
+          114.19453430175781,
+          184.99270629882812
+        ],
+        "ground_support_count": 3,
+        "grounded": false,
+        "settled": false,
+        "gripper_joint_rad": -1.5700937509536743,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.9049999797716737,
+        "base_to_object_xy_m": 1.9996404647827148,
+        "ee_to_object_center_m": 1.3603699207305908,
+        "lift_above_original_support_m": 0.0009850412607192993,
+        "foot_bottom_z_m": [
+          7.403641939163208e-05,
+          -3.203749656677246e-07,
+          0.008897937834262848,
+          4.209578037261963e-06
+        ],
+        "foot_contact_force_z_N": [
+          337.0587463378906,
+          31.114810943603516,
+          0.0,
+          230.82785034179688
+        ],
+        "ground_support_count": 3,
+        "grounded": true,
+        "settled": false,
+        "gripper_joint_rad": -1.5696877241134644,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 1.064999976195395,
+        "base_to_object_xy_m": 2.008908748626709,
+        "ee_to_object_center_m": 1.371883511543274,
+        "lift_above_original_support_m": 0.000978723168373108,
+        "foot_bottom_z_m": [
+          0.016863897442817688,
+          1.6279518604278564e-05,
+          1.695007085800171e-05,
+          2.1599233150482178e-05
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          325.4777526855469,
+          230.04269409179688,
+          88.89028930664062
+        ],
+        "ground_support_count": 3,
+        "grounded": false,
+        "settled": false,
+        "gripper_joint_rad": -1.569700002670288,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 1.2049999730661511,
+        "base_to_object_xy_m": 2.003157138824463,
+        "ee_to_object_center_m": 1.3742949962615967,
+        "lift_above_original_support_m": 0.000978723168373108,
+        "foot_bottom_z_m": [
+          7.533282041549683e-05,
+          1.2166798114776611e-05,
+          0.007901400327682495,
+          7.875263690948486e-06
+        ],
+        "foot_contact_force_z_N": [
+          307.0936279296875,
+          127.52413940429688,
+          0.0,
+          218.8680419921875
+        ],
+        "ground_support_count": 3,
+        "grounded": true,
+        "settled": false,
+        "gripper_joint_rad": -1.5696154832839966,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      }
+    ],
+    "292": [
+      {
+        "family": "full",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 2.0011110305786133,
+        "ee_to_object_center_m": 1.3295223712921143,
+        "lift_above_original_support_m": 0.0010692626237869263,
+        "foot_bottom_z_m": [
+          1.942366361618042e-05,
+          2.985447645187378e-05,
+          -1.4536082744598389e-05,
+          4.3213367462158203e-07
+        ],
+        "foot_contact_force_z_N": [
+          118.40587615966797,
+          213.4499053955078,
+          54.80316925048828,
+          16.67683982849121
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.570796251296997,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.14499999675899744,
+        "base_to_object_xy_m": 2.004420280456543,
+        "ee_to_object_center_m": 1.3216246366500854,
+        "lift_above_original_support_m": 0.000999942421913147,
+        "foot_bottom_z_m": [
+          2.1845102310180664e-05,
+          -5.535781383514404e-06,
+          1.1920928955078125e-05,
+          8.672475814819336e-06
+        ],
+        "foot_contact_force_z_N": [
+          179.8734893798828,
+          86.43367004394531,
+          157.37599182128906,
+          182.67721557617188
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": false,
+        "gripper_joint_rad": -1.5706710815429688,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.2849999936297536,
+        "base_to_object_xy_m": 1.9990423917770386,
+        "ee_to_object_center_m": 1.337694525718689,
+        "lift_above_original_support_m": 0.0009858757257461548,
+        "foot_bottom_z_m": [
+          1.913309097290039e-05,
+          1.0862946510314941e-05,
+          7.763504981994629e-06,
+          1.5579164028167725e-05
+        ],
+        "foot_contact_force_z_N": [
+          112.79405212402344,
+          135.60838317871094,
+          118.77725219726562,
+          185.11708068847656
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.570429801940918,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.42499999050050974,
+        "base_to_object_xy_m": 1.9892172813415527,
+        "ee_to_object_center_m": 1.348825454711914,
+        "lift_above_original_support_m": 0.0009806305170059204,
+        "foot_bottom_z_m": [
+          5.198270082473755e-05,
+          1.294165849685669e-05,
+          -6.48200511932373e-07,
+          2.2299587726593018e-05
+        ],
+        "foot_contact_force_z_N": [
+          205.6732940673828,
+          131.71078491210938,
+          55.22618103027344,
+          234.04156494140625
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5702887773513794,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.5649999873712659,
+        "base_to_object_xy_m": 1.9845625162124634,
+        "ee_to_object_center_m": 1.353873372077942,
+        "lift_above_original_support_m": 0.0009698420763015747,
+        "foot_bottom_z_m": [
+          5.611032247543335e-05,
+          -4.246830940246582e-07,
+          5.885958671569824e-06,
+          1.624971628189087e-05
+        ],
+        "foot_contact_force_z_N": [
+          277.8993225097656,
+          21.206832885742188,
+          100.44562530517578,
+          242.90377807617188
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.570276141166687,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.7249999837949872,
+        "base_to_object_xy_m": 1.9777202606201172,
+        "ee_to_object_center_m": 1.3575729131698608,
+        "lift_above_original_support_m": 0.0009698420763015747,
+        "foot_bottom_z_m": [
+          2.4847686290740967e-05,
+          2.1032989025115967e-05,
+          3.3527612686157227e-05,
+          1.3932585716247559e-06
+        ],
+        "foot_contact_force_z_N": [
+          114.27165222167969,
+          172.3908233642578,
+          221.5527801513672,
+          28.231884002685547
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5700300931930542,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.8849999802187085,
+        "base_to_object_xy_m": 1.9693464040756226,
+        "ee_to_object_center_m": 1.3538978099822998,
+        "lift_above_original_support_m": 0.0009698420763015747,
+        "foot_bottom_z_m": [
+          4.232674837112427e-05,
+          7.770955562591553e-06,
+          1.341104507446289e-06,
+          1.784414052963257e-05
+        ],
+        "foot_contact_force_z_N": [
+          261.7582702636719,
+          126.47273254394531,
+          52.48826217651367,
+          214.42333984375
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.57028067111969,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 1.0249999770894647,
+        "base_to_object_xy_m": 1.9704047441482544,
+        "ee_to_object_center_m": 1.3554913997650146,
+        "lift_above_original_support_m": 0.0009698420763015747,
+        "foot_bottom_z_m": [
+          7.183104753494263e-05,
+          -2.734363079071045e-06,
+          8.285045623779297e-06,
+          7.040798664093018e-06
+        ],
+        "foot_contact_force_z_N": [
+          317.1422119140625,
+          30.75822639465332,
+          93.38873291015625,
+          182.8594512939453
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.570221185684204,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 1.1649999739602208,
+        "base_to_object_xy_m": 1.9760262966156006,
+        "ee_to_object_center_m": 1.3611862659454346,
+        "lift_above_original_support_m": 0.0009698420763015747,
+        "foot_bottom_z_m": [
+          1.833587884902954e-05,
+          2.158433198928833e-05,
+          3.549456596374512e-05,
+          0.003801681101322174
+        ],
+        "foot_contact_force_z_N": [
+          81.63928985595703,
+          206.3800811767578,
+          247.8668212890625,
+          0.0
+        ],
+        "ground_support_count": 3,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5700997114181519,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      }
+    ],
+    "147": [
+      {
+        "family": "full",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 1.999936819076538,
+        "ee_to_object_center_m": 1.3084230422973633,
+        "lift_above_original_support_m": 0.0010537654161453247,
+        "foot_bottom_z_m": [
+          2.2456049919128418e-05,
+          3.121793270111084e-05,
+          -1.0356307029724121e-06,
+          3.2782554626464844e-07
+        ],
+        "foot_contact_force_z_N": [
+          119.40839385986328,
+          226.89125061035156,
+          36.54561996459961,
+          11.497148513793945
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5707964897155762,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.14499999675899744,
+        "base_to_object_xy_m": 2.0029520988464355,
+        "ee_to_object_center_m": 1.3021857738494873,
+        "lift_above_original_support_m": 0.001713290810585022,
+        "foot_bottom_z_m": [
+          2.259761095046997e-05,
+          7.450580596923828e-07,
+          1.7233192920684814e-05,
+          6.988644599914551e-06
+        ],
+        "foot_contact_force_z_N": [
+          187.583740234375,
+          79.26510620117188,
+          162.68280029296875,
+          182.54891967773438
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": false,
+        "gripper_joint_rad": -1.5706658363342285,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.30499999318271875,
+        "base_to_object_xy_m": 1.9951149225234985,
+        "ee_to_object_center_m": 1.3221571445465088,
+        "lift_above_original_support_m": 0.0010320097208023071,
+        "foot_bottom_z_m": [
+          1.710653305053711e-05,
+          1.5012919902801514e-05,
+          5.27501106262207e-06,
+          1.839548349380493e-05
+        ],
+        "foot_contact_force_z_N": [
+          104.7251205444336,
+          148.9591522216797,
+          110.70457458496094,
+          194.09536743164062
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5704342126846313,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.4449999900534749,
+        "base_to_object_xy_m": 1.9857635498046875,
+        "ee_to_object_center_m": 1.3364269733428955,
+        "lift_above_original_support_m": 0.0009709745645523071,
+        "foot_bottom_z_m": [
+          4.035979509353638e-05,
+          1.090019941329956e-05,
+          -5.170702934265137e-06,
+          2.489238977432251e-05
+        ],
+        "foot_contact_force_z_N": [
+          191.88746643066406,
+          121.81890869140625,
+          36.18720626831055,
+          252.72438049316406
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5702145099639893,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.584999986924231,
+        "base_to_object_xy_m": 1.9840495586395264,
+        "ee_to_object_center_m": 1.344398856163025,
+        "lift_above_original_support_m": 0.0010493546724319458,
+        "foot_bottom_z_m": [
+          6.43804669380188e-05,
+          0.005621559917926788,
+          2.0526349544525146e-05,
+          3.725290298461914e-08
+        ],
+        "foot_contact_force_z_N": [
+          305.5002746582031,
+          0.0,
+          209.9566192626953,
+          142.3511962890625
+        ],
+        "ground_support_count": 3,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5702741146087646,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.7449999833479524,
+        "base_to_object_xy_m": 1.9796198606491089,
+        "ee_to_object_center_m": 1.3513290882110596,
+        "lift_above_original_support_m": 0.0013095289468765259,
+        "foot_bottom_z_m": [
+          0.04752416908740997,
+          1.7873942852020264e-05,
+          -1.8253922462463379e-06,
+          5.1781535148620605e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          270.6387023925781,
+          152.31346130371094,
+          172.70321655273438
+        ],
+        "ground_support_count": 3,
+        "grounded": false,
+        "settled": false,
+        "gripper_joint_rad": -1.5702757835388184,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.9049999797716737,
+        "base_to_object_xy_m": 1.9794999361038208,
+        "ee_to_object_center_m": 1.3620412349700928,
+        "lift_above_original_support_m": 0.001036420464515686,
+        "foot_bottom_z_m": [
+          7.89836049079895e-05,
+          4.2244791984558105e-06,
+          0.013234928250312805,
+          9.529292583465576e-06
+        ],
+        "foot_contact_force_z_N": [
+          336.82879638671875,
+          54.666961669921875,
+          0.0,
+          224.64463806152344
+        ],
+        "ground_support_count": 3,
+        "grounded": false,
+        "settled": false,
+        "gripper_joint_rad": -1.5699701309204102,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 1.0449999766424298,
+        "base_to_object_xy_m": 1.9931259155273438,
+        "ee_to_object_center_m": 1.3642178773880005,
+        "lift_above_original_support_m": 0.0016986876726150513,
+        "foot_bottom_z_m": [
+          1.914799213409424e-06,
+          2.1241605281829834e-05,
+          2.7038156986236572e-05,
+          0.031096719205379486
+        ],
+        "foot_contact_force_z_N": [
+          27.463266372680664,
+          281.75189208984375,
+          241.26422119140625,
+          0.0
+        ],
+        "ground_support_count": 3,
+        "grounded": false,
+        "settled": false,
+        "gripper_joint_rad": -1.5699824094772339,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "full",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 1.2049999730661511,
+        "base_to_object_xy_m": 2.0011379718780518,
+        "ee_to_object_center_m": 1.3749772310256958,
+        "lift_above_original_support_m": 0.0010329633951187134,
+        "foot_bottom_z_m": [
+          7.880479097366333e-05,
+          1.3925135135650635e-05,
+          0.011519864201545715,
+          8.560717105865479e-06
+        ],
+        "foot_contact_force_z_N": [
+          309.4325866699219,
+          119.79515838623047,
+          0.0,
+          203.28916931152344
+        ],
+        "ground_support_count": 3,
+        "grounded": false,
+        "settled": false,
+        "gripper_joint_rad": -1.5699933767318726,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      }
+    ],
+    "985": [
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 0.7943426370620728,
+        "ee_to_object_center_m": 0.09017882496118546,
+        "lift_above_original_support_m": 0.001010611653327942,
+        "foot_bottom_z_m": [
+          6.146728992462158e-06,
+          4.35560941696167e-05,
+          0.003338061273097992,
+          0.0022167786955833435
+        ],
+        "foot_contact_force_z_N": [
+          122.13111877441406,
+          306.59857177734375,
+          0.0,
+          0.0
+        ],
+        "ground_support_count": 2,
+        "grounded": true,
+        "settled": false,
+        "gripper_joint_rad": -1.561530351638794,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.1649999963119626,
+        "base_to_object_xy_m": 0.7952048778533936,
+        "ee_to_object_center_m": 0.07965797185897827,
+        "lift_above_original_support_m": 0.0015674978494644165,
+        "foot_bottom_z_m": [
+          2.086162567138672e-06,
+          3.090500831604004e-05,
+          3.167241811752319e-05,
+          -8.121132850646973e-07
+        ],
+        "foot_contact_force_z_N": [
+          80.55977630615234,
+          208.05227661132812,
+          240.74969482421875,
+          85.84310150146484
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": false,
+        "gripper_joint_rad": -1.560604214668274,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.30499999318271875,
+        "base_to_object_xy_m": 0.7899704575538635,
+        "ee_to_object_center_m": 0.11277306079864502,
+        "lift_above_original_support_m": 0.0018697530031204224,
+        "foot_bottom_z_m": [
+          3.46451997756958e-05,
+          3.112107515335083e-05,
+          4.3585896492004395e-06,
+          5.163252353668213e-06
+        ],
+        "foot_contact_force_z_N": [
+          161.0653839111328,
+          219.18165588378906,
+          132.10997009277344,
+          133.181884765625
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5600106716156006,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.4449999900534749,
+        "base_to_object_xy_m": 0.7863818407058716,
+        "ee_to_object_center_m": 0.1544634997844696,
+        "lift_above_original_support_m": 0.0012592822313308716,
+        "foot_bottom_z_m": [
+          3.98978590965271e-05,
+          2.547353506088257e-05,
+          -5.2675604820251465e-06,
+          8.87364149093628e-06
+        ],
+        "foot_contact_force_z_N": [
+          177.579345703125,
+          206.5146484375,
+          116.24901580810547,
+          126.7177734375
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.559688925743103,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.6049999864771962,
+        "base_to_object_xy_m": 0.7903527617454529,
+        "ee_to_object_center_m": 0.20551761984825134,
+        "lift_above_original_support_m": 0.0009698420763015747,
+        "foot_bottom_z_m": [
+          1.2017786502838135e-05,
+          2.590566873550415e-05,
+          -8.143484592437744e-06,
+          1.0505318641662598e-06
+        ],
+        "foot_contact_force_z_N": [
+          174.8229217529297,
+          195.6810302734375,
+          146.9872589111328,
+          97.56414031982422
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5591636896133423,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.7649999829009175,
+        "base_to_object_xy_m": 0.8009763360023499,
+        "ee_to_object_center_m": 0.2549530565738678,
+        "lift_above_original_support_m": 0.0009711533784866333,
+        "foot_bottom_z_m": [
+          3.6969780921936035e-05,
+          2.726912498474121e-05,
+          -4.991888999938965e-07,
+          2.5704503059387207e-06
+        ],
+        "foot_contact_force_z_N": [
+          182.20933532714844,
+          203.49790954589844,
+          143.7876434326172,
+          106.65664672851562
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5586938858032227,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.9249999793246388,
+        "base_to_object_xy_m": 0.8165079355239868,
+        "ee_to_object_center_m": 0.30506575107574463,
+        "lift_above_original_support_m": 0.0009630471467971802,
+        "foot_bottom_z_m": [
+          3.63960862159729e-05,
+          2.327561378479004e-05,
+          6.183981895446777e-07,
+          3.7476420402526855e-06
+        ],
+        "foot_contact_force_z_N": [
+          181.37367248535156,
+          198.63104248046875,
+          136.41583251953125,
+          122.0102310180664
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5583394765853882,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 1.064999976195395,
+        "base_to_object_xy_m": 0.8317133784294128,
+        "ee_to_object_center_m": 0.3488166034221649,
+        "lift_above_original_support_m": 0.0009628087282180786,
+        "foot_bottom_z_m": [
+          3.597140312194824e-05,
+          2.302229404449463e-05,
+          -5.729496479034424e-06,
+          3.1515955924987793e-06
+        ],
+        "foot_contact_force_z_N": [
+          184.9942169189453,
+          197.03988647460938,
+          126.65985870361328,
+          119.83580780029297
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5580828189849854,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 1.2049999730661511,
+        "base_to_object_xy_m": 0.848256528377533,
+        "ee_to_object_center_m": 0.3917023241519928,
+        "lift_above_original_support_m": 0.0009627491235733032,
+        "foot_bottom_z_m": [
+          3.62396240234375e-05,
+          2.2605061531066895e-05,
+          -5.714595317840576e-06,
+          2.689659595489502e-06
+        ],
+        "foot_contact_force_z_N": [
+          190.58404541015625,
+          193.531494140625,
+          139.24093627929688,
+          115.63604736328125
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5578242540359497,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      }
+    ],
+    "890": [
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 0.8221287727355957,
+        "ee_to_object_center_m": 0.09926270693540573,
+        "lift_above_original_support_m": 0.0010280758142471313,
+        "foot_bottom_z_m": [
+          9.939074516296387e-06,
+          3.7923455238342285e-05,
+          -1.6860663890838623e-05,
+          0.0032416805624961853
+        ],
+        "foot_contact_force_z_N": [
+          115.55722045898438,
+          221.64208984375,
+          1.6784439086914062,
+          0.0
+        ],
+        "ground_support_count": 2,
+        "grounded": true,
+        "settled": false,
+        "gripper_joint_rad": -1.5590702295303345,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.14499999675899744,
+        "base_to_object_xy_m": 0.8223899602890015,
+        "ee_to_object_center_m": 0.08671940118074417,
+        "lift_above_original_support_m": 0.001040235161781311,
+        "foot_bottom_z_m": [
+          2.4437904357910156e-05,
+          8.471310138702393e-06,
+          1.8768012523651123e-05,
+          5.587935447692871e-07
+        ],
+        "foot_contact_force_z_N": [
+          183.5872344970703,
+          141.46949768066406,
+          266.58367919921875,
+          25.666650772094727
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5585486888885498,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.2849999936297536,
+        "base_to_object_xy_m": 0.8191140294075012,
+        "ee_to_object_center_m": 0.08769223093986511,
+        "lift_above_original_support_m": 0.0010381489992141724,
+        "foot_bottom_z_m": [
+          2.3767352104187012e-05,
+          2.2336840629577637e-05,
+          1.5124678611755371e-06,
+          7.770955562591553e-06
+        ],
+        "foot_contact_force_z_N": [
+          148.46226501464844,
+          164.15841674804688,
+          175.51943969726562,
+          128.0937957763672
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5581934452056885,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.4449999900534749,
+        "base_to_object_xy_m": 0.8099578619003296,
+        "ee_to_object_center_m": 0.0953177958726883,
+        "lift_above_original_support_m": 0.0009827762842178345,
+        "foot_bottom_z_m": [
+          8.948147296905518e-06,
+          2.3670494556427002e-05,
+          -1.7657876014709473e-06,
+          1.1824071407318115e-05
+        ],
+        "foot_contact_force_z_N": [
+          150.05441284179688,
+          176.78622436523438,
+          144.60800170898438,
+          129.99624633789062
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.558106780052185,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.584999986924231,
+        "base_to_object_xy_m": 0.8031079173088074,
+        "ee_to_object_center_m": 0.10797612369060516,
+        "lift_above_original_support_m": 0.000962570309638977,
+        "foot_bottom_z_m": [
+          3.1813979148864746e-05,
+          2.3037195205688477e-05,
+          1.169741153717041e-06,
+          1.0438263416290283e-05
+        ],
+        "foot_contact_force_z_N": [
+          180.4294891357422,
+          171.3706817626953,
+          156.68833923339844,
+          114.06427764892578
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5581512451171875,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.7249999837949872,
+        "base_to_object_xy_m": 0.7993962168693542,
+        "ee_to_object_center_m": 0.12666690349578857,
+        "lift_above_original_support_m": 0.0009627491235733032,
+        "foot_bottom_z_m": [
+          2.968311309814453e-05,
+          1.0192394256591797e-05,
+          1.4379620552062988e-06,
+          5.550682544708252e-06
+        ],
+        "foot_contact_force_z_N": [
+          187.77108764648438,
+          165.82464599609375,
+          170.6165008544922,
+          100.97171020507812
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5580248832702637,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.8649999806657434,
+        "base_to_object_xy_m": 0.7976579070091248,
+        "ee_to_object_center_m": 0.1476268172264099,
+        "lift_above_original_support_m": 0.0009627491235733032,
+        "foot_bottom_z_m": [
+          2.9072165489196777e-05,
+          2.409517765045166e-05,
+          1.3485550880432129e-06,
+          5.073845386505127e-06
+        ],
+        "foot_contact_force_z_N": [
+          187.43582153320312,
+          175.64089965820312,
+          171.6819610595703,
+          99.36290740966797
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5578856468200684,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 1.0249999770894647,
+        "base_to_object_xy_m": 0.796708881855011,
+        "ee_to_object_center_m": 0.17199403047561646,
+        "lift_above_original_support_m": 0.0009627491235733032,
+        "foot_bottom_z_m": [
+          2.705305814743042e-05,
+          1.2621283531188965e-05,
+          -8.419156074523926e-07,
+          1.0706484317779541e-05
+        ],
+        "foot_contact_force_z_N": [
+          185.74554443359375,
+          177.77980041503906,
+          161.18649291992188,
+          102.848876953125
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5577712059020996,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 1.184999973513186,
+        "base_to_object_xy_m": 0.796678900718689,
+        "ee_to_object_center_m": 0.1967538297176361,
+        "lift_above_original_support_m": 0.0009628087282180786,
+        "foot_bottom_z_m": [
+          2.658367156982422e-05,
+          1.3232231140136719e-05,
+          -2.168118953704834e-06,
+          1.1198222637176514e-05
+        ],
+        "foot_contact_force_z_N": [
+          185.90118408203125,
+          179.48611450195312,
+          153.3477020263672,
+          102.49967956542969
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5577597618103027,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      }
+    ],
+    "610": [
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 0.7087289690971375,
+        "ee_to_object_center_m": 0.11704020947217941,
+        "lift_above_original_support_m": 0.0009789615869522095,
+        "foot_bottom_z_m": [
+          1.987069845199585e-05,
+          3.590434789657593e-05,
+          0.00011252611875534058,
+          0.0012852177023887634
+        ],
+        "foot_contact_force_z_N": [
+          147.14151000976562,
+          257.143798828125,
+          0.0,
+          0.0
+        ],
+        "ground_support_count": 2,
+        "grounded": true,
+        "settled": false,
+        "gripper_joint_rad": -1.5646947622299194,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.1649999963119626,
+        "base_to_object_xy_m": 0.7088537812232971,
+        "ee_to_object_center_m": 0.10767564177513123,
+        "lift_above_original_support_m": 0.0010050684213638306,
+        "foot_bottom_z_m": [
+          2.5004148483276367e-05,
+          7.256865501403809e-06,
+          9.43988561630249e-06,
+          5.938112735748291e-06
+        ],
+        "foot_contact_force_z_N": [
+          152.51832580566406,
+          133.85963439941406,
+          158.54010009765625,
+          123.45677947998047
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5636188983917236,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.3249999927356839,
+        "base_to_object_xy_m": 0.7031945586204529,
+        "ee_to_object_center_m": 0.10751230269670486,
+        "lift_above_original_support_m": 0.0009858757257461548,
+        "foot_bottom_z_m": [
+          1.0438263416290283e-05,
+          2.1576881408691406e-05,
+          1.4156103134155273e-07,
+          7.368624210357666e-06
+        ],
+        "foot_contact_force_z_N": [
+          169.3748779296875,
+          158.20254516601562,
+          149.3419189453125,
+          133.33944702148438
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5628477334976196,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.46499998960644007,
+        "base_to_object_xy_m": 0.697562575340271,
+        "ee_to_object_center_m": 0.1115301325917244,
+        "lift_above_original_support_m": 0.0009637624025344849,
+        "foot_bottom_z_m": [
+          3.3527612686157227e-05,
+          2.422928810119629e-05,
+          6.780028343200684e-07,
+          9.663403034210205e-06
+        ],
+        "foot_contact_force_z_N": [
+          186.80531311035156,
+          167.02304077148438,
+          156.528564453125,
+          117.51811218261719
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5622143745422363,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.6049999864771962,
+        "base_to_object_xy_m": 0.6940191984176636,
+        "ee_to_object_center_m": 0.12214026600122452,
+        "lift_above_original_support_m": 0.0009627491235733032,
+        "foot_bottom_z_m": [
+          3.372877836227417e-05,
+          2.469867467880249e-05,
+          -2.779066562652588e-06,
+          9.767711162567139e-06
+        ],
+        "foot_contact_force_z_N": [
+          189.12977600097656,
+          172.51046752929688,
+          152.18600463867188,
+          116.23954772949219
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5616620779037476,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.7449999833479524,
+        "base_to_object_xy_m": 0.6923714280128479,
+        "ee_to_object_center_m": 0.13792137801647186,
+        "lift_above_original_support_m": 0.0009628087282180786,
+        "foot_bottom_z_m": [
+          3.150850534439087e-05,
+          2.467632293701172e-05,
+          -1.6316771507263184e-06,
+          6.861984729766846e-06
+        ],
+        "foot_contact_force_z_N": [
+          186.09007263183594,
+          175.9311981201172,
+          146.03541564941406,
+          120.52981567382812
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5611940622329712,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.9049999797716737,
+        "base_to_object_xy_m": 0.6923312544822693,
+        "ee_to_object_center_m": 0.15976794064044952,
+        "lift_above_original_support_m": 0.0009628087282180786,
+        "foot_bottom_z_m": [
+          3.1791627407073975e-05,
+          2.5212764739990234e-05,
+          -1.5273690223693848e-06,
+          7.27921724319458e-06
+        ],
+        "foot_contact_force_z_N": [
+          189.30775451660156,
+          180.1057891845703,
+          143.7305145263672,
+          120.2877197265625
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5607353448867798,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 1.064999976195395,
+        "base_to_object_xy_m": 0.6940026879310608,
+        "ee_to_object_center_m": 0.18362005054950714,
+        "lift_above_original_support_m": 0.0009627491235733032,
+        "foot_bottom_z_m": [
+          3.1560659408569336e-05,
+          2.5600194931030273e-05,
+          -1.7955899238586426e-06,
+          6.936490535736084e-06
+        ],
+        "foot_contact_force_z_N": [
+          191.57821655273438,
+          182.18414306640625,
+          143.60618591308594,
+          116.94029235839844
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5603582859039307,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 1.2249999726191163,
+        "base_to_object_xy_m": 0.6973412036895752,
+        "ee_to_object_center_m": 0.20868538320064545,
+        "lift_above_original_support_m": 0.0009627491235733032,
+        "foot_bottom_z_m": [
+          3.072619438171387e-05,
+          2.5548040866851807e-05,
+          1.008063554763794e-05,
+          6.563961505889893e-06
+        ],
+        "foot_contact_force_z_N": [
+          191.55889892578125,
+          183.1095428466797,
+          142.14068603515625,
+          114.19739532470703
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -1.5600274801254272,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "open"
+      }
+    ],
+    "1488": [
+      {
+        "family": "grasped",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 0.7981885075569153,
+        "ee_to_object_center_m": 0.03886155039072037,
+        "lift_above_original_support_m": 0.07863660156726837,
+        "foot_bottom_z_m": [
+          -1.2442469596862793e-06,
+          3.469735383987427e-05,
+          0.0022498443722724915,
+          0.004142634570598602
+        ],
+        "foot_contact_force_z_N": [
+          181.5469207763672,
+          246.17977905273438,
+          0.0,
+          0.0
+        ],
+        "ground_support_count": 2,
+        "grounded": true,
+        "settled": false,
+        "gripper_joint_rad": -0.5259950160980225,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.14499999675899744,
+        "base_to_object_xy_m": 0.7970156669616699,
+        "ee_to_object_center_m": 0.03887610137462616,
+        "lift_above_original_support_m": 0.07811225950717926,
+        "foot_bottom_z_m": [
+          3.4362077713012695e-05,
+          1.6264617443084717e-05,
+          3.7029385566711426e-06,
+          2.391636371612549e-06
+        ],
+        "foot_contact_force_z_N": [
+          173.50538635253906,
+          142.1748809814453,
+          207.02053833007812,
+          142.1033935546875
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.5265664458274841,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.2849999936297536,
+        "base_to_object_xy_m": 0.8015487194061279,
+        "ee_to_object_center_m": 0.03887679800391197,
+        "lift_above_original_support_m": 0.08396764099597931,
+        "foot_bottom_z_m": [
+          5.0030648708343506e-05,
+          2.074986696243286e-05,
+          6.48200511932373e-07,
+          5.885958671569824e-07
+        ],
+        "foot_contact_force_z_N": [
+          231.40980529785156,
+          155.4417724609375,
+          115.45802307128906,
+          122.70751953125
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.526630699634552,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.42499999050050974,
+        "base_to_object_xy_m": 0.8006037473678589,
+        "ee_to_object_center_m": 0.038876209408044815,
+        "lift_above_original_support_m": 0.08951719105243683,
+        "foot_bottom_z_m": [
+          5.083531141281128e-05,
+          2.2023916244506836e-05,
+          -8.717179298400879e-07,
+          9.015202522277832e-07
+        ],
+        "foot_contact_force_z_N": [
+          234.3354949951172,
+          168.31443786621094,
+          96.69784545898438,
+          133.79693603515625
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.5266264081001282,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.5649999873712659,
+        "base_to_object_xy_m": 0.8030457496643066,
+        "ee_to_object_center_m": 0.03887678310275078,
+        "lift_above_original_support_m": 0.09214355051517487,
+        "foot_bottom_z_m": [
+          4.9367547035217285e-05,
+          2.0720064640045166e-05,
+          -1.8998980522155762e-06,
+          1.9297003746032715e-06
+        ],
+        "foot_contact_force_z_N": [
+          235.32388305664062,
+          164.36026000976562,
+          88.28081512451172,
+          140.97035217285156
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.5266267657279968,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.704999984242022,
+        "base_to_object_xy_m": 0.8054290413856506,
+        "ee_to_object_center_m": 0.03887691721320152,
+        "lift_above_original_support_m": 0.09243203699588776,
+        "foot_bottom_z_m": [
+          4.8883259296417236e-05,
+          2.0362436771392822e-05,
+          -1.8998980522155762e-06,
+          2.302229404449463e-06
+        ],
+        "foot_contact_force_z_N": [
+          238.03648376464844,
+          162.09921264648438,
+          86.64978790283203,
+          143.1626739501953
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.5266336798667908,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.8649999806657434,
+        "base_to_object_xy_m": 0.8073703050613403,
+        "ee_to_object_center_m": 0.03887675330042839,
+        "lift_above_original_support_m": 0.09095926582813263,
+        "foot_bottom_z_m": [
+          4.789233207702637e-05,
+          2.0094215869903564e-05,
+          -2.0489096641540527e-06,
+          2.0042061805725098e-06
+        ],
+        "foot_contact_force_z_N": [
+          240.14422607421875,
+          161.01548767089844,
+          87.24464416503906,
+          144.16856384277344
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.5266361236572266,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 1.0049999775364995,
+        "base_to_object_xy_m": 0.8080641031265259,
+        "ee_to_object_center_m": 0.03887694329023361,
+        "lift_above_original_support_m": 0.08879400789737701,
+        "foot_bottom_z_m": [
+          4.751235246658325e-05,
+          2.0526349544525146e-05,
+          -2.078711986541748e-06,
+          2.8833746910095215e-06
+        ],
+        "foot_contact_force_z_N": [
+          240.0788116455078,
+          160.8624725341797,
+          86.1358413696289,
+          146.4021453857422
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.5266362428665161,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 1.1649999739602208,
+        "base_to_object_xy_m": 0.8088047504425049,
+        "ee_to_object_center_m": 0.038876548409461975,
+        "lift_above_original_support_m": 0.08657903969287872,
+        "foot_bottom_z_m": [
+          4.6506524085998535e-05,
+          1.996755599975586e-05,
+          -2.808868885040283e-06,
+          3.1813979148864746e-06
+        ],
+        "foot_contact_force_z_N": [
+          240.4757080078125,
+          159.889404296875,
+          82.21401977539062,
+          149.47987365722656
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.526638388633728,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      }
+    ],
+    "1534": [
+      {
+        "family": "grasped",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 0.7867427468299866,
+        "ee_to_object_center_m": 0.06781931966543198,
+        "lift_above_original_support_m": 0.05788107216358185,
+        "foot_bottom_z_m": [
+          7.733702659606934e-06,
+          -3.874301910400391e-06,
+          0.002517811954021454,
+          0.00493592768907547
+        ],
+        "foot_contact_force_z_N": [
+          149.39089965820312,
+          271.25164794921875,
+          0.0,
+          0.0
+        ],
+        "ground_support_count": 2,
+        "grounded": true,
+        "settled": false,
+        "gripper_joint_rad": -0.43515291810035706,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.14499999675899744,
+        "base_to_object_xy_m": 0.7839646935462952,
+        "ee_to_object_center_m": 0.06782689690589905,
+        "lift_above_original_support_m": 0.05244888365268707,
+        "foot_bottom_z_m": [
+          1.230090856552124e-05,
+          2.562999725341797e-05,
+          6.936490535736084e-06,
+          -7.890164852142334e-06
+        ],
+        "foot_contact_force_z_N": [
+          183.107421875,
+          185.48060607910156,
+          209.05087280273438,
+          55.160648345947266
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.4360252916812897,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.2849999936297536,
+        "base_to_object_xy_m": 0.7844905257225037,
+        "ee_to_object_center_m": 0.06787057220935822,
+        "lift_above_original_support_m": 0.05961121618747711,
+        "foot_bottom_z_m": [
+          3.6090612411499023e-05,
+          2.5816261768341064e-05,
+          7.443130016326904e-06,
+          5.5655837059021e-06
+        ],
+        "foot_contact_force_z_N": [
+          179.3905029296875,
+          203.20506286621094,
+          133.97274780273438,
+          110.06929016113281
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.4352480471134186,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.4449999900534749,
+        "base_to_object_xy_m": 0.7798567414283752,
+        "ee_to_object_center_m": 0.0678906962275505,
+        "lift_above_original_support_m": 0.06903822720050812,
+        "foot_bottom_z_m": [
+          3.70517373085022e-05,
+          1.0989606380462646e-05,
+          -9.909272193908691e-07,
+          2.8833746910095215e-06
+        ],
+        "foot_contact_force_z_N": [
+          173.7617645263672,
+          202.027587890625,
+          110.98001861572266,
+          124.43197631835938
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.4349502623081207,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.584999986924231,
+        "base_to_object_xy_m": 0.7835751175880432,
+        "ee_to_object_center_m": 0.06791619956493378,
+        "lift_above_original_support_m": 0.07619048655033112,
+        "foot_bottom_z_m": [
+          4.030764102935791e-05,
+          2.3484230041503906e-05,
+          -1.2442469596862793e-06,
+          2.0489096641540527e-06
+        ],
+        "foot_contact_force_z_N": [
+          188.25579833984375,
+          199.85130310058594,
+          125.06755828857422,
+          104.75752258300781
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.43443459272384644,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.7449999833479524,
+        "base_to_object_xy_m": 0.787028968334198,
+        "ee_to_object_center_m": 0.06793516874313354,
+        "lift_above_original_support_m": 0.07915367186069489,
+        "foot_bottom_z_m": [
+          4.088878631591797e-05,
+          2.4594366550445557e-05,
+          1.169741153717041e-06,
+          -3.650784492492676e-07
+        ],
+        "foot_contact_force_z_N": [
+          198.09693908691406,
+          194.59832763671875,
+          145.87374877929688,
+          89.60779571533203
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.4341437518596649,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.8849999802187085,
+        "base_to_object_xy_m": 0.788299560546875,
+        "ee_to_object_center_m": 0.06793544441461563,
+        "lift_above_original_support_m": 0.07893843948841095,
+        "foot_bottom_z_m": [
+          4.000216722488403e-05,
+          2.492964267730713e-05,
+          4.6938657760620117e-07,
+          -1.080334186553955e-06
+        ],
+        "foot_contact_force_z_N": [
+          193.90464782714844,
+          199.42816162109375,
+          142.52731323242188,
+          95.0260009765625
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.4341432452201843,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 1.0249999770894647,
+        "base_to_object_xy_m": 0.7884748578071594,
+        "ee_to_object_center_m": 0.06793568283319473,
+        "lift_above_original_support_m": 0.07762749493122101,
+        "foot_bottom_z_m": [
+          3.900378942489624e-05,
+          1.1324882507324219e-05,
+          1.8849968910217285e-06,
+          9.916722774505615e-06
+        ],
+        "foot_contact_force_z_N": [
+          190.8358612060547,
+          197.9449005126953,
+          133.83685302734375,
+          104.6202163696289
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.43414148688316345,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 1.1649999739602208,
+        "base_to_object_xy_m": 0.7885110974311829,
+        "ee_to_object_center_m": 0.06793531030416489,
+        "lift_above_original_support_m": 0.07610107958316803,
+        "foot_bottom_z_m": [
+          3.956258296966553e-05,
+          2.422928810119629e-05,
+          1.4379620552062988e-06,
+          4.246830940246582e-07
+        ],
+        "foot_contact_force_z_N": [
+          192.79766845703125,
+          204.5818328857422,
+          128.53334045410156,
+          106.33039855957031
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.4341462254524231,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      }
+    ],
+    "1043": [
+      {
+        "family": "grasped",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 0.8387504816055298,
+        "ee_to_object_center_m": 0.08469456434249878,
+        "lift_above_original_support_m": 0.0628712922334671,
+        "foot_bottom_z_m": [
+          9.2238187789917e-06,
+          2.890080213546753e-05,
+          0.0018540248274803162,
+          0.0033341720700263977
+        ],
+        "foot_contact_force_z_N": [
+          170.0440673828125,
+          290.4750061035156,
+          0.0,
+          0.0
+        ],
+        "ground_support_count": 2,
+        "grounded": true,
+        "settled": false,
+        "gripper_joint_rad": -0.5010921359062195,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.1649999963119626,
+        "base_to_object_xy_m": 0.8388410806655884,
+        "ee_to_object_center_m": 0.08469238132238388,
+        "lift_above_original_support_m": 0.050909414887428284,
+        "foot_bottom_z_m": [
+          1.765042543411255e-05,
+          2.0384788513183594e-05,
+          1.55717134475708e-06,
+          -5.356967449188232e-06
+        ],
+        "foot_contact_force_z_N": [
+          185.56564331054688,
+          213.3524627685547,
+          191.49325561523438,
+          49.24345779418945
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.5008086562156677,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.3249999927356839,
+        "base_to_object_xy_m": 0.8381989598274231,
+        "ee_to_object_center_m": 0.08469279855489731,
+        "lift_above_original_support_m": 0.05922986567020416,
+        "foot_bottom_z_m": [
+          3.930181264877319e-05,
+          2.0518898963928223e-05,
+          1.8700957298278809e-06,
+          4.000961780548096e-06
+        ],
+        "foot_contact_force_z_N": [
+          178.03907775878906,
+          213.26324462890625,
+          159.74913024902344,
+          66.85332489013672
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.5008216500282288,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.46499998960644007,
+        "base_to_object_xy_m": 0.8392069339752197,
+        "ee_to_object_center_m": 0.08469327539205551,
+        "lift_above_original_support_m": 0.06897248327732086,
+        "foot_bottom_z_m": [
+          4.038214683532715e-05,
+          1.9341707229614258e-05,
+          9.663403034210205e-06,
+          -1.7508864402770996e-06
+        ],
+        "foot_contact_force_z_N": [
+          179.36062622070312,
+          217.03338623046875,
+          146.63177490234375,
+          70.69178009033203
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.5008324384689331,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.6049999864771962,
+        "base_to_object_xy_m": 0.841783344745636,
+        "ee_to_object_center_m": 0.08469260483980179,
+        "lift_above_original_support_m": 0.0744028240442276,
+        "foot_bottom_z_m": [
+          4.1872262954711914e-05,
+          1.9237399101257324e-05,
+          1.6316771507263184e-06,
+          -1.8402934074401855e-06
+        ],
+        "foot_contact_force_z_N": [
+          188.98902893066406,
+          216.64938354492188,
+          153.88877868652344,
+          70.61546325683594
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.5008196234703064,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.7449999833479524,
+        "base_to_object_xy_m": 0.8437025547027588,
+        "ee_to_object_center_m": 0.08469278365373611,
+        "lift_above_original_support_m": 0.07584919035434723,
+        "foot_bottom_z_m": [
+          4.172325134277344e-05,
+          2.012401819229126e-05,
+          1.7955899238586426e-06,
+          -1.6763806343078613e-06
+        ],
+        "foot_contact_force_z_N": [
+          192.53494262695312,
+          214.05770874023438,
+          156.70619201660156,
+          68.95181274414062
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.5008096098899841,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.9049999797716737,
+        "base_to_object_xy_m": 0.8449546694755554,
+        "ee_to_object_center_m": 0.08469199389219284,
+        "lift_above_original_support_m": 0.07476271688938141,
+        "foot_bottom_z_m": [
+          4.056096076965332e-05,
+          2.008676528930664e-05,
+          1.5422701835632324e-06,
+          -1.7508864402770996e-06
+        ],
+        "foot_contact_force_z_N": [
+          192.37840270996094,
+          212.56332397460938,
+          157.9849395751953,
+          70.72889709472656
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.5008070468902588,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 1.0449999766424298,
+        "base_to_object_xy_m": 0.8448426127433777,
+        "ee_to_object_center_m": 0.08469223231077194,
+        "lift_above_original_support_m": 0.07261265814304352,
+        "foot_bottom_z_m": [
+          4.028528928756714e-05,
+          2.0645558834075928e-05,
+          1.2293457984924316e-06,
+          -1.1548399925231934e-06
+        ],
+        "foot_contact_force_z_N": [
+          191.23211669921875,
+          213.01609802246094,
+          155.6687469482422,
+          73.19874572753906
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.5008050203323364,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      },
+      {
+        "family": "grasped",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 1.184999973513186,
+        "base_to_object_xy_m": 0.8445995450019836,
+        "ee_to_object_center_m": 0.08469156920909882,
+        "lift_above_original_support_m": 0.07048894464969635,
+        "foot_bottom_z_m": [
+          4.045665264129639e-05,
+          2.2158026695251465e-05,
+          1.862645149230957e-07,
+          -9.909272193908691e-07
+        ],
+        "foot_contact_force_z_N": [
+          191.47622680664062,
+          215.5626220703125,
+          152.30470275878906,
+          76.22050476074219
+        ],
+        "ground_support_count": 4,
+        "grounded": true,
+        "settled": true,
+        "gripper_joint_rad": -0.5008071064949036,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "closed"
+      }
+    ]
+  }
+}

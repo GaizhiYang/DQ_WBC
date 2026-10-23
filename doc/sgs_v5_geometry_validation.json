@@ -1,0 +1,342 @@
+{
+  "bank_path": "/home/hehui/DQ_WBC/DQ_high-level/data/sgs/sugar_box_v5.pt",
+  "bank_fingerprint": "8cb9d378dd36ee28435e38167577ecc5841fc00617750ba6bc41294875d52cf8",
+  "num_configs": 1536,
+  "audit_mode": "CPU-only saved-frame geometry audit; no simulator or GPU context",
+  "method": {
+    "base": "Signed world XY = object root minus robot root; heading = robot yaw minus bearing to object, wrapped to [-180,180).",
+    "feet": "Saved rigid-body foot center z minus URDF collision sphere radius; no force, velocity or stable-standing gate.",
+    "end_effector": "Saved ee_gripper_link rigid-body pose. Body index identified by matching every saved synchronized end-effector goal transformed by robot root and arm-base offset [0.3,0,0.09].",
+    "end_effector_body_index": 24,
+    "max_saved_goal_to_body_distance_m": 4.967776493012974e-07,
+    "candidate": "Read sugar-box predictions_image_01.json and source pose row 1; reproduce PredictPoint transforms for all 23 source camera-height phases and select each saved grasp_candidate_index. Height offsets cancel; require every phase to satisfy the recorded geometric bounds within 1 micrometer numeric allowance.",
+    "max_candidate_position_variation_across_height_phases_m": 1.8021512991159205e-07,
+    "orientation": "Rotation angle between saved end-effector quaternion and selected world grasp rotation, including PredictPoint Rx @ Rz @ Rx correction.",
+    "gripper": "Recomputed from saved final joint position and gripper target using actual URDF limits; 0 closed (upper), 1 fully open (lower).",
+    "default_arm": "The task normal reset uses runtime env._initial_dof_pos (B1Z1Base._reset_actors), and the builder checks every full-task saved arm against it within 0.03 rad. This CPU saved-frame audit cannot independently recover that runtime array. The source dictionary describes the earlier declared creation pose and differs from the runtime reset pose; its difference is recorded only as a diagnostic, not a failure.",
+    "collision_limit": "This saved-frame audit does not repeat the builder single-tick collision filter or validate dynamic standing stability."
+  },
+  "reset_config": {
+    "at_grasp": {
+      "base": {
+        "heading_offset_range_deg": [
+          -1.4324,
+          1.4324
+        ],
+        "x_range_m": [
+          0.68,
+          0.85
+        ],
+        "y_range_m": [
+          -0.1,
+          0.1
+        ]
+      },
+      "gripper_opening_range": [
+        0.0,
+        1.0
+      ]
+    },
+    "full_task": {
+      "arm_pose": "default",
+      "base": {
+        "heading_offset_range_deg": [
+          -9.1673,
+          9.1673
+        ],
+        "x_range_m": [
+          2.0,
+          2.0
+        ],
+        "y_range_m": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "pregrasp": {
+      "base": {
+        "heading_offset_range_deg": [
+          -1.4324,
+          1.4324
+        ],
+        "x_range_m": [
+          0.68,
+          0.95
+        ],
+        "y_range_m": [
+          -0.2,
+          0.2
+        ]
+      },
+      "ee_approach_distance_range_m": [
+        0.05,
+        0.15
+      ]
+    },
+    "schema_version": 2
+  },
+  "ground_limits_m": {
+    "max_foot_bottom_m": 0.02,
+    "min_foot_bottom_m": -0.005
+  },
+  "gripper_joint_limits_rad": [
+    -1.5707963267948966,
+    0.0
+  ],
+  "families": {
+    "full_task": {
+      "count": 512,
+      "base_x_m": {
+        "min": 1.9999847412109375,
+        "max": 2.000030517578125,
+        "mean": 1.9999998807907104
+      },
+      "base_y_m": {
+        "min": -7.62939453125e-06,
+        "max": 7.62939453125e-06,
+        "mean": -9.918585419654846e-08
+      },
+      "heading_offset_deg": {
+        "min": -9.130678176879883,
+        "max": 9.109081268310547,
+        "mean": 0.05031841993331909
+      },
+      "feet_bottom_z_m": {
+        "min": 0.0007618218660354614,
+        "max": 0.0034779012203216553,
+        "mean": 0.0018155421130359173
+      },
+      "base_range_pass_count": 512,
+      "approx_ground_pass_count": 512,
+      "actual_gripper_opening": {
+        "min": 0.9999999403953552,
+        "max": 1.0,
+        "mean": 1.0
+      },
+      "target_gripper_opening": {
+        "min": 1.0,
+        "max": 1.0,
+        "mean": 1.0
+      },
+      "actual_opening_histogram_10_bins_0_to_1": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        512
+      ],
+      "target_opening_histogram_10_bins_0_to_1": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        512
+      ],
+      "max_recorded_vs_recomputed_opening_difference": 0.0,
+      "arm_joint_names": [
+        "z1_waist",
+        "z1_shoulder",
+        "z1_elbow",
+        "z1_wrist_angle",
+        "z1_forearm_roll",
+        "z1_wrist_rotate"
+      ],
+      "declared_creation_arm_joint_positions_rad": [
+        0.0,
+        1.48,
+        -1.5,
+        0.0,
+        0.0,
+        1.57
+      ],
+      "max_difference_from_declared_creation_arm_rad": 0.11423654079437262,
+      "saved_arm_joint_min_rad": [
+        -0.000577378086745739,
+        1.4587512016296387,
+        -1.4713994264602661,
+        -0.003444184083491564,
+        -8.315035665873438e-05,
+        1.4557634592056274
+      ],
+      "saved_arm_joint_max_rad": [
+        0.0009042073506861925,
+        1.4605205059051514,
+        -1.4706162214279175,
+        -0.003410633187741041,
+        0.0001201606573886238,
+        1.4557722806930542
+      ],
+      "runtime_default_arm_independently_verified": false,
+      "runtime_default_arm_note": "The original task resets from env._initial_dof_pos; builder uses that same runtime reference and requires <0.03 rad error. That runtime reference is not stored in the bank, so this saved-frame audit does not independently repeat it.",
+      "passed": true,
+      "failed_config_ids": []
+    },
+    "pregrasp": {
+      "count": 512,
+      "base_x_m": {
+        "min": 0.6801414489746094,
+        "max": 0.9449539184570312,
+        "mean": 0.7713839411735535
+      },
+      "base_y_m": {
+        "min": -0.19781494140625,
+        "max": 0.19991302490234375,
+        "mean": 0.013294040225446224
+      },
+      "heading_offset_deg": {
+        "min": -1.4321403503417969,
+        "max": 1.432317852973938,
+        "mean": 0.027416035532951355
+      },
+      "feet_bottom_z_m": {
+        "min": 0.0007608160376548767,
+        "max": 0.00346500426530838,
+        "mean": 0.0017984395381063223
+      },
+      "base_range_pass_count": 512,
+      "approx_ground_pass_count": 512,
+      "actual_gripper_opening": {
+        "min": 0.9999998211860657,
+        "max": 1.0,
+        "mean": 1.0
+      },
+      "target_gripper_opening": {
+        "min": 1.0,
+        "max": 1.0,
+        "mean": 1.0
+      },
+      "actual_opening_histogram_10_bins_0_to_1": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        512
+      ],
+      "target_opening_histogram_10_bins_0_to_1": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        512
+      ],
+      "max_recorded_vs_recomputed_opening_difference": 0.0,
+      "candidate_index_min": 1,
+      "candidate_index_max": 29,
+      "unique_candidate_count": 20,
+      "candidate_distance_m": {
+        "min": 0.05001332065359629,
+        "max": 0.1497927742941956,
+        "mean": 0.08950425701442073
+      },
+      "candidate_angle_error_rad": {
+        "min": 0.0,
+        "max": 0.008758600992082331,
+        "mean": 0.00044751342556387117
+      },
+      "pose_pass_count": 512,
+      "passed": true,
+      "failed_config_ids": []
+    },
+    "at_grasp": {
+      "count": 512,
+      "base_x_m": {
+        "min": 0.680232048034668,
+        "max": 0.8494796752929688,
+        "mean": 0.7411548495292664
+      },
+      "base_y_m": {
+        "min": -0.0991668701171875,
+        "max": 0.0994873046875,
+        "mean": 0.0077689895406365395
+      },
+      "heading_offset_deg": {
+        "min": -1.4256516695022583,
+        "max": 1.419668436050415,
+        "mean": 0.14465373754501343
+      },
+      "feet_bottom_z_m": {
+        "min": 0.0007413998246192932,
+        "max": 0.003414250910282135,
+        "mean": 0.001802149461582303
+      },
+      "base_range_pass_count": 512,
+      "approx_ground_pass_count": 512,
+      "actual_gripper_opening": {
+        "min": 0.00027942427550442517,
+        "max": 0.9985072016716003,
+        "mean": 0.6460249423980713
+      },
+      "target_gripper_opening": {
+        "min": 0.0030348245054483414,
+        "max": 0.9985072016716003,
+        "mean": 0.6451749801635742
+      },
+      "actual_opening_histogram_10_bins_0_to_1": [
+        8,
+        0,
+        7,
+        53,
+        85,
+        62,
+        80,
+        71,
+        68,
+        78
+      ],
+      "target_opening_histogram_10_bins_0_to_1": [
+        8,
+        0,
+        11,
+        50,
+        84,
+        62,
+        80,
+        71,
+        68,
+        78
+      ],
+      "max_recorded_vs_recomputed_opening_difference": 0.0,
+      "opening_range_pass_count": 512,
+      "candidate_index_min": 1,
+      "candidate_index_max": 29,
+      "unique_candidate_count": 22,
+      "candidate_distance_m": {
+        "min": 6.503048465397715e-07,
+        "max": 0.004990329024306335,
+        "mean": 0.002603596228341819
+      },
+      "candidate_angle_error_rad": {
+        "min": 0.0,
+        "max": 0.08903100326855157,
+        "mean": 0.012697225724738678
+      },
+      "pose_pass_count": 512,
+      "passed": true,
+      "failed_config_ids": []
+    }
+  },
+  "passed": true,
+  "pass_scope": "All saved base ranges, approximate foot heights, pregrasp/at-grasp selected-candidate geometry, and at-grasp actual/target opening ranges. Runtime default arm and physical collision checks are not independently repeated.",
+  "failed_config_ids": []
+}
