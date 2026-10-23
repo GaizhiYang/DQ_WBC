@@ -1,0 +1,164 @@
+{
+  "fingerprint": "b02cdb5def5c2fa2bae5bdc294533c9ed6c6843e800d8b6435bf98f6d141e835",
+  "num_configs": 1536,
+  "metadata": {
+    "coordinate_convention": "existing_reset_tensor_coordinates_no_env_origin_offset",
+    "family_names": [
+      "full_task",
+      "pregrasp",
+      "grasped_before_lift"
+    ],
+    "hold_steps": 15,
+    "lifted_threshold": 0.2,
+    "num_bodies": 28,
+    "num_dofs": 19,
+    "object_name": "sugar_box",
+    "physical_validation": {
+      "accepted_per_family": [
+        512,
+        512,
+        512
+      ],
+      "batches": [
+        {
+          "accepted_totals": [
+            512,
+            94,
+            104
+          ],
+          "attempted_per_family": 512,
+          "batch": 1,
+          "full_valid": 512,
+          "held_cross_slot": 104,
+          "held_geometry": 175,
+          "held_release": 104,
+          "held_replay": 161,
+          "pregrasp_grasp_witness": 94,
+          "pregrasp_valid": 316
+        },
+        {
+          "accepted_totals": [
+            512,
+            168,
+            192
+          ],
+          "attempted_per_family": 512,
+          "batch": 2,
+          "full_valid": 499,
+          "held_cross_slot": 88,
+          "held_geometry": 176,
+          "held_release": 88,
+          "held_replay": 154,
+          "pregrasp_grasp_witness": 74,
+          "pregrasp_valid": 309
+        },
+        {
+          "accepted_totals": [
+            512,
+            257,
+            293
+          ],
+          "attempted_per_family": 512,
+          "batch": 3,
+          "full_valid": 501,
+          "held_cross_slot": 101,
+          "held_geometry": 178,
+          "held_release": 101,
+          "held_replay": 163,
+          "pregrasp_grasp_witness": 89,
+          "pregrasp_valid": 340
+        },
+        {
+          "accepted_totals": [
+            512,
+            336,
+            388
+          ],
+          "attempted_per_family": 512,
+          "batch": 4,
+          "full_valid": 498,
+          "held_cross_slot": 95,
+          "held_geometry": 176,
+          "held_release": 95,
+          "held_replay": 157,
+          "pregrasp_grasp_witness": 79,
+          "pregrasp_valid": 304
+        },
+        {
+          "accepted_totals": [
+            512,
+            419,
+            487
+          ],
+          "attempted_per_family": 512,
+          "batch": 5,
+          "full_valid": 505,
+          "held_cross_slot": 99,
+          "held_geometry": 172,
+          "held_release": 99,
+          "held_replay": 153,
+          "pregrasp_grasp_witness": 83,
+          "pregrasp_valid": 295
+        },
+        {
+          "accepted_totals": [
+            512,
+            502,
+            512
+          ],
+          "attempted_per_family": 512,
+          "batch": 6,
+          "full_valid": 507,
+          "held_cross_slot": 95,
+          "held_geometry": 167,
+          "held_release": 95,
+          "held_replay": 150,
+          "pregrasp_grasp_witness": 83,
+          "pregrasp_valid": 299
+        },
+        {
+          "accepted_totals": [
+            512,
+            512,
+            512
+          ],
+          "attempted_per_family": 512,
+          "batch": 7,
+          "full_valid": 503,
+          "held_cross_slot": 92,
+          "held_geometry": 178,
+          "held_release": 92,
+          "held_replay": 158,
+          "pregrasp_grasp_witness": 79,
+          "pregrasp_valid": 307
+        }
+      ],
+      "construction_table_motion": "paused for IK approach/close/lift only",
+      "held_cross_slot_replay": true,
+      "held_height_range_m": [
+        0.03,
+        0.08
+      ],
+      "held_replay_height_range_m": [
+        0.025,
+        0.09
+      ],
+      "held_replay_high_steps": 8,
+      "histories_and_contact_sensors_cleared": true,
+      "object_attachment": false,
+      "passed": true,
+      "pregrasp_grasp_witness": true,
+      "rand_control": true,
+      "release_drop_min_m": 0.02,
+      "robot_controller": "production low-level policy and IK",
+      "simulator": "Isaac Gym GPU PhysX",
+      "support_replay_high_steps": 3,
+      "table_motion": "production Level02 during replay"
+    },
+    "robot_asset": "b1z1-col/urdf/b1z1.urdf",
+    "seed": 43,
+    "source_num_envs": 512,
+    "table_level": "Level02",
+    "version": "b1z1-sugar-sgs-v1"
+  }
+}

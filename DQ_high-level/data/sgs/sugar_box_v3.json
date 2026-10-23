@@ -1,0 +1,1700 @@
+{
+  "fingerprint": "683871f797e2434df606dbf53084f8ec08c884ad0131659a64b6741e01ab325a",
+  "num_configs": 1536,
+  "metadata": {
+    "construction": {
+      "pregrasp_base_distance_sampling": "uniform before IK and physical filtering",
+      "pregrasp_base_x_distance_range_m": [
+        0.68,
+        0.9
+      ],
+      "pregrasp_base_y_offset_range_m": [
+        -0.015,
+        0.015
+      ]
+    },
+    "coordinate_convention": "existing_reset_tensor_coordinates_no_env_origin_offset",
+    "family_names": [
+      "full_task",
+      "pregrasp",
+      "grasped_before_lift"
+    ],
+    "hold_steps": 15,
+    "lifted_threshold": 0.2,
+    "num_bodies": 28,
+    "num_dofs": 19,
+    "object_name": "sugar_box",
+    "physical_validation": {
+      "accepted_per_family": [
+        512,
+        512,
+        512
+      ],
+      "batches": [
+        {
+          "accepted_totals": [
+            5,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 1,
+          "full_valid": 5,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            8,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 2,
+          "full_valid": 4,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            13,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 3,
+          "full_valid": 7,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            19,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 4,
+          "full_valid": 9,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            24,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 5,
+          "full_valid": 8,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            29,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 6,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            35,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 7,
+          "full_valid": 8,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            38,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 8,
+          "full_valid": 3,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            47,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 9,
+          "full_valid": 10,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            51,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 10,
+          "full_valid": 5,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            55,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 11,
+          "full_valid": 4,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            64,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 12,
+          "full_valid": 11,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            68,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 13,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            72,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 14,
+          "full_valid": 4,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            78,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 15,
+          "full_valid": 8,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            83,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 16,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            91,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 17,
+          "full_valid": 8,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            94,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 18,
+          "full_valid": 3,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            101,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 19,
+          "full_valid": 7,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            108,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 20,
+          "full_valid": 8,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            109,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 21,
+          "full_valid": 2,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            115,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 22,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            124,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 23,
+          "full_valid": 11,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            130,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 24,
+          "full_valid": 7,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            135,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 25,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            140,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 26,
+          "full_valid": 7,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            146,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 27,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            152,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 28,
+          "full_valid": 8,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            159,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 29,
+          "full_valid": 8,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            165,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 30,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            170,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 31,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            174,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 32,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            180,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 33,
+          "full_valid": 9,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            182,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 34,
+          "full_valid": 2,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            191,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 35,
+          "full_valid": 11,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            195,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 36,
+          "full_valid": 4,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            201,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 37,
+          "full_valid": 7,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            204,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 38,
+          "full_valid": 4,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            209,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 39,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            214,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 40,
+          "full_valid": 5,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            219,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 41,
+          "full_valid": 7,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            227,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 42,
+          "full_valid": 9,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            229,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 43,
+          "full_valid": 4,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            235,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 44,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            240,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 45,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            249,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 46,
+          "full_valid": 12,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            255,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 47,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            260,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 48,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            263,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 49,
+          "full_valid": 4,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            268,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 50,
+          "full_valid": 5,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            274,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 51,
+          "full_valid": 10,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            278,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 52,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            282,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 53,
+          "full_valid": 4,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            286,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 54,
+          "full_valid": 5,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            291,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 55,
+          "full_valid": 5,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            292,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 56,
+          "full_valid": 3,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            297,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 57,
+          "full_valid": 5,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            300,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 58,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            304,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 59,
+          "full_valid": 4,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            306,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 60,
+          "full_valid": 2,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            310,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 61,
+          "full_valid": 5,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            314,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 62,
+          "full_valid": 4,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            319,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 63,
+          "full_valid": 8,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            322,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 64,
+          "full_valid": 3,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            328,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 65,
+          "full_valid": 7,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            333,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 66,
+          "full_valid": 5,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            336,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 67,
+          "full_valid": 3,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            340,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 68,
+          "full_valid": 4,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            344,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 69,
+          "full_valid": 5,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            352,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 70,
+          "full_valid": 10,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            355,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 71,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            358,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 72,
+          "full_valid": 3,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            362,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 73,
+          "full_valid": 5,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            364,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 74,
+          "full_valid": 3,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            370,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 75,
+          "full_valid": 7,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            378,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 76,
+          "full_valid": 11,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            382,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 77,
+          "full_valid": 5,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            386,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 78,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            391,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 79,
+          "full_valid": 5,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            396,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 80,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            398,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 81,
+          "full_valid": 2,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            404,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 82,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            411,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 83,
+          "full_valid": 7,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            419,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 84,
+          "full_valid": 9,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            422,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 85,
+          "full_valid": 3,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            430,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 86,
+          "full_valid": 9,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            433,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 87,
+          "full_valid": 3,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            439,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 88,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            444,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 89,
+          "full_valid": 5,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            451,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 90,
+          "full_valid": 7,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            454,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 91,
+          "full_valid": 4,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            458,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 92,
+          "full_valid": 4,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            463,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 93,
+          "full_valid": 5,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            465,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 94,
+          "full_valid": 4,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            468,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 95,
+          "full_valid": 3,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            471,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 96,
+          "full_valid": 3,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            475,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 97,
+          "full_valid": 4,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            481,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 98,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            490,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 99,
+          "full_valid": 10,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            496,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 100,
+          "full_valid": 6,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            501,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 101,
+          "full_valid": 5,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            504,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 102,
+          "full_valid": 3,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            510,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 103,
+          "full_valid": 7,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        },
+        {
+          "accepted_totals": [
+            512,
+            512,
+            512
+          ],
+          "attempted_per_family": 1024,
+          "batch": 104,
+          "full_valid": 4,
+          "pregrasp_grasp_witness": 0,
+          "pregrasp_valid": 0
+        }
+      ],
+      "construction_table_motion": "paused during settling and IK approach/close/lift",
+      "grounded_first_tick_source_and_cross_slot": true,
+      "grounded_initial_states": true,
+      "grounding": {
+        "consecutive_low_steps": 5,
+        "first_tick_min_support_feet": 2,
+        "foot_body_indices": [
+          9,
+          5,
+          17,
+          13
+        ],
+        "foot_radius_m": 0.04,
+        "full_task_max_base_angular_speed_rad_s": 0.15,
+        "full_task_max_base_linear_speed_m_s": 0.05,
+        "full_task_min_first_tick_support_feet": 3,
+        "full_task_min_saved_support_feet": 4,
+        "limits": {
+          "max_base_angular_speed_rad_s": 0.5,
+          "max_base_linear_speed_m_s": 0.15,
+          "max_foot_bottom_m": 0.01,
+          "min_contact_force_z_n": 2.0,
+          "min_foot_bottom_m": -0.003,
+          "min_support_feet": 3
+        }
+      },
+      "held_cross_slot_replay": true,
+      "held_height_range_m": [
+        0.03,
+        0.08
+      ],
+      "held_replay_height_range_m": [
+        0.025,
+        0.09
+      ],
+      "held_replay_high_steps": 8,
+      "histories_and_contact_sensors_cleared": true,
+      "object_attachment": false,
+      "passed": true,
+      "pregrasp_grasp_witness": true,
+      "rand_control": true,
+      "release_drop_min_m": 0.02,
+      "reused_validated_families": {
+        "family_ids": [
+          1,
+          2
+        ],
+        "reason": "Only full-task standing margin tightened; manipulation states unchanged.",
+        "source_fingerprint": "8bbbf27c98c9b5a443c171d70d8799ec6177c7920c287d9fc7eaa7a7d3b257bc",
+        "source_physical_validation": {
+          "accepted_per_family": [
+            512,
+            512,
+            512
+          ],
+          "batches": [
+            {
+              "accepted_totals": [
+                41,
+                26,
+                115
+              ],
+              "attempted_per_family": 1024,
+              "batch": 1,
+              "full_valid": 41,
+              "held_cross_slot": 115,
+              "held_geometry": 255,
+              "held_release": 115,
+              "held_replay": 192,
+              "pregrasp_grasp_witness": 26,
+              "pregrasp_valid": 80
+            },
+            {
+              "accepted_totals": [
+                76,
+                47,
+                200
+              ],
+              "attempted_per_family": 1024,
+              "batch": 2,
+              "full_valid": 35,
+              "held_cross_slot": 86,
+              "held_geometry": 228,
+              "held_release": 85,
+              "held_replay": 141,
+              "pregrasp_grasp_witness": 21,
+              "pregrasp_valid": 79
+            },
+            {
+              "accepted_totals": [
+                118,
+                80,
+                304
+              ],
+              "attempted_per_family": 1024,
+              "batch": 3,
+              "full_valid": 42,
+              "held_cross_slot": 104,
+              "held_geometry": 247,
+              "held_release": 104,
+              "held_replay": 189,
+              "pregrasp_grasp_witness": 33,
+              "pregrasp_valid": 96
+            },
+            {
+              "accepted_totals": [
+                161,
+                105,
+                395
+              ],
+              "attempted_per_family": 1024,
+              "batch": 4,
+              "full_valid": 43,
+              "held_cross_slot": 91,
+              "held_geometry": 235,
+              "held_release": 91,
+              "held_replay": 157,
+              "pregrasp_grasp_witness": 25,
+              "pregrasp_valid": 93
+            },
+            {
+              "accepted_totals": [
+                204,
+                126,
+                484
+              ],
+              "attempted_per_family": 1024,
+              "batch": 5,
+              "full_valid": 43,
+              "held_cross_slot": 89,
+              "held_geometry": 237,
+              "held_release": 89,
+              "held_replay": 161,
+              "pregrasp_grasp_witness": 21,
+              "pregrasp_valid": 88
+            },
+            {
+              "accepted_totals": [
+                245,
+                161,
+                512
+              ],
+              "attempted_per_family": 1024,
+              "batch": 6,
+              "full_valid": 41,
+              "held_cross_slot": 117,
+              "held_geometry": 253,
+              "held_release": 117,
+              "held_replay": 177,
+              "pregrasp_grasp_witness": 35,
+              "pregrasp_valid": 91
+            },
+            {
+              "accepted_totals": [
+                278,
+                185,
+                512
+              ],
+              "attempted_per_family": 1024,
+              "batch": 7,
+              "full_valid": 33,
+              "held_cross_slot": 98,
+              "held_geometry": 238,
+              "held_release": 98,
+              "held_replay": 177,
+              "pregrasp_grasp_witness": 24,
+              "pregrasp_valid": 79
+            },
+            {
+              "accepted_totals": [
+                322,
+                214,
+                512
+              ],
+              "attempted_per_family": 1024,
+              "batch": 8,
+              "full_valid": 44,
+              "held_cross_slot": 92,
+              "held_geometry": 245,
+              "held_release": 92,
+              "held_replay": 162,
+              "pregrasp_grasp_witness": 29,
+              "pregrasp_valid": 91
+            },
+            {
+              "accepted_totals": [
+                366,
+                238,
+                512
+              ],
+              "attempted_per_family": 1024,
+              "batch": 9,
+              "full_valid": 44,
+              "held_cross_slot": 90,
+              "held_geometry": 249,
+              "held_release": 90,
+              "held_replay": 174,
+              "pregrasp_grasp_witness": 24,
+              "pregrasp_valid": 92
+            },
+            {
+              "accepted_totals": [
+                413,
+                262,
+                512
+              ],
+              "attempted_per_family": 1024,
+              "batch": 10,
+              "full_valid": 47,
+              "held_cross_slot": 75,
+              "held_geometry": 209,
+              "held_release": 75,
+              "held_replay": 136,
+              "pregrasp_grasp_witness": 24,
+              "pregrasp_valid": 80
+            },
+            {
+              "accepted_totals": [
+                449,
+                287,
+                512
+              ],
+              "attempted_per_family": 1024,
+              "batch": 11,
+              "full_valid": 36,
+              "held_cross_slot": 94,
+              "held_geometry": 226,
+              "held_release": 94,
+              "held_replay": 160,
+              "pregrasp_grasp_witness": 25,
+              "pregrasp_valid": 79
+            },
+            {
+              "accepted_totals": [
+                490,
+                313,
+                512
+              ],
+              "attempted_per_family": 1024,
+              "batch": 12,
+              "full_valid": 42,
+              "held_cross_slot": 108,
+              "held_geometry": 253,
+              "held_release": 108,
+              "held_replay": 178,
+              "pregrasp_grasp_witness": 26,
+              "pregrasp_valid": 93
+            },
+            {
+              "accepted_totals": [
+                512,
+                343,
+                512
+              ],
+              "attempted_per_family": 1024,
+              "batch": 13,
+              "full_valid": 38,
+              "held_cross_slot": 93,
+              "held_geometry": 233,
+              "held_release": 93,
+              "held_replay": 160,
+              "pregrasp_grasp_witness": 30,
+              "pregrasp_valid": 102
+            },
+            {
+              "accepted_totals": [
+                512,
+                370,
+                512
+              ],
+              "attempted_per_family": 1024,
+              "batch": 14,
+              "full_valid": 42,
+              "held_cross_slot": 90,
+              "held_geometry": 219,
+              "held_release": 90,
+              "held_replay": 150,
+              "pregrasp_grasp_witness": 27,
+              "pregrasp_valid": 82
+            },
+            {
+              "accepted_totals": [
+                512,
+                405,
+                512
+              ],
+              "attempted_per_family": 1024,
+              "batch": 15,
+              "full_valid": 47,
+              "held_cross_slot": 102,
+              "held_geometry": 279,
+              "held_release": 102,
+              "held_replay": 197,
+              "pregrasp_grasp_witness": 35,
+              "pregrasp_valid": 102
+            },
+            {
+              "accepted_totals": [
+                512,
+                432,
+                512
+              ],
+              "attempted_per_family": 1024,
+              "batch": 16,
+              "full_valid": 44,
+              "held_cross_slot": 104,
+              "held_geometry": 253,
+              "held_release": 104,
+              "held_replay": 179,
+              "pregrasp_grasp_witness": 27,
+              "pregrasp_valid": 102
+            },
+            {
+              "accepted_totals": [
+                512,
+                469,
+                512
+              ],
+              "attempted_per_family": 1024,
+              "batch": 17,
+              "full_valid": 35,
+              "held_cross_slot": 99,
+              "held_geometry": 227,
+              "held_release": 99,
+              "held_replay": 151,
+              "pregrasp_grasp_witness": 37,
+              "pregrasp_valid": 92
+            },
+            {
+              "accepted_totals": [
+                512,
+                504,
+                512
+              ],
+              "attempted_per_family": 1024,
+              "batch": 18,
+              "full_valid": 44,
+              "held_cross_slot": 111,
+              "held_geometry": 260,
+              "held_release": 111,
+              "held_replay": 183,
+              "pregrasp_grasp_witness": 35,
+              "pregrasp_valid": 107
+            },
+            {
+              "accepted_totals": [
+                512,
+                512,
+                512
+              ],
+              "attempted_per_family": 1024,
+              "batch": 19,
+              "full_valid": 39,
+              "held_cross_slot": 102,
+              "held_geometry": 260,
+              "held_release": 102,
+              "held_replay": 184,
+              "pregrasp_grasp_witness": 24,
+              "pregrasp_valid": 94
+            }
+          ],
+          "construction_table_motion": "paused during settling and IK approach/close/lift",
+          "grounded_first_tick_source_and_cross_slot": true,
+          "grounded_initial_states": true,
+          "grounding": {
+            "consecutive_low_steps": 5,
+            "first_tick_min_support_feet": 2,
+            "foot_body_indices": [
+              9,
+              5,
+              17,
+              13
+            ],
+            "foot_radius_m": 0.04,
+            "full_task_min_saved_support_feet": 4,
+            "limits": {
+              "max_base_angular_speed_rad_s": 0.5,
+              "max_base_linear_speed_m_s": 0.15,
+              "max_foot_bottom_m": 0.01,
+              "min_contact_force_z_n": 2.0,
+              "min_foot_bottom_m": -0.003,
+              "min_support_feet": 3
+            }
+          },
+          "held_cross_slot_replay": true,
+          "held_height_range_m": [
+            0.03,
+            0.08
+          ],
+          "held_replay_height_range_m": [
+            0.025,
+            0.09
+          ],
+          "held_replay_high_steps": 8,
+          "histories_and_contact_sensors_cleared": true,
+          "object_attachment": false,
+          "passed": true,
+          "pregrasp_grasp_witness": true,
+          "rand_control": true,
+          "release_drop_min_m": 0.02,
+          "robot_controller": "production low-level policy and IK",
+          "simulator": "Isaac Gym GPU PhysX",
+          "support_replay_high_steps": 3,
+          "table_motion": "production Level02 during replay"
+        }
+      },
+      "robot_controller": "production low-level policy and IK",
+      "simulator": "Isaac Gym GPU PhysX",
+      "support_replay_high_steps": 3,
+      "table_motion": "production Level02 during replay"
+    },
+    "robot_asset": "b1z1-col/urdf/b1z1.urdf",
+    "seed": 43,
+    "source_num_envs": 1024,
+    "table_level": "Level02",
+    "version": "b1z1-sugar-sgs-v3"
+  }
+}

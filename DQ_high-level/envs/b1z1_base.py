@@ -119,6 +119,9 @@ class B1Z1Base(RewardVecTask):
         self.control_freq_low_init = self.cfg["env"].get("controlFrequencyLow", 7)
         self.control_freq_low = self.control_freq_low_init
         self.hold_steps = self.cfg["env"].get("holdSteps", 10)
+        self.success_mode = self.cfg["env"].get("successMode", "legacy")
+        if self.success_mode not in ("legacy", "hold"):
+            raise ValueError("successMode must be legacy or hold")
         self.img_delay_frame = self.cfg["env"].get("imgDelayFrame", 5) # 0.08s5
         self.enable_camera = self.cfg["sensor"].get("enableCamera", False)
         self.depth_clip_lower = self.cfg["sensor"].get("depth_clip_lower", 0.15)
@@ -424,7 +427,8 @@ class B1Z1Base(RewardVecTask):
         self.curr_ee_goal_cart = torch.zeros(self.num_envs, 3, device=self.device, dtype=torch.float)
         self.ee_goal_global_cart = torch.zeros(self.num_envs, 3, device=self.device, dtype=torch.float)
         self.curr_ee_goal_orn_rpy = torch.zeros(self.num_envs, 3, device=self.device, dtype=torch.float)
-        self.ee_goal_global_orn_quat = torch.zeros(self.num_envs, 3, device=self.device, dtype=torch.float)
+        self.ee_goal_global_orn_quat = torch.zeros(self.num_envs, 4, device=self.device, dtype=torch.float)
+        self.ee_goal_global_orn_quat[:, 3] = 1.
         self.ee_goal_center_offset = torch.tensor([0.3, 0.0, 0.7], device=self.device).repeat(self.num_envs, 1)
         self.closest_dist = -torch.ones(self.num_envs, device=self.device, dtype=torch.float)
         self.curr_dist = torch.zeros(self.num_envs, device=self.device, dtype=torch.float)
@@ -434,6 +438,9 @@ class B1Z1Base(RewardVecTask):
         self.episode_counter = torch.zeros(self.num_envs, device=self.device, dtype=torch.long) - 1
         self.success_counter = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
         self.success_onetime_counter = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
+        # Per-episode outcomes are committed together with the episode count at reset.
+        self.episode_success = torch.zeros(self.num_envs, device=self.device, dtype=torch.bool)
+        self.episode_onetime_success = torch.zeros(self.num_envs, device=self.device, dtype=torch.bool)
         
         self.reach_counter = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
         self.pick_counter = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
@@ -1078,6 +1085,8 @@ class B1Z1Base(RewardVecTask):
         
         self.reach_counter[env_ids] = 0
         self.pick_counter[env_ids] = 0
+        self.episode_success[env_ids] = False
+        self.episode_onetime_success[env_ids] = False
         
         if self.rand_cmd_scale:
             self.command_scale[env_ids] = torch_rand_float(0.5, 1.0, (len(env_ids),1), device=self.device).squeeze()
@@ -1105,10 +1114,27 @@ class B1Z1Base(RewardVecTask):
     
     def _reset_envs(self, env_ids):
         if len(env_ids) > 0:
+            # The first reset starts an episode; later resets finish one. Read the
+            # outcomes before resetting actors and clearing the per-episode state.
+            completed_env_ids = env_ids[self.episode_counter[env_ids] >= 0]
+            self.success_counter[completed_env_ids] += self.episode_success[completed_env_ids].long()
+            self.success_onetime_counter[completed_env_ids] += self.episode_onetime_success[completed_env_ids].long()
             self.episode_counter[env_ids] += 1
+            if getattr(self, "success_mode", "legacy") == "hold":
+                # Initialize targets before physics/observations in strict eval.
+                # Legacy experiments retain their original reset behavior.
+                self.curr_ee_goal_cart[env_ids] = torch.tensor([0.46, 0., 0.66], device=self.device)
+                self.curr_ee_goal_orn_rpy[env_ids] = torch.tensor([np.pi/2, 0., 0.], device=self.device)
+                self.rand_change_step[env_ids] = torch.randint(40, 60, (len(env_ids),), device=self.device)
             self._reset_actors(env_ids)
             self._reset_env_tensors(env_ids)
             self._refresh_sim_tensors()
+            if getattr(self, "success_mode", "legacy") == "hold":
+                self.update_roboinfo()
+                self.ee_goal_global_cart[env_ids] = quat_apply(
+                    self._robot_root_states[env_ids, 3:7], self.curr_ee_goal_cart[env_ids]) + self.arm_base[env_ids]
+                local_orn = quat_from_euler_xyz(*self.curr_ee_goal_orn_rpy[env_ids].unbind(-1))
+                self.ee_goal_global_orn_quat[env_ids] = quat_mul(self._robot_root_states[env_ids, 3:7], local_orn)
             self._compute_observations(env_ids)
             
             if self.local_step_counter == 0:
@@ -1620,7 +1646,8 @@ class B1Z1Base(RewardVecTask):
         # curr_to_goal = self.curr_ee_goal_cart - curr_ee_pos_local
         # curr_ee_vel_unorm = curr_ee_pos_local - self.last_ee_pos
         # ik_fail = (torch.nn.CosineSimilarity(dim=1, eps=1e-6)(curr_to_goal, curr_ee_vel_unorm) <= 0) & (torch.norm(curr_ee_vel, dim=-1) > 0.02)
-        self.reset_buf[:] = self.timeout_buf | r_term | p_term | z_term | ik_fail
+        self._failure_now = r_term | p_term | z_term | ik_fail
+        self.reset_buf[:] = self.timeout_buf | self._failure_now
         
         self.last_ee_pos = curr_ee_pos_local
 
@@ -1903,8 +1930,19 @@ class B1Z1Base(RewardVecTask):
         actor_root_state_copy[self._table_actor_ids, 3:5]=0.0
         actor_root_state_copy[self._table_actor_ids, 10:12]=0.0
         _table_actor_ids32 = self._table_actor_ids.to(torch.int32)
+        if getattr(self, "_sgs_has_pending_reset", False):
+            reset_ids = self._sgs_pending_reset.nonzero(as_tuple=False).flatten()
+            robot_ids32 = self._robot_actor_ids[reset_ids].to(torch.int32)
+            self.gym.set_dof_state_tensor_indexed(
+                self.sim, gymtorch.unwrap_tensor(self._dof_state),
+                gymtorch.unwrap_tensor(robot_ids32), len(robot_ids32))
+            _table_actor_ids32 = torch.cat((
+                _table_actor_ids32, robot_ids32,
+                self._cube_actor_ids[reset_ids].to(torch.int32)))
+            self._sgs_pending_reset.zero_()
+            self._sgs_has_pending_reset = False
         self.gym.set_actor_root_state_tensor_indexed(self.sim, gymtorch.unwrap_tensor(actor_root_state_copy),
-                                                        gymtorch.unwrap_tensor(_table_actor_ids32), self.num_envs)
+                                                        gymtorch.unwrap_tensor(_table_actor_ids32), len(_table_actor_ids32))
 
 
     def step(self, actions: torch.Tensor) -> Tuple[Dict[str, torch.Tensor], torch.Tensor, torch.Tensor, Dict[str, Any]]:

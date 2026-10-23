@@ -1,0 +1,171 @@
+"""Check configurable reset geometry on CPU/CUDA without starting Isaac Gym."""
+
+from copy import deepcopy
+import math
+from pathlib import Path
+from types import SimpleNamespace
+import unittest
+import xml.etree.ElementTree as ET
+
+import torch
+
+from utils.sgs_bank_builder import PhysicsBankBuilder
+
+
+class BuilderRangeTests(unittest.TestCase):
+    device = "cpu"
+
+    def builder(self, count=1):
+        base = {
+            "x_range_m": [0.68, 0.90],
+            "y_range_m": [-0.015, 0.015],
+            "heading_offset_range_deg": [-2.0, 2.0],
+        }
+        config = {
+            "schema_version": 2,
+            "full_task": {"base": deepcopy(base), "arm_pose": "default"},
+            "pregrasp": {"base": deepcopy(base),
+                         "ee_approach_distance_range_m": [0.05, 0.10]},
+            "at_grasp": {"base": deepcopy(base),
+                         "gripper_opening_range": [0.0, 1.0]},
+        }
+        urdf = Path(__file__).resolve().parents[1] / "data/asset/b1z1-col/urdf/b1z1.urdf"
+        limits = ET.parse(urdf).getroot().find("joint[@name='z1_jointGripper']/limit")
+        env = SimpleNamespace(num_envs=count, device=self.device,
+                              lifted_success_threshold=0.2,
+                              dof_limits_lower=torch.tensor([float(limits.attrib["lower"])],
+                                                            device=self.device),
+                              dof_limits_upper=torch.tensor([float(limits.attrib["upper"])],
+                                                            device=self.device))
+        return PhysicsBankBuilder(env, per_family=1, reset_config=config)
+
+    def state(self, offsets, yaws):
+        """World object-minus-base XY and absolute base yaw, in degrees."""
+        count = len(offsets)
+        obj = torch.zeros(count, 13, device=self.device)
+        obj[:, :3] = torch.tensor([5.0, -3.0, 0.6], device=self.device)
+        obj[:, 6] = 1
+        root = obj.clone()
+        root[:, :2] -= torch.tensor(offsets, device=self.device)
+        angles = torch.deg2rad(torch.tensor(yaws, device=self.device)) / 2
+        root[:, 5] = torch.sin(angles)
+        root[:, 6] = torch.cos(angles)
+        return {"robot_root": root, "object_root": obj}
+
+    def test_sample_range_uses_requested_device_shape_and_signed_bounds(self):
+        builder = self.builder(257)
+        values = builder._sample_range([-0.4, -0.1])
+        self.assertEqual(values.shape, (257,))
+        self.assertEqual(values.device.type, torch.device(self.device).type)
+        self.assertTrue(bool(((values >= -0.4) & (values <= -0.1)).all()))
+        self.assertGreater(values.unique().numel(), 1)
+
+    def test_fixed_sampling_keeps_the_fixed_target(self):
+        values = self.builder(19)._sample_range([0.73, 0.73])
+        self.assertTrue(torch.equal(values, torch.full_like(values, 0.73)))
+
+    def test_opening_sampling_accepts_closed_open_and_partial_ranges(self):
+        builder = self.builder(257)
+        for bounds in ([0., 0.], [1., 1.], [.2, .8]):
+            with self.subTest(bounds=bounds):
+                values = builder._sample_range(bounds)
+                self.assertTrue(bool(((values >= bounds[0]) & (values <= bounds[1])).all()))
+                if bounds[0] == bounds[1]:
+                    self.assertTrue(torch.equal(values, torch.full_like(values, bounds[0])))
+                else:
+                    self.assertGreater(values.unique().numel(), 1)
+
+    def test_opening_to_joint_uses_b1_closed_and_open_urdf_limits(self):
+        opening = torch.tensor([0., .25, .5, .75, 1.], device=self.device)
+        actual = self.builder(5)._opening_to_joint(opening)
+        expected = torch.tensor([0., -math.pi / 8, -math.pi / 4,
+                                 -3 * math.pi / 8, -math.pi / 2], device=self.device)
+        torch.testing.assert_close(actual, expected)
+        self.assertEqual(actual.device, opening.device)
+
+    def test_joint_to_opening_recovers_b1_closed_partial_and_open_values(self):
+        joints = torch.tensor([0., -math.pi / 8, -math.pi / 4,
+                               -3 * math.pi / 8, -math.pi / 2], device=self.device)
+        actual = self.builder(5)._joint_to_opening(joints)
+        expected = torch.tensor([0., .25, .5, .75, 1.], device=self.device)
+        torch.testing.assert_close(actual, expected)
+        self.assertEqual(actual.device, joints.device)
+
+    def test_finite_width_intervals_have_no_five_millimeter_padding(self):
+        values = torch.tensor([0.049, 0.05, 0.075, 0.10, 0.101], device=self.device)
+        accepted = self.builder()._in_range(values, [0.05, 0.10])
+        self.assertEqual(accepted.tolist(), [False, True, True, True, False])
+
+    def test_fixed_distance_allows_only_documented_physical_tolerance(self):
+        values = torch.tensor([1.994, 1.996, 2.0, 2.004, 2.006], device=self.device)
+        self.assertEqual(self.builder()._in_range(values, [2.0, 2.0]).tolist(),
+                         [False, True, True, True, False])
+
+    def test_signed_world_xy_is_not_radial_distance_or_robot_frame(self):
+        state = self.state([(0.8, 0.3), (0.8, -0.3), (-0.8, 0.3), (0.7, 0.3)],
+                           [45.0] * 4)
+        base = {"x_range_m": [0.79, 0.81], "y_range_m": [0.29, 0.31],
+                "heading_offset_range_deg": [-180.0, 180.0]}
+        self.assertEqual(self.builder()._base_in_range(state, base).tolist(),
+                         [True, False, False, False])
+
+    def test_heading_is_relative_to_object_bearing_not_world_x(self):
+        state = self.state([(1.0, 1.0)] * 3, [45.0, 0.0, 55.0])
+        base = {"x_range_m": [1.0, 1.0], "y_range_m": [1.0, 1.0],
+                "heading_offset_range_deg": [-0.5, 0.5]}
+        self.assertEqual(self.builder()._base_in_range(state, base).tolist(),
+                         [True, False, False])
+
+    def test_positive_heading_offset_means_counterclockwise(self):
+        state = self.state([(1.0, -1.0)] * 3, [-35.0, -55.0, -45.0])
+        base = {"x_range_m": [1.0, 1.0], "y_range_m": [-1.0, -1.0],
+                "heading_offset_range_deg": [9.0, 11.0]}
+        self.assertEqual(self.builder()._base_in_range(state, base).tolist(),
+                         [True, False, False])
+
+    def test_heading_wraps_across_absolute_yaw_branch_cut(self):
+        angle = math.radians(179.0)
+        offset = (math.cos(angle), math.sin(angle))
+        state = self.state([offset, offset], [-179.0, 177.0])
+        base = {"x_range_m": [-1.01, -0.99], "y_range_m": [0.01, 0.03],
+                "heading_offset_range_deg": [1.5, 2.5]}
+        self.assertEqual(self.builder()._base_in_range(state, base).tolist(),
+                         [True, False])
+
+    def test_fixed_opposite_heading_has_circular_one_degree_tolerance(self):
+        state = self.state([(1.0, 0.0)] * 4, [180.0, -179.5, 179.5, 178.5])
+        for target in (-180.0, 180.0):
+            with self.subTest(target=target):
+                base = {"x_range_m": [1.0, 1.0], "y_range_m": [0.0, 0.0],
+                        "heading_offset_range_deg": [target, target]}
+                self.assertEqual(self.builder()._base_in_range(state, base).tolist(),
+                                 [True, True, True, False])
+
+    def test_upper_180_boundary_accepts_equivalent_minus_180(self):
+        state = self.state([(1.0, 0.0)] * 3, [-180.0, 179.5, -179.5])
+        base = {"x_range_m": [1.0, 1.0], "y_range_m": [0.0, 0.0],
+                "heading_offset_range_deg": [170.0, 180.0]}
+        self.assertEqual(self.builder()._base_in_range(state, base).tolist(),
+                         [True, True, False])
+
+    def test_geometry_checks_do_not_mutate_saved_state_or_config(self):
+        state = self.state([(1.0, 1.0), (1.0, -1.0)], [45.0, -45.0])
+        before = {key: value.clone() for key, value in state.items()}
+        base = {"x_range_m": [0.9, 1.1], "y_range_m": [-1.1, 1.1],
+                "heading_offset_range_deg": [-2.0, 2.0]}
+        base_before = deepcopy(base)
+        result = self.builder()._base_in_range(state, base)
+        self.assertEqual(result.tolist(), [True, True])
+        self.assertEqual(result.dtype, torch.bool)
+        for key in before:
+            self.assertTrue(torch.equal(before[key], state[key]))
+        self.assertEqual(base, base_before)
+
+
+@unittest.skipUnless(torch.cuda.is_available(), "CUDA unavailable")
+class BuilderRangeCudaTests(BuilderRangeTests):
+    device = "cuda:0"
+
+
+if __name__ == "__main__":
+    unittest.main()

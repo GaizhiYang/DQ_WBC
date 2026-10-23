@@ -1,0 +1,241 @@
+{
+  "fingerprint": "598653389f924584dac7a428cc2ae7e68b0028a1af45611f3f9d8b46f66348b1",
+  "num_configs": 1536,
+  "metadata": {
+    "construction": {
+      "at_grasp_angle_tolerance_rad": 0.1,
+      "at_grasp_position_tolerance_m": 0.005,
+      "base_displacement": "object world XY minus robot root world XY",
+      "gripper_opening": "0=closed upper joint limit, 1=open lower joint limit",
+      "heading_offset": "robot yaw minus bearing to object, degrees",
+      "reset_config": {
+        "at_grasp": {
+          "base": {
+            "heading_offset_range_deg": [
+              -1.4324,
+              1.4324
+            ],
+            "x_range_m": [
+              0.68,
+              0.85
+            ],
+            "y_range_m": [
+              -0.1,
+              0.1
+            ]
+          },
+          "gripper_opening_range": [
+            0.5,
+            1.0
+          ]
+        },
+        "full_task": {
+          "arm_pose": "default",
+          "base": {
+            "heading_offset_range_deg": [
+              -9.1673,
+              9.1673
+            ],
+            "x_range_m": [
+              2.0,
+              2.0
+            ],
+            "y_range_m": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "pregrasp": {
+          "base": {
+            "heading_offset_range_deg": [
+              -1.4324,
+              1.4324
+            ],
+            "x_range_m": [
+              0.68,
+              0.95
+            ],
+            "y_range_m": [
+              -0.2,
+              0.2
+            ]
+          },
+          "ee_approach_distance_range_m": [
+            0.05,
+            0.15
+          ]
+        },
+        "schema_version": 2
+      },
+      "sampling": "uniform geometry targets followed by IK and basic physics filtering",
+      "singleton_heading_tolerance_deg": 1.0,
+      "singleton_position_tolerance_m": 0.005
+    },
+    "coordinate_convention": "existing_reset_tensor_coordinates_no_env_origin_offset",
+    "family_names": [
+      "full_task",
+      "pregrasp",
+      "at_grasp"
+    ],
+    "hold_steps": 15,
+    "lifted_threshold": 0.2,
+    "num_bodies": 28,
+    "num_dofs": 19,
+    "object_name": "sugar_box",
+    "physical_validation": {
+      "accepted_per_family": [
+        512,
+        512,
+        512
+      ],
+      "batches": [
+        {
+          "accepted_this_batch": [
+            512,
+            71,
+            274
+          ],
+          "accepted_totals": [
+            512,
+            71,
+            274
+          ],
+          "batch": 1,
+          "batch_seconds": 0.717,
+          "batch_size": 1024,
+          "elapsed_seconds": 0.717
+        },
+        {
+          "accepted_this_batch": [
+            0,
+            77,
+            238
+          ],
+          "accepted_totals": [
+            512,
+            148,
+            512
+          ],
+          "batch": 2,
+          "batch_seconds": 0.615,
+          "batch_size": 1024,
+          "elapsed_seconds": 1.333
+        },
+        {
+          "accepted_this_batch": [
+            0,
+            83,
+            0
+          ],
+          "accepted_totals": [
+            512,
+            231,
+            512
+          ],
+          "batch": 3,
+          "batch_seconds": 0.336,
+          "batch_size": 1024,
+          "elapsed_seconds": 1.669
+        },
+        {
+          "accepted_this_batch": [
+            0,
+            93,
+            0
+          ],
+          "accepted_totals": [
+            512,
+            324,
+            512
+          ],
+          "batch": 4,
+          "batch_seconds": 0.323,
+          "batch_size": 1024,
+          "elapsed_seconds": 1.992
+        },
+        {
+          "accepted_this_batch": [
+            0,
+            70,
+            0
+          ],
+          "accepted_totals": [
+            512,
+            394,
+            512
+          ],
+          "batch": 5,
+          "batch_seconds": 0.32,
+          "batch_size": 1024,
+          "elapsed_seconds": 2.312
+        },
+        {
+          "accepted_this_batch": [
+            0,
+            77,
+            0
+          ],
+          "accepted_totals": [
+            512,
+            471,
+            512
+          ],
+          "batch": 6,
+          "batch_seconds": 0.32,
+          "batch_size": 1024,
+          "elapsed_seconds": 2.632
+        },
+        {
+          "accepted_this_batch": [
+            0,
+            41,
+            0
+          ],
+          "accepted_totals": [
+            512,
+            512,
+            512
+          ],
+          "batch": 7,
+          "batch_seconds": 0.323,
+          "batch_size": 1024,
+          "elapsed_seconds": 2.956
+        }
+      ],
+      "collision_check": {
+        "grasp_contact_limit_n": 250.0,
+        "method": "joint limits, one PhysX tick, non-grasp contact forces and object support",
+        "non_grasp_contact_limit_n": 5.0
+      },
+      "collision_checked": true,
+      "cross_slot_rollout_required": false,
+      "feet_near_ground": true,
+      "grounding": {
+        "foot_body_indices": [
+          9,
+          5,
+          17,
+          13
+        ],
+        "foot_radius_m": 0.04,
+        "limits": {
+          "max_foot_bottom_m": 0.02,
+          "min_foot_bottom_m": -0.005
+        }
+      },
+      "object_attachment": false,
+      "passed": true,
+      "physics_ticks_per_pose_check": 1,
+      "scripted_grasp_required": false,
+      "simulator": "Isaac Gym GPU PhysX",
+      "stable_standing_required": false,
+      "validation_profile": "geometry_v1"
+    },
+    "robot_asset": "b1z1-col/urdf/b1z1.urdf",
+    "seed": 43,
+    "source_num_envs": 1024,
+    "table_level": "Level02",
+    "version": "b1z1-sugar-sgs-v5"
+  }
+}

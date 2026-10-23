@@ -21,6 +21,17 @@ env:
   holdSteps: 15
   lastCommands: False
   noVelocityObs: False # Set --no_velocity_obs to remove 3D robot + 2D relative object velocity
+  successMode: legacy # hold keeps the 15-step success criterion during evaluation
+  sgs:
+    mode: disabled # disabled / uniform / sgs; enabled modes require a validated bank
+    bank_path: ""
+    bank_size: 1536 # Three reset families, 512 configurations each
+    history_size: 100
+    target_success: 0.5
+    kappa: 1.0
+    temperature: 2.0
+    epsilon: 0.0001
+    p_init: 0.0
 
   low_policy_path: "/home/hehui/DQ_WBC/DQ_high-level/data/low_model/model_44000.pt" 
   taskddescription: "023"

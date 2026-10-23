@@ -1,0 +1,271 @@
+{
+  "fingerprint": "3d334ddad4fda3e6ade1a271d0a9f48f6446363aaddd5659146ed075031a13d6",
+  "num_configs": 1536,
+  "metadata": {
+    "construction": {
+      "pregrasp_base_distance_sampling": "uniform before IK and physical filtering",
+      "pregrasp_base_x_distance_range_m": [
+        0.68,
+        0.9
+      ],
+      "pregrasp_base_y_offset_range_m": [
+        -0.015,
+        0.015
+      ]
+    },
+    "coordinate_convention": "existing_reset_tensor_coordinates_no_env_origin_offset",
+    "family_names": [
+      "full_task",
+      "pregrasp",
+      "grasped_before_lift"
+    ],
+    "hold_steps": 15,
+    "lifted_threshold": 0.2,
+    "num_bodies": 28,
+    "num_dofs": 19,
+    "object_name": "sugar_box",
+    "physical_validation": {
+      "accepted_per_family": [
+        512,
+        512,
+        512
+      ],
+      "batches": [
+        {
+          "accepted_totals": [
+            512,
+            40,
+            70
+          ],
+          "attempted_per_family": 512,
+          "batch": 1,
+          "full_valid": 512,
+          "held_cross_slot": 70,
+          "held_geometry": 160,
+          "held_release": 70,
+          "held_replay": 111,
+          "pregrasp_grasp_witness": 40,
+          "pregrasp_valid": 132
+        },
+        {
+          "accepted_totals": [
+            512,
+            72,
+            128
+          ],
+          "attempted_per_family": 512,
+          "batch": 2,
+          "full_valid": 500,
+          "held_cross_slot": 58,
+          "held_geometry": 172,
+          "held_release": 58,
+          "held_replay": 107,
+          "pregrasp_grasp_witness": 32,
+          "pregrasp_valid": 135
+        },
+        {
+          "accepted_totals": [
+            512,
+            118,
+            199
+          ],
+          "attempted_per_family": 512,
+          "batch": 3,
+          "full_valid": 500,
+          "held_cross_slot": 71,
+          "held_geometry": 185,
+          "held_release": 71,
+          "held_replay": 126,
+          "pregrasp_grasp_witness": 46,
+          "pregrasp_valid": 150
+        },
+        {
+          "accepted_totals": [
+            512,
+            151,
+            259
+          ],
+          "attempted_per_family": 512,
+          "batch": 4,
+          "full_valid": 497,
+          "held_cross_slot": 60,
+          "held_geometry": 150,
+          "held_release": 60,
+          "held_replay": 99,
+          "pregrasp_grasp_witness": 33,
+          "pregrasp_valid": 136
+        },
+        {
+          "accepted_totals": [
+            512,
+            191,
+            330
+          ],
+          "attempted_per_family": 512,
+          "batch": 5,
+          "full_valid": 508,
+          "held_cross_slot": 71,
+          "held_geometry": 178,
+          "held_release": 71,
+          "held_replay": 118,
+          "pregrasp_grasp_witness": 40,
+          "pregrasp_valid": 144
+        },
+        {
+          "accepted_totals": [
+            512,
+            235,
+            394
+          ],
+          "attempted_per_family": 512,
+          "batch": 6,
+          "full_valid": 503,
+          "held_cross_slot": 64,
+          "held_geometry": 146,
+          "held_release": 64,
+          "held_replay": 103,
+          "pregrasp_grasp_witness": 44,
+          "pregrasp_valid": 140
+        },
+        {
+          "accepted_totals": [
+            512,
+            275,
+            455
+          ],
+          "attempted_per_family": 512,
+          "batch": 7,
+          "full_valid": 508,
+          "held_cross_slot": 61,
+          "held_geometry": 172,
+          "held_release": 61,
+          "held_replay": 106,
+          "pregrasp_grasp_witness": 40,
+          "pregrasp_valid": 155
+        },
+        {
+          "accepted_totals": [
+            512,
+            310,
+            512
+          ],
+          "attempted_per_family": 512,
+          "batch": 8,
+          "full_valid": 502,
+          "held_cross_slot": 62,
+          "held_geometry": 156,
+          "held_release": 62,
+          "held_replay": 102,
+          "pregrasp_grasp_witness": 35,
+          "pregrasp_valid": 156
+        },
+        {
+          "accepted_totals": [
+            512,
+            347,
+            512
+          ],
+          "attempted_per_family": 512,
+          "batch": 9,
+          "full_valid": 505,
+          "held_cross_slot": 62,
+          "held_geometry": 182,
+          "held_release": 62,
+          "held_replay": 119,
+          "pregrasp_grasp_witness": 37,
+          "pregrasp_valid": 174
+        },
+        {
+          "accepted_totals": [
+            512,
+            382,
+            512
+          ],
+          "attempted_per_family": 512,
+          "batch": 10,
+          "full_valid": 507,
+          "held_cross_slot": 61,
+          "held_geometry": 153,
+          "held_release": 61,
+          "held_replay": 101,
+          "pregrasp_grasp_witness": 35,
+          "pregrasp_valid": 134
+        },
+        {
+          "accepted_totals": [
+            512,
+            430,
+            512
+          ],
+          "attempted_per_family": 512,
+          "batch": 11,
+          "full_valid": 504,
+          "held_cross_slot": 71,
+          "held_geometry": 180,
+          "held_release": 71,
+          "held_replay": 111,
+          "pregrasp_grasp_witness": 48,
+          "pregrasp_valid": 151
+        },
+        {
+          "accepted_totals": [
+            512,
+            474,
+            512
+          ],
+          "attempted_per_family": 512,
+          "batch": 12,
+          "full_valid": 502,
+          "held_cross_slot": 74,
+          "held_geometry": 170,
+          "held_release": 74,
+          "held_replay": 116,
+          "pregrasp_grasp_witness": 44,
+          "pregrasp_valid": 129
+        },
+        {
+          "accepted_totals": [
+            512,
+            512,
+            512
+          ],
+          "attempted_per_family": 512,
+          "batch": 13,
+          "full_valid": 503,
+          "held_cross_slot": 55,
+          "held_geometry": 164,
+          "held_release": 55,
+          "held_replay": 111,
+          "pregrasp_grasp_witness": 41,
+          "pregrasp_valid": 158
+        }
+      ],
+      "construction_table_motion": "paused for IK approach/close/lift only",
+      "held_cross_slot_replay": true,
+      "held_height_range_m": [
+        0.03,
+        0.08
+      ],
+      "held_replay_height_range_m": [
+        0.025,
+        0.09
+      ],
+      "held_replay_high_steps": 8,
+      "histories_and_contact_sensors_cleared": true,
+      "object_attachment": false,
+      "passed": true,
+      "pregrasp_grasp_witness": true,
+      "rand_control": true,
+      "release_drop_min_m": 0.02,
+      "robot_controller": "production low-level policy and IK",
+      "simulator": "Isaac Gym GPU PhysX",
+      "support_replay_high_steps": 3,
+      "table_motion": "production Level02 during replay"
+    },
+    "robot_asset": "b1z1-col/urdf/b1z1.urdf",
+    "seed": 43,
+    "source_num_envs": 512,
+    "table_level": "Level02",
+    "version": "b1z1-sugar-sgs-v2"
+  }
+}

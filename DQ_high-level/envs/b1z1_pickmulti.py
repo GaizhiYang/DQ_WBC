@@ -37,6 +37,197 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.table_heights_fix = table_height
         self.total_timesteps = args.timesteps
         self.train_reward_strict = args.timesteps / 2
+        self._init_sgs()
+
+    def _init_sgs(self):
+        """Load one immutable bank; all online sampler state stays on the GPU."""
+        from utils.sgs import ConfigurationBank, SGSSampler
+
+        cfg = self.cfg["env"].get("sgs", {})
+        self.sgs_enabled = cfg.get("mode", "disabled") != "disabled"
+        if not self.sgs_enabled:
+            return
+        if len(self.obj_list) != 1 or self.table_level != "Level02":
+            raise ValueError("SGS requires a single object and Level02")
+        if self.enable_camera or self.floating_base or self.obj_move_prob:
+            raise ValueError("SGS requires the nonvisual walking teacher and obj_move_prob=0")
+        if self.success_mode != "hold":
+            raise ValueError("Bank training requires successMode=hold")
+        self.sgs_bank = ConfigurationBank.load(
+            cfg.get("bank_path", ""), device=self.device,
+            expected_metadata={
+                "object_name": self.obj_list[0],
+                "robot_asset": self.cfg["env"]["asset"]["assetFileRobot"],
+                "num_dofs": self.num_dofs,
+                "num_bodies": self._rigid_body_pos.shape[1],
+                "hold_steps": self.hold_steps,
+                "lifted_threshold": self.lifted_success_threshold,
+                "table_level": "Level02",
+                "family_names": ["full_task", "pregrasp", "at_grasp"],
+                "physical_validation": {
+                    "passed": True, "validation_profile": "geometry_v1",
+                    "feet_near_ground": True, "collision_checked": True,
+                    "object_attachment": False,
+                },
+            })
+        if not self.sgs_bank.metadata.get("physical_validation", {}).get("passed", False):
+            raise ValueError("The SGS bank must pass offline physical validation")
+        if self.sgs_bank.num_configs != cfg.get("bank_size", 1536):
+            raise ValueError("SGS bank_size does not match the loaded bank")
+        families = torch.bincount(self.sgs_bank.tensors["family_id"], minlength=3)
+        if not bool(((families > 0) & (families == self.sgs_bank.num_configs // 3)).all()):
+            raise ValueError("SGS requires equal nonempty full_task/pregrasp/at_grasp families")
+        self.sgs_sampler = SGSSampler(
+            self.sgs_bank.num_configs, history_size=cfg.get("history_size", 100),
+            target_success_rate=cfg.get("target_success", 0.5),
+            concentration=cfg.get("kappa", 1.0), temperature=cfg.get("temperature", 2.0),
+            epsilon=cfg.get("epsilon", 1e-4), p_init=cfg.get("p_init", 0.0),
+            seed=self.cfg.get("seed", 43), device=self.device, mode=cfg["mode"])
+        self.active_config_id = torch.full((self.num_envs,), -1, dtype=torch.long, device=self.device)
+        self._sgs_pending_done = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        self._sgs_pending_reset = torch.zeros_like(self._sgs_pending_done)
+        self._sgs_has_pending_reset = False
+        self._sgs_natural_reset = False
+        self.sgs_family_episodes = torch.zeros(3, dtype=torch.long, device=self.device)
+        self.sgs_family_successes = torch.zeros(3, dtype=torch.long, device=self.device)
+        self.sgs_family_samples = torch.zeros(3, dtype=torch.long, device=self.device)
+        self.sgs_aborted = torch.zeros((), dtype=torch.long, device=self.device)
+        print("SGS bank:", self.sgs_bank.num_configs, "configurations;",
+              self.sgs_bank.fingerprint, "; device:", self.device)
+
+    def reset(self):
+        # Trainer reset() follows a real terminal transition. Direct reset_idx()
+        # cancels a trial and must not add a fabricated failure to its history.
+        if not getattr(self, "sgs_enabled", False):
+            return super().reset()
+        self._sgs_natural_reset = True
+        try:
+            return super().reset()
+        finally:
+            self._sgs_natural_reset = False
+
+    def _reset_sgs_envs(self, env_ids):
+        if len(env_ids) == 0:
+            return
+        old_ids = self.active_config_id[env_ids]
+        started = old_ids >= 0
+        completed = started & self._sgs_pending_done[env_ids] & self._sgs_natural_reset
+        done_envs, done_ids = env_ids[completed], old_ids[completed]
+        successes = self.episode_success[done_envs]
+        self.sgs_sampler.observe(done_ids, successes, step=self.global_step_counter)
+        done_families = self.sgs_bank.tensors["family_id"][done_ids]
+        self.sgs_family_episodes.scatter_add_(0, done_families, torch.ones_like(done_ids))
+        self.sgs_family_successes.scatter_add_(0, done_families, successes.long())
+        self.sgs_aborted += (started & ~completed).sum()
+        self.success_counter[done_envs] += successes.long()
+        self.success_onetime_counter[done_envs] += self.episode_onetime_success[done_envs].long()
+        self.episode_counter[env_ids] = self.episode_counter[env_ids].clamp_min(0)
+        self.episode_counter[done_envs] += 1
+        self.episode_step_sum[done_envs] += self.one_epoch_step[done_envs]
+        self.one_epoch_step[env_ids] = 0
+
+        new_ids = self.sgs_sampler.sample(len(env_ids))
+        self.active_config_id[env_ids] = new_ids
+        self._sgs_pending_done[env_ids] = False
+        state = self.sgs_bank.batch(new_ids)
+        self.sgs_family_samples.scatter_add_(0, state["family_id"], torch.ones_like(new_ids))
+
+        # Only clear episode/controller history. Do not invoke the old reset's
+        # global simulate(): an asynchronous reset must not advance other trials.
+        B1Z1Base._reset_env_tensors(self, env_ids)
+        for name in ("actions", "gait_indices", "clock_inputs", "gait_wait_timer",
+                     "is_walking", "low_obs_history_buf", "action_data_history_buf",
+                     "states_history_buf", "timeout_buf", "foot_contacts_from_sensor",
+                     "force_sensor_tensor", "_contact_forces"):
+            value = getattr(self, name, None)
+            if value is not None:
+                value[env_ids] = 0
+        if "table_change_interval" in state:
+            self.rand_change_step[env_ids] = state["table_change_interval"].long()
+        else:
+            self.rand_change_step[env_ids] = torch.randint(40, 60, (len(env_ids),), device=self.device)
+        self.surpass_dist_flag[env_ids] = True
+        self.lifted_object[env_ids] = False
+        self.lifted_now[env_ids] = False
+
+        self._robot_root_states[env_ids] = state["robot_root"]
+        self._table_root_states[env_ids] = state["table_root"]
+        self._cube_root_states[env_ids] = state["object_root"]
+        self._dof_pos[env_ids] = state["dof_pos"]
+        self._dof_vel[env_ids] = state["dof_vel"]
+        self._last_dof_vel[env_ids] = state["dof_vel"]
+        self.curr_ee_goal_cart[env_ids] = state["ee_goal_cart"]
+        self.curr_ee_goal_orn_rpy[env_ids] = state["ee_goal_orn_rpy"]
+        self.gripper_dof_pos[env_ids] = state["gripper_target"]
+        self.gripper_dof_vel[env_ids] = 0
+        self.table_heights[env_ids] = state["table_height"]
+        self.table_commands[env_ids] = 0
+        self.table_commands[env_ids, 4] = state["table_height"] - self.table_dimz / 2
+        self.vel_line_forward_y_level02[env_ids] = state["table_vy"]
+        self.lin_circle_select[env_ids] = state["rotation_enabled"]
+        self.vel_angular_yaw[env_ids] = state["table_yaw_rate"]
+        # Isaac Gym GPU permits one call per state setter between simulate()
+        # calls. The next table-control upload commits these roots and DOFs in
+        # one batch; otherwise its table-only upload can discard this reset.
+        self._sgs_pending_reset[env_ids] = True
+        self._sgs_has_pending_reset = True
+        # Isaac Gym updates forward kinematics at simulate(). Restore validated
+        # caches for the first observation and first IK call, without stepping.
+        self._rigid_body_state.view(self.num_envs, -1, 13)[env_ids] = state["rigid_body_state"]
+        self.ee_j_eef[env_ids] = state["ee_jacobian"]
+        self._update_base_yaw_quat()
+        self.update_roboinfo()
+        self.last_ee_pos[env_ids] = quat_rotate_inverse(
+            self._robot_root_states[env_ids, 3:7], self.ee_pos[env_ids] - self.arm_base[env_ids])
+        self.ee_goal_global_cart[env_ids] = quat_apply(
+            self._robot_root_states[env_ids, 3:7], state["ee_goal_cart"]) + self.arm_base[env_ids]
+        local_orn = quat_from_euler_xyz(*state["ee_goal_orn_rpy"].unbind(-1))
+        self.ee_goal_global_orn_quat[env_ids] = quat_mul(
+            self._robot_root_states[env_ids, 3:7], local_orn)
+        self.curr_dist[env_ids] = torch.norm(self.ee_pos[env_ids] - state["object_root"][:, :3], dim=-1)
+        self.closest_dist[env_ids] = self.curr_dist[env_ids]
+        self.curr_height[env_ids] = state["object_root"][:, 2] - state["table_height"] - self.init_height[env_ids]
+        self.highest_object[env_ids] = self.curr_height[env_ids]
+        self._compute_observations(env_ids)
+        self._record_sgs_metrics()
+
+    def _record_sgs_metrics(self):
+        metrics = self.sgs_sampler.metrics(
+            step=self.global_step_counter, family_id=self.sgs_bank.tensors["family_id"])
+        for i, name in enumerate(("full_task", "pregrasp", "at_grasp")):
+            metrics["success_" + name] = self.sgs_family_successes[i] / self.sgs_family_episodes[i].clamp_min(1)
+            metrics["sample_fraction_" + name] = self.sgs_family_samples[i] / self.sgs_family_samples.sum().clamp_min(1)
+            metrics["episodes_" + name] = self.sgs_family_episodes[i]
+        metrics["aborted"] = self.sgs_aborted
+        self.extras["SGS"] = metrics
+        # The vendored logger consumes only success_rate. Copy scalar metrics
+        # in one transfer rather than converting each CUDA scalar separately.
+        values = torch.stack([value.float() for value in metrics.values()]).detach().cpu().tolist()
+        self.extras.setdefault("success_rate", {}).update(
+            {"SGS / " + name: value for name, value in zip(metrics, values)})
+
+    def save_sgs_diagnostics(self, path):
+        """Export per-configuration statistics; this is not a training resume."""
+        if not getattr(self, "sgs_enabled", False):
+            return
+        from pathlib import Path
+        output = Path(path)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        torch.save({
+            "kind": "sgs_diagnostics_not_training_resume",
+            "global_step": self.global_step_counter,
+            "bank_fingerprint": self.sgs_bank.fingerprint,
+            "bank_metadata": self.sgs_bank.metadata,
+            "mode": self.sgs_sampler.mode,
+            "family_id": self.sgs_bank.tensors["family_id"].cpu(),
+            "success_rate": self.sgs_sampler.success_rates().cpu(),
+            "history_count": self.sgs_sampler.count.cpu(),
+            "visits_total": self.sgs_sampler.visits_total.cpu(),
+            "probability": self.sgs_sampler.probabilities().cpu(),
+            "family_samples": self.sgs_family_samples.cpu(),
+            "family_episodes": self.sgs_family_episodes.cpu(),
+            "family_successes": self.sgs_family_successes.cpu(),
+        }, output)
 
     def update_roboinfo(self):
         super().update_roboinfo()
@@ -350,6 +541,10 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
 
             
     def _reset_envs(self, env_ids):
+        if getattr(self, "sgs_enabled", False):
+            self._reset_sgs_envs(env_ids)
+            self._record_single_object_success()
+            return
         super()._reset_envs(env_ids)
         if len(env_ids) > 0:
             if len(self.obj_list) == 1:
@@ -548,6 +743,23 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
                                                     gymtorch.unwrap_tensor(robot_ids_int32), len(robot_ids_int64))
         self.gym.set_actor_root_state_tensor_indexed(self.sim, gymtorch.unwrap_tensor(self._root_states),
                                                         gymtorch.unwrap_tensor(multi_ids_int32), len(multi_ids_int64))
+        if self.success_mode == "hold":
+            # Strict evaluation restarts original tasks independently of the
+            # preceding policy's joint targets and leg effort.
+            self.gripper_dof_pos[env_ids] = self.dof_pos_gripper[env_ids]
+            targets = self._dof_pos.contiguous()
+            forces = torch.zeros_like(targets)
+            self.gym.set_dof_position_target_tensor_indexed(
+                self.sim, gymtorch.unwrap_tensor(targets),
+                gymtorch.unwrap_tensor(robot_ids_int32), len(robot_ids_int32))
+            self.gym.set_dof_actuation_force_tensor_indexed(
+                self.sim, gymtorch.unwrap_tensor(forces),
+                gymtorch.unwrap_tensor(robot_ids_int32), len(robot_ids_int32))
+            for name in ("gait_indices", "clock_inputs", "gait_wait_timer", "is_walking",
+                         "low_obs_history_buf"):
+                value = getattr(self, name, None)
+                if value is not None:
+                    value[env_ids] = 0
         self.gym.simulate(self.sim)
         self._refresh_sim_tensors()
         self.render()
@@ -692,6 +904,8 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
 
         self.extras["lifted_now"] = self.lifted_now.unsqueeze(-1)*2-1 # This is for the lifted results from the last step, exactly what we want. Lifted = 1, unlifted = -1
         res = super().step(actions)
+        if getattr(self, "sgs_enabled", False):
+            self._sgs_pending_done.copy_(self.reset_buf.bool())
 
         pred_lift = actions[...,-1] > 0
         if self.pred_success and (actions.shape[-1] == (self.action_space.shape[-1]+1)):
@@ -713,12 +927,15 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         box_pos = self._cube_root_states[:, :3]
         d1 = torch.norm(box_pos - self.ee_pos, dim=-1)
         self.lifted_now = torch.logical_and((cube_height - self.table_heights) > (0.03 / 2 + self.lifted_success_threshold), d1 < 0.2)
-        self.reset_buf = torch.where(~self.lifted_now & self.lifted_object, torch.ones_like(self.reset_buf), self.reset_buf) # reset the dropped envs
+        dropped = ~self.lifted_now & self.lifted_object
+        self._failure_now |= dropped
+        self.reset_buf = torch.where(dropped, torch.ones_like(self.reset_buf), self.reset_buf) # reset the dropped envs
         self.lifted_object = torch.logical_and((cube_height - self.table_heights - self.init_height) > (self.lifted_success_threshold), d1 < 0.2)
 
         z_cube = self._cube_root_states[:, 2]
         # cube_falls = (z_cube < (self.table_heights + 0.03 / 2 - 0.05))
         cube_falls = z_cube+0.015 < self.table_heights # Fall or model glitch
+        self._failure_now |= cube_falls
         self.reset_buf[:] = self.reset_buf | cube_falls
         
         if self.enable_camera and self.cfg["env"].get("cameraVisibilityReset", True):
@@ -732,6 +949,7 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             too_close_table = (fov_camera_pos[:, 0] > 0.)
             
             self.reset_buf = self.reset_buf | deviate_much | too_close_table
+            self._failure_now |= deviate_much | too_close_table
 
     # --------------------------------- reward functions ---------------------------------
     

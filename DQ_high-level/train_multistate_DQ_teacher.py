@@ -6,7 +6,9 @@ import numpy as np
 from copy import deepcopy
 import torch
 import os
-import os
+import json
+import re
+from pathlib import Path
 from termcolor import cprint
 import torch.nn as nn
 from skrl.models.torch import Model, GaussianMixin, DeterministicMixin
@@ -19,14 +21,57 @@ from skrl.utils import set_seed
 
 from envs import *    #import b1z1_pickmulti.py
 from PredictPiontTransform.predictpoint_mul import PredictPoint
-from utils.config import load_cfg, get_params, copy_cfg
+from utils.config import (load_cfg, get_params, copy_cfg, configure_teacher_experiment,
+                          teacher_run_end)
 import utils.wrapper as wrapper
 import time
 from legged_gym.envs.manip_loco.b1z1_config import B1Z1RoughCfg
 from modules.predictattention import PredictAttentionSelector
 
 
-set_seed(43)
+def checkpoint_step(path, required=False):
+    match = re.search(r"_(\d+)\.pt$", str(path))
+    if match:
+        return int(match.group(1))
+    if required:
+        raise ValueError("Training resume requires a numbered agent_<step>.pt checkpoint")
+    return 0
+
+
+def restore_eval_arguments(args):
+    """Use the saved observation/control flags when evaluating a new-format run."""
+    run_dir = Path(args.checkpoint).resolve().parent.parent
+    metadata_path = run_dir / "teacher_run.json"
+    if not metadata_path.is_file():
+        return
+    with metadata_path.open() as stream:
+        metadata = json.load(stream)
+    saved = metadata.get("arguments", {})
+    for name in ("roboinfo", "observe_gait_commands", "small_value_set_zero", "no_feature",
+                 "mask_arm", "pitch_control", "rand_control", "arm_delay", "rand_cmd_scale",
+                 "rand_depth_clip", "stop_pick", "use_tanh", "last_commands", "no_velocity_obs"):
+        if name in saved:
+            setattr(args, name, saved[name])
+
+
+def teacher_config_path(args, is_eval=False, strict_eval=False):
+    if args.cfg_file:
+        return args.cfg_file
+    if is_eval and args.checkpoint:
+        run_dir = Path(args.checkpoint).resolve().parent.parent
+        metadata_path = run_dir / "teacher_run.json"
+        if metadata_path.is_file():
+            with metadata_path.open() as stream:
+                config_name = json.load(stream).get("config_file", "DQ_teacher.yaml")
+            candidate = run_dir / Path(config_name).name
+            if candidate.is_file():
+                return str(candidate)
+        candidate = run_dir / "DQ_teacher.yaml"
+        if candidate.is_file():
+            return str(candidate)
+    if strict_eval:
+        raise ValueError("No saved teacher YAML found beside the checkpoint; specify --cfg_file explicitly")
+    return "data/cfg/DQ_teacher.yaml"
 
 def create_env(cfg, args, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor ):
     cfg_terrain = B1Z1RoughCfg()
@@ -222,13 +267,19 @@ def get_predict_point(camera_6p_info=None, cube_predict_info_path=None, cube_roo
     cube_init_tensor = torch.stack([torch.stack(cube_init, dim=0) for cube_init in cube_init_list], dim=0)  # [num_env, n, 6]
     return camera_tensor, grasp_cv_tensor, cube_init_tensor
 
-def get_trainer(is_eval=False):
+def get_trainer(is_eval=False, strict_eval=False):
     args = get_params()
     args.eval = is_eval
+    if strict_eval:
+        if not args.checkpoint or args.resume:
+            raise ValueError("Strict evaluation requires --checkpoint and does not accept --resume")
+        restore_eval_arguments(args)
+    set_seed(args.seed)
     args.wandb = args.wandb and (not args.eval) and (not args.debug)
-    cfg_file = "DQ_teacher.yaml"    
-    # cfg_file = "b1z1_" + args.task[4:].lower() + ".yaml"
-    file_path = "data/cfg/" + cfg_file
+    if not is_eval and args.sgs_mode in ("uniform", "sgs") and (args.resume or args.checkpoint):
+        raise ValueError("SGS/uniform-bank training starts from scratch; sampler resume is not implemented")
+    file_path = teacher_config_path(args, is_eval=is_eval, strict_eval=strict_eval)
+    cfg_file = Path(file_path).name
     
     if args.resume:
         experiment_dir = os.path.join(args.experiment_dir, args.wandb_name)
@@ -242,7 +293,7 @@ def get_trainer(is_eval=False):
             checkpoint_steps = int(args.checkpoint.split("_")[-1].split(".")[0])
         cfg_files = os.listdir(experiment_dir)
         cfg_files = [file for file in cfg_files if file.endswith(".yaml")]
-        if len(cfg_files) > 0:
+        if len(cfg_files) > 0 and args.cfg_file is None:
             cfg_file = cfg_files[0]
             file_path = os.path.join(experiment_dir, cfg_file)
         
@@ -251,6 +302,7 @@ def get_trainer(is_eval=False):
     cprint(f"Using config file: {os.path.realpath(file_path)}", "red")
         
     cfg = load_cfg(file_path)
+    configure_teacher_experiment(cfg, args, is_eval=is_eval, strict_eval=strict_eval)
     if args.no_velocity_obs:
         cfg["env"]["noVelocityObs"] = True
     cprint(f"Teacher velocity observations: {'disabled' if cfg['env'].get('noVelocityObs', False) else 'enabled'}", "yellow")
@@ -273,7 +325,7 @@ def get_trainer(is_eval=False):
         cfg['env']['numEnvs'] = 800 # 34
         cfg["env"]["maxEpisodeLength"] = 100
         if args.checkpoint:
-            checkpoint_steps = int(args.checkpoint.split("_")[-1].split(".")[0])
+            checkpoint_steps = checkpoint_step(args.checkpoint)
             cfg["env"]["globalStepCounter"] = checkpoint_steps
 
     # Allow the command line to override both the YAML value and the
@@ -282,6 +334,8 @@ def get_trainer(is_eval=False):
         if args.num_envs <= 0:
             raise ValueError("--num_envs must be a positive integer")
         cfg["env"]["numEnvs"] = args.num_envs
+    if strict_eval:
+        cfg["env"]["numEnvs"] = min(cfg["env"]["numEnvs"], args.eval_episodes)
 
     """
     To clarify, when capturing images of each object, the images were taken from a car. 
@@ -305,7 +359,7 @@ def get_trainer(is_eval=False):
     experiment_cfg = deepcopy(cfg)
     env = create_env(cfg=cfg, args=args, camera_6p_tensor=camera_6p_tensor, grasp_cv_tensor=grasp_cv_tensor, cube_init_tensor=cube_init_tensor)
     device = env.rl_device
-    memory = RandomMemory(memory_size=24, num_envs=env.num_envs, device=device)
+    memory = None if is_eval else RandomMemory(memory_size=24, num_envs=env.num_envs, device=device)
     
     num_features = 0 if args.no_feature else 1024
     encode_dim = 0 if args.no_feature else 128
@@ -313,7 +367,7 @@ def get_trainer(is_eval=False):
     models_ppo["policy"] = Policy(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=args.eval)
     models_ppo["value"] = Value(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor)
     
-    cfg_ppo = PPO_DEFAULT_CONFIG.copy()
+    cfg_ppo = deepcopy(PPO_DEFAULT_CONFIG)
     cfg_ppo["rollouts"] = 24  # memory_size
     cfg_ppo["learning_epochs"] = 5
     cfg_ppo["mini_batches"] = 6  # 24 * 8192 / 32768
@@ -338,6 +392,9 @@ def get_trainer(is_eval=False):
     # logging to TensorBoard and write checkpoints each 120 and 1200 timesteps respectively
     cfg_ppo["experiment"]["write_interval"] = 24
     cfg_ppo["experiment"]["checkpoint_interval"] = 5000 ## my change
+    if is_eval:
+        cfg_ppo["experiment"]["write_interval"] = 0
+        cfg_ppo["experiment"]["checkpoint_interval"] = 0
     cfg_ppo["experiment"]["directory"] = args.experiment_dir
     cfg_ppo["experiment"]["experiment_name"] = args.wandb_name
     cfg_ppo["experiment"]["wandb"] = args.wandb
@@ -357,9 +414,9 @@ def get_trainer(is_eval=False):
     # viewer remains visible and responsive during evaluation.
     cfg_trainer = {"timesteps": args.timesteps, "headless": args.headless}
     if args.checkpoint:
-        print("Resuming from checkpoint: ", args.checkpoint)
+        print("Loading checkpoint: ", args.checkpoint)
         agent.load(args.checkpoint)
-        checkpoint_steps = int(args.checkpoint.split("_")[-1].split(".")[0])
+        checkpoint_steps = checkpoint_step(args.checkpoint, required=not is_eval)
         if args.record_video:
             experiment_dir = args.checkpoint.split("/")[0]
             wandb_name = args.checkpoint.split("/")[1]
@@ -369,20 +426,47 @@ def get_trainer(is_eval=False):
         if not args.eval:
             cfg_trainer["initial_timestep"] = checkpoint_steps
             agent.set_running_mode("eval")
+    if not is_eval:
+        cfg_trainer["timesteps"] = teacher_run_end(
+            args.timesteps, cfg_trainer.get("initial_timestep", 0), args.stop_after)
     
     trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
+    trainer.teacher_args = args
+    trainer.teacher_config = experiment_cfg
     if args.wandb:
         import wandb
-        wandb.save("data/cfg/" + cfg_file, policy="now")
+        wandb.save(file_path, policy="now")
         wandb.save("envs/b1z1_" + args.task[4:].lower() + ".py", policy="now")
-        wandb.save("train_multistate.py", policy="now")
+        wandb.save("train_multistate_DQ_teacher.py", policy="now")
     if not args.eval:
         if not os.path.exists(os.path.join(args.experiment_dir, args.wandb_name, cfg_file)):
             copy_cfg(file_path, os.path.join(args.experiment_dir, args.wandb_name), cfg=experiment_cfg)
+        metadata_path = Path(args.experiment_dir) / args.wandb_name / "teacher_run.json"
+        if not metadata_path.exists():
+            metadata_path.parent.mkdir(parents=True, exist_ok=True)
+            with metadata_path.open("w") as stream:
+                json.dump({"arguments": vars(args), "config_file": cfg_file,
+                           "planned_timesteps": args.timesteps,
+                           "checkpoint_kind": "model_only"}, stream, indent=2)
+        if experiment_cfg["env"]["sgs"]["mode"] != "disabled":
+            bank = env.sgs_bank
+            bank_metadata = {"fingerprint": bank.fingerprint, "num_configs": bank.num_configs,
+                             "bank_path": str(Path(experiment_cfg["env"]["sgs"]["bank_path"]).resolve())}
+            (metadata_path.parent / "bank_metadata.json").write_text(
+                json.dumps(bank_metadata, indent=2) + "\n")
     
     return trainer
     
 if __name__ == "__main__":
     trainer = get_trainer()
     trainer.train()
+    run_dir = Path(trainer.teacher_args.experiment_dir) / trainer.teacher_args.wandb_name
+    if trainer.teacher_config["env"]["sgs"]["mode"] != "disabled":
+        # Diagnostic history is not a checkpoint for resuming training.
+        trainer.env.save_sgs_diagnostics(str(run_dir / "sgs_diagnostics.pt"))
+    if trainer.teacher_args.stop_after is not None:
+        # This is a model checkpoint for smoke evaluation, not a sampler resume.
+        checkpoint_dir = run_dir / "checkpoints"
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        trainer.agents.save(str(checkpoint_dir / f"agent_{trainer.timesteps}.pt"))
     
