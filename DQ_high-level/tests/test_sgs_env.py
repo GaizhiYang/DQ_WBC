@@ -61,7 +61,8 @@ def euler_from_quat(q):
 
 
 NAMESPACE = {
-    "torch": torch, "quat_apply": quat_apply, "quat_rotate_inverse": quat_rotate_inverse,
+    "torch": torch, "F": torch.nn.functional,
+    "quat_apply": quat_apply, "quat_rotate_inverse": quat_rotate_inverse,
     "quat_rotate": quat_apply,
     "quat_mul": quat_mul, "quat_from_euler_xyz": quat_from_euler_xyz,
     "euler_from_quat": euler_from_quat,
@@ -134,7 +135,7 @@ class BaseStandIn:
 
 def production_environment_class():
     methods = ("reset", "_reset_sgs_envs", "_record_sgs_metrics",
-               "update_roboinfo", "step", "check_termination")
+               "update_roboinfo", "step", "check_termination", "_yaw_deviation")
     cls = ast.ClassDef(
         name="B1Z1PickMulti", bases=[ast.Name(id="B1Z1Base", ctx=ast.Load())],
         keywords=[], body=[method_node("b1z1_pickmulti.py", "B1Z1PickMulti", name)
@@ -338,6 +339,8 @@ class TestEnvironment(ProductionEnvironment):
         self.hold_steps = 15
         self.max_episode_length = 100
         self.lifted_success_threshold = 0.2
+        self.reward_scales = {"limit_yaw_rotation_penalty": 0.4}
+        self.initial_yaw_z = torch.tensor(0.)
         self.enable_camera = False
         self.pred_success = False
         self.near_goal_stop = False

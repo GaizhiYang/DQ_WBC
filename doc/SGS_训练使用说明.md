@@ -424,3 +424,17 @@ python tests/audit_sgs_near_goal_gpu.py \
 ```
 
 随机预览见[四类末端对比](sgs_preview/v9_random_seed43/overview.png)、[足底全景](sgs_preview/v9_random_seed43/grounding_overview.png)和[逐帧测量](sgs_preview/v9_random_seed43/measurements.json)。播放约 1.2 秒后，3 条 Near-Goal 仍保有双指接触及很小的相对滑移，但其中 2 条随机械臂下降而离开初始 5–10 cm 范围。配置库保证的是经过筛查的初态与短时抓持；后续继续抬升、保持高度仍由教师策略学习，不能将零增量播放解释为长期稳定抓持认证。
+
+## 15. v9 训练奖励与成功归因修复
+
+2026-10-25 修复三处原有逻辑，奖励项和 YAML 权重保持不变：
+
+1. `grasp_base_height` 使用与 `pick_up` 相同的 `lifted_object` 条件。对 sugar_box，实际抬升必须超过 20 cm 且物体距末端小于 20 cm，才获得这项站姿奖励；不再在 17–20 cm 的未成功区间持续给奖励。Near-Goal 的初始 5–10 cm 不触发该奖励。原来的掉落判定保留。
+2. `base_dir` 只清除物体方向的 z 分量，使用水平指向计算底盘朝向奖励。原实现错误地清除了 x/y，导致该奖励为零。
+3. yaw 超过 70° 的失败提前在 `check_termination()` 中登记到 `_failure_now`，再计算成功保持奖励；第 15 个保持步若同时偏航失败，不登记成功。yaw 奖励函数只计算超过 60° 的罚分，不再修改重置标志。角差使用最短环绕距离，参考仍为任务原始朝向；该奖励权重为零或未配置时，保留原先禁用这一终止规则的行为。
+
+训练命令及 `sugar_box_v9.pt` 无需修改或重建。四类继续共用任务奖励，SGS 只根据完成回合的成功标签调整配置采样。比较新旧训练结果时应记录代码版本；正式的 SGS / uniform 对照应使用同一修复版本。
+
+**210 项 CPU / CUDA 回归测试通过**。新增的 7 项[奖励行为回归](../DQ_high-level/tests/test_teacher_rewards.py)覆盖成功高度门槛、正对/侧对/背对物体、yaw 惩罚与终止门槛、角度环绕，以及最终保持步偏航失败后向 SGS 登记失败的完整统计路径。
+
+修复后已在 `cuda:1` 使用原 2048 条正式库完成 **32 环境、96 步、4 次 PPO 更新**，76 项训练链路检查通过；40 个完成回合正确登记，四类实际抽取次数为 **24、24、9、16**，模型参数有限且实际更新。原计划仍为 `--timesteps 120000`，通过 `--stop_after 96` 提前结束；没有开启在线 wandb。记录见 [sgs_v9_reward_fix_gpu_validation.json](sgs_v9_reward_fix_gpu_validation.json)。这次短训练验证运行与统计链路，不代表长期训练成功率改善。

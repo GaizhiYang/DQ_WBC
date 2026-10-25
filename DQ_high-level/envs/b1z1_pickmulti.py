@@ -934,6 +934,13 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
     def check_termination(self):
         super().check_termination()
 
+        # Resolve yaw failure before pick_up records a held success. Keep the
+        # original opt-out when this reward/termination rule is disabled.
+        if self.reward_scales.get("limit_yaw_rotation_penalty", 0.) != 0:
+            yaw_failure = self._yaw_deviation() > 70. * torch.pi / 180.
+            self._failure_now |= yaw_failure
+            self.reset_buf[:] = self.reset_buf | yaw_failure
+
         # Check if lifted
         cube_height = self._cube_root_states[:, 2]
         box_pos = self._cube_root_states[:, :3]
@@ -965,36 +972,17 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
 
     # --------------------------------- reward functions ---------------------------------
     
-    def _reward_limit_yaw_rotation_penalty(self):
-        reward = torch.zeros(self.num_envs, device=self.device, dtype=torch.float)
-        self.current_eular_angles = quaternion_tensor_to_euler(self._robot_root_states[:,3:7])
-        # print("self.current_eular_angles is ",self.current_eular_angles)
-        self.current_yaw = self.current_eular_angles[:,0]
-        delta_yaw = torch.abs(self.current_yaw - self.initial_yaw_z)
-        # print("delta_yaw",delta_yaw)
-        delta_yaw_angle = torch.deg2rad(delta_yaw)
-        # Convert 20 degrees to radians
-        # if self.global_step_counter <= self.total_timesteps/4:
-        #     angle_threshold = torch.deg2rad(torch.tensor(40.0))
-        #     angle_reset_threshold = torch.deg2rad(torch.tensor(50.0))
-        # elif self.global_step_counter <= self.total_timesteps/2:
-        #     angle_threshold = torch.deg2rad(torch.tensor(50.0))
-        #     angle_reset_threshold = torch.deg2rad(torch.tensor(60.0))
-        # elif self.global_step_counter <= self.total_timesteps*3/4:
-        #     angle_threshold = torch.deg2rad(torch.tensor(60.0))
-        #     angle_reset_threshold = torch.deg2rad(torch.tensor(70.0))
-        # else:
-        #     angle_threshold = torch.deg2rad(torch.tensor(70.0))
-        #     angle_reset_threshold = torch.deg2rad(torch.tensor(80.0))
-        angle_threshold = torch.deg2rad(torch.tensor(60.0))
-        angle_reset_threshold = torch.deg2rad(torch.tensor(70.0))
-        # Update reward based on the condition
-        mask = delta_yaw > angle_threshold
-        reward[mask] = torch.tanh(delta_yaw[mask] )
-        reward[mask] *= -1
-        self.reset_buf[delta_yaw > angle_reset_threshold] = 1
+    def _yaw_deviation(self):
+        """Shortest yaw deviation from the task's original heading, in radians."""
+        yaw = euler_from_quat(self._robot_root_states[:, 3:7])[2]
+        delta = yaw - self.initial_yaw_z
+        return (torch.remainder(delta + torch.pi, 2 * torch.pi) - torch.pi).abs()
 
-        return reward,reward
+    def _reward_limit_yaw_rotation_penalty(self):
+        delta_yaw = self._yaw_deviation()
+        reward = torch.where(delta_yaw > 60. * torch.pi / 180.,
+                             -torch.tanh(delta_yaw), torch.zeros_like(delta_yaw))
+        return reward, reward
 
     # def _reward_gripper_grasp_expect_reward(self):
     #     reward = torch.zeros(self.num_envs, device=self.device, dtype=torch.float)
@@ -1010,12 +998,10 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
     #     return reward, reward
     
     def _reward_grasp_base_height(self):
-        cube_height = self._cube_root_states[:, 2]
-        box_pos = self._cube_root_states[:, :3]
-        d1 = torch.norm(box_pos - self.ee_pos, dim=-1)
-        
         reward, _ = self._reward_base_height()
-        reward *= self.lifted_now # no reward for not grasped
+        # Use the same object-relative height and proximity as pick_up; the
+        # looser dropped-object predicate must not reward sub-goal hovering.
+        reward *= self.lifted_object
         
         return reward, reward
     
