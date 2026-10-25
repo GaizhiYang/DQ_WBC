@@ -7,10 +7,22 @@
 #   0 度表示机器人正朝向物体，正值表示逆时针偏转。
 # 范围约束用于最终状态验收，不只约束摆放目标。
 # 构建时均匀采样目标，再检查可达性、碰撞和足底大致接地；入库分布不保证均匀。
-# 不要求稳定站立，不执行逐条抓取、抬升或跨环境保持验证。
+# 不要求稳定站立；前三类仅做几何检查，Near-Goal 额外执行短时闭爪、抬升与抓持保持。
 # [a, a] 表示固定目标；仅这种零宽范围允许 5 mm / 1 度的物理验收容差。
 # 不可达的范围会降低有效样本数，严重时导致构建失败；不会自动放宽到范围外。
-schema_version: 2
+schema_version: 4
+
+# 物体在桌面上的朝向扰动，绕世界 z 轴，相对于正常 reset 的物体姿态。
+# 仅离线构库应用；不改变物体的支撑面，也不改变原训练任务的普通 reset。
+object:
+  yaw_offset_range_deg: [-15, 15]
+
+# 连续短时物理检查，最后保存真实仿真状态；不要求底盘静止或持续承重。
+# 位移上限相对于本次候选物体初始位置；接触力上限用于拒绝明显冲击。
+validation:
+  physics_steps: 5
+  max_object_displacement_m: 0.02
+  max_contact_force_n: 5000.0
 
 # 完整任务起步：正常重置，足底大致接地，保持默认机械臂关节姿态。
 full_task:
@@ -20,14 +32,24 @@ full_task:
     heading_offset_range_deg: [-15, 15]
   arm_pose: default
 
-# 临近抓取：夹爪打开，末端沿候选抓取位姿的 local +x 反方向后退。
-# 末端方向沿用该候选抓取位姿；下面调节最终末端与候选抓取位姿的距离。
+# 临近抓取：夹爪打开，末端位于候选抓取位姿的 local -x 一侧。
+# 距离仍是到候选原点的欧氏距离 d；横向 y 和上下 z 偏差均在候选局部坐标系。
+# x = -sqrt(d^2-y^2-z^2)，因此叠加 y/z 偏差不会自动扩大所设距离。
+# d/y/z 分别均匀采样；若 y^2+z^2 >= d^2，该组合记为 sample_geometry 拒绝。
+# 不会缩小所设范围；只在整个参数范围没有任何可行组合时提前报错。
+# 姿态在候选坐标系中追加 roll/pitch/yaw 扰动，每轴限制在 [-45, 45] 度。
 pregrasp:
   base:
     x_range_m: [0.68, 0.95]
     y_range_m: [-0.2, 0.2]
     heading_offset_range_deg: [-15, 15]
   ee_approach_distance_range_m: [0.05, 0.15]
+  ee_lateral_offset_range_m: [-0.05, 0.05]
+  ee_vertical_offset_range_m: [-0.05, 0.05]
+  ee_rotation_offset_range_deg:
+    roll: [-5, 5]
+    pitch: [-5, 5]
+    yaw: [-5, 5]
 
 # 已到达抓取位姿：末端对齐候选抓取位姿，物体仍放在桌上，不预先抬升。
 # 夹爪开度在下面的归一化范围内随机采样：0 = 闭合，1 = 全开。
@@ -39,3 +61,21 @@ at_grasp:
     y_range_m: [-0.1, 0.1]
     heading_offset_range_deg: [-10, 10]
   gripper_opening_range: [0.5, 1.0]
+
+# Near-Goal：真实夹住物体并抬升 5–10 cm，尚未达到任务成功高度。
+# 高度 = object_z - table_height - init_height；不是物体中心到桌面的绝对距离。
+# 只在离线构库时运行闭爪、抬升与保持，训练直接恢复保存的抓持状态。
+near_goal:
+  base:
+    x_range_m: [0.68, 0.85]
+    y_range_m: [-0.1, 0.1]
+    heading_offset_range_deg: [-10, 10]
+  object_lift_height_range_m: [0.05, 0.10]
+  close_time_s: 1.50
+  lift_time_s: 0.60
+  hold_time_s: 0.20 # 至少 0.1 s；过短窗口可能把尚未落下的物体误判为抓住
+  max_relative_slip_m: 0.01 # 保持阶段物体相对末端的最大位置变化
+  max_relative_rotation_deg: 10.0 # 保持阶段物体相对末端的最大旋转变化
+  min_finger_contact_force_n: 0.2 # 单指接触力范数下限
+  min_contact_fraction: 0.8 # 保持阶段两指同时达到接触力下限的帧比例
+  max_object_speed_m_s: 0.10 # 保存前物体线速度上限，排除正在明显滑落的状态

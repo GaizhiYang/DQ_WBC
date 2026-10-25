@@ -199,6 +199,7 @@ def main():
               env._sgs_has_pending_reset == bool(env._sgs_pending_reset.any()))
         check("completed_episode_outcomes_observed", env.sgs_sampler.visits_total.sum().item() > 0)
         check("all_reset_families_sampled", bool((env.sgs_family_samples > 0).all()))
+        check("family_statistics_match_loaded_bank", len(env.sgs_family_samples) == len(env.sgs_bank.family_names))
         check("final_observation_finite", bool(torch.isfinite(env.obs_buf).all()))
         diagnostics = output.with_suffix(".sampler.pt")
         env.save_sgs_diagnostics(str(diagnostics))
@@ -214,6 +215,7 @@ def main():
             "largest_parameter_change": changed,
             "completed_episodes": int(env.sgs_sampler.visits_total.sum().item()),
             "family_samples": env.sgs_family_samples.cpu().tolist(),
+            "family_names": list(env.sgs_bank.family_names),
             "family_completed": env.sgs_family_episodes.cpu().tolist(),
             "family_successes": env.sgs_family_successes.cpu().tolist(),
             "cancelled_episodes": int(env.sgs_aborted.item()),

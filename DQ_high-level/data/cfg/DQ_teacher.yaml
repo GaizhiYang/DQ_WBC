@@ -25,7 +25,7 @@ env:
   sgs:
     mode: disabled # disabled / uniform / sgs; enabled modes require a validated bank
     bank_path: ""
-    bank_size: 1536 # Three reset families, 512 configurations each
+    bank_size: null # Read the loaded bank size; an explicit integer enforces an exact match
     history_size: 100
     target_success: 0.5
     kappa: 1.0

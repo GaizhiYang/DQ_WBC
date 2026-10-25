@@ -2,9 +2,9 @@
 
 Run with the Isaac Gym / dqwbc environment, for example:
 
-    python tests/audit_sgs_grounding_gpu.py --bank data/sgs/sugar_box_v5.pt \
+    python tests/audit_sgs_grounding_gpu.py --bank data/sgs/sugar_box_v9.pt \
       --device cuda:0 --num-envs 128 --seed 1043 \
-      --output ../doc/sgs_v5_grounding_audit.json
+      --output ../doc/sgs_v9_grounding_audit.json
 
 Relative paths resolve from DQ_high-level, even when launched elsewhere. Each
 configuration is restored once and advanced exactly one 5 ms physics tick with
@@ -12,10 +12,11 @@ the production low-level controller and Level02 table motion. No settling steps
 are inserted. The final partial batch repeats its last ID only to fill simulator
 slots; repeated padding is excluded from the audit records and counts.
 
-For geometry_v1 banks, both frames pass solely when every foot collision bottom
-is within [-5 mm, +20 mm] of the ground. Contact force and base velocity are
-reported for inspection but do not determine acceptance. Historical strict
-banks retain their original saved-stance and first-tick support criteria.
+For geometry_v1 and geometry_grasp_v2 banks, both frames pass solely when every
+foot collision bottom is within [-5 mm, +20 mm] of the ground. Contact force and
+base velocity are reported for inspection but do not determine acceptance.
+This audit does not certify near-goal grasp retention. Historical strict banks
+retain their original saved-stance and first-tick support criteria.
 
 A failed audit writes the JSON report and exits nonzero. This is a manual GPU
 audit, not a unittest, and must not run as part of ordinary test discovery.
@@ -43,9 +44,13 @@ def positive_int(value):
 
 def summarize(report, records):
     """Summarize the selected profile without imposing historical force gates."""
-    for family in range(3):
+    family_names = report.get("family_names") or [
+        "family_{}".format(family) for family in range(
+            max((row["family"] for row in records), default=-1) + 1)]
+    for family, name in enumerate(family_names):
         rows = [row for row in records if row["family"] == family]
         report["families"][str(family)] = {
+            "name": name,
             "count": len(rows),
             "saved_frame_valid": sum(row["saved_frame_valid"] for row in rows),
             "first_tick_valid": sum(row["first_tick_valid"] for row in rows),
@@ -86,11 +91,11 @@ def summarize(report, records):
 def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--bank", default="data/sgs/sugar_box_v5.pt")
+    parser.add_argument("--bank", default="data/sgs/sugar_box_v9.pt")
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--num-envs", type=positive_int, default=128)
     parser.add_argument("--seed", type=int, default=1043)
-    parser.add_argument("--output", default="../doc/sgs_v5_grounding_audit.json")
+    parser.add_argument("--output", default="../doc/sgs_v9_grounding_audit.json")
     args = parser.parse_args()
     os.chdir(ROOT)
     sys.path.insert(0, str(ROOT))
@@ -128,13 +133,18 @@ def main():
             raise ValueError("This GPU audit requires a CUDA device, e.g. --device cuda:0")
         bank = ConfigurationBank.load(args.bank, device=args.device)
         physical = bank.metadata.get("physical_validation", {})
-        geometry_profile = physical.get("validation_profile") == "geometry_v1"
+        profile_name = physical.get("validation_profile")
+        geometry_profile = profile_name in ("geometry_v1", "geometry_grasp_v2")
         if not geometry_profile:
             bank.validate({"physical_validation": {"grounded_initial_states": True}})
         limits = APPROX_GROUND_LIMITS if geometry_profile else GROUND_LIMITS
+        family_names = bank.metadata.get("family_names") or [
+            "family_{}".format(family)
+            for family in range(int(bank.tensors["family_id"].max().item()) + 1)]
         report.update(bank_fingerprint=bank.fingerprint, num_configs=bank.num_configs,
-                      family_names=bank.metadata.get("family_names"),
-                      validation_profile="geometry_v1" if geometry_profile else "legacy_strict",
+                      family_names=family_names,
+                      bank_validation_profile=profile_name,
+                      validation_profile=profile_name if geometry_profile else "legacy_strict",
                       saved_frame_limits=dict(limits),
                       first_tick_limits=dict(limits),
                       force_and_velocity_affect_acceptance=not geometry_profile)

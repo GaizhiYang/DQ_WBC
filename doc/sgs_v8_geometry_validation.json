@@ -1,0 +1,746 @@
+{
+  "bank": "/home/hehui/DQ_WBC/DQ_high-level/data/sgs/sugar_box_v8.pt",
+  "fingerprint": "781f279627a7d6397097a81c0bcfc5dfa7cd3ba15f682fad5f2b54138d97044e",
+  "method": "CPU-only inspection of every saved frame and recorded construction evidence; no simulator was imported or started.",
+  "limitations": [
+    "This is not independent dynamic replay and does not verify collisions or transients not recorded in the bank.",
+    "candidate_local_offset and ee_rotation_offset_deg come from the builder; candidate transforms and end-effector FK were not independently recomputed.",
+    "Proposal/rejection counters can be checked for internal consistency; rejected physical states are not saved and cannot be independently replayed.",
+    "Full-task default-arm identity remains builder-certified because the runtime initial arm reference is not stored in the bank."
+  ],
+  "effective_config": {
+    "at_grasp": {
+      "base": {
+        "heading_offset_range_deg": [
+          -10.0,
+          10.0
+        ],
+        "x_range_m": [
+          0.68,
+          0.85
+        ],
+        "y_range_m": [
+          -0.1,
+          0.1
+        ]
+      },
+      "gripper_opening_range": [
+        0.5,
+        1.0
+      ]
+    },
+    "full_task": {
+      "arm_pose": "default",
+      "base": {
+        "heading_offset_range_deg": [
+          -15.0,
+          15.0
+        ],
+        "x_range_m": [
+          2.0,
+          2.0
+        ],
+        "y_range_m": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "object": {
+      "yaw_offset_range_deg": [
+        -15.0,
+        15.0
+      ]
+    },
+    "pregrasp": {
+      "base": {
+        "heading_offset_range_deg": [
+          -15.0,
+          15.0
+        ],
+        "x_range_m": [
+          0.68,
+          0.95
+        ],
+        "y_range_m": [
+          -0.2,
+          0.2
+        ]
+      },
+      "ee_approach_distance_range_m": [
+        0.05,
+        0.15
+      ],
+      "ee_lateral_offset_range_m": [
+        -0.01,
+        0.01
+      ],
+      "ee_rotation_offset_range_deg": {
+        "pitch": [
+          -5.0,
+          5.0
+        ],
+        "roll": [
+          -5.0,
+          5.0
+        ],
+        "yaw": [
+          -5.0,
+          5.0
+        ]
+      },
+      "ee_vertical_offset_range_m": [
+        -0.01,
+        0.01
+      ]
+    },
+    "schema_version": 3,
+    "validation": {
+      "max_contact_force_n": 5000.0,
+      "max_object_displacement_m": 0.02,
+      "physics_steps": 5
+    }
+  },
+  "checks": {
+    "all_tensors_on_cpu": true,
+    "all_saved_values_finite": true,
+    "1536_states_equal_family_counts": true,
+    "sidecar_matches_bank_metadata": true,
+    "fingerprint_matches_actual_payload": true,
+    "opening_field_matches_joint_and_urdf_limits": true,
+    "normalized_object_yaw_matches_recorded_to_0_0001_deg": true,
+    "full_task.base_x_range": true,
+    "full_task.base_y_range": true,
+    "full_task.heading_range_independent_scipy": true,
+    "full_task.feet_near_ground": true,
+    "full_task.object_yaw_range_independent_scipy": true,
+    "full_task.object_yaw_recorded_range": true,
+    "full_task.recorded_peak_force_bounded": true,
+    "full_task.recorded_max_object_displacement_bounded": true,
+    "full_task.object_on_nominal_table_height": true,
+    "full_task.audit_counters_internally_consistent": true,
+    "full_task.audit_saved_count_matches_states": true,
+    "full_task.candidate_saved_counts_match_states": true,
+    "full_task.audit_coverage_base_distance_xy_m": true,
+    "full_task.audit_coverage_base_heading_offset_deg": true,
+    "full_task.audit_coverage_base_x_m": true,
+    "full_task.audit_coverage_base_y_m": true,
+    "full_task.audit_coverage_gripper_opening": true,
+    "full_task.audit_coverage_object_yaw_offset_deg": true,
+    "full_task.audit_coverage_table_height_m": true,
+    "full_task.audit_coverage_validation_max_object_displacement_m": true,
+    "full_task.audit_coverage_validation_peak_contact_force_n": true,
+    "full_task.no_grasp_candidate": true,
+    "pregrasp.base_x_range": true,
+    "pregrasp.base_y_range": true,
+    "pregrasp.heading_range_independent_scipy": true,
+    "pregrasp.feet_near_ground": true,
+    "pregrasp.object_yaw_range_independent_scipy": true,
+    "pregrasp.object_yaw_recorded_range": true,
+    "pregrasp.recorded_peak_force_bounded": true,
+    "pregrasp.recorded_max_object_displacement_bounded": true,
+    "pregrasp.object_on_nominal_table_height": true,
+    "pregrasp.audit_counters_internally_consistent": true,
+    "pregrasp.audit_saved_count_matches_states": true,
+    "pregrasp.candidate_saved_counts_match_states": true,
+    "pregrasp.candidate_0_counts_consistent": true,
+    "pregrasp.candidate_1_counts_consistent": true,
+    "pregrasp.candidate_2_counts_consistent": true,
+    "pregrasp.candidate_3_counts_consistent": true,
+    "pregrasp.candidate_4_counts_consistent": true,
+    "pregrasp.candidate_5_counts_consistent": true,
+    "pregrasp.candidate_6_counts_consistent": true,
+    "pregrasp.candidate_7_counts_consistent": true,
+    "pregrasp.candidate_8_counts_consistent": true,
+    "pregrasp.candidate_9_counts_consistent": true,
+    "pregrasp.candidate_10_counts_consistent": true,
+    "pregrasp.candidate_11_counts_consistent": true,
+    "pregrasp.candidate_12_counts_consistent": true,
+    "pregrasp.candidate_13_counts_consistent": true,
+    "pregrasp.candidate_14_counts_consistent": true,
+    "pregrasp.candidate_15_counts_consistent": true,
+    "pregrasp.candidate_16_counts_consistent": true,
+    "pregrasp.candidate_17_counts_consistent": true,
+    "pregrasp.candidate_18_counts_consistent": true,
+    "pregrasp.candidate_19_counts_consistent": true,
+    "pregrasp.candidate_20_counts_consistent": true,
+    "pregrasp.candidate_21_counts_consistent": true,
+    "pregrasp.candidate_22_counts_consistent": true,
+    "pregrasp.candidate_23_counts_consistent": true,
+    "pregrasp.candidate_24_counts_consistent": true,
+    "pregrasp.candidate_25_counts_consistent": true,
+    "pregrasp.candidate_26_counts_consistent": true,
+    "pregrasp.candidate_27_counts_consistent": true,
+    "pregrasp.candidate_28_counts_consistent": true,
+    "pregrasp.candidate_29_counts_consistent": true,
+    "pregrasp.candidate_totals_match_family": true,
+    "pregrasp.candidate_rejection_totals_match_family": true,
+    "pregrasp.audit_coverage_base_distance_xy_m": true,
+    "pregrasp.audit_coverage_base_heading_offset_deg": true,
+    "pregrasp.audit_coverage_base_x_m": true,
+    "pregrasp.audit_coverage_base_y_m": true,
+    "pregrasp.audit_coverage_candidate_local_x_m": true,
+    "pregrasp.audit_coverage_candidate_local_y_m": true,
+    "pregrasp.audit_coverage_candidate_local_z_m": true,
+    "pregrasp.audit_coverage_ee_candidate_distance_m": true,
+    "pregrasp.audit_coverage_ee_rotation_pitch_deg": true,
+    "pregrasp.audit_coverage_ee_rotation_roll_deg": true,
+    "pregrasp.audit_coverage_ee_rotation_yaw_deg": true,
+    "pregrasp.audit_coverage_gripper_opening": true,
+    "pregrasp.audit_coverage_object_yaw_offset_deg": true,
+    "pregrasp.audit_coverage_table_height_m": true,
+    "pregrasp.audit_coverage_validation_max_object_displacement_m": true,
+    "pregrasp.audit_coverage_validation_peak_contact_force_n": true,
+    "pregrasp.euclidean_approach_distance_range": true,
+    "pregrasp.negative_candidate_local_approach_axis": true,
+    "pregrasp.lateral_offset_range": true,
+    "pregrasp.vertical_offset_range": true,
+    "pregrasp.rotation_roll_range": true,
+    "pregrasp.rotation_pitch_range": true,
+    "pregrasp.rotation_yaw_range": true,
+    "at_grasp.base_x_range": true,
+    "at_grasp.base_y_range": true,
+    "at_grasp.heading_range_independent_scipy": true,
+    "at_grasp.feet_near_ground": true,
+    "at_grasp.object_yaw_range_independent_scipy": true,
+    "at_grasp.object_yaw_recorded_range": true,
+    "at_grasp.recorded_peak_force_bounded": true,
+    "at_grasp.recorded_max_object_displacement_bounded": true,
+    "at_grasp.object_on_nominal_table_height": true,
+    "at_grasp.audit_counters_internally_consistent": true,
+    "at_grasp.audit_saved_count_matches_states": true,
+    "at_grasp.candidate_saved_counts_match_states": true,
+    "at_grasp.candidate_0_counts_consistent": true,
+    "at_grasp.candidate_1_counts_consistent": true,
+    "at_grasp.candidate_2_counts_consistent": true,
+    "at_grasp.candidate_3_counts_consistent": true,
+    "at_grasp.candidate_4_counts_consistent": true,
+    "at_grasp.candidate_5_counts_consistent": true,
+    "at_grasp.candidate_6_counts_consistent": true,
+    "at_grasp.candidate_7_counts_consistent": true,
+    "at_grasp.candidate_8_counts_consistent": true,
+    "at_grasp.candidate_9_counts_consistent": true,
+    "at_grasp.candidate_10_counts_consistent": true,
+    "at_grasp.candidate_11_counts_consistent": true,
+    "at_grasp.candidate_12_counts_consistent": true,
+    "at_grasp.candidate_13_counts_consistent": true,
+    "at_grasp.candidate_14_counts_consistent": true,
+    "at_grasp.candidate_15_counts_consistent": true,
+    "at_grasp.candidate_16_counts_consistent": true,
+    "at_grasp.candidate_17_counts_consistent": true,
+    "at_grasp.candidate_18_counts_consistent": true,
+    "at_grasp.candidate_19_counts_consistent": true,
+    "at_grasp.candidate_20_counts_consistent": true,
+    "at_grasp.candidate_21_counts_consistent": true,
+    "at_grasp.candidate_22_counts_consistent": true,
+    "at_grasp.candidate_23_counts_consistent": true,
+    "at_grasp.candidate_24_counts_consistent": true,
+    "at_grasp.candidate_25_counts_consistent": true,
+    "at_grasp.candidate_26_counts_consistent": true,
+    "at_grasp.candidate_27_counts_consistent": true,
+    "at_grasp.candidate_28_counts_consistent": true,
+    "at_grasp.candidate_29_counts_consistent": true,
+    "at_grasp.candidate_totals_match_family": true,
+    "at_grasp.candidate_rejection_totals_match_family": true,
+    "at_grasp.audit_coverage_base_distance_xy_m": true,
+    "at_grasp.audit_coverage_base_heading_offset_deg": true,
+    "at_grasp.audit_coverage_base_x_m": true,
+    "at_grasp.audit_coverage_base_y_m": true,
+    "at_grasp.audit_coverage_candidate_local_x_m": true,
+    "at_grasp.audit_coverage_candidate_local_y_m": true,
+    "at_grasp.audit_coverage_candidate_local_z_m": true,
+    "at_grasp.audit_coverage_ee_candidate_distance_m": true,
+    "at_grasp.audit_coverage_ee_rotation_pitch_deg": true,
+    "at_grasp.audit_coverage_ee_rotation_roll_deg": true,
+    "at_grasp.audit_coverage_ee_rotation_yaw_deg": true,
+    "at_grasp.audit_coverage_gripper_opening": true,
+    "at_grasp.audit_coverage_object_yaw_offset_deg": true,
+    "at_grasp.audit_coverage_table_height_m": true,
+    "at_grasp.audit_coverage_validation_max_object_displacement_m": true,
+    "at_grasp.audit_coverage_validation_peak_contact_force_n": true,
+    "at_grasp.candidate_position_tolerance": true,
+    "at_grasp.candidate_orientation_tolerance_from_recorded_rpy": true,
+    "at_grasp.opening_range_from_joint": true,
+    "audit_totals_match_family_totals": true,
+    "audit_total_stored_matches_bank": true
+  },
+  "families": {
+    "full_task": {
+      "saved_count": 512,
+      "proposed": 1024,
+      "valid": 1024,
+      "acceptance_rate": 1.0,
+      "base_x_m": {
+        "count": 512,
+        "min": 2.000274658203125,
+        "max": 2.000518798828125,
+        "mean": 2.0004029664108884
+      },
+      "base_y_m": {
+        "count": 512,
+        "min": -0.00048828125,
+        "max": -0.00025177001953125,
+        "mean": -0.0003689671866595745
+      },
+      "base_heading_offset_deg": {
+        "count": 512,
+        "min": -14.960408049084862,
+        "max": 14.938608376198744,
+        "mean": 0.18977303532200174
+      },
+      "foot_bottom_m": {
+        "count": 2048,
+        "min": -9.121835231781089e-05,
+        "max": 1.9355714321135642e-05,
+        "mean": -1.551318113342942e-05
+      },
+      "object_yaw_offset_deg": {
+        "count": 512,
+        "min": -14.943549734362868,
+        "max": 14.946799044290328,
+        "mean": 0.5943344924889984
+      },
+      "gripper_opening_from_joint": {
+        "count": 512,
+        "min": 0.9999990412446551,
+        "max": 1.0000003313914982,
+        "mean": 0.9999998996132635
+      },
+      "table_root_z_minus_command_z_m": {
+        "count": 512,
+        "min": -0.00024552345275874465,
+        "max": -0.00024549365043635696,
+        "mean": -0.0002455090172588649
+      },
+      "recorded_peak_contact_force_n": {
+        "count": 512,
+        "min": 37.219051361083984,
+        "max": 66.06900787353516,
+        "mean": 61.280502423644066
+      },
+      "recorded_max_object_displacement_m": {
+        "count": 512,
+        "min": 0.0006959849852137268,
+        "max": 0.0007317650597542524,
+        "mean": 0.000710676463540949
+      },
+      "stored_candidate_counts": [],
+      "proposed_candidate_count": 0,
+      "stored_candidate_count": 0
+    },
+    "pregrasp": {
+      "saved_count": 512,
+      "proposed": 9216,
+      "valid": 519,
+      "acceptance_rate": 0.056315104166666664,
+      "base_x_m": {
+        "count": 512,
+        "min": 0.680084228515625,
+        "max": 0.9467315673828125,
+        "mean": 0.768547956164582
+      },
+      "base_y_m": {
+        "count": 512,
+        "min": -0.19841766357421875,
+        "max": 0.1997203826904297,
+        "mean": 0.00817152950912714
+      },
+      "base_heading_offset_deg": {
+        "count": 512,
+        "min": -14.91572378428927,
+        "max": 14.9343996463422,
+        "mean": 0.8781907495956099
+      },
+      "foot_bottom_m": {
+        "count": 2048,
+        "min": -4.4629871845246194e-05,
+        "max": 3.262460231780173e-06,
+        "mean": -1.0517643240746943e-05
+      },
+      "object_yaw_offset_deg": {
+        "count": 512,
+        "min": -14.938574834284076,
+        "max": 14.831398383250455,
+        "mean": -1.371843844613939
+      },
+      "gripper_opening_from_joint": {
+        "count": 512,
+        "min": 0.9999956261500701,
+        "max": 1.0000011661923969,
+        "mean": 0.9999994813234668
+      },
+      "table_root_z_minus_command_z_m": {
+        "count": 512,
+        "min": -0.00024552345275874465,
+        "max": -0.00024549365043635696,
+        "mean": -0.0002455036621540707
+      },
+      "recorded_peak_contact_force_n": {
+        "count": 512,
+        "min": 36.638336181640625,
+        "max": 41.469215393066406,
+        "mean": 38.629633732140064
+      },
+      "recorded_max_object_displacement_m": {
+        "count": 512,
+        "min": 0.000205707096029073,
+        "max": 0.00024137306900229305,
+        "mean": 0.00022427165890803735
+      },
+      "stored_candidate_counts": [
+        {
+          "candidate_id": 1,
+          "count": 4
+        },
+        {
+          "candidate_id": 2,
+          "count": 1
+        },
+        {
+          "candidate_id": 3,
+          "count": 13
+        },
+        {
+          "candidate_id": 4,
+          "count": 1
+        },
+        {
+          "candidate_id": 7,
+          "count": 1
+        },
+        {
+          "candidate_id": 8,
+          "count": 1
+        },
+        {
+          "candidate_id": 10,
+          "count": 28
+        },
+        {
+          "candidate_id": 11,
+          "count": 4
+        },
+        {
+          "candidate_id": 12,
+          "count": 223
+        },
+        {
+          "candidate_id": 13,
+          "count": 5
+        },
+        {
+          "candidate_id": 15,
+          "count": 4
+        },
+        {
+          "candidate_id": 16,
+          "count": 29
+        },
+        {
+          "candidate_id": 18,
+          "count": 6
+        },
+        {
+          "candidate_id": 19,
+          "count": 6
+        },
+        {
+          "candidate_id": 20,
+          "count": 1
+        },
+        {
+          "candidate_id": 21,
+          "count": 6
+        },
+        {
+          "candidate_id": 22,
+          "count": 1
+        },
+        {
+          "candidate_id": 23,
+          "count": 105
+        },
+        {
+          "candidate_id": 24,
+          "count": 37
+        },
+        {
+          "candidate_id": 28,
+          "count": 18
+        },
+        {
+          "candidate_id": 29,
+          "count": 18
+        }
+      ],
+      "proposed_candidate_count": 30,
+      "stored_candidate_count": 21,
+      "candidate_concentration": {
+        "largest_candidate": {
+          "candidate_id": 12,
+          "count": 223
+        },
+        "largest_share": 0.435546875,
+        "top_two_share": 0.640625,
+        "effective_candidate_count_exp_entropy": 6.789427101191961
+      },
+      "ee_candidate_distance_m_from_builder_offset": {
+        "count": 512,
+        "min": 0.0500020609673538,
+        "max": 0.1445909317539967,
+        "mean": 0.08744761114148072
+      },
+      "candidate_local_offset_m_from_builder": {
+        "x": {
+          "count": 512,
+          "min": -0.1445472091436386,
+          "max": -0.04892222583293915,
+          "mean": -0.08703644229535712
+        },
+        "y": {
+          "count": 512,
+          "min": -0.0099512729793787,
+          "max": 0.009913984686136246,
+          "mean": -0.000494889263791265
+        },
+        "z": {
+          "count": 512,
+          "min": -0.009959161281585693,
+          "max": 0.00997675396502018,
+          "mean": 0.00014854161963739898
+        }
+      },
+      "ee_rotation_offset_deg_from_builder": {
+        "roll": {
+          "count": 512,
+          "min": -4.976885795593262,
+          "max": 4.957679271697998,
+          "mean": 0.06762122246254876
+        },
+        "pitch": {
+          "count": 512,
+          "min": -4.993018627166748,
+          "max": 4.906616687774658,
+          "mean": -0.10485032018186757
+        },
+        "yaw": {
+          "count": 512,
+          "min": -4.950972080230713,
+          "max": 4.980901718139648,
+          "mean": 0.21097528195332416
+        }
+      },
+      "ee_candidate_angle_rad_from_recorded_rpy": {
+        "count": 512,
+        "min": 0.005871679145503831,
+        "max": 0.13830181209053766,
+        "mean": 0.08246046001522864
+      }
+    },
+    "at_grasp": {
+      "saved_count": 512,
+      "proposed": 4096,
+      "valid": 677,
+      "acceptance_rate": 0.165283203125,
+      "base_x_m": {
+        "count": 512,
+        "min": 0.6801910400390625,
+        "max": 0.8495635986328125,
+        "mean": 0.7427950899711391
+      },
+      "base_y_m": {
+        "count": 512,
+        "min": -0.09987640380859375,
+        "max": 0.09854888916015625,
+        "mean": 0.006876823725178838
+      },
+      "base_heading_offset_deg": {
+        "count": 512,
+        "min": -9.544328614876378,
+        "max": 9.773038520643297,
+        "mean": 0.913382080540938
+      },
+      "foot_bottom_m": {
+        "count": 2048,
+        "min": -4.559099674224937e-05,
+        "max": 4.663169384001853e-06,
+        "mean": -1.0986218549079163e-05
+      },
+      "object_yaw_offset_deg": {
+        "count": 512,
+        "min": -14.957825629489339,
+        "max": 14.991449085101157,
+        "mean": -2.003765413071676
+      },
+      "gripper_opening_from_joint": {
+        "count": 512,
+        "min": 0.5001640902358294,
+        "max": 0.997439541689679,
+        "mean": 0.7527991208084914
+      },
+      "table_root_z_minus_command_z_m": {
+        "count": 512,
+        "min": -0.0002464175224303755,
+        "max": -0.0002452552318573109,
+        "mean": -0.0002455352689139437
+      },
+      "recorded_peak_contact_force_n": {
+        "count": 512,
+        "min": 36.70538330078125,
+        "max": 240.7290802001953,
+        "mean": 94.19656726717949
+      },
+      "recorded_max_object_displacement_m": {
+        "count": 512,
+        "min": 0.00016549357678741217,
+        "max": 0.0069556706584990025,
+        "mean": 0.0011714321479701084
+      },
+      "stored_candidate_counts": [
+        {
+          "candidate_id": 1,
+          "count": 9
+        },
+        {
+          "candidate_id": 2,
+          "count": 12
+        },
+        {
+          "candidate_id": 3,
+          "count": 53
+        },
+        {
+          "candidate_id": 4,
+          "count": 19
+        },
+        {
+          "candidate_id": 8,
+          "count": 25
+        },
+        {
+          "candidate_id": 9,
+          "count": 2
+        },
+        {
+          "candidate_id": 10,
+          "count": 64
+        },
+        {
+          "candidate_id": 11,
+          "count": 18
+        },
+        {
+          "candidate_id": 12,
+          "count": 8
+        },
+        {
+          "candidate_id": 13,
+          "count": 39
+        },
+        {
+          "candidate_id": 16,
+          "count": 42
+        },
+        {
+          "candidate_id": 18,
+          "count": 19
+        },
+        {
+          "candidate_id": 21,
+          "count": 34
+        },
+        {
+          "candidate_id": 23,
+          "count": 77
+        },
+        {
+          "candidate_id": 27,
+          "count": 3
+        },
+        {
+          "candidate_id": 28,
+          "count": 45
+        },
+        {
+          "candidate_id": 29,
+          "count": 43
+        }
+      ],
+      "proposed_candidate_count": 30,
+      "stored_candidate_count": 17,
+      "candidate_concentration": {
+        "largest_candidate": {
+          "candidate_id": 23,
+          "count": 77
+        },
+        "largest_share": 0.150390625,
+        "top_two_share": 0.275390625,
+        "effective_candidate_count_exp_entropy": 13.041034806122244
+      },
+      "ee_candidate_distance_m_from_builder_offset": {
+        "count": 512,
+        "min": 0.003300594659318419,
+        "max": 0.004970513402803333,
+        "mean": 0.0038216624001851194
+      },
+      "candidate_local_offset_m_from_builder": {
+        "x": {
+          "count": 512,
+          "min": -0.00014915713109076023,
+          "max": 0.0034813741222023964,
+          "mean": 0.0023482758089130584
+        },
+        "y": {
+          "count": 512,
+          "min": -0.001115600112825632,
+          "max": 0.002684437669813633,
+          "mean": -3.024069860657619e-05
+        },
+        "z": {
+          "count": 512,
+          "min": -0.00490843178704381,
+          "max": 0.0010852419072762132,
+          "mean": -0.0013463203304127092
+        }
+      },
+      "ee_rotation_offset_deg_from_builder": {
+        "roll": {
+          "count": 512,
+          "min": -5.451747894287109,
+          "max": 0.6389641761779785,
+          "mean": -0.14633621706798294
+        },
+        "pitch": {
+          "count": 512,
+          "min": -3.5243093967437744,
+          "max": 1.140942096710205,
+          "mean": -0.09925863139505964
+        },
+        "yaw": {
+          "count": 512,
+          "min": -0.9029920101165771,
+          "max": 0.6211373805999756,
+          "mean": -0.008644591755910369
+        }
+      },
+      "ee_candidate_angle_rad_from_recorded_rpy": {
+        "count": 512,
+        "min": 0.003530389141787242,
+        "max": 0.09954442131749829,
+        "mean": 0.009979846328469625
+      }
+    }
+  },
+  "independent_object_yaw_vs_recorded_max_error_deg": 1.4553545582884908e-05,
+  "object_yaw_note": "SciPy independently normalizes the nominal [0.707,0,0,0.707] quaternion. The final builder normalizes its relative quaternion before extracting angles; agreement is checked to 0.0001 degrees, and normalized actual yaw is separately checked against config.",
+  "audit_totals": {
+    "invalid": 12116,
+    "proposed": 14336,
+    "stored": 1536,
+    "valid": 2220,
+    "valid_not_stored": 684
+  },
+  "all_checks_passed": true,
+  "failed_checks": [],
+  "check_count": 161
+}

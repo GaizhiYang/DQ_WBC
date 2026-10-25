@@ -41,7 +41,7 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
 
     def _init_sgs(self):
         """Load one immutable bank; all online sampler state stays on the GPU."""
-        from utils.sgs import ConfigurationBank, SGSSampler
+        from utils.sgs import ConfigurationBank, SGSSampler, SUPPORTED_FAMILY_PROFILES
 
         cfg = self.cfg["env"].get("sgs", {})
         self.sgs_enabled = cfg.get("mode", "disabled") != "disabled"
@@ -63,20 +63,31 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
                 "hold_steps": self.hold_steps,
                 "lifted_threshold": self.lifted_success_threshold,
                 "table_level": "Level02",
-                "family_names": ["full_task", "pregrasp", "at_grasp"],
                 "physical_validation": {
-                    "passed": True, "validation_profile": "geometry_v1",
-                    "feet_near_ground": True, "collision_checked": True,
-                    "object_attachment": False,
+                    "passed": True,
                 },
             })
-        if not self.sgs_bank.metadata.get("physical_validation", {}).get("passed", False):
-            raise ValueError("The SGS bank must pass offline physical validation")
-        if self.sgs_bank.num_configs != cfg.get("bank_size", 1536):
+        physical = self.sgs_bank.metadata.get("physical_validation", {})
+        profile = physical.get("validation_profile")
+        self.sgs_family_names = self.sgs_bank.family_names
+        if (profile not in SUPPORTED_FAMILY_PROFILES
+                or self.sgs_family_names != SUPPORTED_FAMILY_PROFILES[profile]):
+            raise ValueError("SGS requires supported validation profile and family_names")
+        if profile == "geometry_grasp_v2" and not torch.allclose(
+                self.init_height, torch.full_like(self.init_height,
+                                                 self.sgs_bank.metadata["object_init_height_m"]),
+                atol=1e-6, rtol=0):
+            raise ValueError("SGS object_init_height_m does not match the task object")
+        expected_size = cfg.get("bank_size")
+        if expected_size is not None and (type(expected_size) is not int or expected_size <= 0):
+            raise ValueError("SGS bank_size must be null (automatic) or a positive integer")
+        if expected_size is not None and self.sgs_bank.num_configs != expected_size:
             raise ValueError("SGS bank_size does not match the loaded bank")
-        families = torch.bincount(self.sgs_bank.tensors["family_id"], minlength=3)
-        if not bool(((families > 0) & (families == self.sgs_bank.num_configs // 3)).all()):
-            raise ValueError("SGS requires equal nonempty full_task/pregrasp/at_grasp families")
+        num_families = len(self.sgs_family_names)
+        families = torch.bincount(self.sgs_bank.tensors["family_id"], minlength=num_families)
+        if (self.sgs_bank.num_configs % num_families
+                or not bool(((families > 0) & (families == self.sgs_bank.num_configs // num_families)).all())):
+            raise ValueError("SGS requires equal nonempty reset families")
         self.sgs_sampler = SGSSampler(
             self.sgs_bank.num_configs, history_size=cfg.get("history_size", 100),
             target_success_rate=cfg.get("target_success", 0.5),
@@ -88,9 +99,9 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self._sgs_pending_reset = torch.zeros_like(self._sgs_pending_done)
         self._sgs_has_pending_reset = False
         self._sgs_natural_reset = False
-        self.sgs_family_episodes = torch.zeros(3, dtype=torch.long, device=self.device)
-        self.sgs_family_successes = torch.zeros(3, dtype=torch.long, device=self.device)
-        self.sgs_family_samples = torch.zeros(3, dtype=torch.long, device=self.device)
+        self.sgs_family_episodes = torch.zeros(num_families, dtype=torch.long, device=self.device)
+        self.sgs_family_successes = torch.zeros(num_families, dtype=torch.long, device=self.device)
+        self.sgs_family_samples = torch.zeros(num_families, dtype=torch.long, device=self.device)
         self.sgs_aborted = torch.zeros((), dtype=torch.long, device=self.device)
         print("SGS bank:", self.sgs_bank.num_configs, "configurations;",
               self.sgs_bank.fingerprint, "; device:", self.device)
@@ -193,8 +204,9 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
 
     def _record_sgs_metrics(self):
         metrics = self.sgs_sampler.metrics(
-            step=self.global_step_counter, family_id=self.sgs_bank.tensors["family_id"])
-        for i, name in enumerate(("full_task", "pregrasp", "at_grasp")):
+            step=self.global_step_counter, family_id=self.sgs_bank.tensors["family_id"],
+            num_families=len(self.sgs_family_names))
+        for i, name in enumerate(self.sgs_family_names):
             metrics["success_" + name] = self.sgs_family_successes[i] / self.sgs_family_episodes[i].clamp_min(1)
             metrics["sample_fraction_" + name] = self.sgs_family_samples[i] / self.sgs_family_samples.sum().clamp_min(1)
             metrics["episodes_" + name] = self.sgs_family_episodes[i]

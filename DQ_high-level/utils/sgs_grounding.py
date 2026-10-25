@@ -24,6 +24,13 @@ def foot_indices(env):
     return [env.body_names_to_idx[name] for name in FOOT_NAMES]
 
 
+def grasp_contact_body_indices(env):
+    """The fixed finger is merged into link06 when fixed joints are collapsed."""
+    names = env.body_names_to_idx
+    fixed = "gripperStator" if "gripperStator" in names else "link06"
+    return [names[fixed], names["gripperMover"]]
+
+
 def grounding_state(env):
     indices = foot_indices(env)
     return (env._rigid_body_pos[:, indices, 2] - FOOT_RADIUS,

@@ -1,0 +1,1214 @@
+{
+  "bank": "/home/hehui/DQ_WBC/DQ_high-level/data/sgs/sugar_box_v9.pt",
+  "fingerprint": "c6c7f69d8e8a3fd67012eeab4026f86bf8d7be58c7f4edbe6b1f63b95f5498ec",
+  "method": "CPU-only inspection of every saved frame and recorded construction evidence; no simulator was imported or started.",
+  "limitations": [
+    "This is not independent dynamic replay and does not verify collisions or transients not recorded in the bank.",
+    "candidate_local_offset and ee_rotation_offset_deg come from the builder; candidate transforms and end-effector FK were not independently recomputed.",
+    "Proposal/rejection counters can be checked for internal consistency; rejected physical states are not saved and cannot be independently replayed.",
+    "Full-task default-arm identity remains builder-certified because the runtime initial arm reference is not stored in the bank.",
+    "Near-goal contact, slip, relative rotation, peak forces and cold-restore results are saved builder evidence; this CPU audit checks thresholds and consistency but does not independently re-enact those physical events.",
+    "The nominal sugar_box quaternion is not stored in bank metadata; independent yaw uses the known task reference [0.707,0,0,0.707], recorded below. Gripper joint limits are read from the referenced robot URDF."
+  ],
+  "effective_config_source": "bank.metadata.construction.reset_config; no current YAML file was read",
+  "effective_config": {
+    "at_grasp": {
+      "base": {
+        "heading_offset_range_deg": [
+          -10.0,
+          10.0
+        ],
+        "x_range_m": [
+          0.68,
+          0.85
+        ],
+        "y_range_m": [
+          -0.1,
+          0.1
+        ]
+      },
+      "gripper_opening_range": [
+        0.5,
+        1.0
+      ]
+    },
+    "full_task": {
+      "arm_pose": "default",
+      "base": {
+        "heading_offset_range_deg": [
+          -15.0,
+          15.0
+        ],
+        "x_range_m": [
+          2.0,
+          2.0
+        ],
+        "y_range_m": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "near_goal": {
+      "base": {
+        "heading_offset_range_deg": [
+          -10.0,
+          10.0
+        ],
+        "x_range_m": [
+          0.68,
+          0.85
+        ],
+        "y_range_m": [
+          -0.1,
+          0.1
+        ]
+      },
+      "close_time_s": 1.5,
+      "hold_time_s": 0.2,
+      "lift_time_s": 0.6,
+      "max_object_speed_m_s": 0.1,
+      "max_relative_rotation_deg": 10.0,
+      "max_relative_slip_m": 0.01,
+      "min_contact_fraction": 0.8,
+      "min_finger_contact_force_n": 0.2,
+      "object_lift_height_range_m": [
+        0.05,
+        0.1
+      ]
+    },
+    "object": {
+      "yaw_offset_range_deg": [
+        -15.0,
+        15.0
+      ]
+    },
+    "pregrasp": {
+      "base": {
+        "heading_offset_range_deg": [
+          -15.0,
+          15.0
+        ],
+        "x_range_m": [
+          0.68,
+          0.95
+        ],
+        "y_range_m": [
+          -0.2,
+          0.2
+        ]
+      },
+      "ee_approach_distance_range_m": [
+        0.05,
+        0.15
+      ],
+      "ee_lateral_offset_range_m": [
+        -0.05,
+        0.05
+      ],
+      "ee_rotation_offset_range_deg": {
+        "pitch": [
+          -5.0,
+          5.0
+        ],
+        "roll": [
+          -5.0,
+          5.0
+        ],
+        "yaw": [
+          -5.0,
+          5.0
+        ]
+      },
+      "ee_vertical_offset_range_m": [
+        -0.05,
+        0.05
+      ]
+    },
+    "schema_version": 4,
+    "validation": {
+      "max_contact_force_n": 5000.0,
+      "max_object_displacement_m": 0.02,
+      "physics_steps": 5
+    }
+  },
+  "checks": {
+    "all_tensors_on_cpu": true,
+    "all_saved_values_finite": true,
+    "2048_states_equal_family_counts": true,
+    "expected_family_names": true,
+    "expected_v9_fingerprint": true,
+    "sidecar_matches_bank_metadata": true,
+    "fingerprint_matches_actual_payload": true,
+    "opening_field_matches_joint_and_urdf_limits": true,
+    "normalized_object_yaw_matches_recorded_to_0_0001_deg": true,
+    "all_saved_lift_fields_match_raw_state": true,
+    "physical_validation_profile": true,
+    "physical_validation.passed": true,
+    "physical_validation.feet_near_ground": true,
+    "physical_validation.collision_checked": true,
+    "physical_validation.near_goal_grasp_verified": true,
+    "physical_validation.object_attachment": true,
+    "physical_validation.stable_standing_required": true,
+    "physical_accepted_counts_match_bank": true,
+    "near_config_lift_bounds_positive_below_success": true,
+    "full_task.base_x_range": true,
+    "full_task.base_y_range": true,
+    "full_task.heading_range_independent_scipy": true,
+    "full_task.feet_near_ground": true,
+    "full_task.object_yaw_range_independent_scipy": true,
+    "full_task.object_yaw_recorded_range": true,
+    "full_task.recorded_peak_force_bounded": true,
+    "full_task.recorded_max_object_displacement_bounded": true,
+    "full_task.object_near_nominal_table_height": true,
+    "full_task.near_goal_relative_slip_m_unused_zero": true,
+    "full_task.near_goal_relative_rotation_deg_unused_zero": true,
+    "full_task.near_goal_contact_fraction_unused_zero": true,
+    "full_task.near_goal_object_speed_m_s_unused_zero": true,
+    "full_task.near_goal_restore_verified_unused_zero": true,
+    "full_task.audit_counters_internally_consistent": true,
+    "full_task.acceptance_rate_matches_counts": true,
+    "full_task.audit_saved_count_matches_states": true,
+    "full_task.candidate_saved_counts_match_states": true,
+    "full_task.candidate_ids_integral": true,
+    "full_task.saved_candidate_ids_have_proposals": true,
+    "full_task.audit_coverage_base_distance_xy_m": true,
+    "full_task.audit_coverage_base_heading_offset_deg": true,
+    "full_task.audit_coverage_base_x_m": true,
+    "full_task.audit_coverage_base_y_m": true,
+    "full_task.audit_coverage_gripper_opening": true,
+    "full_task.audit_coverage_lift_height": true,
+    "full_task.audit_coverage_object_yaw_offset_deg": true,
+    "full_task.audit_coverage_table_height_m": true,
+    "full_task.audit_coverage_validation_max_object_displacement_m": true,
+    "full_task.audit_coverage_validation_peak_contact_force_n": true,
+    "full_task.no_grasp_candidate": true,
+    "pregrasp.base_x_range": true,
+    "pregrasp.base_y_range": true,
+    "pregrasp.heading_range_independent_scipy": true,
+    "pregrasp.feet_near_ground": true,
+    "pregrasp.object_yaw_range_independent_scipy": true,
+    "pregrasp.object_yaw_recorded_range": true,
+    "pregrasp.recorded_peak_force_bounded": true,
+    "pregrasp.recorded_max_object_displacement_bounded": true,
+    "pregrasp.object_near_nominal_table_height": true,
+    "pregrasp.near_goal_relative_slip_m_unused_zero": true,
+    "pregrasp.near_goal_relative_rotation_deg_unused_zero": true,
+    "pregrasp.near_goal_contact_fraction_unused_zero": true,
+    "pregrasp.near_goal_object_speed_m_s_unused_zero": true,
+    "pregrasp.near_goal_restore_verified_unused_zero": true,
+    "pregrasp.audit_counters_internally_consistent": true,
+    "pregrasp.acceptance_rate_matches_counts": true,
+    "pregrasp.audit_saved_count_matches_states": true,
+    "pregrasp.candidate_saved_counts_match_states": true,
+    "pregrasp.candidate_ids_integral": true,
+    "pregrasp.saved_candidate_ids_have_proposals": true,
+    "pregrasp.candidate_0_counts_consistent": true,
+    "pregrasp.candidate_1_counts_consistent": true,
+    "pregrasp.candidate_2_counts_consistent": true,
+    "pregrasp.candidate_3_counts_consistent": true,
+    "pregrasp.candidate_4_counts_consistent": true,
+    "pregrasp.candidate_5_counts_consistent": true,
+    "pregrasp.candidate_6_counts_consistent": true,
+    "pregrasp.candidate_7_counts_consistent": true,
+    "pregrasp.candidate_8_counts_consistent": true,
+    "pregrasp.candidate_9_counts_consistent": true,
+    "pregrasp.candidate_10_counts_consistent": true,
+    "pregrasp.candidate_11_counts_consistent": true,
+    "pregrasp.candidate_12_counts_consistent": true,
+    "pregrasp.candidate_13_counts_consistent": true,
+    "pregrasp.candidate_14_counts_consistent": true,
+    "pregrasp.candidate_15_counts_consistent": true,
+    "pregrasp.candidate_16_counts_consistent": true,
+    "pregrasp.candidate_17_counts_consistent": true,
+    "pregrasp.candidate_18_counts_consistent": true,
+    "pregrasp.candidate_19_counts_consistent": true,
+    "pregrasp.candidate_20_counts_consistent": true,
+    "pregrasp.candidate_21_counts_consistent": true,
+    "pregrasp.candidate_22_counts_consistent": true,
+    "pregrasp.candidate_23_counts_consistent": true,
+    "pregrasp.candidate_24_counts_consistent": true,
+    "pregrasp.candidate_25_counts_consistent": true,
+    "pregrasp.candidate_26_counts_consistent": true,
+    "pregrasp.candidate_27_counts_consistent": true,
+    "pregrasp.candidate_28_counts_consistent": true,
+    "pregrasp.candidate_29_counts_consistent": true,
+    "pregrasp.candidate_totals_match_family": true,
+    "pregrasp.candidate_rejection_totals_match_family": true,
+    "pregrasp.audit_coverage_base_distance_xy_m": true,
+    "pregrasp.audit_coverage_base_heading_offset_deg": true,
+    "pregrasp.audit_coverage_base_x_m": true,
+    "pregrasp.audit_coverage_base_y_m": true,
+    "pregrasp.audit_coverage_candidate_local_x_m": true,
+    "pregrasp.audit_coverage_candidate_local_y_m": true,
+    "pregrasp.audit_coverage_candidate_local_z_m": true,
+    "pregrasp.audit_coverage_ee_candidate_distance_m": true,
+    "pregrasp.audit_coverage_ee_rotation_pitch_deg": true,
+    "pregrasp.audit_coverage_ee_rotation_roll_deg": true,
+    "pregrasp.audit_coverage_ee_rotation_yaw_deg": true,
+    "pregrasp.audit_coverage_gripper_opening": true,
+    "pregrasp.audit_coverage_lift_height": true,
+    "pregrasp.audit_coverage_object_yaw_offset_deg": true,
+    "pregrasp.audit_coverage_table_height_m": true,
+    "pregrasp.audit_coverage_validation_max_object_displacement_m": true,
+    "pregrasp.audit_coverage_validation_peak_contact_force_n": true,
+    "pregrasp.euclidean_approach_distance_range": true,
+    "pregrasp.negative_candidate_local_approach_axis": true,
+    "pregrasp.lateral_offset_range": true,
+    "pregrasp.vertical_offset_range": true,
+    "pregrasp.rotation_roll_range": true,
+    "pregrasp.rotation_pitch_range": true,
+    "pregrasp.rotation_yaw_range": true,
+    "at_grasp.base_x_range": true,
+    "at_grasp.base_y_range": true,
+    "at_grasp.heading_range_independent_scipy": true,
+    "at_grasp.feet_near_ground": true,
+    "at_grasp.object_yaw_range_independent_scipy": true,
+    "at_grasp.object_yaw_recorded_range": true,
+    "at_grasp.recorded_peak_force_bounded": true,
+    "at_grasp.recorded_max_object_displacement_bounded": true,
+    "at_grasp.object_near_nominal_table_height": true,
+    "at_grasp.near_goal_relative_slip_m_unused_zero": true,
+    "at_grasp.near_goal_relative_rotation_deg_unused_zero": true,
+    "at_grasp.near_goal_contact_fraction_unused_zero": true,
+    "at_grasp.near_goal_object_speed_m_s_unused_zero": true,
+    "at_grasp.near_goal_restore_verified_unused_zero": true,
+    "at_grasp.audit_counters_internally_consistent": true,
+    "at_grasp.acceptance_rate_matches_counts": true,
+    "at_grasp.audit_saved_count_matches_states": true,
+    "at_grasp.candidate_saved_counts_match_states": true,
+    "at_grasp.candidate_ids_integral": true,
+    "at_grasp.saved_candidate_ids_have_proposals": true,
+    "at_grasp.candidate_0_counts_consistent": true,
+    "at_grasp.candidate_1_counts_consistent": true,
+    "at_grasp.candidate_2_counts_consistent": true,
+    "at_grasp.candidate_3_counts_consistent": true,
+    "at_grasp.candidate_4_counts_consistent": true,
+    "at_grasp.candidate_5_counts_consistent": true,
+    "at_grasp.candidate_6_counts_consistent": true,
+    "at_grasp.candidate_7_counts_consistent": true,
+    "at_grasp.candidate_8_counts_consistent": true,
+    "at_grasp.candidate_9_counts_consistent": true,
+    "at_grasp.candidate_10_counts_consistent": true,
+    "at_grasp.candidate_11_counts_consistent": true,
+    "at_grasp.candidate_12_counts_consistent": true,
+    "at_grasp.candidate_13_counts_consistent": true,
+    "at_grasp.candidate_14_counts_consistent": true,
+    "at_grasp.candidate_15_counts_consistent": true,
+    "at_grasp.candidate_16_counts_consistent": true,
+    "at_grasp.candidate_17_counts_consistent": true,
+    "at_grasp.candidate_18_counts_consistent": true,
+    "at_grasp.candidate_19_counts_consistent": true,
+    "at_grasp.candidate_20_counts_consistent": true,
+    "at_grasp.candidate_21_counts_consistent": true,
+    "at_grasp.candidate_22_counts_consistent": true,
+    "at_grasp.candidate_23_counts_consistent": true,
+    "at_grasp.candidate_24_counts_consistent": true,
+    "at_grasp.candidate_25_counts_consistent": true,
+    "at_grasp.candidate_26_counts_consistent": true,
+    "at_grasp.candidate_27_counts_consistent": true,
+    "at_grasp.candidate_28_counts_consistent": true,
+    "at_grasp.candidate_29_counts_consistent": true,
+    "at_grasp.candidate_totals_match_family": true,
+    "at_grasp.candidate_rejection_totals_match_family": true,
+    "at_grasp.audit_coverage_base_distance_xy_m": true,
+    "at_grasp.audit_coverage_base_heading_offset_deg": true,
+    "at_grasp.audit_coverage_base_x_m": true,
+    "at_grasp.audit_coverage_base_y_m": true,
+    "at_grasp.audit_coverage_candidate_local_x_m": true,
+    "at_grasp.audit_coverage_candidate_local_y_m": true,
+    "at_grasp.audit_coverage_candidate_local_z_m": true,
+    "at_grasp.audit_coverage_ee_candidate_distance_m": true,
+    "at_grasp.audit_coverage_ee_rotation_pitch_deg": true,
+    "at_grasp.audit_coverage_ee_rotation_roll_deg": true,
+    "at_grasp.audit_coverage_ee_rotation_yaw_deg": true,
+    "at_grasp.audit_coverage_gripper_opening": true,
+    "at_grasp.audit_coverage_lift_height": true,
+    "at_grasp.audit_coverage_object_yaw_offset_deg": true,
+    "at_grasp.audit_coverage_table_height_m": true,
+    "at_grasp.audit_coverage_validation_max_object_displacement_m": true,
+    "at_grasp.audit_coverage_validation_peak_contact_force_n": true,
+    "at_grasp.candidate_position_tolerance": true,
+    "at_grasp.candidate_orientation_tolerance_from_recorded_rpy": true,
+    "at_grasp.opening_range_from_joint": true,
+    "near_goal.base_x_range": true,
+    "near_goal.base_y_range": true,
+    "near_goal.heading_range_independent_scipy": true,
+    "near_goal.feet_near_ground": true,
+    "near_goal.object_yaw_range_independent_scipy": true,
+    "near_goal.object_yaw_recorded_range": true,
+    "near_goal.recorded_peak_force_bounded": true,
+    "near_goal.audit_counters_internally_consistent": true,
+    "near_goal.acceptance_rate_matches_counts": true,
+    "near_goal.audit_saved_count_matches_states": true,
+    "near_goal.candidate_saved_counts_match_states": true,
+    "near_goal.candidate_ids_integral": true,
+    "near_goal.saved_candidate_ids_have_proposals": true,
+    "near_goal.candidate_0_counts_consistent": true,
+    "near_goal.candidate_1_counts_consistent": true,
+    "near_goal.candidate_2_counts_consistent": true,
+    "near_goal.candidate_3_counts_consistent": true,
+    "near_goal.candidate_4_counts_consistent": true,
+    "near_goal.candidate_5_counts_consistent": true,
+    "near_goal.candidate_6_counts_consistent": true,
+    "near_goal.candidate_7_counts_consistent": true,
+    "near_goal.candidate_8_counts_consistent": true,
+    "near_goal.candidate_9_counts_consistent": true,
+    "near_goal.candidate_10_counts_consistent": true,
+    "near_goal.candidate_11_counts_consistent": true,
+    "near_goal.candidate_12_counts_consistent": true,
+    "near_goal.candidate_13_counts_consistent": true,
+    "near_goal.candidate_14_counts_consistent": true,
+    "near_goal.candidate_15_counts_consistent": true,
+    "near_goal.candidate_16_counts_consistent": true,
+    "near_goal.candidate_17_counts_consistent": true,
+    "near_goal.candidate_18_counts_consistent": true,
+    "near_goal.candidate_19_counts_consistent": true,
+    "near_goal.candidate_20_counts_consistent": true,
+    "near_goal.candidate_21_counts_consistent": true,
+    "near_goal.candidate_22_counts_consistent": true,
+    "near_goal.candidate_23_counts_consistent": true,
+    "near_goal.candidate_24_counts_consistent": true,
+    "near_goal.candidate_25_counts_consistent": true,
+    "near_goal.candidate_26_counts_consistent": true,
+    "near_goal.candidate_27_counts_consistent": true,
+    "near_goal.candidate_28_counts_consistent": true,
+    "near_goal.candidate_29_counts_consistent": true,
+    "near_goal.candidate_totals_match_family": true,
+    "near_goal.candidate_rejection_totals_match_family": true,
+    "near_goal.audit_coverage_base_distance_xy_m": true,
+    "near_goal.audit_coverage_base_heading_offset_deg": true,
+    "near_goal.audit_coverage_base_x_m": true,
+    "near_goal.audit_coverage_base_y_m": true,
+    "near_goal.audit_coverage_candidate_local_x_m": true,
+    "near_goal.audit_coverage_candidate_local_y_m": true,
+    "near_goal.audit_coverage_candidate_local_z_m": true,
+    "near_goal.audit_coverage_ee_candidate_distance_m": true,
+    "near_goal.audit_coverage_ee_rotation_pitch_deg": true,
+    "near_goal.audit_coverage_ee_rotation_roll_deg": true,
+    "near_goal.audit_coverage_ee_rotation_yaw_deg": true,
+    "near_goal.audit_coverage_gripper_opening": true,
+    "near_goal.audit_coverage_lift_height": true,
+    "near_goal.audit_coverage_near_goal_contact_fraction": true,
+    "near_goal.audit_coverage_near_goal_object_speed_m_s": true,
+    "near_goal.audit_coverage_near_goal_relative_rotation_deg": true,
+    "near_goal.audit_coverage_near_goal_relative_slip_m": true,
+    "near_goal.audit_coverage_near_goal_restore_verified": true,
+    "near_goal.audit_coverage_object_yaw_offset_deg": true,
+    "near_goal.audit_coverage_table_height_m": true,
+    "near_goal.audit_coverage_validation_max_object_displacement_m": true,
+    "near_goal.audit_coverage_validation_peak_contact_force_n": true,
+    "near_goal.raw_lift_within_saved_config": true,
+    "near_goal.raw_lift_positive_below_task_success": true,
+    "near_goal.closed_gripper_target": true,
+    "near_goal.raw_speed_below_saved_evidence": true,
+    "near_goal.near_goal_relative_slip_m_evidence_within_saved_config": true,
+    "near_goal.near_goal_relative_rotation_deg_evidence_within_saved_config": true,
+    "near_goal.near_goal_object_speed_m_s_evidence_within_saved_config": true,
+    "near_goal.contact_fraction_evidence_within_saved_config": true,
+    "near_goal.cold_restore_evidence_passed_all_rows": true,
+    "audit_totals_match_family_totals": true,
+    "audit_total_stored_matches_bank": true,
+    "total_proposed_equals_valid_plus_invalid": true,
+    "total_valid_equals_stored_plus_valid_not_stored": true,
+    "batch_accepted_totals_match_all_states": true
+  },
+  "families": {
+    "full_task": {
+      "saved_count": 512,
+      "proposed": 1024,
+      "valid": 1024,
+      "invalid": 0,
+      "valid_not_stored": 512,
+      "acceptance_rate": 1.0,
+      "base_x_m": {
+        "count": 512,
+        "min": 2.000274658203125,
+        "max": 2.000518798828125,
+        "mean": 2.0004029664108884
+      },
+      "base_y_m": {
+        "count": 512,
+        "min": -0.00048828125,
+        "max": -0.00025177001953125,
+        "mean": -0.0003689671866595745
+      },
+      "base_heading_offset_deg": {
+        "count": 512,
+        "min": -14.960408049084862,
+        "max": 14.938608376198744,
+        "mean": 0.18977303532200174
+      },
+      "foot_bottom_m": {
+        "count": 2048,
+        "min": -9.121835231781089e-05,
+        "max": 1.9355714321135642e-05,
+        "mean": -1.551318113342942e-05
+      },
+      "object_yaw_offset_deg": {
+        "count": 512,
+        "min": -14.943549734362868,
+        "max": 14.946799044290328,
+        "mean": 0.5943344924889984
+      },
+      "gripper_opening_from_joint": {
+        "count": 512,
+        "min": 0.9999990412446551,
+        "max": 1.0000003313914982,
+        "mean": 0.9999998996132635
+      },
+      "raw_lift_height_m": {
+        "count": 512,
+        "min": 0.001107826828956604,
+        "max": 0.001127675175666809,
+        "mean": 0.0011175430845469236
+      },
+      "raw_object_speed_m_s": {
+        "count": 512,
+        "min": 0.05512087423687255,
+        "max": 0.057560975134777904,
+        "mean": 0.055485349971573096
+      },
+      "table_root_z_minus_command_z_m": {
+        "count": 512,
+        "min": -0.00024552345275874465,
+        "max": -0.00024549365043635696,
+        "mean": -0.0002455090172588649
+      },
+      "recorded_peak_contact_force_n": {
+        "count": 512,
+        "min": 37.219051361083984,
+        "max": 66.06900787353516,
+        "mean": 61.280502423644066
+      },
+      "recorded_max_object_displacement_m": {
+        "count": 512,
+        "min": 0.0006959849852137268,
+        "max": 0.0007317650597542524,
+        "mean": 0.000710676463540949
+      },
+      "stored_candidate_counts": [],
+      "proposed_candidate_count": 0,
+      "stored_candidate_count": 0
+    },
+    "pregrasp": {
+      "saved_count": 512,
+      "proposed": 8192,
+      "valid": 570,
+      "invalid": 7622,
+      "valid_not_stored": 58,
+      "acceptance_rate": 0.069580078125,
+      "base_x_m": {
+        "count": 512,
+        "min": 0.6800384521484375,
+        "max": 0.9474639892578125,
+        "mean": 0.765803697184424
+      },
+      "base_y_m": {
+        "count": 512,
+        "min": -0.19739532470703125,
+        "max": 0.19972610473632812,
+        "mean": 0.017573086777701974
+      },
+      "base_heading_offset_deg": {
+        "count": 512,
+        "min": -14.810156037469483,
+        "max": 14.978075528310086,
+        "mean": 0.699180087166913
+      },
+      "foot_bottom_m": {
+        "count": 2048,
+        "min": -4.7066211700440286e-05,
+        "max": 7.561445236205222e-06,
+        "mean": -1.0603314003675146e-05
+      },
+      "object_yaw_offset_deg": {
+        "count": 512,
+        "min": -14.931472911510154,
+        "max": 14.956710547970834,
+        "mean": -1.481994959630925
+      },
+      "gripper_opening_from_joint": {
+        "count": 512,
+        "min": 0.9998065816920423,
+        "max": 1.0000009385194246,
+        "mean": 0.9999984934065653
+      },
+      "raw_lift_height_m": {
+        "count": 512,
+        "min": 0.0005770474672317505,
+        "max": 0.001835063099861145,
+        "mean": 0.0010556323686614633
+      },
+      "raw_object_speed_m_s": {
+        "count": 512,
+        "min": 0.017621785446460463,
+        "max": 0.10703406346442235,
+        "mean": 0.048782245890839196
+      },
+      "table_root_z_minus_command_z_m": {
+        "count": 512,
+        "min": -0.00025121569633484997,
+        "max": -0.00024546384811396926,
+        "mean": -0.0002455310197546968
+      },
+      "recorded_peak_contact_force_n": {
+        "count": 512,
+        "min": 36.53413391113281,
+        "max": 237.41229248046875,
+        "mean": 39.39648670703173
+      },
+      "recorded_max_object_displacement_m": {
+        "count": 512,
+        "min": 0.00015696024638600647,
+        "max": 0.002690323628485203,
+        "mean": 0.0002315318665466748
+      },
+      "stored_candidate_counts": [
+        {
+          "candidate_id": 1,
+          "count": 14
+        },
+        {
+          "candidate_id": 2,
+          "count": 3
+        },
+        {
+          "candidate_id": 3,
+          "count": 15
+        },
+        {
+          "candidate_id": 4,
+          "count": 4
+        },
+        {
+          "candidate_id": 5,
+          "count": 3
+        },
+        {
+          "candidate_id": 8,
+          "count": 2
+        },
+        {
+          "candidate_id": 10,
+          "count": 27
+        },
+        {
+          "candidate_id": 11,
+          "count": 3
+        },
+        {
+          "candidate_id": 12,
+          "count": 197
+        },
+        {
+          "candidate_id": 13,
+          "count": 12
+        },
+        {
+          "candidate_id": 15,
+          "count": 4
+        },
+        {
+          "candidate_id": 16,
+          "count": 30
+        },
+        {
+          "candidate_id": 18,
+          "count": 9
+        },
+        {
+          "candidate_id": 19,
+          "count": 4
+        },
+        {
+          "candidate_id": 20,
+          "count": 4
+        },
+        {
+          "candidate_id": 21,
+          "count": 8
+        },
+        {
+          "candidate_id": 22,
+          "count": 5
+        },
+        {
+          "candidate_id": 23,
+          "count": 80
+        },
+        {
+          "candidate_id": 24,
+          "count": 40
+        },
+        {
+          "candidate_id": 27,
+          "count": 4
+        },
+        {
+          "candidate_id": 28,
+          "count": 27
+        },
+        {
+          "candidate_id": 29,
+          "count": 17
+        }
+      ],
+      "proposed_candidate_count": 30,
+      "stored_candidate_count": 22,
+      "candidate_concentration": {
+        "largest_candidate": {
+          "candidate_id": 12,
+          "count": 197
+        },
+        "largest_share": 0.384765625,
+        "top_two_share": 0.541015625,
+        "effective_candidate_count_exp_entropy": 9.197520124245353
+      },
+      "ee_candidate_distance_m_from_builder_offset": {
+        "count": 512,
+        "min": 0.05035656210693916,
+        "max": 0.14635853348317607,
+        "mean": 0.08733314193338497
+      },
+      "candidate_local_offset_m_from_builder": {
+        "x": {
+          "count": 512,
+          "min": -0.14540664851665497,
+          "max": -0.0006441660225391388,
+          "mean": -0.07486411231366219
+        },
+        "y": {
+          "count": 512,
+          "min": -0.04979950189590454,
+          "max": 0.04940694198012352,
+          "mean": -0.007913090985766758
+        },
+        "z": {
+          "count": 512,
+          "min": -0.04992738738656044,
+          "max": 0.049642857164144516,
+          "mean": -0.00016417452661698917
+        }
+      },
+      "ee_rotation_offset_deg_from_builder": {
+        "roll": {
+          "count": 512,
+          "min": -4.963744640350342,
+          "max": 4.938499927520752,
+          "mean": 0.07093770263873012
+        },
+        "pitch": {
+          "count": 512,
+          "min": -4.942147254943848,
+          "max": 4.9343061447143555,
+          "mean": -0.20409651478803426
+        },
+        "yaw": {
+          "count": 512,
+          "min": -4.960233688354492,
+          "max": 4.936300754547119,
+          "mean": 0.09080053680554556
+        }
+      },
+      "ee_candidate_angle_rad_from_recorded_rpy": {
+        "count": 512,
+        "min": 0.005869536230631447,
+        "max": 0.13305547579931892,
+        "mean": 0.08394000378835988
+      }
+    },
+    "at_grasp": {
+      "saved_count": 512,
+      "proposed": 4096,
+      "valid": 684,
+      "invalid": 3412,
+      "valid_not_stored": 172,
+      "acceptance_rate": 0.1669921875,
+      "base_x_m": {
+        "count": 512,
+        "min": 0.6804885864257812,
+        "max": 0.8491172790527344,
+        "mean": 0.7407238701988419
+      },
+      "base_y_m": {
+        "count": 512,
+        "min": -0.0994873046875,
+        "max": 0.0996856689453125,
+        "mean": 0.005741072585806251
+      },
+      "base_heading_offset_deg": {
+        "count": 512,
+        "min": -9.67352559900246,
+        "max": 9.93535886318108,
+        "mean": 1.4171210420816753
+      },
+      "foot_bottom_m": {
+        "count": 2048,
+        "min": -6.102859973907554e-05,
+        "max": 7.144212722777488e-06,
+        "mean": -1.0976501507685421e-05
+      },
+      "object_yaw_offset_deg": {
+        "count": 512,
+        "min": -14.957825629489339,
+        "max": 14.611288641629884,
+        "mean": -2.7507679649384373
+      },
+      "gripper_opening_from_joint": {
+        "count": 512,
+        "min": 0.5006927468775885,
+        "max": 0.9980640486527904,
+        "mean": 0.7550433997961541
+      },
+      "raw_lift_height_m": {
+        "count": 512,
+        "min": 0.0009557753801345825,
+        "max": 0.0029257088899612427,
+        "mean": 0.001156236045062542
+      },
+      "raw_object_speed_m_s": {
+        "count": 512,
+        "min": 0.010992702546232747,
+        "max": 0.21735869920115522,
+        "mean": 0.06178037331693874
+      },
+      "table_root_z_minus_command_z_m": {
+        "count": 512,
+        "min": -0.0002465963363647017,
+        "max": -0.0002452552318573109,
+        "mean": -0.0002455417299643016
+      },
+      "recorded_peak_contact_force_n": {
+        "count": 512,
+        "min": 36.705894470214844,
+        "max": 249.53237915039062,
+        "mean": 97.8358543664217
+      },
+      "recorded_max_object_displacement_m": {
+        "count": 512,
+        "min": 0.0001553743495605886,
+        "max": 0.006450720131397247,
+        "mean": 0.0012373527465570078
+      },
+      "stored_candidate_counts": [
+        {
+          "candidate_id": 1,
+          "count": 14
+        },
+        {
+          "candidate_id": 2,
+          "count": 8
+        },
+        {
+          "candidate_id": 3,
+          "count": 38
+        },
+        {
+          "candidate_id": 4,
+          "count": 19
+        },
+        {
+          "candidate_id": 8,
+          "count": 28
+        },
+        {
+          "candidate_id": 9,
+          "count": 2
+        },
+        {
+          "candidate_id": 10,
+          "count": 58
+        },
+        {
+          "candidate_id": 11,
+          "count": 17
+        },
+        {
+          "candidate_id": 12,
+          "count": 8
+        },
+        {
+          "candidate_id": 13,
+          "count": 41
+        },
+        {
+          "candidate_id": 16,
+          "count": 46
+        },
+        {
+          "candidate_id": 18,
+          "count": 28
+        },
+        {
+          "candidate_id": 21,
+          "count": 40
+        },
+        {
+          "candidate_id": 23,
+          "count": 76
+        },
+        {
+          "candidate_id": 27,
+          "count": 3
+        },
+        {
+          "candidate_id": 28,
+          "count": 43
+        },
+        {
+          "candidate_id": 29,
+          "count": 43
+        }
+      ],
+      "proposed_candidate_count": 30,
+      "stored_candidate_count": 17,
+      "candidate_concentration": {
+        "largest_candidate": {
+          "candidate_id": 23,
+          "count": 76
+        },
+        "largest_share": 0.1484375,
+        "top_two_share": 0.26171875,
+        "effective_candidate_count_exp_entropy": 13.331535307436866
+      },
+      "ee_candidate_distance_m_from_builder_offset": {
+        "count": 512,
+        "min": 0.003290836150580859,
+        "max": 0.004983063630482009,
+        "mean": 0.0038533575678708467
+      },
+      "candidate_local_offset_m_from_builder": {
+        "x": {
+          "count": 512,
+          "min": 3.439979627728462e-05,
+          "max": 0.0035129920579493046,
+          "mean": 0.0022578802909265505
+        },
+        "y": {
+          "count": 512,
+          "min": -0.0010363885667175055,
+          "max": 0.0023001322988420725,
+          "mean": -2.0799649519176455e-05
+        },
+        "z": {
+          "count": 512,
+          "min": -0.004952895455062389,
+          "max": 0.0011278626043349504,
+          "mean": -0.0015408094602662459
+        }
+      },
+      "ee_rotation_offset_deg_from_builder": {
+        "roll": {
+          "count": 512,
+          "min": -5.108844757080078,
+          "max": 1.1675934791564941,
+          "mean": -0.1375875185754012
+        },
+        "pitch": {
+          "count": 512,
+          "min": -3.1572413444519043,
+          "max": 1.140942096710205,
+          "mean": -0.12569410505602718
+        },
+        "yaw": {
+          "count": 512,
+          "min": -0.9722501039505005,
+          "max": 0.7551593780517578,
+          "mean": -0.015012835970310334
+        }
+      },
+      "ee_candidate_angle_rad_from_recorded_rpy": {
+        "count": 512,
+        "min": 0.0028042527451484353,
+        "max": 0.09342818383934283,
+        "mean": 0.010373607475615677
+      }
+    },
+    "near_goal": {
+      "saved_count": 512,
+      "proposed": 36864,
+      "valid": 522,
+      "invalid": 36342,
+      "valid_not_stored": 10,
+      "acceptance_rate": 0.01416015625,
+      "base_x_m": {
+        "count": 512,
+        "min": 0.6800537109375,
+        "max": 0.848602294921875,
+        "mean": 0.7372163527794555
+      },
+      "base_y_m": {
+        "count": 512,
+        "min": -0.09984588623046875,
+        "max": 0.099884033203125,
+        "mean": -0.01159243704751134
+      },
+      "base_heading_offset_deg": {
+        "count": 512,
+        "min": -9.817571674207443,
+        "max": 9.972916030060958,
+        "mean": 2.0433901526376155
+      },
+      "foot_bottom_m": {
+        "count": 2048,
+        "min": -3.831923007965171e-05,
+        "max": 0.00024094343185424721,
+        "mean": 3.3616751898071784e-06
+      },
+      "object_yaw_offset_deg": {
+        "count": 512,
+        "min": -14.937064750290103,
+        "max": 14.728571360820641,
+        "mean": -3.1323342772385514
+      },
+      "gripper_opening_from_joint": {
+        "count": 512,
+        "min": 0.25591328117631773,
+        "max": 0.5614628371979613,
+        "mean": 0.32660973614733657
+      },
+      "raw_lift_height_m": {
+        "count": 512,
+        "min": 0.05026461184024811,
+        "max": 0.09307338297367096,
+        "mean": 0.07064036524388939
+      },
+      "raw_object_speed_m_s": {
+        "count": 512,
+        "min": 0.009277795745164848,
+        "max": 0.09989006486291473,
+        "mean": 0.05619376520953485
+      },
+      "table_root_z_minus_command_z_m": {
+        "count": 512,
+        "min": -0.0002452850341796431,
+        "max": -0.0002452552318573109,
+        "mean": -0.0002452652435749694
+      },
+      "recorded_peak_contact_force_n": {
+        "count": 512,
+        "min": 317.6900634765625,
+        "max": 1357.162109375,
+        "mean": 491.38910764455795
+      },
+      "recorded_max_object_displacement_m": {
+        "count": 512,
+        "min": 0.005061522591859102,
+        "max": 0.041374750435352325,
+        "mean": 0.016685826793946035
+      },
+      "stored_candidate_counts": [
+        {
+          "candidate_id": 1,
+          "count": 23
+        },
+        {
+          "candidate_id": 2,
+          "count": 1
+        },
+        {
+          "candidate_id": 3,
+          "count": 46
+        },
+        {
+          "candidate_id": 4,
+          "count": 2
+        },
+        {
+          "candidate_id": 8,
+          "count": 6
+        },
+        {
+          "candidate_id": 10,
+          "count": 77
+        },
+        {
+          "candidate_id": 11,
+          "count": 27
+        },
+        {
+          "candidate_id": 13,
+          "count": 63
+        },
+        {
+          "candidate_id": 16,
+          "count": 62
+        },
+        {
+          "candidate_id": 18,
+          "count": 34
+        },
+        {
+          "candidate_id": 21,
+          "count": 45
+        },
+        {
+          "candidate_id": 23,
+          "count": 5
+        },
+        {
+          "candidate_id": 27,
+          "count": 4
+        },
+        {
+          "candidate_id": 28,
+          "count": 55
+        },
+        {
+          "candidate_id": 29,
+          "count": 62
+        }
+      ],
+      "proposed_candidate_count": 30,
+      "stored_candidate_count": 15,
+      "candidate_concentration": {
+        "largest_candidate": {
+          "candidate_id": 10,
+          "count": 77
+        },
+        "largest_share": 0.150390625,
+        "top_two_share": 0.2734375,
+        "effective_candidate_count_exp_entropy": 10.671869367557198
+      },
+      "ee_candidate_distance_m_from_builder_offset": {
+        "count": 512,
+        "min": 0.003360429779209956,
+        "max": 0.034071465783425486,
+        "mean": 0.016869205203000014
+      },
+      "candidate_local_offset_m_from_builder": {
+        "x": {
+          "count": 512,
+          "min": -0.013438594527542591,
+          "max": 0.02404673583805561,
+          "mean": 0.000550516137110435
+        },
+        "y": {
+          "count": 512,
+          "min": -0.024585995823144913,
+          "max": 0.028083499521017075,
+          "mean": 0.0011375908838999749
+        },
+        "z": {
+          "count": 512,
+          "min": -0.010343646630644798,
+          "max": 0.025840088725090027,
+          "mean": 0.008162001602386226
+        }
+      },
+      "ee_rotation_offset_deg_from_builder": {
+        "roll": {
+          "count": 512,
+          "min": -5.762234687805176,
+          "max": 7.632681846618652,
+          "mean": -0.902805666983113
+        },
+        "pitch": {
+          "count": 512,
+          "min": -21.444812774658203,
+          "max": 32.806148529052734,
+          "mean": 5.893129104217223
+        },
+        "yaw": {
+          "count": 512,
+          "min": -15.96817684173584,
+          "max": 14.156085968017578,
+          "mean": -0.01832162521441205
+        }
+      },
+      "ee_candidate_angle_rad_from_recorded_rpy": {
+        "count": 512,
+        "min": 0.01219077921289665,
+        "max": 0.5967746161636445,
+        "mean": 0.16490892232392262
+      },
+      "closed_gripper_target": {
+        "count": 512,
+        "min": 0.0,
+        "max": 0.0,
+        "mean": 0.0
+      },
+      "saved_builder_physical_evidence": {
+        "near_goal_relative_slip_m": {
+          "count": 512,
+          "min": 1.2142747436882928e-05,
+          "max": 0.005527682602405548,
+          "mean": 0.00013259298739143333
+        },
+        "near_goal_relative_rotation_deg": {
+          "count": 512,
+          "min": 0.0,
+          "max": 3.416234016418457,
+          "mean": 0.07342607996542938
+        },
+        "near_goal_contact_fraction": {
+          "count": 512,
+          "min": 1.0,
+          "max": 1.0,
+          "mean": 1.0
+        },
+        "near_goal_object_speed_m_s": {
+          "count": 512,
+          "min": 0.027189629152417183,
+          "max": 0.09989006817340851,
+          "mean": 0.07301410976651823
+        },
+        "near_goal_restore_verified": {
+          "count": 512,
+          "min": 1.0,
+          "max": 1.0,
+          "mean": 1.0
+        }
+      }
+    }
+  },
+  "nominal_object_orientation_reference": {
+    "xyzw": [
+      0.707,
+      0.0,
+      0.0,
+      0.707
+    ],
+    "source": "Known sugar_box normal-reset task reference; absent from the bank metadata; no live YAML was read",
+    "normalization": "scipy.spatial.transform.Rotation.from_quat"
+  },
+  "gripper_joint_reference": {
+    "urdf": "/home/hehui/DQ_WBC/DQ_high-level/data/asset/b1z1-col/urdf/b1z1.urdf",
+    "joint": "z1_jointGripper",
+    "lower": -1.5707963267948966,
+    "upper": 0.0
+  },
+  "independent_object_yaw_vs_recorded_max_error_deg": 1.445841741087861e-05,
+  "object_yaw_note": "SciPy independently normalizes the nominal [0.707,0,0,0.707] quaternion. The final builder normalizes its relative quaternion before extracting angles; agreement is checked to 0.0001 degrees, and normalized actual yaw is separately checked against config.",
+  "raw_lift_definition": "object_root[:,2] - table_height - bank.metadata.object_init_height_m",
+  "object_init_height_m": 0.04500000178813934,
+  "lifted_threshold_m": 0.2,
+  "foot_bottom_definition": "rigid_body_state[:, metadata foot_body_indices, 2] - metadata foot_radius_m",
+  "foot_grounding_thresholds": {
+    "foot_body_indices": [
+      9,
+      5,
+      17,
+      13
+    ],
+    "foot_radius_m": 0.04,
+    "limits": {
+      "max_foot_bottom_m": 0.02,
+      "min_foot_bottom_m": -0.005
+    }
+  },
+  "base_geometry_definition": "object_root world XY - robot_root world XY; heading = SciPy-normalized robot yaw minus bearing toward object",
+  "candidate_geometry_source": "candidate_local_offset and ee_rotation_offset_deg are final measured builder fields, not sampled target fields; their norm/rotation magnitude is recomputed here. No independent candidate FK was reconstructed.",
+  "near_goal_world_displacement_note": "Near-goal validation_max_object_displacement_m includes normal world motion during physical hold/cold restore; the first-three-family 0.02 m static-object limit does not apply. Near-goal uses configured relative slip, relative rotation, contact fraction and object speed limits.",
+  "audit_totals": {
+    "invalid": 47376,
+    "proposed": 50176,
+    "stored": 2048,
+    "valid": 2800,
+    "valid_not_stored": 752
+  },
+  "all_checks_passed": true,
+  "failed_checks": [],
+  "check_count": 279
+}

@@ -1,8 +1,9 @@
 """Read and validate SGS bank-construction parameters without a simulator.
 
 The builder samples targets from these ranges and checks geometry, collision and
-approximate ground contact. It does not require a successful scripted grasp or
-stable standing. The accepted bank need not have a uniform distribution.
+approximate ground contact. Schema 4 adds a near-goal family with a short physical
+grasp/lift/hold check; schema 3 keeps the original three geometry-only families.
+Neither profile requires stable standing. Accepted states need not be uniform.
 """
 
 from collections.abc import Mapping
@@ -22,6 +23,19 @@ _FAMILY_EXTRA = {
     "full_task": "arm_pose",
     "pregrasp": "ee_approach_distance_range_m",
     "at_grasp": "gripper_opening_range",
+}
+_PREGRASP_OFFSET_KEYS = {
+    "ee_lateral_offset_range_m", "ee_vertical_offset_range_m",
+    "ee_rotation_offset_range_deg",
+}
+_ROTATION_AXES = ("roll", "pitch", "yaw")
+_VALIDATION_KEYS = {
+    "physics_steps", "max_object_displacement_m", "max_contact_force_n",
+}
+_NEAR_GOAL_POSITIVE_KEYS = {
+    "close_time_s", "lift_time_s", "hold_time_s", "max_relative_slip_m",
+    "max_relative_rotation_deg", "min_finger_contact_force_n",
+    "min_contact_fraction", "max_object_speed_m_s",
 }
 
 
@@ -91,38 +105,70 @@ def _range(value, path, *, positive=False, angle=False):
     return result
 
 
+def _base(value, path):
+    _keys(value, _BASE_KEYS, path)
+    result = {
+        key: _range(value[key], f"{path}.{key}",
+                    angle=key == "heading_offset_range_deg")
+        for key in ("x_range_m", "y_range_m", "heading_offset_range_deg")
+    }
+    if result["x_range_m"] == [0., 0.] and result["y_range_m"] == [0., 0.]:
+        raise ValueError(f"{path}: x and y cannot both be fixed at zero")
+    return result
+
+
 def validate_build_config(mapping, lifted_threshold=None):
     """Return a detached, normalized config, rejecting ambiguous settings.
 
-    ``lifted_threshold`` remains an optional compatibility argument; it has no
-    effect because the at-grasp family does not pre-lift the object.
+    ``lifted_threshold`` is used only for schema 4: a near-goal state must be
+    strictly below the task's success height (default 0.2 m). Schema 3 does not
+    pre-lift objects and keeps its earlier threshold-independent behavior.
     """
     if isinstance(mapping, Mapping) and (
-        mapping.get("schema_version") == 1 or "grasped_before_lift" in mapping
+        (type(mapping.get("schema_version")) is int and mapping["schema_version"] in (1, 2))
+        or "grasped_before_lift" in mapping
     ):
         raise ValueError(
-            "Legacy SGS build config: migrate to schema_version: 2; replace "
+            "Legacy SGS build config: migrate to schema_version: 3; add object, validation, "
+            "and pregrasp.ee_lateral_offset_range_m / ee_vertical_offset_range_m / "
+            "ee_rotation_offset_range_deg. Use zero yaw/pose offsets and physics_steps: 1 "
+            "if preserving the earlier target distribution. Replace any "
             "grasped_before_lift/object_lift_height_range_m with "
-            "at_grasp/gripper_opening_range ([0, 1], 0 = closed, 1 = fully open). "
-            "The at_grasp family does not guarantee a held or lifted object."
+            "at_grasp/gripper_opening_range; at_grasp does not guarantee a held or lifted object."
         )
-    _keys(mapping, {"schema_version", *_FAMILY_EXTRA}, "SGS build config")
+    if not isinstance(mapping, Mapping):
+        raise ValueError("SGS build config must be a mapping")
+    if "schema_version" not in mapping:
+        raise ValueError("SGS build config: missing keys schema_version")
     version = mapping["schema_version"]
-    if type(version) is not int or version != 2:
-        raise ValueError("schema_version must be the integer 2")
-    result = {"schema_version": 2}
+    if type(version) is not int or version not in (3, 4):
+        raise ValueError("schema_version must be the integer 3 or 4")
+    root_keys = {"schema_version", "object", "validation", *_FAMILY_EXTRA}
+    if version == 4:
+        root_keys.add("near_goal")
+    _keys(mapping, root_keys, "SGS build config")
+    _keys(mapping["object"], {"yaw_offset_range_deg"}, "object")
+    _keys(mapping["validation"], _VALIDATION_KEYS, "validation")
+    steps = mapping["validation"]["physics_steps"]
+    if type(steps) is not int or steps <= 0:
+        raise ValueError("validation.physics_steps must be a positive integer")
+    validation = {"physics_steps": steps}
+    for key in ("max_object_displacement_m", "max_contact_force_n"):
+        value = _number(mapping["validation"][key], f"validation.{key}")
+        if value <= 0:
+            raise ValueError(f"validation.{key} must be strictly positive")
+        validation[key] = value
+    result = {
+        "schema_version": version,
+        "object": {"yaw_offset_range_deg": _range(
+            mapping["object"]["yaw_offset_range_deg"], "object.yaw_offset_range_deg", angle=True)},
+        "validation": validation,
+    }
     for family, extra_key in _FAMILY_EXTRA.items():
         source = mapping[family]
-        _keys(source, {"base", extra_key}, family)
-        _keys(source["base"], _BASE_KEYS, f"{family}.base")
-        base = {
-            key: _range(source["base"][key], f"{family}.base.{key}",
-                        angle=key == "heading_offset_range_deg")
-            for key in ("x_range_m", "y_range_m", "heading_offset_range_deg")
-        }
-        if base["x_range_m"] == [0., 0.] and base["y_range_m"] == [0., 0.]:
-            raise ValueError(f"{family}.base: x and y cannot both be fixed at zero")
-        result[family] = {"base": base}
+        extra_keys = _PREGRASP_OFFSET_KEYS if family == "pregrasp" else set()
+        _keys(source, {"base", extra_key, *extra_keys}, family)
+        result[family] = {"base": _base(source["base"], f"{family}.base")}
         if family == "full_task":
             if source[extra_key] != "default":
                 raise ValueError("full_task.arm_pose must be 'default'")
@@ -131,15 +177,65 @@ def validate_build_config(mapping, lifted_threshold=None):
             result[family][extra_key] = _range(
                 source[extra_key], f"{family}.{extra_key}", positive=True
             )
+            for key in ("ee_lateral_offset_range_m", "ee_vertical_offset_range_m"):
+                result[family][key] = _range(source[key], f"{family}.{key}")
+            rotations = source["ee_rotation_offset_range_deg"]
+            _keys(rotations, set(_ROTATION_AXES), "pregrasp.ee_rotation_offset_range_deg")
+            result[family]["ee_rotation_offset_range_deg"] = {}
+            for axis in _ROTATION_AXES:
+                path = f"pregrasp.ee_rotation_offset_range_deg.{axis}"
+                bounds = _range(rotations[axis], path, angle=True)
+                if bounds[0] < -45 or bounds[1] > 45:
+                    raise ValueError(f"{path} must stay within [-45, 45] degrees")
+                result[family]["ee_rotation_offset_range_deg"][axis] = bounds
+            def closest_to_zero(bounds):
+                return 0. if bounds[0] <= 0 <= bounds[1] else min(map(abs, bounds))
+
+            lateral = closest_to_zero(result[family]["ee_lateral_offset_range_m"])
+            vertical = closest_to_zero(result[family]["ee_vertical_offset_range_m"])
+            distance_max = result[family][extra_key][1]
+            if math.hypot(lateral, vertical) >= distance_max:
+                raise ValueError(
+                    "pregrasp lateral/vertical offsets have no feasible combination: "
+                    "minimum transverse distance must be smaller than max(distance)"
+                )
         else:
             opening = _range(source[extra_key], f"{family}.{extra_key}")
             if opening[0] < 0 or opening[1] > 1:
                 raise ValueError(f"{family}.{extra_key} must stay within [0, 1]")
             result[family][extra_key] = opening
+    if version == 4:
+        source = mapping["near_goal"]
+        _keys(source, {"base", "object_lift_height_range_m", *_NEAR_GOAL_POSITIVE_KEYS},
+              "near_goal")
+        near_goal = {"base": _base(source["base"], "near_goal.base")}
+        near_goal["object_lift_height_range_m"] = _range(
+            source["object_lift_height_range_m"], "near_goal.object_lift_height_range_m",
+            positive=True)
+        threshold = _number(.2 if lifted_threshold is None else lifted_threshold,
+                            "lifted_threshold")
+        if threshold <= 0:
+            raise ValueError("lifted_threshold must be strictly positive")
+        if near_goal["object_lift_height_range_m"][1] >= threshold:
+            raise ValueError(
+                "near_goal.object_lift_height_range_m upper bound must be strictly below "
+                "lifted_threshold; near-goal resets must start before task success")
+        for key in _NEAR_GOAL_POSITIVE_KEYS:
+            value = _number(source[key], f"near_goal.{key}")
+            if value <= 0:
+                raise ValueError(f"near_goal.{key} must be strictly positive")
+            near_goal[key] = value
+        if near_goal["hold_time_s"] < .1:
+            raise ValueError("near_goal.hold_time_s must be at least 0.1 seconds")
+        if near_goal["min_contact_fraction"] > 1:
+            raise ValueError("near_goal.min_contact_fraction must be within (0, 1]")
+        if near_goal["max_relative_rotation_deg"] > 180:
+            raise ValueError("near_goal.max_relative_rotation_deg must be at most 180 degrees")
+        result["near_goal"] = near_goal
     return result
 
 
-def load_build_config(path=None):
+def load_build_config(path=None, lifted_threshold=None):
     """Load a UTF-8 YAML file; the default path is independent of working dir."""
     source = DEFAULT_BUILD_CONFIG_PATH if path is None else Path(path).expanduser()
     with source.open("r", encoding="utf-8") as stream:
@@ -147,4 +243,4 @@ def load_build_config(path=None):
             mapping = yaml.load(stream, Loader=_UniqueKeySafeLoader)
         except yaml.YAMLError as error:
             raise ValueError(f"Invalid SGS build YAML {source}: {error}") from error
-    return validate_build_config(mapping)
+    return validate_build_config(mapping, lifted_threshold=lifted_threshold)

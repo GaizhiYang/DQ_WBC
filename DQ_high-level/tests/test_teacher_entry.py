@@ -41,7 +41,7 @@ class TeacherConfigurationTests(unittest.TestCase):
         cfg = config.configure_teacher_experiment({"env": {}}, args)
         self.assertEqual(cfg["env"]["sgs"]["mode"], "disabled")
         self.assertEqual(cfg["env"]["successMode"], "legacy")
-        self.assertEqual(cfg["env"]["sgs"]["bank_size"], 1536)
+        self.assertIsNone(cfg["env"]["sgs"]["bank_size"])
         self.assertEqual(cfg["env"]["sgs"]["p_init"], 0.0)
         self.assertEqual(args.rl_device, "cuda:0")
         self.assertEqual(args.sim_device, "cuda:0")
@@ -69,6 +69,14 @@ class TeacherConfigurationTests(unittest.TestCase):
                                   "--sgs_mode", "uniform"])
         with self.assertRaisesRegex(ValueError, "validated bank"):
             config.configure_teacher_experiment({"env": {}}, args)
+
+    def test_explicit_bank_size_remains_an_optional_positive_integer_assertion(self):
+        args = config.get_params([])
+        cfg = config.configure_teacher_experiment({"env": {"sgs": {"bank_size": 2048}}}, args)
+        self.assertEqual(cfg["env"]["sgs"]["bank_size"], 2048)
+        for invalid in (0, -1, True, 2.5, "2048"):
+            with self.subTest(value=invalid), self.assertRaisesRegex(ValueError, "bank_size"):
+                config.configure_teacher_experiment({"env": {"sgs": {"bank_size": invalid}}}, args)
 
     def test_strict_eval_overrides_saved_training_sampler(self):
         args = config.get_params(["--checkpoint", "agent_24.pt", "--eval_episodes", "3"])

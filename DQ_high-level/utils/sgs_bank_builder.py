@@ -6,6 +6,8 @@ importing this module in an executable (Isaac Gym's PyTorch import requirement).
 
 from contextlib import contextmanager
 from copy import deepcopy
+import math
+from pathlib import Path
 import sys
 
 import numpy as np
@@ -18,6 +20,7 @@ from utils.sgs_build_config import (
 from utils.sgs_grounding import (
     FOOT_RADIUS, FOOT_NAMES, APPROX_GROUND_LIMITS,
     foot_indices, grounding_state, approx_grounded_mask,
+    grasp_contact_body_indices,
 )
 
 
@@ -153,6 +156,24 @@ def quaternion_matrix(quaternion):
     ], dim=2)
 
 
+def pregrasp_local_offset(distance, lateral, vertical):
+    """Keep the requested Euclidean distance while varying candidate-local y/z."""
+    axial_squared = distance.square() - lateral.square() - vertical.square()
+    if bool((axial_squared <= 0).any()):
+        raise ValueError("pregrasp lateral/vertical offsets must fit inside the requested distance")
+    return torch.stack((-axial_squared.sqrt(), lateral, vertical), dim=-1)
+
+
+def quaternion_angles_deg(quaternion):
+    from isaacgym.torch_utils import euler_from_quat
+    # The task's nominal object quaternion uses rounded 0.707 components.
+    # Euler extraction assumes unit quaternions; normalize relative rotations
+    # so yaw acceptance near a configured boundary measures the actual angle.
+    quaternion = quaternion / quaternion.norm(dim=-1, keepdim=True).clamp_min(1e-12)
+    angles = torch.stack(euler_from_quat(quaternion), dim=-1)
+    return torch.rad2deg(torch.remainder(angles + np.pi, 2 * np.pi) - np.pi)
+
+
 def synchronize_targets(env, world_position, world_quaternion, gripper_target):
     from isaacgym.torch_utils import quat_rotate_inverse, quat_mul, quat_conjugate, euler_from_quat
     env.update_roboinfo()
@@ -264,9 +285,9 @@ def restored_physics_tick(env, state):
 
 
 class PhysicsBankBuilder:
-    """Direct reset geometry with a single physics tick, without task rollouts."""
+    """Diverse reset geometry with a bounded physics window, without task rollouts."""
 
-    FAMILY_NAMES = ("full_task", "pregrasp", "at_grasp")
+    FAMILY_NAMES = ("full_task", "pregrasp", "at_grasp", "near_goal")
     NON_GRASP_CONTACT_LIMIT_N = 5.
     GRASP_CONTACT_LIMIT_N = 250.
     AT_GRASP_POSITION_TOLERANCE_M = .005
@@ -278,9 +299,22 @@ class PhysicsBankBuilder:
         if self.per_family < 1:
             raise ValueError("Family size must be positive")
         self.reset_config = validate_build_config(
-            load_build_config() if reset_config is None else reset_config)
+            load_build_config(lifted_threshold=env.lifted_success_threshold) if reset_config is None else reset_config,
+            lifted_threshold=env.lifted_success_threshold)
+        self.family_names = self.FAMILY_NAMES[:4 if "near_goal" in self.reset_config else 3]
         self.kinematics = Z1Kinematics(env.device)
-        self.parts, self.counts, self.audit = [[], [], []], [0, 0, 0], []
+        self.parts = [[] for _ in self.family_names]
+        self.counts, self.audit = [0] * len(self.family_names), []
+        from utils.sgs_build_audit import BuildAudit
+        self.sampling_audit = BuildAudit(self.family_names)
+        if "near_goal" in self.reset_config:
+            # Exact source collision vertices for checking that the held object
+            # clears the support plane. The builder currently supports sugar_box.
+            asset = env.cfg["env"]["asset"]
+            mesh = Path(asset["assetRoot"]) / asset["assetFileObj"] / "sugar_box/collision.obj"
+            vertices = [list(map(float, line.split()[1:4])) for line in mesh.read_text().splitlines()
+                        if line.startswith("v ")]
+            self.object_vertices = torch.tensor(vertices, device=env.device) * asset["asset_multi"]["sugar_box"].get("scale", 1.)
 
     def _sample_range(self, bounds):
         low, high = bounds
@@ -292,6 +326,13 @@ class PhysicsBankBuilder:
         tolerance = singleton_tolerance if low == high else 0.
         return (values >= low - tolerance - 1e-6) & (values <= high + tolerance + 1e-6)
 
+    @staticmethod
+    def _angle_in_range(values, bounds):
+        low, high = bounds
+        offset = torch.remainder(values - low, 360.)
+        margin = SINGLE_VALUE_HEADING_TOLERANCE_DEG if low == high else 1e-4
+        return (offset <= high - low + margin) | (offset >= 360. - margin)
+
     def _base_in_range(self, state, base):
         root, obj = state["robot_root"], state["object_root"]
         delta = obj[:, :2] - root[:, :2]
@@ -299,12 +340,9 @@ class PhysicsBankBuilder:
         yaw = torch.atan2(2 * (w * z + x * y), 1 - 2 * (y.square() + z.square()))
         heading = yaw - torch.atan2(delta[:, 1], delta[:, 0])
         heading = torch.remainder(heading + np.pi, 2 * np.pi) - np.pi
-        low, high = base["heading_offset_range_deg"]
         # The -180/+180 seam is the same physical orientation. Fixed headings
         # use a circular tolerance, rather than a linear interval at that seam.
-        offset = torch.remainder(torch.rad2deg(heading) - low, 360.)
-        angular_margin = SINGLE_VALUE_HEADING_TOLERANCE_DEG if low == high else 1e-4
-        angle_valid = (offset <= high - low + angular_margin) | (offset >= 360. - angular_margin)
+        angle_valid = self._angle_in_range(torch.rad2deg(heading), base["heading_offset_range_deg"])
         return (self._in_range(delta[:, 0], base["x_range_m"])
                 & self._in_range(delta[:, 1], base["y_range_m"])
                 & angle_valid)
@@ -365,14 +403,21 @@ class PhysicsBankBuilder:
         env._sgs_has_pending_reset = True
         env.update_roboinfo()
 
-    def _pose_tick(self, gripper):
-        """Upload roots and joints once; obtain real FK/contact data in 5 ms."""
+    def _physics_window(self, gripper):
+        """Upload once, hold sampled joints, and check every continuous step.
+
+        Robot/object velocities are cleared only before the window. Repeatedly
+        resetting them would hide impulses. The floating support table is held
+        at its nominal pose, consistent with training's per-tick height control.
+        """
         from isaacgym import gymtorch
         env = self.env
         env._dof_vel[:] = 0
         env._robot_root_states[:, 7:] = 0
         env._cube_root_states[:, 7:] = 0
         env._table_root_states[:, 7:] = 0
+        env._table_root_states[:, 2] = env.table_heights - env.table_dimz / 2
+        table_target = env._table_root_states.clone()
         env.gripper_dof_pos[:] = gripper
         robots = env._robot_actor_ids.to(torch.int32)
         actors = torch.cat((robots, env._cube_actor_ids.to(torch.int32),
@@ -383,17 +428,48 @@ class PhysicsBankBuilder:
                                                   gymtorch.unwrap_tensor(actors), len(actors))
         env._sgs_pending_reset.zero_()
         env._sgs_has_pending_reset = False
-        env.gym.set_dof_position_target_tensor(env.sim, gymtorch.unwrap_tensor(env._dof_pos.contiguous()))
+        targets = env._dof_pos.clone().contiguous()
+        object_position = env._cube_root_states[:, :3].clone()
+        peak_force = torch.zeros(env.num_envs, device=env.device)
+        displacement = torch.zeros_like(peak_force)
+        checks = None
+        env.gym.set_dof_position_target_tensor(env.sim, gymtorch.unwrap_tensor(targets))
         env.last_low_actions.zero_()
-        env.gym.set_dof_actuation_force_tensor(env.sim, gymtorch.unwrap_tensor(env.get_torques()))
-        env.gym.simulate(env.sim)
-        env.gym.fetch_results(env.sim, True)
-        env._refresh_sim_tensors()
+        tables = env._table_actor_ids.to(torch.int32)
+        for step in range(self.reset_config["validation"]["physics_steps"]):
+            if step:
+                # This heavy floating table has gravity enabled. Training also
+                # controls it every tick; letting it free-fall here would make
+                # the saved support height inconsistent with the reset command.
+                # Only the table is commanded; robot/object states stay live.
+                env._table_root_states[:] = table_target
+                env.gym.set_actor_root_state_tensor_indexed(
+                    env.sim, gymtorch.unwrap_tensor(env._root_states),
+                    gymtorch.unwrap_tensor(tables), len(tables))
+            env.gym.set_dof_actuation_force_tensor(env.sim, gymtorch.unwrap_tensor(env.get_torques()))
+            env.gym.simulate(env.sim)
+            env.gym.fetch_results(env.sim, True)
+            env._refresh_sim_tensors()
+            current = self._frame_checks()
+            checks = current if checks is None else {
+                key: checks[key] & current[key] for key in checks}
+            peak_force = torch.maximum(peak_force, env._contact_forces.norm(dim=-1).amax(dim=1))
+            displacement = torch.maximum(
+                displacement, (env._cube_root_states[:, :3] - object_position).norm(dim=1))
         env.update_roboinfo()
         synchronize_targets(env, env.ee_pos.clone(), env.ee_orn.clone(), gripper)
+        validation = self.reset_config["validation"]
+        checks["peak_contact_force"] = peak_force <= validation["max_contact_force_n"]
+        checks["object_displacement"] = displacement <= validation["max_object_displacement_m"]
+        checks["feet_near_ground"] = approx_grounded_mask(grounding_state(env)[0])
+        height = env._cube_root_states[:, 2] - env.table_heights - env.init_height
+        checks["object_on_table"] = height.abs() < .02
+        evidence = {"validation_peak_contact_force_n": peak_force,
+                    "validation_max_object_displacement_m": displacement}
+        return checks, evidence
 
-    def _basic_valid(self):
-        """Basic pose/joint/ground/contact checks; no stable-stance requirement."""
+    def _frame_checks(self):
+        """Checks accumulated across the window; final grounding is separate."""
         env = self.env
         roots = torch.stack((env._robot_root_states, env._cube_root_states, env._table_root_states), dim=1)
         allowed = set(FOOT_NAMES) | {"gripperStator", "gripperMover", "ee_gripper_link", "link06"}
@@ -401,43 +477,67 @@ class PhysicsBankBuilder:
         fingers = [i for name, i in env.body_names_to_idx.items()
                    if name in allowed and name not in FOOT_NAMES]
         forces = env._contact_forces
-        body_collision = forces[:, prohibited].norm(dim=-1).amax(dim=1) > self.NON_GRASP_CONTACT_LIMIT_N
-        grasp_collision = forces[:, fingers].norm(dim=-1).amax(dim=1) > self.GRASP_CONTACT_LIMIT_N
-        height = env._cube_root_states[:, 2] - env.table_heights - env.init_height
-        return (torch.isfinite(roots).all(dim=(1, 2))
+        return {
+            "finite_state": (torch.isfinite(roots).all(dim=(1, 2))
                 & torch.isfinite(env._dof_pos).all(dim=1)
                 & torch.isfinite(env._dof_vel).all(dim=1)
-                & torch.isfinite(forces).all(dim=(1, 2))
-                & (env._dof_pos >= env.dof_limits_lower - .002).all(dim=1)
-                & (env._dof_pos <= env.dof_limits_upper + .002).all(dim=1)
-                & approx_grounded_mask(grounding_state(env)[0])
-                & ~body_collision & ~grasp_collision
-                & (height.abs() < .02))
+                & torch.isfinite(forces).all(dim=(1, 2))),
+            "joint_limits": ((env._dof_pos >= env.dof_limits_lower - .002).all(dim=1)
+                             & (env._dof_pos <= env.dof_limits_upper + .002).all(dim=1)),
+            "non_grasp_collision": (forces[:, prohibited].norm(dim=-1)
+                                    <= self.NON_GRASP_CONTACT_LIMIT_N).all(dim=1),
+            "grasp_collision": (forces[:, fingers].norm(dim=-1)
+                                <= self.GRASP_CONTACT_LIMIT_N).all(dim=1),
+        }
 
-    def _state(self, candidate=None):
+    def _state(self, evidence, candidate=None):
+        from isaacgym.torch_utils import quat_mul, quat_conjugate
         state = snapshot(self.env)
         count, device = self.env.num_envs, self.env.device
         state["grasp_candidate_index"] = (torch.full((count,), -1., device=device)
                                             if candidate is None else candidate.to(torch.float32))
         state["gripper_opening"] = self._joint_to_opening(state["dof_pos"][:, -1])
+        state["lift_height"] = state["object_root"][:, 2] - state["table_height"] - self.env.init_height
+        state["object_yaw_offset_deg"] = quaternion_angles_deg(quat_mul(
+            state["object_root"][:, 3:7], quat_conjugate(self.env.init_quat)))[:, 2]
+        state["sampled_object_yaw_offset_deg"] = self.sampled_object_yaw.clone()
+        for key in ("candidate_local_offset", "ee_rotation_offset_deg",
+                    "sampled_candidate_local_offset", "sampled_ee_rotation_offset_deg"):
+            state[key] = torch.zeros((count, 3), device=device)
+        state.update(evidence)
+        for key in ("near_goal_relative_slip_m", "near_goal_relative_rotation_deg",
+                    "near_goal_contact_fraction", "near_goal_object_speed_m_s",
+                    "near_goal_restore_verified", "sampled_lift_height"):
+            state[key] = torch.zeros(count, device=device)
         return state
 
     def _full(self):
+        from isaacgym.torch_utils import quat_mul, quat_from_euler_xyz
         env = self.env
         env.reset_idx()
+        self.sampled_object_yaw = self._sample_range(self.reset_config["object"]["yaw_offset_range_deg"])
+        zero = torch.zeros_like(self.sampled_object_yaw)
+        env._cube_root_states[:, 3:7] = quat_mul(
+            quat_from_euler_xyz(zero, zero, torch.deg2rad(self.sampled_object_yaw)), env.init_quat)
         self._place_robot(self.reset_config["full_task"]["base"])
         self._ground_robot()
         env._dof_pos[:, 12:18] = env._initial_dof_pos[:, 12:18]
         opened = self._opening_to_joint(torch.ones(env.num_envs, device=env.device))[:, None]
         env._dof_pos[:, -1:] = opened
-        self._pose_tick(opened)
-        state = self._state()
-        valid = (self._basic_valid() & self._base_in_range(state, self.reset_config["full_task"]["base"])
-                 & ((env._dof_pos[:, 12:18] - env._initial_dof_pos[:, 12:18]).abs().amax(dim=1) < .03))
-        return state, valid
+        checks, evidence = self._physics_window(opened)
+        state = self._state(evidence)
+        checks["base_range"] = self._base_in_range(state, self.reset_config["full_task"]["base"])
+        checks["object_yaw_range"] = self._angle_in_range(
+            state["object_yaw_offset_deg"], self.reset_config["object"]["yaw_offset_range_deg"])
+        checks["default_arm_pose"] = (
+            env._dof_pos[:, 12:18] - env._initial_dof_pos[:, 12:18]).abs().amax(dim=1) < .03
+        return state, checks
 
     def _grasp_pose(self, initial, family):
-        from isaacgym.torch_utils import euler_from_quat, quat_from_euler_xyz, quat_rotate_inverse
+        from isaacgym.torch_utils import (
+            euler_from_quat, quat_from_euler_xyz, quat_rotate_inverse, quat_rotate,
+            quat_mul, quat_conjugate,
+        )
         env = self.env
         restore_snapshot(env, initial)
         cfg = self.reset_config[family]
@@ -450,14 +550,27 @@ class PhysicsBankBuilder:
         candidate = torch.randint(points.shape[1], (env.num_envs,), device=env.device)
         point = points[ids, candidate]
         quaternion = quat_from_euler_xyz(*angles[ids, candidate].unbind(-1))
-        rotation = quaternion_matrix(quaternion)
         if family == "pregrasp":
             distance = self._sample_range(cfg["ee_approach_distance_range_m"])
+            lateral = self._sample_range(cfg["ee_lateral_offset_range_m"])
+            vertical = self._sample_range(cfg["ee_vertical_offset_range_m"])
+            sample_geometry = lateral.square() + vertical.square() < distance.square()
+            # Invalid combinations are counted as rejected proposals. Use finite
+            # IK placeholders for those rows without shrinking the user's ranges.
+            local_offset = pregrasp_local_offset(
+                distance, torch.where(sample_geometry, lateral, 0.),
+                torch.where(sample_geometry, vertical, 0.))
+            rotation_offsets = torch.stack([self._sample_range(
+                cfg["ee_rotation_offset_range_deg"][axis]) for axis in ("roll", "pitch", "yaw")], dim=1)
             opening = torch.ones(env.num_envs, device=env.device)
         else:
-            distance = torch.zeros(env.num_envs, device=env.device)
-            opening = self._sample_range(cfg["gripper_opening_range"])
-        target = point - distance[:, None] * rotation[:, :, 0]
+            local_offset = torch.zeros((env.num_envs, 3), device=env.device)
+            rotation_offsets = torch.zeros_like(local_offset)
+            opening = (torch.ones(env.num_envs, device=env.device) if family == "near_goal"
+                       else self._sample_range(cfg["gripper_opening_range"]))
+        target = point + quat_rotate(quaternion, local_offset)
+        target_quaternion = quat_mul(quaternion, quat_from_euler_xyz(*torch.deg2rad(rotation_offsets).unbind(-1)))
+        rotation = quaternion_matrix(target_quaternion)
         base_rotation = quaternion_matrix(env._robot_root_states[:, 3:7])
         joints, position_error, angle_error = self.kinematics.solve(
             quat_rotate_inverse(env._robot_root_states[:, 3:7], target - env.arm_base),
@@ -466,29 +579,225 @@ class PhysicsBankBuilder:
         gripper = self._opening_to_joint(opening)[:, None]
         env._dof_pos[:, 12:18] = joints
         env._dof_pos[:, -1:] = gripper
-        self._pose_tick(gripper)
-        state = self._state(candidate)
-        # Verify the chosen candidate in the object's actual pose after the tick.
+        window_checks, evidence = self._physics_window(gripper)
+        state = self._state(evidence, candidate)
+        # Verify the chosen candidate in the object's actual final pose.
         pose = torch.cat((env._cube_root_states[:, :3],
                           torch.stack(euler_from_quat(env._cube_root_states[:, 3:7]), dim=1)), dim=1)
         points, angles = env.get_grasp_world(pose, ids)
         point = points[ids, candidate]
         quaternion = quat_from_euler_xyz(*angles[ids, candidate].unbind(-1))
-        actual_distance = (env.ee_pos - point).norm(dim=1)
+        actual_offset = quat_rotate_inverse(quaternion, env.ee_pos - point)
+        actual_distance = actual_offset.norm(dim=1)
+        actual_rotation = quaternion_angles_deg(quat_mul(quat_conjugate(quaternion), env.ee_orn))
+        state["candidate_local_offset"] = actual_offset
+        state["ee_rotation_offset_deg"] = actual_rotation
+        state["sampled_candidate_local_offset"] = local_offset
+        state["sampled_ee_rotation_offset_deg"] = rotation_offsets
         angular_error = 2 * (env.ee_orn * quaternion).sum(dim=1).abs().clamp(max=1).acos()
-        valid = (self._basic_valid() & self._base_in_range(state, cfg["base"])
-                 & (position_error < .003) & (angle_error < .05)
-                 & (angular_error < self.AT_GRASP_ANGLE_TOLERANCE_RAD))
+        checks = {**({"sample_geometry": sample_geometry} if family == "pregrasp" else {}),
+                  "ik_position": position_error < .003, "ik_orientation": angle_error < .05,
+                  **window_checks, "base_range": self._base_in_range(state, cfg["base"]),
+                  "object_yaw_range": self._angle_in_range(
+                      state["object_yaw_offset_deg"], self.reset_config["object"]["yaw_offset_range_deg"])}
         if family == "pregrasp":
-            valid &= self._in_range(actual_distance, cfg["ee_approach_distance_range_m"])
+            checks["ee_distance"] = self._in_range(actual_distance, cfg["ee_approach_distance_range_m"])
+            checks["ee_approach_side"] = actual_offset[:, 0] < 0
+            checks["ee_lateral_offset"] = self._in_range(actual_offset[:, 1], cfg["ee_lateral_offset_range_m"])
+            checks["ee_vertical_offset"] = self._in_range(actual_offset[:, 2], cfg["ee_vertical_offset_range_m"])
+            for index, axis in enumerate(("roll", "pitch", "yaw")):
+                checks["ee_rotation_" + axis] = self._angle_in_range(
+                    actual_rotation[:, index], cfg["ee_rotation_offset_range_deg"][axis])
         else:
-            valid &= actual_distance <= self.AT_GRASP_POSITION_TOLERANCE_M
+            checks["ee_distance"] = actual_distance <= self.AT_GRASP_POSITION_TOLERANCE_M
+            checks["ee_orientation"] = angular_error < self.AT_GRASP_ANGLE_TOLERANCE_RAD
             # Fixed-aperture settings allow a small normalized response tolerance.
-            valid &= self._in_range(state["gripper_opening"], cfg["gripper_opening_range"], .005)
-        return state, valid
+            checks["gripper_opening"] = self._in_range(
+                state["gripper_opening"], cfg.get("gripper_opening_range", [1., 1.]), .005)
+        return state, checks
 
-    def _collect(self, family, state, valid):
+    def _grasp_relative_pose(self):
+        from isaacgym.torch_utils import quat_rotate_inverse, quat_mul, quat_conjugate
+        env = self.env
+        return (quat_rotate_inverse(env.ee_orn, env._cube_root_states[:, :3] - env.ee_pos),
+                quat_mul(quat_conjugate(env.ee_orn), env._cube_root_states[:, 3:7]))
+
+    def _grasp_geometry(self):
+        """Contact evidence plus object center between the two finger surfaces."""
+        from isaacgym.torch_utils import quat_rotate, quat_rotate_inverse
+        env = self.env
+        cfg = self.reset_config["near_goal"]
+        indices = grasp_contact_body_indices(env)
+        contacts = (env._contact_forces[:, indices].norm(dim=-1)
+                    >= cfg["min_finger_contact_force_n"]).all(dim=1)
+        relative, _ = self._grasp_relative_pose()
+        mover = env._rigid_body_state.view(env.num_envs, -1, 13)[:, indices[1]]
+        tip = torch.tensor([.085, 0., 0.], device=env.device).expand(env.num_envs, -1)
+        moving_tip = quat_rotate_inverse(env.ee_orn, mover[:, :3] + quat_rotate(mover[:, 3:7], tip) - env.ee_pos)
+        between = ((relative[:, 0].abs() < .08) & (relative[:, 1].abs() < .08)
+                   & (relative[:, 2] >= -.035) & (relative[:, 2] <= moving_tip[:, 2] + .015))
+        rotation = quaternion_matrix(env._cube_root_states[:, 3:7])
+        lowest_z = (rotation[:, 2, :] @ self.object_vertices.T).amin(dim=1) + env._cube_root_states[:, 2]
+        clear = lowest_z - env.table_heights > .005
+        return contacts, between, clear
+
+    def _near_goal_step(self, world_position, world_quaternion, closed, step,
+                        table_target=None):
+        """Advance live robot/object physics; only the support table is controlled."""
+        from isaacgym import gymtorch
+        from envs.b1z1_base import reindex_all
+        env = self.env
+        env.gripper_dof_pos[:] = closed
+        if table_target is not None:
+            # The task's incremental Jacobian controller has a gravity tracking
+            # offset. Accumulate a bounded setpoint correction during scripted
+            # construction; retain this actual command in the saved reset state.
+            self._near_command_offset += 6. * env.sim_params.dt * (world_position - env.ee_pos)
+            self._near_command_offset.clamp_(-.15, .15)
+            world_position = world_position + self._near_command_offset
+        self._near_command_position = world_position.clone()
+        ticks = self._near_elapsed_ticks
+        env.progress_buf[:] = ticks // (env.control_freq_inv * env.control_freq_low)
+        if ticks % env.control_freq_inv == 0:
+            synchronize_targets(env, world_position, world_quaternion, closed)
+            env._compute_low_level_observations()
+            with torch.no_grad():
+                env.last_low_actions[:] = reindex_all(env.low_level_policy(env.low_obs_buf.detach(), hist_encoding=True))
+        if table_target is None:
+            # Cold replay uses the actual low-level policy and Level02 controller.
+            env.floating_table_control()
+        else:
+            env._table_root_states[:] = table_target
+            tables = env._table_actor_ids.to(torch.int32)
+            env.gym.set_actor_root_state_tensor_indexed(
+                env.sim, gymtorch.unwrap_tensor(env._root_states), gymtorch.unwrap_tensor(tables), len(tables))
+        targets = env.get_all_pos_targets(world_position, world_quaternion)
+        env.gym.set_dof_position_target_tensor(env.sim, gymtorch.unwrap_tensor(targets))
+        env.gym.set_dof_actuation_force_tensor(env.sim, gymtorch.unwrap_tensor(env.get_torques()))
+        env.gym.simulate(env.sim)
+        env.gym.fetch_results(env.sim, True)
+        env._refresh_sim_tensors()
+        env.update_roboinfo()
+        self._near_elapsed_ticks += 1
+
+    def _near_goal_hold(self, world_position, world_quaternion, closed, table_target=None):
+        env, cfg = self.env, self.reset_config["near_goal"]
+        steps = math.ceil(cfg["hold_time_s"] / env.sim_params.dt)
+        position0, quaternion0 = self._grasp_relative_pose()
+        object0 = env._cube_root_states[:, :3].clone()
+        slip = torch.zeros(env.num_envs, device=env.device)
+        rotation_error = torch.zeros_like(slip)
+        contact_frames = torch.zeros_like(slip)
+        peak_force, displacement = torch.zeros_like(slip), torch.zeros_like(slip)
+        checks = None
+        for step in range(steps):
+            self._near_goal_step(world_position, world_quaternion, closed, step, table_target)
+            current = self._frame_checks()
+            contacts, between, clear = self._grasp_geometry()
+            height = env._cube_root_states[:, 2] - env.table_heights - env.init_height
+            current.update(held_region=between, object_clear_of_table=clear,
+                           lift_height=self._in_range(height, cfg["object_lift_height_range_m"]),
+                           not_task_success=(height > 0) & (height < env.lifted_success_threshold))
+            checks = current if checks is None else {key: checks[key] & current[key] for key in checks}
+            position, quaternion = self._grasp_relative_pose()
+            slip = torch.maximum(slip, (position - position0).norm(dim=1))
+            cosine = ((quaternion * quaternion0).sum(dim=1).abs() /
+                      (quaternion.norm(dim=1) * quaternion0.norm(dim=1)).clamp_min(1e-12))
+            rotation_error = torch.maximum(rotation_error, torch.rad2deg(2 * cosine.clamp(max=1).acos()))
+            contact_frames += contacts.float()
+            peak_force = torch.maximum(peak_force, env._contact_forces.norm(dim=-1).amax(dim=1))
+            displacement = torch.maximum(displacement, (env._cube_root_states[:, :3] - object0).norm(dim=1))
+        speed = env._cube_root_states[:, 7:10].norm(dim=1)
+        contact_fraction = torch.where(contact_frames == steps, torch.ones_like(contact_frames), contact_frames / steps)
+        checks.update(relative_slip=slip <= cfg["max_relative_slip_m"],
+                      relative_rotation=rotation_error <= cfg["max_relative_rotation_deg"],
+                      finger_contact=contact_fraction >= cfg["min_contact_fraction"],
+                      final_finger_contact=contacts,
+                      object_speed=speed <= cfg["max_object_speed_m_s"],
+                      feet_near_ground=approx_grounded_mask(grounding_state(env)[0]),
+                      peak_contact_force=peak_force <= self.reset_config["validation"]["max_contact_force_n"])
+        evidence = {"near_goal_relative_slip_m": slip, "near_goal_relative_rotation_deg": rotation_error,
+                    "near_goal_contact_fraction": contact_fraction, "near_goal_object_speed_m_s": speed,
+                    "validation_peak_contact_force_n": peak_force,
+                    "validation_max_object_displacement_m": displacement}
+        return checks, evidence
+
+    def _near_goal(self, initial):
+        """Close and lift a real object, then verify a cold buffered reset."""
+        env, cfg = self.env, self.reset_config["near_goal"]
+        prepared, initial_checks = self._grasp_pose(initial, "near_goal")
+        checks = {"start_" + key: value for key, value in initial_checks.items()}
+        closed = self._opening_to_joint(torch.zeros(env.num_envs, device=env.device))[:, None]
+        world_position, world_quaternion = env.ee_pos.clone(), env.ee_orn.clone()
+        table = env._table_root_states.clone()
+        table[:, 2] = env.table_heights - env.table_dimz / 2
+        table[:, 7:] = 0
+        self._near_elapsed_ticks = 0
+        self._near_command_offset = torch.zeros_like(world_position)
+        motion_peak = prepared["validation_peak_contact_force_n"].clone()
+        # No object root/DOF writes after the initial open-gripper placement.
+        for step in range(math.ceil(cfg["close_time_s"] / env.sim_params.dt)):
+            self._near_goal_step(world_position, world_quaternion, closed, step, table)
+            motion_peak = torch.maximum(motion_peak, env._contact_forces.norm(dim=-1).amax(dim=1))
+            for key, value in self._frame_checks().items():
+                name = "motion_" + key
+                checks[name] = checks.get(name, torch.ones_like(value)) & value
+        target_height = self._sample_range(cfg["object_lift_height_range_m"])
+        height_now = env._cube_root_states[:, 2] - env.table_heights - env.init_height
+        rise = target_height - height_now
+        start = world_position.clone()
+        lift_steps = math.ceil(cfg["lift_time_s"] / env.sim_params.dt)
+        for step in range(lift_steps):
+            fraction = (step + 1) / lift_steps
+            # Smooth start/stop to avoid testing an artificial lift impulse.
+            world_position = start.clone()
+            world_position[:, 2] += rise * (fraction * fraction * (3 - 2 * fraction))
+            self._near_goal_step(world_position, world_quaternion, closed, step, table)
+            motion_peak = torch.maximum(motion_peak, env._contact_forces.norm(dim=-1).amax(dim=1))
+            for key, value in self._frame_checks().items():
+                checks["motion_" + key] &= value
+        hold_checks, evidence = self._near_goal_hold(world_position, world_quaternion, closed, table)
+        checks["motion_peak_contact_force"] = motion_peak <= self.reset_config["validation"]["max_contact_force_n"]
+        evidence["validation_peak_contact_force_n"] = torch.maximum(evidence["validation_peak_contact_force_n"], motion_peak)
+        checks.update({"hold_" + key: value for key, value in hold_checks.items()})
+        # Save actual physical state with a closed command, not a forced closed
+        # joint position. Collision-constrained fingers may remain partly open.
+        synchronize_targets(env, self._near_command_position.clone(), world_quaternion, closed)
+        state = self._state(evidence, prepared["grasp_candidate_index"])
+        state.update(evidence)
+        state["sampled_lift_height"] = target_height
+        from isaacgym.torch_utils import euler_from_quat, quat_from_euler_xyz, quat_rotate_inverse, quat_mul, quat_conjugate
+        ids = torch.arange(env.num_envs, device=env.device)
+        pose = torch.cat((env._cube_root_states[:, :3],
+                          torch.stack(euler_from_quat(env._cube_root_states[:, 3:7]), dim=1)), dim=1)
+        points, angles = env.get_grasp_world(pose, ids)
+        candidate = state["grasp_candidate_index"].long()
+        candidate_quat = quat_from_euler_xyz(*angles[ids, candidate].unbind(-1))
+        state["candidate_local_offset"] = quat_rotate_inverse(candidate_quat, env.ee_pos - points[ids, candidate])
+        state["ee_rotation_offset_deg"] = quaternion_angles_deg(quat_mul(quat_conjugate(candidate_quat), env.ee_orn))
+        checks["final_base_range"] = self._base_in_range(state, cfg["base"])
+        checks["final_object_yaw"] = self._angle_in_range(state["object_yaw_offset_deg"],
+                                                         self.reset_config["object"]["yaw_offset_range_deg"])
+        # Contacts and low-level history are deliberately reconstructed, exactly
+        # as in training; opaque PhysX solver caches are never stored in a bank.
+        restore_snapshot(env, state)
+        self._near_elapsed_ticks = 0
+        replay_checks, replay_evidence = self._near_goal_hold(
+            env.ee_goal_global_cart.clone(), env.ee_goal_global_orn_quat.clone(), closed)
+        checks.update({"restore_" + key: value for key, value in replay_checks.items()})
+        state["near_goal_restore_verified"] = torch.stack(list(replay_checks.values()), dim=1).all(dim=1).float()
+        for key in ("near_goal_relative_slip_m", "near_goal_relative_rotation_deg",
+                    "near_goal_object_speed_m_s", "validation_peak_contact_force_n",
+                    "validation_max_object_displacement_m"):
+            state[key] = torch.maximum(state[key], replay_evidence[key])
+        state["near_goal_contact_fraction"] = torch.minimum(
+            state["near_goal_contact_fraction"], replay_evidence["near_goal_contact_fraction"])
+        return state, checks
+
+    def _collect(self, family, state, checks):
+        valid = torch.stack(list(checks.values()), dim=1).all(dim=1)
         chosen = valid.nonzero(as_tuple=False).flatten()[:self.per_family - self.counts[family]]
+        self.sampling_audit.record(family, state["grasp_candidate_index"], checks, chosen)
         if not len(chosen):
             return 0
         rows = {key: value[chosen].detach().cpu() for key, value in state.items()}
@@ -505,14 +814,15 @@ class PhysicsBankBuilder:
             if min(self.counts) >= self.per_family:
                 break
             batch_started = time.monotonic()
-            initial, full_valid = self._full()
-            accepted = [0, 0, 0]
+            initial, full_checks = self._full()
+            accepted = [0] * len(self.family_names)
             if self.counts[0] < self.per_family:
-                accepted[0] = self._collect(0, initial, full_valid)
-            for family in (1, 2):
+                accepted[0] = self._collect(0, initial, full_checks)
+            for family in range(1, len(self.family_names)):
                 if self.counts[family] < self.per_family:
-                    state, valid = self._grasp_pose(initial, self.FAMILY_NAMES[family])
-                    accepted[family] = self._collect(family, state, valid)
+                    state, checks = (self._near_goal(initial) if self.family_names[family] == "near_goal"
+                                     else self._grasp_pose(initial, self.family_names[family]))
+                    accepted[family] = self._collect(family, state, checks)
             record = {"batch": batch + 1, "batch_size": env.num_envs,
                       "accepted_this_batch": accepted, "accepted_totals": self.counts.copy(),
                       "batch_seconds": round(time.monotonic() - batch_started, 3),
@@ -525,13 +835,14 @@ class PhysicsBankBuilder:
         tensors = {key: torch.cat([part[key] for family in self.parts for part in family])
                    for key in self.parts[0][0]}
         metadata = {
-            "version": "b1z1-sugar-sgs-v5", "object_name": env.obj_list[0],
+            "version": "b1z1-sugar-sgs-v9", "object_name": env.obj_list[0],
+            "object_init_height_m": float(env.init_height[0].item()),
             "robot_asset": env.cfg["env"]["asset"]["assetFileRobot"],
             "num_dofs": env.num_dofs, "num_bodies": env._rigid_body_pos.shape[1],
             "hold_steps": env.hold_steps, "lifted_threshold": env.lifted_success_threshold,
             "seed": self.seed, "source_num_envs": env.num_envs, "table_level": "Level02",
             "coordinate_convention": "existing_reset_tensor_coordinates_no_env_origin_offset",
-            "family_names": list(self.FAMILY_NAMES),
+            "family_names": list(self.family_names),
             "construction": {
                 "reset_config": deepcopy(self.reset_config),
                 "sampling": "uniform geometry targets followed by IK and basic physics filtering",
@@ -542,19 +853,35 @@ class PhysicsBankBuilder:
                 "at_grasp_position_tolerance_m": self.AT_GRASP_POSITION_TOLERANCE_M,
                 "at_grasp_angle_tolerance_rad": self.AT_GRASP_ANGLE_TOLERANCE_RAD,
                 "gripper_opening": "0=closed upper joint limit, 1=open lower joint limit",
+                "pregrasp_position": "candidate local [-sqrt(d*d-y*y-z*z), y, z]; d is Euclidean distance",
+                "pregrasp_orientation": "candidate quaternion * local roll-pitch-yaw delta quaternion",
+                "object_yaw": "world-z rotation * normal-reset object quaternion; offline construction only",
             },
             "physical_validation": {
-                "passed": True, "validation_profile": "geometry_v1", "feet_near_ground": True,
+                "passed": True, "validation_profile": ("geometry_grasp_v2" if "near_goal" in self.family_names else "geometry_v1"),
+                "feet_near_ground": True,
                 "collision_checked": True, "object_attachment": False,
+                "near_goal_grasp_verified": "near_goal" in self.family_names,
                 "grounding": {"foot_body_indices": foot_indices(env), "foot_radius_m": FOOT_RADIUS,
                               "limits": APPROX_GROUND_LIMITS.copy()},
-                "collision_check": {"method": "joint limits, one PhysX tick, non-grasp contact forces and object support",
+                "collision_check": {"method": "every-frame joint limits/contact forces, peak object displacement, final support",
                                     "non_grasp_contact_limit_n": self.NON_GRASP_CONTACT_LIMIT_N,
-                                    "grasp_contact_limit_n": self.GRASP_CONTACT_LIMIT_N},
-                "physics_ticks_per_pose_check": 1, "stable_standing_required": False,
-                "scripted_grasp_required": False, "cross_slot_rollout_required": False,
+                                    "grasp_contact_limit_n": self.GRASP_CONTACT_LIMIT_N,
+                                    "peak_contact_limit_n": self.reset_config["validation"]["max_contact_force_n"]},
+                "max_object_displacement_m": self.reset_config["validation"]["max_object_displacement_m"],
+                "physics_ticks_per_pose_check": self.reset_config["validation"]["physics_steps"],
+                "physics_dt_seconds": env.cfg["sim"]["dt"],
+                "table_control": "nominal support pose held each tick; Level02 motion resumes at training reset",
+                "stable_standing_required": False,
+                "scripted_grasp_required": "near_goal" in self.family_names,
+                "validation_by_family": {name: ("physical close/lift/hold and cold-reset grip verification"
+                                                if name == "near_goal" else "short geometric physics window")
+                                         for name in self.family_names},
+                "near_goal_contact_check": "both finger net contact forces, object between finger surfaces, collision mesh above table",
+                "cross_slot_rollout_required": False,
                 "simulator": "Isaac Gym GPU PhysX", "accepted_per_family": self.counts.copy(),
                 "batches": self.audit,
             },
+            "sampling_audit": self.sampling_audit.summary(tensors),
         }
         return ConfigurationBank(tensors, metadata)

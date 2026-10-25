@@ -15,6 +15,14 @@ import tempfile
 import torch
 
 
+RESET_FAMILIES = ("full_task", "pregrasp", "at_grasp")
+NEAR_GOAL_FAMILIES = RESET_FAMILIES + ("near_goal",)
+SUPPORTED_FAMILY_PROFILES = {
+    "geometry_v1": RESET_FAMILIES,
+    "geometry_grasp_v2": NEAR_GOAL_FAMILIES,
+}
+
+
 def _mode(value):
     if value == "uniform_bank":
         value = "uniform"
@@ -196,7 +204,7 @@ class SGSSampler:
                                  replacement=True, generator=self.generator)
 
     @torch.no_grad()
-    def metrics(self, step=0, family_id=None):
+    def metrics(self, step=0, family_id=None, num_families=3):
         """Return scalar device tensors; logging may transfer them in one batch."""
         probabilities = self.probabilities()
         visited = self.count > 0
@@ -225,9 +233,13 @@ class SGSSampler:
             families = _integer_vector(family_id, self.device, "family_id")
             if families.shape != self.count.shape:
                 raise ValueError("family_id must have one entry per configuration")
-            # Bank schema defines three families. This fixed-size loop is for
-            # logging only; it never iterates over environments or configurations.
-            for family in range(3):
+            if type(num_families) is not int or num_families < 1:
+                raise ValueError("num_families must be a positive integer")
+            _assert_device(((families >= 0) & (families < num_families)).all(),
+                           "family_id outside the supplied family count")
+            # The count comes from bank metadata, without a GPU scalar read.
+            # This small logging loop does not iterate over reset configurations.
+            for family in range(num_families):
                 mask = families == family
                 result["family_{}_probability".format(family)] = probabilities[mask].sum()
                 result["family_{}_visits".format(family)] = self.visits_total[mask].sum()
@@ -331,6 +343,11 @@ class ConfigurationBank:
         self.validate()
         self.fingerprint = self._fingerprint()
 
+    @property
+    def family_names(self):
+        """Legacy generic banks omit names; current physical profiles declare them."""
+        return tuple(self.metadata.get("family_names", RESET_FAMILIES))
+
     def validate(self, expected_metadata=None):
         missing = set(self.REQUIRED_METADATA) - self.metadata.keys()
         if missing:
@@ -353,6 +370,12 @@ class ConfigurationBank:
             raise ValueError("lifted_threshold must be finite and positive")
         if expected_metadata:
             _validate_metadata_subset(self.metadata, expected_metadata)
+        if "family_names" in self.metadata:
+            names = self.metadata["family_names"]
+            if (not isinstance(names, list) or not names
+                    or any(not isinstance(name, str) or not name for name in names)
+                    or len(set(names)) != len(names)):
+                raise ValueError("family_names must contain distinct nonempty names")
 
         shapes = {
             "family_id": (self.num_configs,),
@@ -395,8 +418,8 @@ class ConfigurationBank:
         if gripper.ndim != 2 or not 0 < gripper.shape[1] <= self.metadata["num_dofs"]:
             raise ValueError("gripper_target must have shape [N, G], with 0 < G <= D")
         families = self.tensors["family_id"]
-        if not bool(((families >= 0) & (families <= 2)).all()):
-            raise ValueError("family_id values must be 0, 1 or 2")
+        if not bool(((families >= 0) & (families < len(self.family_names))).all()):
+            raise ValueError("family_id outside the declared family_names")
         for name in ("robot_root", "object_root", "table_root", "rigid_body_state"):
             norms = self.tensors[name][..., 3:7].norm(dim=-1)
             if not bool(torch.isclose(norms, torch.ones_like(norms), atol=1e-3, rtol=1e-3).all()):
@@ -404,16 +427,18 @@ class ConfigurationBank:
         physical = self.metadata.get("physical_validation", {})
         if not isinstance(physical, dict):
             raise ValueError("physical_validation must be a metadata dictionary")
-        geometry_profile = physical.get("validation_profile") == "geometry_v1"
+        profile = physical.get("validation_profile")
+        geometry_profile = profile in SUPPORTED_FAMILY_PROFILES
         if geometry_profile:
             for name, expected in (("passed", True), ("feet_near_ground", True),
                                    ("collision_checked", True), ("object_attachment", False)):
                 if physical.get(name) is not expected:
-                    raise ValueError("invalid geometry_v1 validation flag: " + name)
+                    raise ValueError("invalid " + profile + " validation flag: " + name)
             if physical.get("grounded_initial_states", False):
-                raise ValueError("geometry_v1 does not certify stable grounded_initial_states")
-            if self.metadata.get("family_names") != ["full_task", "pregrasp", "at_grasp"]:
-                raise ValueError("geometry_v1 requires full_task/pregrasp/at_grasp family_names")
+                raise ValueError(profile + " does not certify stable grounded_initial_states")
+            if self.metadata.get("family_names") != list(SUPPORTED_FAMILY_PROFILES[profile]):
+                raise ValueError(profile + " requires family_names "
+                                 + "/".join(SUPPORTED_FAMILY_PROFILES[profile]))
         if geometry_profile or physical.get("grounded_initial_states", False):
             from utils.sgs_grounding import (
                 APPROX_GROUND_LIMITS, FOOT_RADIUS, approx_grounded_mask, grounded_mask)
@@ -429,7 +454,7 @@ class ConfigurationBank:
             bottom = self.tensors["rigid_body_state"][:, indices, 2] - FOOT_RADIUS
         if geometry_profile:
             if grounding.get("limits") != APPROX_GROUND_LIMITS:
-                raise ValueError("invalid geometry_v1 grounding limits")
+                raise ValueError("invalid " + profile + " grounding limits")
             if not bool(approx_grounded_mask(bottom).all()):
                 raise ValueError("bank contains initial feet outside approximate ground limits")
         elif physical.get("grounded_initial_states", False):
@@ -438,7 +463,73 @@ class ConfigurationBank:
                 raise ValueError("grounded bank requires initial foot contact forces")
             if not bool(grounded_mask(self.tensors["robot_root"], bottom, forces).all()):
                 raise ValueError("bank contains ungrounded or unsettled initial states")
+        if profile == "geometry_grasp_v2":
+            self._validate_near_goal()
         return self
+
+    def _validate_near_goal(self):
+        """Validate saved grasp evidence; no contacts are synthesized at reset."""
+        physical = self.metadata["physical_validation"]
+        if (physical.get("near_goal_grasp_verified") is not True
+                or physical.get("stable_standing_required") is not False):
+            raise ValueError("geometry_grasp_v2 requires near_goal grasp validation without stable standing")
+        near = self.tensors["family_id"] == self.family_names.index("near_goal")
+        if not bool(near.any()):
+            raise ValueError("geometry_grasp_v2 requires nonempty near_goal states")
+        initial_height = self.metadata.get("object_init_height_m")
+        if (type(initial_height) not in (int, float) or not math.isfinite(initial_height)
+                or initial_height <= 0):
+            raise ValueError("near_goal requires positive object_init_height_m")
+        cfg = self.metadata.get("construction", {}).get("reset_config", {}).get("near_goal")
+        if not isinstance(cfg, dict):
+            raise ValueError("near_goal requires its effective construction config")
+        bounds = cfg.get("object_lift_height_range_m")
+        if (not isinstance(bounds, list) or len(bounds) != 2
+                or any(type(v) not in (int, float) or not math.isfinite(v) for v in bounds)
+                or not 0 < bounds[0] <= bounds[1] < self.metadata["lifted_threshold"]):
+            raise ValueError("near_goal lift range must be positive and below the task success threshold")
+        values = {}
+        for name in ("lift_height", "near_goal_relative_slip_m", "near_goal_relative_rotation_deg",
+                     "near_goal_contact_fraction", "near_goal_object_speed_m_s",
+                     "near_goal_restore_verified"):
+            value = self.tensors.get(name)
+            if value is None or value.shape != (self.num_configs,):
+                raise ValueError("near_goal requires a per-configuration evidence tensor: " + name)
+            values[name] = value[near]
+        height = (self.tensors["object_root"][near, 2] - self.tensors["table_height"][near]
+                  - initial_height)
+        if not torch.allclose(height, values["lift_height"], atol=1e-5, rtol=0):
+            raise ValueError("near_goal lift_height disagrees with saved object/table geometry")
+        tolerance = .005 if bounds[0] == bounds[1] else 0.
+        if not bool(((height >= bounds[0] - tolerance - 1e-6)
+                     & (height <= bounds[1] + tolerance + 1e-6)
+                     & (height > 0) & (height < self.metadata["lifted_threshold"])).all()):
+            raise ValueError("near_goal actual lift height is outside its range or already successful")
+        for name, limit_key in (("near_goal_relative_slip_m", "max_relative_slip_m"),
+                                ("near_goal_relative_rotation_deg", "max_relative_rotation_deg"),
+                                ("near_goal_object_speed_m_s", "max_object_speed_m_s")):
+            limit = cfg.get(limit_key)
+            if type(limit) not in (int, float) or not math.isfinite(limit) or limit <= 0:
+                raise ValueError("near_goal requires a positive " + limit_key)
+            if not bool(((values[name] >= 0) & (values[name] <= limit + 1e-6)).all()):
+                raise ValueError("near_goal invalid grasp evidence: " + name)
+        actual_speed = self.tensors["object_root"][near, 7:10].norm(dim=1)
+        if not bool((actual_speed <= values["near_goal_object_speed_m_s"] + 1e-6).all()):
+            raise ValueError("near_goal object speed evidence understates saved object velocity")
+        contact_min = cfg.get("min_contact_fraction")
+        if (type(contact_min) not in (int, float) or not math.isfinite(contact_min)
+                or not 0 < contact_min <= 1):
+            raise ValueError("near_goal requires min_contact_fraction in (0, 1]")
+        if not bool(((values["near_goal_contact_fraction"] >= contact_min - 1e-6)
+                     & (values["near_goal_contact_fraction"] <= 1)).all()):
+            raise ValueError("near_goal insufficient finger contact evidence")
+        if not bool((values["near_goal_restore_verified"] == 1).all()):
+            raise ValueError("near_goal requires successful cold restore verification")
+        # This profile is specifically for the one-DOF B1Z1 gripper, whose upper
+        # limit (zero) is the closed control target. Actual DOF stays unconstrained:
+        # contact with the object normally prevents it reaching that target.
+        if not bool((self.tensors["gripper_target"][near].abs() < 1e-5).all()):
+            raise ValueError("near_goal requires a saved closed gripper target")
 
     def _fingerprint(self):
         digest = hashlib.sha256()

@@ -7,7 +7,7 @@ from pathlib import Path
 SGS_DEFAULTS = {
     "mode": "disabled",
     "bank_path": "",
-    "bank_size": 1536,
+    "bank_size": None,
     "history_size": 100,
     "target_success": 0.5,
     "kappa": 1.0,
@@ -32,6 +32,8 @@ def configure_teacher_experiment(cfg, args, is_eval=False, strict_eval=False):
         sgs["bank_path"] = args.sgs_bank
     if sgs["mode"] not in ("disabled", "uniform", "sgs"):
         raise ValueError("env.sgs.mode must be disabled, uniform, or sgs")
+    if sgs["bank_size"] is not None and (type(sgs["bank_size"]) is not int or sgs["bank_size"] <= 0):
+        raise ValueError("env.sgs.bank_size must be null (automatic) or a positive integer")
     sgs["seed"] = args.seed
     env_cfg["sgs"] = sgs
     cfg["seed"] = args.seed

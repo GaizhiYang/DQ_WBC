@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 
 import torch
 
-from utils.sgs_bank_builder import PhysicsBankBuilder
+from utils.sgs_bank_builder import PhysicsBankBuilder, pregrasp_local_offset
 
 
 class BuilderRangeTests(unittest.TestCase):
@@ -22,10 +22,17 @@ class BuilderRangeTests(unittest.TestCase):
             "heading_offset_range_deg": [-2.0, 2.0],
         }
         config = {
-            "schema_version": 2,
+            "schema_version": 3,
+            "object": {"yaw_offset_range_deg": [-15, 15]},
+            "validation": {"physics_steps": 5, "max_contact_force_n": 5000.,
+                           "max_object_displacement_m": .02},
             "full_task": {"base": deepcopy(base), "arm_pose": "default"},
             "pregrasp": {"base": deepcopy(base),
-                         "ee_approach_distance_range_m": [0.05, 0.10]},
+                         "ee_approach_distance_range_m": [0.05, 0.10],
+                         "ee_lateral_offset_range_m": [-.01, .01],
+                         "ee_vertical_offset_range_m": [-.01, .01],
+                         "ee_rotation_offset_range_deg": {
+                             "roll": [-5, 5], "pitch": [-5, 5], "yaw": [-5, 5]}},
             "at_grasp": {"base": deepcopy(base),
                          "gripper_opening_range": [0.0, 1.0]},
         }
@@ -63,6 +70,24 @@ class BuilderRangeTests(unittest.TestCase):
     def test_fixed_sampling_keeps_the_fixed_target(self):
         values = self.builder(19)._sample_range([0.73, 0.73])
         self.assertTrue(torch.equal(values, torch.full_like(values, 0.73)))
+
+    def test_pregrasp_disturbances_preserve_euclidean_distance_and_approach_side(self):
+        distance = torch.tensor([.05, .075, .10], device=self.device)
+        lateral = torch.tensor([.01, -.01, 0.], device=self.device)
+        vertical = torch.tensor([-.01, 0., .01], device=self.device)
+        actual = pregrasp_local_offset(distance, lateral, vertical)
+        torch.testing.assert_close(actual.norm(dim=1), distance)
+        torch.testing.assert_close(actual[:, 1], lateral)
+        torch.testing.assert_close(actual[:, 2], vertical)
+        self.assertTrue(bool((actual[:, 0] < 0).all()))
+        self.assertEqual(actual.device, distance.device)
+
+    def test_pregrasp_impossible_transverse_offset_is_rejected(self):
+        distance = torch.tensor([.05], device=self.device)
+        for lateral in (.05, .06):
+            with self.assertRaisesRegex(ValueError, "must fit"):
+                pregrasp_local_offset(distance, torch.full_like(distance, lateral),
+                                      torch.zeros_like(distance))
 
     def test_opening_sampling_accepts_closed_open_and_partial_ranges(self):
         builder = self.builder(257)

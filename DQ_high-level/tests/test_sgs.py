@@ -51,6 +51,42 @@ def bank_fixture(num_configs=6, num_dofs=19, num_bodies=23):
     return tensors, metadata
 
 
+def near_goal_bank_fixture():
+    """Four-class physical contract, with the final two rows genuinely elevated."""
+    from utils.sgs_grounding import APPROX_GROUND_LIMITS, FOOT_RADIUS
+    tensors, metadata = bank_fixture(num_configs=8, num_bodies=5)
+    tensors["family_id"] = torch.arange(8) // 2
+    feet = [0, 2, 3, 4]
+    tensors["rigid_body_state"][:, feet, 2] = FOOT_RADIUS
+    tensors["object_root"][:, 2] = tensors["table_height"] + .045
+    tensors["object_root"][6:, 2] += torch.tensor([.06, .09])
+    tensors["lift_height"] = tensors["object_root"][:, 2] - tensors["table_height"] - .045
+    for name, value in (("near_goal_relative_slip_m", .003),
+                        ("near_goal_relative_rotation_deg", 2.),
+                        ("near_goal_contact_fraction", .95),
+                        ("near_goal_object_speed_m_s", .02),
+                        ("near_goal_restore_verified", 1.)):
+        tensors[name] = torch.zeros(8)
+        tensors[name][6:] = value
+    metadata.update({
+        "version": "four-family-test", "object_init_height_m": .045,
+        "family_names": ["full_task", "pregrasp", "at_grasp", "near_goal"],
+        "physical_validation": {
+            "passed": True, "validation_profile": "geometry_grasp_v2",
+            "feet_near_ground": True, "collision_checked": True, "object_attachment": False,
+            "stable_standing_required": False, "near_goal_grasp_verified": True,
+            "grounding": {"foot_body_indices": feet, "foot_radius_m": FOOT_RADIUS,
+                          "limits": dict(APPROX_GROUND_LIMITS)},
+        },
+        "construction": {"reset_config": {"near_goal": {
+            "object_lift_height_range_m": [.05, .10],
+            "max_relative_slip_m": .01, "max_relative_rotation_deg": 10.,
+            "min_contact_fraction": .8, "max_object_speed_m_s": .1,
+        }}},
+    })
+    return tensors, metadata
+
+
 class RingReference:
     """Deliberately sequential oracle, not a copy of the vectorized algorithm."""
 
@@ -186,6 +222,18 @@ class SamplerTests(unittest.TestCase):
         self.assertAlmostEqual(sum(metrics["family_{}_probability".format(i)].item()
                                    for i in range(3)), 1.0, places=6)
 
+    def test_four_family_metrics_preserve_probability_and_outcome_attribution(self):
+        sampler = self.make(8)
+        ids = torch.arange(8, device=self.device) // 2
+        initial = sampler.metrics(family_id=ids, num_families=4)
+        for family in range(4):
+            self.assertAlmostEqual(initial[f"family_{family}_probability"].item(), .25)
+        sampler.observe([6, 7, 7], [1, 0, 1])
+        metrics = sampler.metrics(family_id=ids, num_families=4)
+        self.assertEqual(metrics["family_3_visits"].item(), 3)
+        self.assertEqual(metrics["family_2_visits"].item(), 0)
+        self.assertAlmostEqual(sum(metrics[f"family_{i}_probability"].item() for i in range(4)), 1., places=6)
+
     def test_checkpoint_rejects_incompatible_parameters_and_corruption(self):
         sampler = self.make(3, history_size=5)
         sampler.observe([0, 1], [1, 0], step=2)
@@ -205,6 +253,84 @@ class CudaSamplerTests(SamplerTests):
 
 
 class ConfigurationBankTests(unittest.TestCase):
+    def test_four_family_roundtrip_preserves_grasp_evidence_and_closed_target(self):
+        tensors, metadata = near_goal_bank_fixture()
+        bank = ConfigurationBank(tensors, metadata)
+        self.assertEqual(bank.family_names, ("full_task", "pregrasp", "at_grasp", "near_goal"))
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "near.pt"
+            bank.save(path)
+            loaded = ConfigurationBank.load(path)
+            self.assertEqual(bank.fingerprint, loaded.fingerprint)
+            self.assertEqual(loaded.batch([6, 7])["near_goal_restore_verified"].tolist(), [1., 1.])
+            torch.testing.assert_close(loaded.batch([6, 7])["gripper_target"], torch.zeros(2, 1))
+
+    def test_four_family_rejects_forged_height_contact_hold_and_restore_evidence(self):
+        modifications = (
+            ("lift_height", .07), ("near_goal_relative_slip_m", .02),
+            ("near_goal_relative_rotation_deg", 12.), ("near_goal_contact_fraction", .5),
+            ("near_goal_object_speed_m_s", .2), ("near_goal_restore_verified", 0.),
+            ("gripper_target", -1.),
+        )
+        for name, value in modifications:
+            with self.subTest(field=name):
+                tensors, metadata = near_goal_bank_fixture()
+                tensors[name][6] = value
+                with self.assertRaisesRegex(ValueError, "near_goal"):
+                    ConfigurationBank(tensors, metadata)
+        for actual_lift in (.01, .11, .21):
+            tensors, metadata = near_goal_bank_fixture()
+            tensors["object_root"][6, 2] = tensors["table_height"][6] + .045 + actual_lift
+            tensors["lift_height"][6] = actual_lift
+            with self.subTest(actual_lift=actual_lift), self.assertRaisesRegex(ValueError, "near_goal"):
+                ConfigurationBank(tensors, metadata)
+
+    def test_four_family_requires_new_profile_and_declared_verification(self):
+        for key, value in (("validation_profile", "geometry_v1"),
+                           ("near_goal_grasp_verified", False), ("stable_standing_required", True)):
+            tensors, metadata = near_goal_bank_fixture()
+            metadata["physical_validation"][key] = value
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                ConfigurationBank(tensors, metadata)
+        tensors, metadata = near_goal_bank_fixture()
+        tensors.pop("near_goal_restore_verified")
+        with self.assertRaisesRegex(ValueError, "evidence"):
+            ConfigurationBank(tensors, metadata)
+
+    def test_fixed_near_goal_height_tolerance_never_allows_completed_task(self):
+        tensors, metadata = near_goal_bank_fixture()
+        metadata["construction"]["reset_config"]["near_goal"]["object_lift_height_range_m"] = [.07, .07]
+        tensors["lift_height"][6:] = torch.tensor([.066, .074])
+        tensors["object_root"][6:, 2] = tensors["table_height"][6:] + .045 + tensors["lift_height"][6:]
+        ConfigurationBank(tensors, metadata)
+        metadata["construction"]["reset_config"]["near_goal"]["object_lift_height_range_m"] = [.198, .198]
+        tensors["lift_height"][6:] = .201
+        tensors["object_root"][6:, 2] = tensors["table_height"][6:] + .045 + .201
+        with self.assertRaisesRegex(ValueError, "already successful"):
+            ConfigurationBank(tensors, metadata)
+
+    def test_four_family_requires_nonempty_near_goal_and_per_row_evidence_shape(self):
+        tensors, metadata = near_goal_bank_fixture()
+        tensors["family_id"][6:] = 2
+        with self.assertRaisesRegex(ValueError, "nonempty near_goal"):
+            ConfigurationBank(tensors, metadata)
+        tensors, metadata = near_goal_bank_fixture()
+        tensors["near_goal_contact_fraction"] = tensors["near_goal_contact_fraction"][:, None]
+        with self.assertRaisesRegex(ValueError, "per-configuration"):
+            ConfigurationBank(tensors, metadata)
+
+    def test_near_goal_speed_evidence_must_cover_actual_saved_velocity_norm(self):
+        tensors, metadata = near_goal_bank_fixture()
+        # Each component is below the recorded .02 m/s, but the vector norm is
+        # .025 m/s. Verify the physical root, not only the reported scalar.
+        tensors["object_root"][6, 7:10] = torch.tensor([.015, .020, 0.])
+        with self.assertRaisesRegex(ValueError, "understates saved object velocity"):
+            ConfigurationBank(tensors, metadata)
+        # The record is the maximum of saved-state and cold-replay speeds, so a
+        # conservative value above the saved root speed is valid.
+        tensors["near_goal_object_speed_m_s"][6] = .03
+        ConfigurationBank(tensors, metadata)
+
     def test_round_trip_metadata_hash_and_batch(self):
         tensors, metadata = bank_fixture()
         bank = ConfigurationBank(tensors, metadata)

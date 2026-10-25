@@ -1,0 +1,4531 @@
+{
+  "bank": "/home/hehui/DQ_WBC/DQ_high-level/data/sgs/sugar_box_v8.pt",
+  "fingerprint": "781f279627a7d6397097a81c0bcfc5dfa7cd3ba15f682fad5f2b54138d97044e",
+  "preview_physics_ticks": 1,
+  "seed": 43,
+  "foot_names": [
+    "FR_foot",
+    "FL_foot",
+    "RR_foot",
+    "RL_foot"
+  ],
+  "foot_collision_radius_m": 0.04,
+  "ground_z_m": 0.0,
+  "grounding_limits": {
+    "min_foot_bottom_m": -0.005,
+    "max_foot_bottom_m": 0.02
+  },
+  "grounding_note": "feet_near_ground checks only collision-bottom geometry; contact forces are diagnostic, not a standing requirement.",
+  "sampling": "uniform without replacement within each family",
+  "selected_config_ids": {
+    "full_task": [
+      39,
+      292,
+      147
+    ],
+    "pregrasp": [
+      985,
+      890,
+      610
+    ],
+    "at_grasp": [
+      1488,
+      1534,
+      1043
+    ]
+  },
+  "controller": "Low-level balance/IK; zero high-level deltas; saved gripper target; Level02 table motion",
+  "note": "Candidate measurements use the saved candidate ID in the object's current pose; offsets are in the candidate frame, and rotation offsets are local roll/pitch/yaw. Object yaw is relative to the normal reset orientation. Full-task candidate fields are null. saved_geometry records the bank frame, whereas the other measurements are after preview physics.",
+  "initial": [
+    {
+      "family": "full_task",
+      "config_id": 39,
+      "family_sample_index": 39,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 2.0004513263702393,
+      "ee_to_object_center_m": 1.3763518333435059,
+      "lift_above_original_support_m": 0.0011267215013504028,
+      "foot_bottom_z_m": [
+        5.155056715011597e-05,
+        4.190206527709961e-05,
+        4.103034734725952e-05,
+        4.492700099945068e-06
+      ],
+      "foot_contact_force_z_N": [
+        311.4639587402344,
+        328.32122802734375,
+        228.5789794921875,
+        87.28788757324219
+      ],
+      "feet_near_ground": true,
+      "gripper_joint_rad": -1.570794939994812,
+      "gripper_opening_normalized": 0.999999089308136,
+      "gripper_target_opening_normalized": 1.0,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "saved",
+      "saved_geometry": {
+        "candidate_local_offset": null,
+        "ee_rotation_offset_deg": null,
+        "object_yaw_offset_deg": 9.845772743225098
+      },
+      "object_yaw_offset_deg": 9.839556694030762,
+      "grasp_candidate_index": null,
+      "ee_to_grasp_candidate_m": null,
+      "candidate_local_offset_m": null,
+      "ee_rotation_offset_deg": null
+    },
+    {
+      "family": "full_task",
+      "config_id": 292,
+      "family_sample_index": 292,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 2.0004312992095947,
+      "ee_to_object_center_m": 1.3355612754821777,
+      "lift_above_original_support_m": 0.001066938042640686,
+      "foot_bottom_z_m": [
+        6.733089685440063e-05,
+        5.155801773071289e-05,
+        4.1484832763671875e-05,
+        4.239380359649658e-06
+      ],
+      "foot_contact_force_z_N": [
+        322.8245544433594,
+        328.906982421875,
+        228.3846435546875,
+        86.35025787353516
+      ],
+      "feet_near_ground": true,
+      "gripper_joint_rad": -1.570794701576233,
+      "gripper_opening_normalized": 0.9999989375261586,
+      "gripper_target_opening_normalized": 1.0,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "saved",
+      "saved_geometry": {
+        "candidate_local_offset": null,
+        "ee_rotation_offset_deg": null,
+        "object_yaw_offset_deg": 3.6921679973602295
+      },
+      "object_yaw_offset_deg": 3.9479176998138428,
+      "grasp_candidate_index": null,
+      "ee_to_grasp_candidate_m": null,
+      "candidate_local_offset_m": null,
+      "ee_rotation_offset_deg": null
+    },
+    {
+      "family": "full_task",
+      "config_id": 147,
+      "family_sample_index": 147,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 2.000368356704712,
+      "ee_to_object_center_m": 1.3426707983016968,
+      "lift_above_original_support_m": 0.0010677725076675415,
+      "foot_bottom_z_m": [
+        8.58008861541748e-05,
+        5.310773849487305e-05,
+        4.0158629417419434e-05,
+        7.249414920806885e-06
+      ],
+      "foot_contact_force_z_N": [
+        347.2720031738281,
+        316.2254638671875,
+        221.92709350585938,
+        87.5715103149414
+      ],
+      "feet_near_ground": true,
+      "gripper_joint_rad": -1.570794701576233,
+      "gripper_opening_normalized": 0.9999989375261586,
+      "gripper_target_opening_normalized": 1.0,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "saved",
+      "saved_geometry": {
+        "candidate_local_offset": null,
+        "ee_rotation_offset_deg": null,
+        "object_yaw_offset_deg": -3.252645492553711
+      },
+      "object_yaw_offset_deg": -2.9955570697784424,
+      "grasp_candidate_index": null,
+      "ee_to_grasp_candidate_m": null,
+      "candidate_local_offset_m": null,
+      "ee_rotation_offset_deg": null
+    },
+    {
+      "family": "pregrasp",
+      "config_id": 985,
+      "family_sample_index": 473,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 0.8495675325393677,
+      "ee_to_object_center_m": 0.1391005665063858,
+      "lift_above_original_support_m": 0.0010523349046707153,
+      "foot_bottom_z_m": [
+        6.017833948135376e-05,
+        5.323439836502075e-05,
+        4.664808511734009e-05,
+        1.611560583114624e-05
+      ],
+      "foot_contact_force_z_N": [
+        249.83108520507812,
+        264.6968688964844,
+        238.87057495117188,
+        109.49566650390625
+      ],
+      "feet_near_ground": true,
+      "gripper_joint_rad": -1.5707377195358276,
+      "gripper_opening_normalized": 0.9999626616335763,
+      "gripper_target_opening_normalized": 1.0,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "saved",
+      "saved_geometry": {
+        "candidate_local_offset": [
+          -0.07876505702733994,
+          0.00016020238399505615,
+          0.009516853839159012
+        ],
+        "ee_rotation_offset_deg": [
+          -0.022252757102251053,
+          -3.4281811714172363,
+          -4.2399492263793945
+        ],
+        "object_yaw_offset_deg": -11.84244155883789
+      },
+      "object_yaw_offset_deg": -11.567512512207031,
+      "grasp_candidate_index": 23,
+      "ee_to_grasp_candidate_m": 0.0780453160405159,
+      "candidate_local_offset_m": [
+        -0.07736989855766296,
+        0.0004782043397426605,
+        0.01023431308567524
+      ],
+      "ee_rotation_offset_deg": [
+        0.21030153334140778,
+        -3.374810218811035,
+        -4.169024467468262
+      ]
+    },
+    {
+      "family": "pregrasp",
+      "config_id": 890,
+      "family_sample_index": 378,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 0.7615563273429871,
+      "ee_to_object_center_m": 0.18043385446071625,
+      "lift_above_original_support_m": 0.0010521560907363892,
+      "foot_bottom_z_m": [
+        1.0512769222259521e-05,
+        5.264580249786377e-05,
+        4.62457537651062e-05,
+        1.3232231140136719e-05
+      ],
+      "foot_contact_force_z_N": [
+        244.39825439453125,
+        254.79421997070312,
+        234.9993896484375,
+        99.23219299316406
+      ],
+      "feet_near_ground": true,
+      "gripper_joint_rad": -1.5707365274429321,
+      "gripper_opening_normalized": 0.9999619027236897,
+      "gripper_target_opening_normalized": 1.0,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "saved",
+      "saved_geometry": {
+        "candidate_local_offset": [
+          -0.12059187889099121,
+          0.009199853986501694,
+          -0.0030711591243743896
+        ],
+        "ee_rotation_offset_deg": [
+          -1.2960010766983032,
+          3.7635982036590576,
+          -4.950972080230713
+        ],
+        "object_yaw_offset_deg": 4.377509117126465
+      },
+      "object_yaw_offset_deg": 4.109110355377197,
+      "grasp_candidate_index": 23,
+      "ee_to_grasp_candidate_m": 0.1196267232298851,
+      "candidate_local_offset_m": [
+        -0.11920468509197235,
+        0.009514190256595612,
+        -0.003205586224794388
+      ],
+      "ee_rotation_offset_deg": [
+        -1.6008187532424927,
+        3.724611520767212,
+        -4.909895420074463
+      ]
+    },
+    {
+      "family": "pregrasp",
+      "config_id": 610,
+      "family_sample_index": 98,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 0.6872847676277161,
+      "ee_to_object_center_m": 0.12349186092615128,
+      "lift_above_original_support_m": 0.0010524541139602661,
+      "foot_bottom_z_m": [
+        1.3582408428192139e-05,
+        5.208700895309448e-05,
+        4.743039608001709e-05,
+        1.4066696166992188e-05
+      ],
+      "foot_contact_force_z_N": [
+        237.85604858398438,
+        259.0311584472656,
+        241.98951721191406,
+        105.3672103881836
+      ],
+      "feet_near_ground": true,
+      "gripper_joint_rad": -1.5707244873046875,
+      "gripper_opening_normalized": 0.9999542377338344,
+      "gripper_target_opening_normalized": 1.0,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "saved",
+      "saved_geometry": {
+        "candidate_local_offset": [
+          -0.06284841150045395,
+          8.333474397659302e-06,
+          0.007581152021884918
+        ],
+        "ee_rotation_offset_deg": [
+          4.329370021820068,
+          -1.0874208211898804,
+          3.302642345428467
+        ],
+        "object_yaw_offset_deg": -10.3770112991333
+      },
+      "object_yaw_offset_deg": -10.101481437683105,
+      "grasp_candidate_index": 3,
+      "ee_to_grasp_candidate_m": 0.0621287077665329,
+      "candidate_local_offset_m": [
+        -0.06156729906797409,
+        0.00010636076331138611,
+        0.008332643657922745
+      ],
+      "ee_rotation_offset_deg": [
+        4.553536891937256,
+        -1.1215580701828003,
+        3.4024178981781006
+      ]
+    },
+    {
+      "family": "at_grasp",
+      "config_id": 1488,
+      "family_sample_index": 464,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 0.7306435704231262,
+      "ee_to_object_center_m": 0.043373603373765945,
+      "lift_above_original_support_m": 0.0010238438844680786,
+      "foot_bottom_z_m": [
+        5.054473876953125e-05,
+        4.968792200088501e-05,
+        5.6684017181396484e-05,
+        1.5594065189361572e-05
+      ],
+      "foot_contact_force_z_N": [
+        214.70257568359375,
+        241.416259765625,
+        277.5652770996094,
+        119.20208740234375
+      ],
+      "feet_near_ground": true,
+      "gripper_joint_rad": -1.0792568922042847,
+      "gripper_opening_normalized": 0.6870762579215962,
+      "gripper_target_opening_normalized": 0.6871189845482153,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "saved",
+      "saved_geometry": {
+        "candidate_local_offset": [
+          0.0009502138709649444,
+          0.00024227635003626347,
+          -0.004171351902186871
+        ],
+        "ee_rotation_offset_deg": [
+          -0.3056236505508423,
+          -0.9159557223320007,
+          -0.03080415353178978
+        ],
+        "object_yaw_offset_deg": -2.6286802291870117
+      },
+      "object_yaw_offset_deg": -2.958496570587158,
+      "grasp_candidate_index": 13,
+      "ee_to_grasp_candidate_m": 0.004818531218916178,
+      "candidate_local_offset_m": [
+        0.0018916551489382982,
+        0.0002411894965916872,
+        -0.004425122868269682
+      ],
+      "ee_rotation_offset_deg": [
+        -0.7031406760215759,
+        -0.8535414338111877,
+        -0.027607625350356102
+      ]
+    },
+    {
+      "family": "at_grasp",
+      "config_id": 1534,
+      "family_sample_index": 510,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 0.7307377457618713,
+      "ee_to_object_center_m": 0.04881720989942551,
+      "lift_above_original_support_m": 0.0007521063089370728,
+      "foot_bottom_z_m": [
+        6.124377250671387e-05,
+        5.050748586654663e-05,
+        5.5052340030670166e-05,
+        1.537799835205078e-05
+      ],
+      "foot_contact_force_z_N": [
+        248.326416015625,
+        255.6435546875,
+        264.46124267578125,
+        119.8994369506836
+      ],
+      "feet_near_ground": true,
+      "gripper_joint_rad": -1.3440443277359009,
+      "gripper_opening_normalized": 0.855645170164672,
+      "gripper_target_opening_normalized": 0.8556978385108063,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "saved",
+      "saved_geometry": {
+        "candidate_local_offset": [
+          0.0017734861467033625,
+          0.000489524332806468,
+          -0.004094807431101799
+        ],
+        "ee_rotation_offset_deg": [
+          0.004699170123785734,
+          -1.6139600276947021,
+          -0.2826332449913025
+        ],
+        "object_yaw_offset_deg": 14.755298614501953
+      },
+      "object_yaw_offset_deg": 14.763385772705078,
+      "grasp_candidate_index": 16,
+      "ee_to_grasp_candidate_m": 0.004876429680734873,
+      "candidate_local_offset_m": [
+        0.002608388662338257,
+        0.00048280414193868637,
+        -0.004091793671250343
+      ],
+      "ee_rotation_offset_deg": [
+        -0.008483095094561577,
+        -1.8897767066955566,
+        -0.33797141909599304
+      ]
+    },
+    {
+      "family": "at_grasp",
+      "config_id": 1043,
+      "family_sample_index": 19,
+      "elapsed_sim_seconds": 0.004999999888241291,
+      "base_to_object_xy_m": 0.7058212757110596,
+      "ee_to_object_center_m": 0.043229833245277405,
+      "lift_above_original_support_m": 0.0009166747331619263,
+      "foot_bottom_z_m": [
+        5.497783422470093e-05,
+        5.2325427532196045e-05,
+        5.595386028289795e-05,
+        1.4044344425201416e-05
+      ],
+      "foot_contact_force_z_N": [
+        210.96701049804688,
+        255.70773315429688,
+        268.5072326660156,
+        116.13619232177734
+      ],
+      "feet_near_ground": true,
+      "gripper_joint_rad": -0.8633713126182556,
+      "gripper_opening_normalized": 0.5496392332126288,
+      "gripper_target_opening_normalized": 0.5496728908661022,
+      "hold_counter": 0,
+      "success": false,
+      "terminated": false,
+      "gripper_command": "saved",
+      "saved_geometry": {
+        "candidate_local_offset": [
+          0.0010977911297231913,
+          0.00020129047334194183,
+          -0.004304844886064529
+        ],
+        "ee_rotation_offset_deg": [
+          -0.02536732330918312,
+          -1.2207187414169312,
+          -0.08565057069063187
+        ],
+        "object_yaw_offset_deg": 12.083930015563965
+      },
+      "object_yaw_offset_deg": 12.083370208740234,
+      "grasp_candidate_index": 13,
+      "ee_to_grasp_candidate_m": 0.004758014343678951,
+      "candidate_local_offset_m": [
+        0.002002557273954153,
+        0.0002555185928940773,
+        -0.004308500327169895
+      ],
+      "ee_rotation_offset_deg": [
+        -0.025121435523033142,
+        -1.6041382551193237,
+        -0.16471683979034424
+      ]
+    }
+  ],
+  "hold_traces": {
+    "39": [
+      {
+        "family": "full_task",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 2.0004513263702393,
+        "ee_to_object_center_m": 1.3763518333435059,
+        "lift_above_original_support_m": 0.0011267215013504028,
+        "foot_bottom_z_m": [
+          5.155056715011597e-05,
+          4.190206527709961e-05,
+          4.103034734725952e-05,
+          4.492700099945068e-06
+        ],
+        "foot_contact_force_z_N": [
+          311.4639587402344,
+          328.32122802734375,
+          228.5789794921875,
+          87.28788757324219
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.570794939994812,
+        "gripper_opening_normalized": 0.999999089308136,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": 9.845772743225098
+        },
+        "object_yaw_offset_deg": 9.839556694030762,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.14499999675899744,
+        "base_to_object_xy_m": 2.002117872238159,
+        "ee_to_object_center_m": 1.3740020990371704,
+        "lift_above_original_support_m": 0.0010684281587600708,
+        "foot_bottom_z_m": [
+          0.009787611663341522,
+          1.1563301086425781e-05,
+          1.7054378986358643e-05,
+          -5.014240741729736e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          251.1277618408203,
+          223.09622192382812,
+          29.076045989990234
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5704795122146606,
+        "gripper_opening_normalized": 0.9997982817521256,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": 9.845772743225098
+        },
+        "object_yaw_offset_deg": 9.860526084899902,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.2849999936297536,
+        "base_to_object_xy_m": 1.9989622831344604,
+        "ee_to_object_center_m": 1.404212236404419,
+        "lift_above_original_support_m": 0.00100041925907135,
+        "foot_bottom_z_m": [
+          1.7784535884857178e-05,
+          9.3802809715271e-06,
+          -1.914799213409424e-06,
+          1.3373792171478271e-05
+        ],
+        "foot_contact_force_z_N": [
+          86.61209869384766,
+          138.4303436279297,
+          22.26943016052246,
+          177.1255340576172
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5706524848937988,
+        "gripper_opening_normalized": 0.9999083995766801,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": 9.845772743225098
+        },
+        "object_yaw_offset_deg": 9.854828834533691,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.4449999900534749,
+        "base_to_object_xy_m": 2.0014235973358154,
+        "ee_to_object_center_m": 1.4195835590362549,
+        "lift_above_original_support_m": 0.00098438560962677,
+        "foot_bottom_z_m": [
+          7.387250661849976e-05,
+          0.002966172993183136,
+          2.6948750019073486e-05,
+          2.6300549507141113e-06
+        ],
+        "foot_contact_force_z_N": [
+          316.1567077636719,
+          0.0,
+          272.5319519042969,
+          20.781190872192383
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5706942081451416,
+        "gripper_opening_normalized": 0.9999349614227132,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": 9.845772743225098
+        },
+        "object_yaw_offset_deg": 9.856646537780762,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.6049999864771962,
+        "base_to_object_xy_m": 2.001837968826294,
+        "ee_to_object_center_m": 1.4282586574554443,
+        "lift_above_original_support_m": 0.00098438560962677,
+        "foot_bottom_z_m": [
+          0.009343661367893219,
+          2.6904046535491943e-05,
+          -3.9711594581604e-06,
+          9.350478649139404e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          248.51942443847656,
+          49.01713562011719,
+          189.5262451171875
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.570796012878418,
+        "gripper_opening_normalized": 0.999999772327034,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": 9.845772743225098
+        },
+        "object_yaw_offset_deg": 9.856741905212402,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.7449999833479524,
+        "base_to_object_xy_m": 2.0063300132751465,
+        "ee_to_object_center_m": 1.4320141077041626,
+        "lift_above_original_support_m": 0.00098438560962677,
+        "foot_bottom_z_m": [
+          6.1817467212677e-05,
+          0.03520379215478897,
+          3.316253423690796e-05,
+          -4.86522912979126e-06
+        ],
+        "foot_contact_force_z_N": [
+          315.1769714355469,
+          0.0,
+          290.407470703125,
+          61.64748764038086
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5707451105117798,
+        "gripper_opening_normalized": 0.9999673668748736,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": 9.845772743225098
+        },
+        "object_yaw_offset_deg": 9.856727600097656,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 0.9049999797716737,
+        "base_to_object_xy_m": 2.0136916637420654,
+        "ee_to_object_center_m": 1.4280977249145508,
+        "lift_above_original_support_m": 0.00098438560962677,
+        "foot_bottom_z_m": [
+          0.024123497307300568,
+          2.1405518054962158e-05,
+          -4.127621650695801e-06,
+          4.030764102935791e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          256.8536376953125,
+          94.85935974121094,
+          165.82351684570312
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5707900524139404,
+        "gripper_opening_normalized": 0.9999959777776007,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": 9.845772743225098
+        },
+        "object_yaw_offset_deg": 9.856850624084473,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 1.064999976195395,
+        "base_to_object_xy_m": 2.020242214202881,
+        "ee_to_object_center_m": 1.430850625038147,
+        "lift_above_original_support_m": 0.00098438560962677,
+        "foot_bottom_z_m": [
+          7.570534944534302e-05,
+          0.015323452651500702,
+          0.005388341844081879,
+          6.012618541717529e-06
+        ],
+        "foot_contact_force_z_N": [
+          371.3188781738281,
+          0.0,
+          0.0,
+          218.0321502685547
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.570631504058838,
+        "gripper_opening_normalized": 0.9998950427626748,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": 9.845772743225098
+        },
+        "object_yaw_offset_deg": 9.856878280639648,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 39,
+        "family_sample_index": 39,
+        "elapsed_sim_seconds": 1.2049999730661511,
+        "base_to_object_xy_m": 2.036923885345459,
+        "ee_to_object_center_m": 1.4330865144729614,
+        "lift_above_original_support_m": 0.00098438560962677,
+        "foot_bottom_z_m": [
+          0.016293063759803772,
+          2.763420343399048e-05,
+          2.0153820514678955e-05,
+          0.01038137823343277
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          342.65753173828125,
+          233.96009826660156,
+          0.0
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5706334114074707,
+        "gripper_opening_normalized": 0.9998962570184935,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": 9.845772743225098
+        },
+        "object_yaw_offset_deg": 9.85696029663086,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      }
+    ],
+    "292": [
+      {
+        "family": "full_task",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 2.0004312992095947,
+        "ee_to_object_center_m": 1.3355612754821777,
+        "lift_above_original_support_m": 0.001066938042640686,
+        "foot_bottom_z_m": [
+          6.733089685440063e-05,
+          5.155801773071289e-05,
+          4.1484832763671875e-05,
+          4.239380359649658e-06
+        ],
+        "foot_contact_force_z_N": [
+          322.8245544433594,
+          328.906982421875,
+          228.3846435546875,
+          86.35025787353516
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.570794701576233,
+        "gripper_opening_normalized": 0.9999989375261586,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": 3.6921679973602295
+        },
+        "object_yaw_offset_deg": 3.9479176998138428,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.14499999675899744,
+        "base_to_object_xy_m": 2.007458448410034,
+        "ee_to_object_center_m": 1.341443419456482,
+        "lift_above_original_support_m": 0.0010253936052322388,
+        "foot_bottom_z_m": [
+          0.010307587683200836,
+          1.2010335922241211e-05,
+          1.7039477825164795e-05,
+          -5.304813385009766e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          251.8349151611328,
+          222.72412109375,
+          28.79756736755371
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5704773664474487,
+        "gripper_opening_normalized": 0.9997969157143296,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": 3.6921679973602295
+        },
+        "object_yaw_offset_deg": 4.054646015167236,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.2849999936297536,
+        "base_to_object_xy_m": 2.0074636936187744,
+        "ee_to_object_center_m": 1.3787245750427246,
+        "lift_above_original_support_m": 0.0010065585374832153,
+        "foot_bottom_z_m": [
+          1.8104910850524902e-05,
+          9.872019290924072e-06,
+          -1.7657876014709473e-06,
+          1.3567507266998291e-05
+        ],
+        "foot_contact_force_z_N": [
+          87.12689208984375,
+          137.1731414794922,
+          21.970102310180664,
+          176.98338317871094
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5706541538238525,
+        "gripper_opening_normalized": 0.9999094620505213,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": 3.6921679973602295
+        },
+        "object_yaw_offset_deg": 4.057514667510986,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.42499999050050974,
+        "base_to_object_xy_m": 2.005991220474243,
+        "ee_to_object_center_m": 1.4012054204940796,
+        "lift_above_original_support_m": 0.0010056644678115845,
+        "foot_bottom_z_m": [
+          6.201118230819702e-05,
+          0.010128073394298553,
+          2.1599233150482178e-05,
+          1.6316771507263184e-06
+        ],
+        "foot_contact_force_z_N": [
+          283.58587646484375,
+          0.0,
+          228.48582458496094,
+          124.01448822021484
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5707467794418335,
+        "gripper_opening_normalized": 0.9999684293487149,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": 3.6921679973602295
+        },
+        "object_yaw_offset_deg": 4.057474136352539,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.5649999873712659,
+        "base_to_object_xy_m": 2.0066335201263428,
+        "ee_to_object_center_m": 1.416031002998352,
+        "lift_above_original_support_m": 0.0010056644678115845,
+        "foot_bottom_z_m": [
+          0.04480302333831787,
+          3.559142351150513e-05,
+          2.942979335784912e-06,
+          7.0855021476745605e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          297.54583740234375,
+          194.8054962158203,
+          174.8217315673828
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5707958936691284,
+        "gripper_opening_normalized": 0.9999996964360454,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": 3.6921679973602295
+        },
+        "object_yaw_offset_deg": 4.057555675506592,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.7249999837949872,
+        "base_to_object_xy_m": 2.002880573272705,
+        "ee_to_object_center_m": 1.4245325326919556,
+        "lift_above_original_support_m": 0.0010056644678115845,
+        "foot_bottom_z_m": [
+          6.332248449325562e-05,
+          0.023174382746219635,
+          1.7657876014709473e-06,
+          1.0021030902862549e-05
+        ],
+        "foot_contact_force_z_N": [
+          324.28118896484375,
+          0.0,
+          127.40711212158203,
+          216.84490966796875
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5707156658172607,
+        "gripper_opening_normalized": 0.9999486218006731,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": 3.6921679973602295
+        },
+        "object_yaw_offset_deg": 4.057624340057373,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 0.8849999802187085,
+        "base_to_object_xy_m": 2.0127322673797607,
+        "ee_to_object_center_m": 1.4250133037567139,
+        "lift_above_original_support_m": 0.0010056644678115845,
+        "foot_bottom_z_m": [
+          0.04127747565507889,
+          2.8751790523529053e-05,
+          1.1049211025238037e-05,
+          1.306086778640747e-05
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          278.926025390625,
+          232.48599243164062,
+          195.93133544921875
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5707961320877075,
+        "gripper_opening_normalized": 0.9999998482180227,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": 3.6921679973602295
+        },
+        "object_yaw_offset_deg": 4.057692527770996,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 1.0249999770894647,
+        "base_to_object_xy_m": 2.011310577392578,
+        "ee_to_object_center_m": 1.4205560684204102,
+        "lift_above_original_support_m": 0.0010056644678115845,
+        "foot_bottom_z_m": [
+          8.419901132583618e-05,
+          9.454786777496338e-06,
+          0.031056419014930725,
+          3.345310688018799e-06
+        ],
+        "foot_contact_force_z_N": [
+          345.08160400390625,
+          98.71622467041016,
+          0.0,
+          224.63442993164062
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5706955194473267,
+        "gripper_opening_normalized": 0.9999357962235885,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": 3.6921679973602295
+        },
+        "object_yaw_offset_deg": 4.057733535766602,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 292,
+        "family_sample_index": 292,
+        "elapsed_sim_seconds": 1.1649999739602208,
+        "base_to_object_xy_m": 2.0230987071990967,
+        "ee_to_object_center_m": 1.4210385084152222,
+        "lift_above_original_support_m": 0.0010056644678115845,
+        "foot_bottom_z_m": [
+          4.108995199203491e-05,
+          0.002711765468120575,
+          3.0681490898132324e-05,
+          0.010700054466724396
+        ],
+        "foot_contact_force_z_N": [
+          228.23007202148438,
+          0.0,
+          263.67413330078125,
+          0.0
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5707648992538452,
+        "gripper_opening_normalized": 0.9999799647789922,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": 3.6921679973602295
+        },
+        "object_yaw_offset_deg": 4.057801723480225,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      }
+    ],
+    "147": [
+      {
+        "family": "full_task",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 2.000368356704712,
+        "ee_to_object_center_m": 1.3426707983016968,
+        "lift_above_original_support_m": 0.0010677725076675415,
+        "foot_bottom_z_m": [
+          8.58008861541748e-05,
+          5.310773849487305e-05,
+          4.0158629417419434e-05,
+          7.249414920806885e-06
+        ],
+        "foot_contact_force_z_N": [
+          347.2720031738281,
+          316.2254638671875,
+          221.92709350585938,
+          87.5715103149414
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.570794701576233,
+        "gripper_opening_normalized": 0.9999989375261586,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": -3.252645492553711
+        },
+        "object_yaw_offset_deg": -2.9955570697784424,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.14499999675899744,
+        "base_to_object_xy_m": 2.0094947814941406,
+        "ee_to_object_center_m": 1.3508461713790894,
+        "lift_above_original_support_m": 0.0010224133729934692,
+        "foot_bottom_z_m": [
+          0.009823329746723175,
+          1.1742115020751953e-05,
+          1.2010335922241211e-05,
+          -5.036592483520508e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          251.46641540527344,
+          214.5495147705078,
+          28.709264755249023
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5704799890518188,
+        "gripper_opening_normalized": 0.9997985853160802,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": -3.252645492553711
+        },
+        "object_yaw_offset_deg": -2.902693748474121,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.30499999318271875,
+        "base_to_object_xy_m": 2.009779691696167,
+        "ee_to_object_center_m": 1.391204833984375,
+        "lift_above_original_support_m": 0.0010031014680862427,
+        "foot_bottom_z_m": [
+          2.6620924472808838e-05,
+          5.640089511871338e-06,
+          -9.611248970031738e-07,
+          7.249414920806885e-06
+        ],
+        "foot_contact_force_z_N": [
+          134.99237060546875,
+          84.05842590332031,
+          21.3475284576416,
+          161.17149353027344
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5706297159194946,
+        "gripper_opening_normalized": 0.9998939043978449,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": -3.252645492553711
+        },
+        "object_yaw_offset_deg": -2.9000437259674072,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.4449999900534749,
+        "base_to_object_xy_m": 2.0060606002807617,
+        "ee_to_object_center_m": 1.4162182807922363,
+        "lift_above_original_support_m": 0.001003161072731018,
+        "foot_bottom_z_m": [
+          5.597621202468872e-05,
+          1.5720725059509277e-06,
+          2.8304755687713623e-05,
+          1.691281795501709e-06
+        ],
+        "foot_contact_force_z_N": [
+          244.55307006835938,
+          110.56501007080078,
+          215.63861083984375,
+          82.47418975830078
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5706347227096558,
+        "gripper_opening_normalized": 0.9998970918193688,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": -3.252645492553711
+        },
+        "object_yaw_offset_deg": -2.900057315826416,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.584999986924231,
+        "base_to_object_xy_m": 2.0021698474884033,
+        "ee_to_object_center_m": 1.4349939823150635,
+        "lift_above_original_support_m": 0.001003161072731018,
+        "foot_bottom_z_m": [
+          0.03425521403551102,
+          3.8914382457733154e-05,
+          3.866851329803467e-06,
+          1.0676681995391846e-05
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          298.638916015625,
+          227.6591339111328,
+          191.33541870117188
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.570796012878418,
+        "gripper_opening_normalized": 0.999999772327034,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": -3.252645492553711
+        },
+        "object_yaw_offset_deg": -2.8999617099761963,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.7449999833479524,
+        "base_to_object_xy_m": 1.9944474697113037,
+        "ee_to_object_center_m": 1.440564751625061,
+        "lift_above_original_support_m": 0.001003161072731018,
+        "foot_bottom_z_m": [
+          7.651001214981079e-05,
+          0.021224893629550934,
+          1.6100704669952393e-05,
+          1.2889504432678223e-06
+        ],
+        "foot_contact_force_z_N": [
+          334.2546691894531,
+          0.0,
+          279.1191711425781,
+          13.192126274108887
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5706136226654053,
+        "gripper_opening_normalized": 0.9998836591143749,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": -3.252645492553711
+        },
+        "object_yaw_offset_deg": -2.8998935222625732,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 0.9049999797716737,
+        "base_to_object_xy_m": 1.9930322170257568,
+        "ee_to_object_center_m": 1.437284231185913,
+        "lift_above_original_support_m": 0.001003161072731018,
+        "foot_bottom_z_m": [
+          0.018703438341617584,
+          2.3268163204193115e-05,
+          -5.893409252166748e-06,
+          8.48621129989624e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          230.1177978515625,
+          24.879117965698242,
+          186.96688842773438
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5707935094833374,
+        "gripper_opening_normalized": 0.999998178616272,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": -3.252645492553711
+        },
+        "object_yaw_offset_deg": -2.8998661041259766,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 1.0449999766424298,
+        "base_to_object_xy_m": 1.9870033264160156,
+        "ee_to_object_center_m": 1.4350148439407349,
+        "lift_above_original_support_m": 0.001003161072731018,
+        "foot_bottom_z_m": [
+          7.90134072303772e-05,
+          0.044449009001255035,
+          3.526359796524048e-05,
+          5.684792995452881e-06
+        ],
+        "foot_contact_force_z_N": [
+          377.71368408203125,
+          0.0,
+          272.4228210449219,
+          87.9992446899414
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5707403421401978,
+        "gripper_opening_normalized": 0.9999643312353269,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": -3.252645492553711
+        },
+        "object_yaw_offset_deg": -2.899838924407959,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      },
+      {
+        "family": "full_task",
+        "config_id": 147,
+        "family_sample_index": 147,
+        "elapsed_sim_seconds": 1.2049999730661511,
+        "base_to_object_xy_m": 1.991358995437622,
+        "ee_to_object_center_m": 1.4313182830810547,
+        "lift_above_original_support_m": 0.001003161072731018,
+        "foot_bottom_z_m": [
+          0.030762337148189545,
+          2.4087727069854736e-05,
+          -4.32133674621582e-06,
+          4.194676876068115e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          267.68804931640625,
+          102.08214569091797,
+          176.41087341308594
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -1.5707945823669434,
+        "gripper_opening_normalized": 0.99999886163517,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": null,
+          "ee_rotation_offset_deg": null,
+          "object_yaw_offset_deg": -3.252645492553711
+        },
+        "object_yaw_offset_deg": -2.89974308013916,
+        "grasp_candidate_index": null,
+        "ee_to_grasp_candidate_m": null,
+        "candidate_local_offset_m": null,
+        "ee_rotation_offset_deg": null
+      }
+    ],
+    "985": [
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 0.8495675325393677,
+        "ee_to_object_center_m": 0.1391005665063858,
+        "lift_above_original_support_m": 0.0010523349046707153,
+        "foot_bottom_z_m": [
+          6.017833948135376e-05,
+          5.323439836502075e-05,
+          4.664808511734009e-05,
+          1.611560583114624e-05
+        ],
+        "foot_contact_force_z_N": [
+          249.83108520507812,
+          264.6968688964844,
+          238.87057495117188,
+          109.49566650390625
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5707377195358276,
+        "gripper_opening_normalized": 0.9999626616335763,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.07876505702733994,
+            0.00016020238399505615,
+            0.009516853839159012
+          ],
+          "ee_rotation_offset_deg": [
+            -0.022252757102251053,
+            -3.4281811714172363,
+            -4.2399492263793945
+          ],
+          "object_yaw_offset_deg": -11.84244155883789
+        },
+        "object_yaw_offset_deg": -11.567512512207031,
+        "grasp_candidate_index": 23,
+        "ee_to_grasp_candidate_m": 0.0780453160405159,
+        "candidate_local_offset_m": [
+          -0.07736989855766296,
+          0.0004782043397426605,
+          0.01023431308567524
+        ],
+        "ee_rotation_offset_deg": [
+          0.21030153334140778,
+          -3.374810218811035,
+          -4.169024467468262
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.1649999963119626,
+        "base_to_object_xy_m": 0.8683944940567017,
+        "ee_to_object_center_m": 0.14804451167583466,
+        "lift_above_original_support_m": 0.0015558749437332153,
+        "foot_bottom_z_m": [
+          0.014460012316703796,
+          1.1041760444641113e-05,
+          2.592802047729492e-06,
+          1.6033649444580078e-05
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          251.67481994628906,
+          200.0678253173828,
+          145.327392578125
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5672492980957031,
+        "gripper_opening_normalized": 0.9977418636322414,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.07876505702733994,
+            0.00016020238399505615,
+            0.009516853839159012
+          ],
+          "ee_rotation_offset_deg": [
+            -0.022252757102251053,
+            -3.4281811714172363,
+            -4.2399492263793945
+          ],
+          "object_yaw_offset_deg": -11.84244155883789
+        },
+        "object_yaw_offset_deg": -11.327295303344727,
+        "grasp_candidate_index": 23,
+        "ee_to_grasp_candidate_m": 0.07938021421432495,
+        "candidate_local_offset_m": [
+          -0.07649559527635574,
+          0.0006245281547307968,
+          -0.021195556968450546
+        ],
+        "ee_rotation_offset_deg": [
+          0.8466019630432129,
+          3.4699547290802,
+          0.08309607952833176
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.30499999318271875,
+        "base_to_object_xy_m": 0.8753013610839844,
+        "ee_to_object_center_m": 0.16471581161022186,
+        "lift_above_original_support_m": 0.0007210522890090942,
+        "foot_bottom_z_m": [
+          5.359947681427002e-05,
+          1.2323260307312012e-05,
+          2.4586915969848633e-07,
+          7.577240467071533e-06
+        ],
+        "foot_contact_force_z_N": [
+          191.46311950683594,
+          111.99010467529297,
+          20.021642684936523,
+          140.2059326171875
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5666507482528687,
+        "gripper_opening_normalized": 0.9973608149781491,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.07876505702733994,
+            0.00016020238399505615,
+            0.009516853839159012
+          ],
+          "ee_rotation_offset_deg": [
+            -0.022252757102251053,
+            -3.4281811714172363,
+            -4.2399492263793945
+          ],
+          "object_yaw_offset_deg": -11.84244155883789
+        },
+        "object_yaw_offset_deg": -11.340778350830078,
+        "grasp_candidate_index": 23,
+        "ee_to_grasp_candidate_m": 0.1007714569568634,
+        "candidate_local_offset_m": [
+          -0.07973912358283997,
+          -0.010199276730418205,
+          -0.06076621636748314
+        ],
+        "ee_rotation_offset_deg": [
+          0.9178544878959656,
+          0.8546479344367981,
+          2.1766719818115234
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.4449999900534749,
+        "base_to_object_xy_m": 0.8868148922920227,
+        "ee_to_object_center_m": 0.18062743544578552,
+        "lift_above_original_support_m": 0.0010111480951309204,
+        "foot_bottom_z_m": [
+          5.8010220527648926e-05,
+          1.2032687664031982e-05,
+          9.663403034210205e-06,
+          4.820525646209717e-06
+        ],
+        "foot_contact_force_z_N": [
+          253.62960815429688,
+          111.73152923583984,
+          141.80775451660156,
+          113.10403442382812
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5656921863555908,
+        "gripper_opening_normalized": 0.9967505755382853,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.07876505702733994,
+            0.00016020238399505615,
+            0.009516853839159012
+          ],
+          "ee_rotation_offset_deg": [
+            -0.022252757102251053,
+            -3.4281811714172363,
+            -4.2399492263793945
+          ],
+          "object_yaw_offset_deg": -11.84244155883789
+        },
+        "object_yaw_offset_deg": -11.338455200195312,
+        "grasp_candidate_index": 23,
+        "ee_to_grasp_candidate_m": 0.12316428124904633,
+        "candidate_local_offset_m": [
+          -0.07258757948875427,
+          -0.02123766392469406,
+          -0.09720825403928757
+        ],
+        "ee_rotation_offset_deg": [
+          0.6644681096076965,
+          1.9096935987472534,
+          3.689026117324829
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.6049999864771962,
+        "base_to_object_xy_m": 0.9060812592506409,
+        "ee_to_object_center_m": 0.20391666889190674,
+        "lift_above_original_support_m": 0.0009721070528030396,
+        "foot_bottom_z_m": [
+          8.694827556610107e-06,
+          9.395182132720947e-06,
+          1.802295446395874e-05,
+          -3.5241246223449707e-06
+        ],
+        "foot_contact_force_z_N": [
+          146.12692260742188,
+          174.4205322265625,
+          252.3537139892578,
+          53.22399139404297
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5638878345489502,
+        "gripper_opening_normalized": 0.9956018895338358,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.07876505702733994,
+            0.00016020238399505615,
+            0.009516853839159012
+          ],
+          "ee_rotation_offset_deg": [
+            -0.022252757102251053,
+            -3.4281811714172363,
+            -4.2399492263793945
+          ],
+          "object_yaw_offset_deg": -11.84244155883789
+        },
+        "object_yaw_offset_deg": -11.332376480102539,
+        "grasp_candidate_index": 23,
+        "ee_to_grasp_candidate_m": 0.15247474610805511,
+        "candidate_local_offset_m": [
+          -0.05952836573123932,
+          -0.02950589545071125,
+          -0.13723820447921753
+        ],
+        "ee_rotation_offset_deg": [
+          0.8754253387451172,
+          3.904778242111206,
+          4.856319427490234
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.7649999829009175,
+        "base_to_object_xy_m": 0.9189582467079163,
+        "ee_to_object_center_m": 0.22590531408786774,
+        "lift_above_original_support_m": 0.0009703189134597778,
+        "foot_bottom_z_m": [
+          3.929436206817627e-05,
+          1.9945204257965088e-05,
+          4.92483377456665e-06,
+          6.623566150665283e-06
+        ],
+        "foot_contact_force_z_N": [
+          183.4568328857422,
+          172.83721923828125,
+          136.8169708251953,
+          133.21939086914062
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5629875659942627,
+        "gripper_opening_normalized": 0.9950287607874297,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.07876505702733994,
+            0.00016020238399505615,
+            0.009516853839159012
+          ],
+          "ee_rotation_offset_deg": [
+            -0.022252757102251053,
+            -3.4281811714172363,
+            -4.2399492263793945
+          ],
+          "object_yaw_offset_deg": -11.84244155883789
+        },
+        "object_yaw_offset_deg": -11.332281112670898,
+        "grasp_candidate_index": 23,
+        "ee_to_grasp_candidate_m": 0.1801997870206833,
+        "candidate_local_offset_m": [
+          -0.039008647203445435,
+          -0.03669973090291023,
+          -0.1720564365386963
+        ],
+        "ee_rotation_offset_deg": [
+          0.8804796934127808,
+          4.730547904968262,
+          6.3557233810424805
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 0.9249999793246388,
+        "base_to_object_xy_m": 0.9322619438171387,
+        "ee_to_object_center_m": 0.2495136559009552,
+        "lift_above_original_support_m": 0.0009703189134597778,
+        "foot_bottom_z_m": [
+          1.3202428817749023e-05,
+          2.1576881408691406e-05,
+          3.1813979148864746e-06,
+          8.128583431243896e-06
+        ],
+        "foot_contact_force_z_N": [
+          165.26608276367188,
+          184.2569122314453,
+          127.11082458496094,
+          149.80503845214844
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.562420129776001,
+        "gripper_opening_normalized": 0.9946675196813792,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.07876505702733994,
+            0.00016020238399505615,
+            0.009516853839159012
+          ],
+          "ee_rotation_offset_deg": [
+            -0.022252757102251053,
+            -3.4281811714172363,
+            -4.2399492263793945
+          ],
+          "object_yaw_offset_deg": -11.84244155883789
+        },
+        "object_yaw_offset_deg": -11.332117080688477,
+        "grasp_candidate_index": 23,
+        "ee_to_grasp_candidate_m": 0.208921417593956,
+        "candidate_local_offset_m": [
+          -0.02023329585790634,
+          -0.04393238574266434,
+          -0.20324546098709106
+        ],
+        "ee_rotation_offset_deg": [
+          0.6221073269844055,
+          5.374375343322754,
+          7.474494457244873
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 1.064999976195395,
+        "base_to_object_xy_m": 0.9477976560592651,
+        "ee_to_object_center_m": 0.2749558985233307,
+        "lift_above_original_support_m": 0.0009703189134597778,
+        "foot_bottom_z_m": [
+          3.992021083831787e-05,
+          1.9378960132598877e-05,
+          3.7029385566711426e-06,
+          7.040798664093018e-06
+        ],
+        "foot_contact_force_z_N": [
+          181.8187255859375,
+          171.8289337158203,
+          132.6786346435547,
+          140.96275329589844
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5620042085647583,
+        "gripper_opening_normalized": 0.9944027360219234,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.07876505702733994,
+            0.00016020238399505615,
+            0.009516853839159012
+          ],
+          "ee_rotation_offset_deg": [
+            -0.022252757102251053,
+            -3.4281811714172363,
+            -4.2399492263793945
+          ],
+          "object_yaw_offset_deg": -11.84244155883789
+        },
+        "object_yaw_offset_deg": -11.332103729248047,
+        "grasp_candidate_index": 23,
+        "ee_to_grasp_candidate_m": 0.23867392539978027,
+        "candidate_local_offset_m": [
+          -0.0025118663907051086,
+          -0.05106890946626663,
+          -0.23313277959823608
+        ],
+        "ee_rotation_offset_deg": [
+          0.4110407829284668,
+          6.08375883102417,
+          8.531152725219727
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 985,
+        "family_sample_index": 473,
+        "elapsed_sim_seconds": 1.2049999730661511,
+        "base_to_object_xy_m": 0.9648735523223877,
+        "ee_to_object_center_m": 0.30561476945877075,
+        "lift_above_original_support_m": 0.0009703189134597778,
+        "foot_bottom_z_m": [
+          3.879517316818237e-05,
+          7.569789886474609e-06,
+          6.638467311859131e-06,
+          7.323920726776123e-06
+        ],
+        "foot_contact_force_z_N": [
+          188.8991241455078,
+          163.62037658691406,
+          153.22052001953125,
+          132.06954956054688
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.561519742012024,
+        "gripper_opening_normalized": 0.9940943150439845,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.07876505702733994,
+            0.00016020238399505615,
+            0.009516853839159012
+          ],
+          "ee_rotation_offset_deg": [
+            -0.022252757102251053,
+            -3.4281811714172363,
+            -4.2399492263793945
+          ],
+          "object_yaw_offset_deg": -11.84244155883789
+        },
+        "object_yaw_offset_deg": -11.332076072692871,
+        "grasp_candidate_index": 23,
+        "ee_to_grasp_candidate_m": 0.27337560057640076,
+        "candidate_local_offset_m": [
+          0.015686459839344025,
+          -0.05951395630836487,
+          -0.2663573622703552
+        ],
+        "ee_rotation_offset_deg": [
+          0.2110801637172699,
+          6.807786464691162,
+          9.529343605041504
+        ]
+      }
+    ],
+    "890": [
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 0.7615563273429871,
+        "ee_to_object_center_m": 0.18043385446071625,
+        "lift_above_original_support_m": 0.0010521560907363892,
+        "foot_bottom_z_m": [
+          1.0512769222259521e-05,
+          5.264580249786377e-05,
+          4.62457537651062e-05,
+          1.3232231140136719e-05
+        ],
+        "foot_contact_force_z_N": [
+          244.39825439453125,
+          254.79421997070312,
+          234.9993896484375,
+          99.23219299316406
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5707365274429321,
+        "gripper_opening_normalized": 0.9999619027236897,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.12059187889099121,
+            0.009199853986501694,
+            -0.0030711591243743896
+          ],
+          "ee_rotation_offset_deg": [
+            -1.2960010766983032,
+            3.7635982036590576,
+            -4.950972080230713
+          ],
+          "object_yaw_offset_deg": 4.377509117126465
+        },
+        "object_yaw_offset_deg": 4.109110355377197,
+        "grasp_candidate_index": 23,
+        "ee_to_grasp_candidate_m": 0.1196267232298851,
+        "candidate_local_offset_m": [
+          -0.11920468509197235,
+          0.009514190256595612,
+          -0.003205586224794388
+        ],
+        "ee_rotation_offset_deg": [
+          -1.6008187532424927,
+          3.724611520767212,
+          -4.909895420074463
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.14499999675899744,
+        "base_to_object_xy_m": 0.7845777869224548,
+        "ee_to_object_center_m": 0.19839556515216827,
+        "lift_above_original_support_m": 0.0012518316507339478,
+        "foot_bottom_z_m": [
+          0.012505024671554565,
+          1.0631978511810303e-05,
+          1.3977289199829102e-05,
+          -5.684792995452881e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          248.8779296875,
+          236.73350524902344,
+          53.81682586669922
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5677015781402588,
+        "gripper_opening_normalized": 0.9980297940432404,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.12059187889099121,
+            0.009199853986501694,
+            -0.0030711591243743896
+          ],
+          "ee_rotation_offset_deg": [
+            -1.2960010766983032,
+            3.7635982036590576,
+            -4.950972080230713
+          ],
+          "object_yaw_offset_deg": 4.377509117126465
+        },
+        "object_yaw_offset_deg": 5.639591693878174,
+        "grasp_candidate_index": 23,
+        "ee_to_grasp_candidate_m": 0.1302381008863449,
+        "candidate_local_offset_m": [
+          -0.12637990713119507,
+          0.023800622671842575,
+          -0.02058190107345581
+        ],
+        "ee_rotation_offset_deg": [
+          0.6660254001617432,
+          7.913375377655029,
+          -0.9888064861297607
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.2849999936297536,
+        "base_to_object_xy_m": 0.7985342144966125,
+        "ee_to_object_center_m": 0.21976831555366516,
+        "lift_above_original_support_m": 0.0011436492204666138,
+        "foot_bottom_z_m": [
+          3.760308027267456e-05,
+          1.414865255355835e-05,
+          3.0547380447387695e-07,
+          1.0751187801361084e-05
+        ],
+        "foot_contact_force_z_N": [
+          124.83704376220703,
+          132.02455139160156,
+          14.046871185302734,
+          158.3957061767578
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5670911073684692,
+        "gripper_opening_normalized": 0.9976411562902815,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.12059187889099121,
+            0.009199853986501694,
+            -0.0030711591243743896
+          ],
+          "ee_rotation_offset_deg": [
+            -1.2960010766983032,
+            3.7635982036590576,
+            -4.950972080230713
+          ],
+          "object_yaw_offset_deg": 4.377509117126465
+        },
+        "object_yaw_offset_deg": 7.425249099731445,
+        "grasp_candidate_index": 23,
+        "ee_to_grasp_candidate_m": 0.1488213688135147,
+        "candidate_local_offset_m": [
+          -0.13703979551792145,
+          0.028986379504203796,
+          -0.050276074558496475
+        ],
+        "ee_rotation_offset_deg": [
+          2.223595380783081,
+          4.8424811363220215,
+          1.1502858400344849
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.4449999900534749,
+        "base_to_object_xy_m": 0.810585618019104,
+        "ee_to_object_center_m": 0.23520901799201965,
+        "lift_above_original_support_m": 0.0012398511171340942,
+        "foot_bottom_z_m": [
+          6.105750799179077e-05,
+          8.858740329742432e-06,
+          1.1809170246124268e-05,
+          5.058944225311279e-06
+        ],
+        "foot_contact_force_z_N": [
+          253.78448486328125,
+          103.28507232666016,
+          146.0074920654297,
+          137.1479034423828
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5659410953521729,
+        "gripper_opening_normalized": 0.99690903592262,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.12059187889099121,
+            0.009199853986501694,
+            -0.0030711591243743896
+          ],
+          "ee_rotation_offset_deg": [
+            -1.2960010766983032,
+            3.7635982036590576,
+            -4.950972080230713
+          ],
+          "object_yaw_offset_deg": 4.377509117126465
+        },
+        "object_yaw_offset_deg": 9.511871337890625,
+        "grasp_candidate_index": 23,
+        "ee_to_grasp_candidate_m": 0.16215766966342926,
+        "candidate_local_offset_m": [
+          -0.14175128936767578,
+          0.03536778688430786,
+          -0.07036194205284119
+        ],
+        "ee_rotation_offset_deg": [
+          3.703752040863037,
+          8.561805725097656,
+          2.8969838619232178
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.584999986924231,
+        "base_to_object_xy_m": 0.8283622860908508,
+        "ee_to_object_center_m": 0.25149470567703247,
+        "lift_above_original_support_m": 0.0010355263948440552,
+        "foot_bottom_z_m": [
+          7.778406143188477e-06,
+          6.861984729766846e-06,
+          2.551823854446411e-05,
+          1.5124678611755371e-06
+        ],
+        "foot_contact_force_z_N": [
+          132.3693389892578,
+          149.47994995117188,
+          277.00946044921875,
+          24.04676628112793
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5643974542617798,
+        "gripper_opening_normalized": 0.9959263235103832,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.12059187889099121,
+            0.009199853986501694,
+            -0.0030711591243743896
+          ],
+          "ee_rotation_offset_deg": [
+            -1.2960010766983032,
+            3.7635982036590576,
+            -4.950972080230713
+          ],
+          "object_yaw_offset_deg": 4.377509117126465
+        },
+        "object_yaw_offset_deg": 11.295207023620605,
+        "grasp_candidate_index": 23,
+        "ee_to_grasp_candidate_m": 0.17475545406341553,
+        "candidate_local_offset_m": [
+          -0.12983182072639465,
+          0.04423677921295166,
+          -0.10828793048858643
+        ],
+        "ee_rotation_offset_deg": [
+          5.471965312957764,
+          6.945892810821533,
+          4.0435404777526855
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.7249999837949872,
+        "base_to_object_xy_m": 0.8353934288024902,
+        "ee_to_object_center_m": 0.26004838943481445,
+        "lift_above_original_support_m": 0.001255825161933899,
+        "foot_bottom_z_m": [
+          5.3435564041137695e-05,
+          1.481175422668457e-05,
+          4.343688488006592e-06,
+          5.5655837059021e-06
+        ],
+        "foot_contact_force_z_N": [
+          264.0865478515625,
+          142.75994873046875,
+          130.67901611328125,
+          156.6002197265625
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5636261701583862,
+        "gripper_opening_normalized": 0.9954353088137138,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.12059187889099121,
+            0.009199853986501694,
+            -0.0030711591243743896
+          ],
+          "ee_rotation_offset_deg": [
+            -1.2960010766983032,
+            3.7635982036590576,
+            -4.950972080230713
+          ],
+          "object_yaw_offset_deg": 4.377509117126465
+        },
+        "object_yaw_offset_deg": 13.115302085876465,
+        "grasp_candidate_index": 23,
+        "ee_to_grasp_candidate_m": 0.1825103461742401,
+        "candidate_local_offset_m": [
+          -0.11647754162549973,
+          0.047607287764549255,
+          -0.13219891488552094
+        ],
+        "ee_rotation_offset_deg": [
+          7.555268287658691,
+          9.554096221923828,
+          6.202208042144775
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 0.8649999806657434,
+        "base_to_object_xy_m": 0.841939389705658,
+        "ee_to_object_center_m": 0.276551753282547,
+        "lift_above_original_support_m": 0.0010589510202407837,
+        "foot_bottom_z_m": [
+          1.5437602996826172e-05,
+          1.9527971744537354e-05,
+          1.0527670383453369e-05,
+          2.868473529815674e-06
+        ],
+        "foot_contact_force_z_N": [
+          204.28941345214844,
+          138.77029418945312,
+          162.46212768554688,
+          95.26649475097656
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5627408027648926,
+        "gripper_opening_normalized": 0.994871666440891,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.12059187889099121,
+            0.009199853986501694,
+            -0.0030711591243743896
+          ],
+          "ee_rotation_offset_deg": [
+            -1.2960010766983032,
+            3.7635982036590576,
+            -4.950972080230713
+          ],
+          "object_yaw_offset_deg": 4.377509117126465
+        },
+        "object_yaw_offset_deg": 14.894757270812988,
+        "grasp_candidate_index": 23,
+        "ee_to_grasp_candidate_m": 0.20013998448848724,
+        "candidate_local_offset_m": [
+          -0.09481750428676605,
+          0.05119916796684265,
+          -0.16865438222885132
+        ],
+        "ee_rotation_offset_deg": [
+          9.06767749786377,
+          6.990753173828125,
+          7.112604141235352
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 1.0249999770894647,
+        "base_to_object_xy_m": 0.8535250425338745,
+        "ee_to_object_center_m": 0.2947026491165161,
+        "lift_above_original_support_m": 0.0009946972131729126,
+        "foot_bottom_z_m": [
+          3.8564205169677734e-05,
+          8.530914783477783e-06,
+          4.731118679046631e-06,
+          6.623566150665283e-06
+        ],
+        "foot_contact_force_z_N": [
+          183.16619873046875,
+          164.2329864501953,
+          146.67601013183594,
+          142.49351501464844
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5618840456008911,
+        "gripper_opening_normalized": 0.994326237905348,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.12059187889099121,
+            0.009199853986501694,
+            -0.0030711591243743896
+          ],
+          "ee_rotation_offset_deg": [
+            -1.2960010766983032,
+            3.7635982036590576,
+            -4.950972080230713
+          ],
+          "object_yaw_offset_deg": 4.377509117126465
+        },
+        "object_yaw_offset_deg": 16.96665382385254,
+        "grasp_candidate_index": 23,
+        "ee_to_grasp_candidate_m": 0.2187439352273941,
+        "candidate_local_offset_m": [
+          -0.0896768569946289,
+          0.058259788900613785,
+          -0.1908213049173355
+        ],
+        "ee_rotation_offset_deg": [
+          11.061860084533691,
+          8.596817970275879,
+          8.447400093078613
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 890,
+        "family_sample_index": 378,
+        "elapsed_sim_seconds": 1.184999973513186,
+        "base_to_object_xy_m": 0.865689754486084,
+        "ee_to_object_center_m": 0.3152162432670593,
+        "lift_above_original_support_m": 0.0010256916284561157,
+        "foot_bottom_z_m": [
+          4.001706838607788e-05,
+          1.967698335647583e-05,
+          1.646578311920166e-06,
+          8.128583431243896e-06
+        ],
+        "foot_contact_force_z_N": [
+          182.90005493164062,
+          168.2452392578125,
+          123.65776062011719,
+          161.66357421875
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5613667964935303,
+        "gripper_opening_normalized": 0.993996946905526,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.12059187889099121,
+            0.009199853986501694,
+            -0.0030711591243743896
+          ],
+          "ee_rotation_offset_deg": [
+            -1.2960010766983032,
+            3.7635982036590576,
+            -4.950972080230713
+          ],
+          "object_yaw_offset_deg": 4.377509117126465
+        },
+        "object_yaw_offset_deg": 19.02066993713379,
+        "grasp_candidate_index": 23,
+        "ee_to_grasp_candidate_m": 0.23977920413017273,
+        "candidate_local_offset_m": [
+          -0.07397114485502243,
+          0.06865494698286057,
+          -0.21750594675540924
+        ],
+        "ee_rotation_offset_deg": [
+          12.8378324508667,
+          7.950135231018066,
+          9.584996223449707
+        ]
+      }
+    ],
+    "610": [
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 0.6872847676277161,
+        "ee_to_object_center_m": 0.12349186092615128,
+        "lift_above_original_support_m": 0.0010524541139602661,
+        "foot_bottom_z_m": [
+          1.3582408428192139e-05,
+          5.208700895309448e-05,
+          4.743039608001709e-05,
+          1.4066696166992188e-05
+        ],
+        "foot_contact_force_z_N": [
+          237.85604858398438,
+          259.0311584472656,
+          241.98951721191406,
+          105.3672103881836
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5707244873046875,
+        "gripper_opening_normalized": 0.9999542377338344,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.06284841150045395,
+            8.333474397659302e-06,
+            0.007581152021884918
+          ],
+          "ee_rotation_offset_deg": [
+            4.329370021820068,
+            -1.0874208211898804,
+            3.302642345428467
+          ],
+          "object_yaw_offset_deg": -10.3770112991333
+        },
+        "object_yaw_offset_deg": -10.101481437683105,
+        "grasp_candidate_index": 3,
+        "ee_to_grasp_candidate_m": 0.0621287077665329,
+        "candidate_local_offset_m": [
+          -0.06156729906797409,
+          0.00010636076331138611,
+          0.008332643657922745
+        ],
+        "ee_rotation_offset_deg": [
+          4.553536891937256,
+          -1.1215580701828003,
+          3.4024178981781006
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.1649999963119626,
+        "base_to_object_xy_m": 0.70311039686203,
+        "ee_to_object_center_m": 0.14013627171516418,
+        "lift_above_original_support_m": 0.00112171471118927,
+        "foot_bottom_z_m": [
+          0.015373565256595612,
+          1.0825693607330322e-05,
+          3.501772880554199e-07,
+          1.0974705219268799e-05
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          224.65545654296875,
+          177.5355987548828,
+          136.87509155273438
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5673097372055054,
+        "gripper_opening_normalized": 0.997780340363495,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.06284841150045395,
+            8.333474397659302e-06,
+            0.007581152021884918
+          ],
+          "ee_rotation_offset_deg": [
+            4.329370021820068,
+            -1.0874208211898804,
+            3.302642345428467
+          ],
+          "object_yaw_offset_deg": -10.3770112991333
+        },
+        "object_yaw_offset_deg": -9.958429336547852,
+        "grasp_candidate_index": 3,
+        "ee_to_grasp_candidate_m": 0.09186192601919174,
+        "candidate_local_offset_m": [
+          -0.07188817113637924,
+          0.01887279376387596,
+          0.053986310958862305
+        ],
+        "ee_rotation_offset_deg": [
+          5.74832820892334,
+          1.9231626987457275,
+          7.504356384277344
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.3249999927356839,
+        "base_to_object_xy_m": 0.7090898156166077,
+        "ee_to_object_center_m": 0.16211816668510437,
+        "lift_above_original_support_m": 0.0010197311639785767,
+        "foot_bottom_z_m": [
+          6.051361560821533e-05,
+          1.2628734111785889e-05,
+          2.60770320892334e-07,
+          1.3075768947601318e-05
+        ],
+        "foot_contact_force_z_N": [
+          215.80322265625,
+          104.40813446044922,
+          17.839439392089844,
+          161.3342742919922
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5664095878601074,
+        "gripper_opening_normalized": 0.9972072875080776,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.06284841150045395,
+            8.333474397659302e-06,
+            0.007581152021884918
+          ],
+          "ee_rotation_offset_deg": [
+            4.329370021820068,
+            -1.0874208211898804,
+            3.302642345428467
+          ],
+          "object_yaw_offset_deg": -10.3770112991333
+        },
+        "object_yaw_offset_deg": -9.963661193847656,
+        "grasp_candidate_index": 3,
+        "ee_to_grasp_candidate_m": 0.12698394060134888,
+        "candidate_local_offset_m": [
+          -0.08143875747919083,
+          0.02874906361103058,
+          0.09309212118387222
+        ],
+        "ee_rotation_offset_deg": [
+          5.198866844177246,
+          1.5943573713302612,
+          9.930630683898926
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.46499998960644007,
+        "base_to_object_xy_m": 0.7192263603210449,
+        "ee_to_object_center_m": 0.1781986653804779,
+        "lift_above_original_support_m": 0.001013830304145813,
+        "foot_bottom_z_m": [
+          5.57824969291687e-05,
+          3.2261013984680176e-06,
+          1.090019941329956e-05,
+          2.600252628326416e-06
+        ],
+        "foot_contact_force_z_N": [
+          261.1390686035156,
+          90.8957748413086,
+          150.92625427246094,
+          127.90645599365234
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.565290927886963,
+        "gripper_opening_normalized": 0.9964951264704354,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.06284841150045395,
+            8.333474397659302e-06,
+            0.007581152021884918
+          ],
+          "ee_rotation_offset_deg": [
+            4.329370021820068,
+            -1.0874208211898804,
+            3.302642345428467
+          ],
+          "object_yaw_offset_deg": -10.3770112991333
+        },
+        "object_yaw_offset_deg": -9.962623596191406,
+        "grasp_candidate_index": 3,
+        "ee_to_grasp_candidate_m": 0.15176080167293549,
+        "candidate_local_offset_m": [
+          -0.07736808806657791,
+          0.03789523243904114,
+          0.12493787705898285
+        ],
+        "ee_rotation_offset_deg": [
+          5.070937633514404,
+          2.2957632541656494,
+          11.843056678771973
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.6049999864771962,
+        "base_to_object_xy_m": 0.7330936789512634,
+        "ee_to_object_center_m": 0.19879671931266785,
+        "lift_above_original_support_m": 0.0010137706995010376,
+        "foot_bottom_z_m": [
+          2.3894011974334717e-05,
+          2.0347535610198975e-05,
+          2.2180378437042236e-05,
+          -6.295740604400635e-06
+        ],
+        "foot_contact_force_z_N": [
+          152.9783477783203,
+          170.57200622558594,
+          259.15283203125,
+          46.772438049316406
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5637178421020508,
+        "gripper_opening_normalized": 0.995493668983998,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.06284841150045395,
+            8.333474397659302e-06,
+            0.007581152021884918
+          ],
+          "ee_rotation_offset_deg": [
+            4.329370021820068,
+            -1.0874208211898804,
+            3.302642345428467
+          ],
+          "object_yaw_offset_deg": -10.3770112991333
+        },
+        "object_yaw_offset_deg": -9.9625825881958,
+        "grasp_candidate_index": 3,
+        "ee_to_grasp_candidate_m": 0.18016590178012848,
+        "candidate_local_offset_m": [
+          -0.07019266486167908,
+          0.04793161898851395,
+          0.15885624289512634
+        ],
+        "ee_rotation_offset_deg": [
+          5.370413780212402,
+          3.031292676925659,
+          12.944930076599121
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.7449999833479524,
+        "base_to_object_xy_m": 0.7450606822967529,
+        "ee_to_object_center_m": 0.22466611862182617,
+        "lift_above_original_support_m": 0.0010137706995010376,
+        "foot_bottom_z_m": [
+          1.3045966625213623e-05,
+          1.8522143363952637e-05,
+          5.237758159637451e-06,
+          6.51925802230835e-06
+        ],
+        "foot_contact_force_z_N": [
+          180.2802276611328,
+          168.85830688476562,
+          141.081298828125,
+          140.6837921142578
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5628952980041504,
+        "gripper_opening_normalized": 0.9949700211622022,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.06284841150045395,
+            8.333474397659302e-06,
+            0.007581152021884918
+          ],
+          "ee_rotation_offset_deg": [
+            4.329370021820068,
+            -1.0874208211898804,
+            3.302642345428467
+          ],
+          "object_yaw_offset_deg": -10.3770112991333
+        },
+        "object_yaw_offset_deg": -9.962486267089844,
+        "grasp_candidate_index": 3,
+        "ee_to_grasp_candidate_m": 0.21485456824302673,
+        "candidate_local_offset_m": [
+          -0.0600503608584404,
+          0.055161044001579285,
+          0.19878052175045013
+        ],
+        "ee_rotation_offset_deg": [
+          5.337451457977295,
+          3.2180984020233154,
+          14.342509269714355
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 0.9049999797716737,
+        "base_to_object_xy_m": 0.7575721740722656,
+        "ee_to_object_center_m": 0.2610049247741699,
+        "lift_above_original_support_m": 0.0010137706995010376,
+        "foot_bottom_z_m": [
+          4.011392593383789e-05,
+          2.216547727584839e-05,
+          3.851950168609619e-06,
+          9.559094905853271e-06
+        ],
+        "foot_contact_force_z_N": [
+          176.698974609375,
+          179.66485595703125,
+          124.8210220336914,
+          152.24017333984375
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5622766017913818,
+        "gripper_opening_normalized": 0.9945761469310254,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.06284841150045395,
+            8.333474397659302e-06,
+            0.007581152021884918
+          ],
+          "ee_rotation_offset_deg": [
+            4.329370021820068,
+            -1.0874208211898804,
+            3.302642345428467
+          ],
+          "object_yaw_offset_deg": -10.3770112991333
+        },
+        "object_yaw_offset_deg": -9.962418556213379,
+        "grasp_candidate_index": 3,
+        "ee_to_grasp_candidate_m": 0.2589622139930725,
+        "candidate_local_offset_m": [
+          -0.051813751459121704,
+          0.06211724877357483,
+          0.24600449204444885
+        ],
+        "ee_rotation_offset_deg": [
+          5.084556579589844,
+          3.531822443008423,
+          15.481471061706543
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 1.064999976195395,
+        "base_to_object_xy_m": 0.7722736597061157,
+        "ee_to_object_center_m": 0.2977146506309509,
+        "lift_above_original_support_m": 0.001013830304145813,
+        "foot_bottom_z_m": [
+          4.104524850845337e-05,
+          1.9468367099761963e-05,
+          3.4347176551818848e-06,
+          7.741153240203857e-06
+        ],
+        "foot_contact_force_z_N": [
+          186.52935791015625,
+          167.24066162109375,
+          130.56582641601562,
+          145.9480743408203
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5617954730987549,
+        "gripper_opening_normalized": 0.9942698509007691,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.06284841150045395,
+            8.333474397659302e-06,
+            0.007581152021884918
+          ],
+          "ee_rotation_offset_deg": [
+            4.329370021820068,
+            -1.0874208211898804,
+            3.302642345428467
+          ],
+          "object_yaw_offset_deg": -10.3770112991333
+        },
+        "object_yaw_offset_deg": -9.962377548217773,
+        "grasp_candidate_index": 3,
+        "ee_to_grasp_candidate_m": 0.30108559131622314,
+        "candidate_local_offset_m": [
+          -0.04253336042165756,
+          0.06892099976539612,
+          0.28998851776123047
+        ],
+        "ee_rotation_offset_deg": [
+          4.837454319000244,
+          3.9478766918182373,
+          16.677846908569336
+        ]
+      },
+      {
+        "family": "pregrasp",
+        "config_id": 610,
+        "family_sample_index": 98,
+        "elapsed_sim_seconds": 1.2249999726191163,
+        "base_to_object_xy_m": 0.7877408862113953,
+        "ee_to_object_center_m": 0.33327940106391907,
+        "lift_above_original_support_m": 0.0010137706995010376,
+        "foot_bottom_z_m": [
+          3.857910633087158e-05,
+          1.987069845199585e-05,
+          6.936490535736084e-06,
+          7.353723049163818e-06
+        ],
+        "foot_contact_force_z_N": [
+          186.9742431640625,
+          165.8186798095703,
+          153.417724609375,
+          124.2528076171875
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.561295747756958,
+        "gripper_opening_normalized": 0.993951715876281,
+        "gripper_target_opening_normalized": 1.0,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            -0.06284841150045395,
+            8.333474397659302e-06,
+            0.007581152021884918
+          ],
+          "ee_rotation_offset_deg": [
+            4.329370021820068,
+            -1.0874208211898804,
+            3.302642345428467
+          ],
+          "object_yaw_offset_deg": -10.3770112991333
+        },
+        "object_yaw_offset_deg": -9.962336540222168,
+        "grasp_candidate_index": 3,
+        "ee_to_grasp_candidate_m": 0.340606689453125,
+        "candidate_local_offset_m": [
+          -0.031128108501434326,
+          0.07589538395404816,
+          0.33058106899261475
+        ],
+        "ee_rotation_offset_deg": [
+          4.627425670623779,
+          4.40780782699585,
+          17.838159561157227
+        ]
+      }
+    ],
+    "1488": [
+      {
+        "family": "at_grasp",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 0.7306435704231262,
+        "ee_to_object_center_m": 0.043373603373765945,
+        "lift_above_original_support_m": 0.0010238438844680786,
+        "foot_bottom_z_m": [
+          5.054473876953125e-05,
+          4.968792200088501e-05,
+          5.6684017181396484e-05,
+          1.5594065189361572e-05
+        ],
+        "foot_contact_force_z_N": [
+          214.70257568359375,
+          241.416259765625,
+          277.5652770996094,
+          119.20208740234375
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.0792568922042847,
+        "gripper_opening_normalized": 0.6870762579215962,
+        "gripper_target_opening_normalized": 0.6871189845482153,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0009502138709649444,
+            0.00024227635003626347,
+            -0.004171351902186871
+          ],
+          "ee_rotation_offset_deg": [
+            -0.3056236505508423,
+            -0.9159557223320007,
+            -0.03080415353178978
+          ],
+          "object_yaw_offset_deg": -2.6286802291870117
+        },
+        "object_yaw_offset_deg": -2.958496570587158,
+        "grasp_candidate_index": 13,
+        "ee_to_grasp_candidate_m": 0.004818531218916178,
+        "candidate_local_offset_m": [
+          0.0018916551489382982,
+          0.0002411894965916872,
+          -0.004425122868269682
+        ],
+        "ee_rotation_offset_deg": [
+          -0.7031406760215759,
+          -0.8535414338111877,
+          -0.027607625350356102
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.14499999675899744,
+        "base_to_object_xy_m": 0.7490571141242981,
+        "ee_to_object_center_m": 0.04993753135204315,
+        "lift_above_original_support_m": 0.0010993033647537231,
+        "foot_bottom_z_m": [
+          0.0022519156336784363,
+          2.3849308490753174e-05,
+          8.799135684967041e-06,
+          -1.475214958190918e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          239.66688537597656,
+          215.12120056152344,
+          27.971389770507812
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.0774089097976685,
+        "gripper_opening_normalized": 0.685899795815295,
+        "gripper_target_opening_normalized": 0.6871189845482153,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0009502138709649444,
+            0.00024227635003626347,
+            -0.004171351902186871
+          ],
+          "ee_rotation_offset_deg": [
+            -0.3056236505508423,
+            -0.9159557223320007,
+            -0.03080415353178978
+          ],
+          "object_yaw_offset_deg": -2.6286802291870117
+        },
+        "object_yaw_offset_deg": -2.0130069255828857,
+        "grasp_candidate_index": 13,
+        "ee_to_grasp_candidate_m": 0.04117688164114952,
+        "candidate_local_offset_m": [
+          0.022681009024381638,
+          -0.007367093116044998,
+          -0.03356833755970001
+        ],
+        "ee_rotation_offset_deg": [
+          2.248908042907715,
+          -2.111088514328003,
+          -5.262442111968994
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.2849999936297536,
+        "base_to_object_xy_m": 0.7573678493499756,
+        "ee_to_object_center_m": 0.07312837988138199,
+        "lift_above_original_support_m": 0.001895621418952942,
+        "foot_bottom_z_m": [
+          3.7364661693573e-05,
+          1.86040997505188e-05,
+          2.7567148208618164e-07,
+          8.024275302886963e-06
+        ],
+        "foot_contact_force_z_N": [
+          143.17526245117188,
+          141.34190368652344,
+          20.0666561126709,
+          164.70074462890625
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.1015291213989258,
+        "gripper_opening_normalized": 0.7012551990070423,
+        "gripper_target_opening_normalized": 0.6871189845482153,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0009502138709649444,
+            0.00024227635003626347,
+            -0.004171351902186871
+          ],
+          "ee_rotation_offset_deg": [
+            -0.3056236505508423,
+            -0.9159557223320007,
+            -0.03080415353178978
+          ],
+          "object_yaw_offset_deg": -2.6286802291870117
+        },
+        "object_yaw_offset_deg": -0.9047132134437561,
+        "grasp_candidate_index": 13,
+        "ee_to_grasp_candidate_m": 0.06280863285064697,
+        "candidate_local_offset_m": [
+          0.021737288683652878,
+          -0.010076262056827545,
+          -0.05805931240320206
+        ],
+        "ee_rotation_offset_deg": [
+          2.6798930168151855,
+          2.835798978805542,
+          -7.776402473449707
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.42499999050050974,
+        "base_to_object_xy_m": 0.7630060911178589,
+        "ee_to_object_center_m": 0.08177713304758072,
+        "lift_above_original_support_m": 0.0035396963357925415,
+        "foot_bottom_z_m": [
+          1.868605613708496e-05,
+          4.239380359649658e-06,
+          8.322298526763916e-06,
+          9.6932053565979e-06
+        ],
+        "foot_contact_force_z_N": [
+          206.62796020507812,
+          91.42301940917969,
+          118.78456115722656,
+          177.17642211914062
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.1988989114761353,
+        "gripper_opening_normalized": 0.7632427308765144,
+        "gripper_target_opening_normalized": 0.6871189845482153,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0009502138709649444,
+            0.00024227635003626347,
+            -0.004171351902186871
+          ],
+          "ee_rotation_offset_deg": [
+            -0.3056236505508423,
+            -0.9159557223320007,
+            -0.03080415353178978
+          ],
+          "object_yaw_offset_deg": -2.6286802291870117
+        },
+        "object_yaw_offset_deg": 0.17855480313301086,
+        "grasp_candidate_index": 13,
+        "ee_to_grasp_candidate_m": 0.07026416808366776,
+        "candidate_local_offset_m": [
+          0.01961316354572773,
+          -0.009903926402330399,
+          -0.06674046069383621
+        ],
+        "ee_rotation_offset_deg": [
+          2.6150336265563965,
+          9.142413139343262,
+          -8.381611824035645
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.5649999873712659,
+        "base_to_object_xy_m": 0.7769156694412231,
+        "ee_to_object_center_m": 0.09062201529741287,
+        "lift_above_original_support_m": 0.00441308319568634,
+        "foot_bottom_z_m": [
+          2.6769936084747314e-05,
+          7.525086402893066e-06,
+          1.2896955013275146e-05,
+          1.4230608940124512e-06
+        ],
+        "foot_contact_force_z_N": [
+          163.93325805664062,
+          83.52432250976562,
+          226.2327880859375,
+          94.82149505615234
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.3467906713485718,
+        "gripper_opening_normalized": 0.8573935467615608,
+        "gripper_target_opening_normalized": 0.6871189845482153,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0009502138709649444,
+            0.00024227635003626347,
+            -0.004171351902186871
+          ],
+          "ee_rotation_offset_deg": [
+            -0.3056236505508423,
+            -0.9159557223320007,
+            -0.03080415353178978
+          ],
+          "object_yaw_offset_deg": -2.6286802291870117
+        },
+        "object_yaw_offset_deg": 1.30666983127594,
+        "grasp_candidate_index": 13,
+        "ee_to_grasp_candidate_m": 0.08195169270038605,
+        "candidate_local_offset_m": [
+          0.0249327365309,
+          -0.008632682263851166,
+          -0.07758811861276627
+        ],
+        "ee_rotation_offset_deg": [
+          3.5195555686950684,
+          13.20126724243164,
+          -7.713305473327637
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.704999984242022,
+        "base_to_object_xy_m": 0.7856173515319824,
+        "ee_to_object_center_m": 0.10999660193920135,
+        "lift_above_original_support_m": 0.004462972283363342,
+        "foot_bottom_z_m": [
+          1.73225998878479e-05,
+          1.7277896404266357e-05,
+          8.858740329742432e-06,
+          7.696449756622314e-06
+        ],
+        "foot_contact_force_z_N": [
+          111.41883087158203,
+          147.15499877929688,
+          219.31727600097656,
+          161.54983520507812
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.508971095085144,
+        "gripper_opening_normalized": 0.9606408083300985,
+        "gripper_target_opening_normalized": 0.6871189845482153,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0009502138709649444,
+            0.00024227635003626347,
+            -0.004171351902186871
+          ],
+          "ee_rotation_offset_deg": [
+            -0.3056236505508423,
+            -0.9159557223320007,
+            -0.03080415353178978
+          ],
+          "object_yaw_offset_deg": -2.6286802291870117
+        },
+        "object_yaw_offset_deg": 2.3266220092773438,
+        "grasp_candidate_index": 13,
+        "ee_to_grasp_candidate_m": 0.09341821074485779,
+        "candidate_local_offset_m": [
+          0.0070900339633226395,
+          -0.014211758971214294,
+          -0.09205824136734009
+        ],
+        "ee_rotation_offset_deg": [
+          -0.7869061231613159,
+          28.209186553955078,
+          -9.896561622619629
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 0.8649999806657434,
+        "base_to_object_xy_m": 0.7903409600257874,
+        "ee_to_object_center_m": 0.14086924493312836,
+        "lift_above_original_support_m": -0.006652042269706726,
+        "foot_bottom_z_m": [
+          1.8291175365447998e-05,
+          1.648813486099243e-05,
+          2.7194619178771973e-06,
+          8.441507816314697e-06
+        ],
+        "foot_contact_force_z_N": [
+          81.39938354492188,
+          163.66258239746094,
+          133.96429443359375,
+          181.3242950439453
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.5707972049713135,
+        "gripper_opening_normalized": 1.0000005312369207,
+        "gripper_target_opening_normalized": 0.6871189845482153,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0009502138709649444,
+            0.00024227635003626347,
+            -0.004171351902186871
+          ],
+          "ee_rotation_offset_deg": [
+            -0.3056236505508423,
+            -0.9159557223320007,
+            -0.03080415353178978
+          ],
+          "object_yaw_offset_deg": -2.6286802291870117
+        },
+        "object_yaw_offset_deg": 3.3884568214416504,
+        "grasp_candidate_index": 13,
+        "ee_to_grasp_candidate_m": 0.10444758087396622,
+        "candidate_local_offset_m": [
+          -0.058630019426345825,
+          -0.029322199523448944,
+          -0.08131437003612518
+        ],
+        "ee_rotation_offset_deg": [
+          -25.031522750854492,
+          57.100807189941406,
+          -29.742782592773438
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 1.0049999775364995,
+        "base_to_object_xy_m": 0.7895573973655701,
+        "ee_to_object_center_m": 0.171750009059906,
+        "lift_above_original_support_m": -0.013552054762840271,
+        "foot_bottom_z_m": [
+          3.583729267120361e-05,
+          1.973658800125122e-05,
+          8.270144462585449e-07,
+          1.0557472705841064e-05
+        ],
+        "foot_contact_force_z_N": [
+          164.51510620117188,
+          185.6482391357422,
+          94.6593017578125,
+          196.6102294921875
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.535984992980957,
+        "gripper_opening_normalized": 0.9778383893807258,
+        "gripper_target_opening_normalized": 0.6871189845482153,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0009502138709649444,
+            0.00024227635003626347,
+            -0.004171351902186871
+          ],
+          "ee_rotation_offset_deg": [
+            -0.3056236505508423,
+            -0.9159557223320007,
+            -0.03080415353178978
+          ],
+          "object_yaw_offset_deg": -2.6286802291870117
+        },
+        "object_yaw_offset_deg": 3.5080535411834717,
+        "grasp_candidate_index": 13,
+        "ee_to_grasp_candidate_m": 0.12822236120700836,
+        "candidate_local_offset_m": [
+          -0.12194360792636871,
+          -0.03727881610393524,
+          -0.013454431667923927
+        ],
+        "ee_rotation_offset_deg": [
+          -125.72303771972656,
+          58.030338287353516,
+          -120.51168060302734
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1488,
+        "family_sample_index": 464,
+        "elapsed_sim_seconds": 1.1649999739602208,
+        "base_to_object_xy_m": 0.7743966579437256,
+        "ee_to_object_center_m": 0.19439803063869476,
+        "lift_above_original_support_m": -0.013732537627220154,
+        "foot_bottom_z_m": [
+          4.4696033000946045e-05,
+          1.95428729057312e-05,
+          3.6284327507019043e-06,
+          4.67151403427124e-06
+        ],
+        "foot_contact_force_z_N": [
+          225.38900756835938,
+          167.8860321044922,
+          131.8121337890625,
+          140.02418518066406
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.4697015285491943,
+        "gripper_opening_normalized": 0.9356410265166909,
+        "gripper_target_opening_normalized": 0.6871189845482153,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0009502138709649444,
+            0.00024227635003626347,
+            -0.004171351902186871
+          ],
+          "ee_rotation_offset_deg": [
+            -0.3056236505508423,
+            -0.9159557223320007,
+            -0.03080415353178978
+          ],
+          "object_yaw_offset_deg": -2.6286802291870117
+        },
+        "object_yaw_offset_deg": 8.527327537536621,
+        "grasp_candidate_index": 13,
+        "ee_to_grasp_candidate_m": 0.16286031901836395,
+        "candidate_local_offset_m": [
+          -0.12864871323108673,
+          -0.025362528860569,
+          0.0965905636548996
+        ],
+        "ee_rotation_offset_deg": [
+          -155.97732543945312,
+          15.345099449157715,
+          -137.7503662109375
+        ]
+      }
+    ],
+    "1534": [
+      {
+        "family": "at_grasp",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 0.7307377457618713,
+        "ee_to_object_center_m": 0.04881720989942551,
+        "lift_above_original_support_m": 0.0007521063089370728,
+        "foot_bottom_z_m": [
+          6.124377250671387e-05,
+          5.050748586654663e-05,
+          5.5052340030670166e-05,
+          1.537799835205078e-05
+        ],
+        "foot_contact_force_z_N": [
+          248.326416015625,
+          255.6435546875,
+          264.46124267578125,
+          119.8994369506836
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.3440443277359009,
+        "gripper_opening_normalized": 0.855645170164672,
+        "gripper_target_opening_normalized": 0.8556978385108063,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0017734861467033625,
+            0.000489524332806468,
+            -0.004094807431101799
+          ],
+          "ee_rotation_offset_deg": [
+            0.004699170123785734,
+            -1.6139600276947021,
+            -0.2826332449913025
+          ],
+          "object_yaw_offset_deg": 14.755298614501953
+        },
+        "object_yaw_offset_deg": 14.763385772705078,
+        "grasp_candidate_index": 16,
+        "ee_to_grasp_candidate_m": 0.004876429680734873,
+        "candidate_local_offset_m": [
+          0.002608388662338257,
+          0.00048280414193868637,
+          -0.004091793671250343
+        ],
+        "ee_rotation_offset_deg": [
+          -0.008483095094561577,
+          -1.8897767066955566,
+          -0.33797141909599304
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.14499999675899744,
+        "base_to_object_xy_m": 0.7476592659950256,
+        "ee_to_object_center_m": 0.05860564485192299,
+        "lift_above_original_support_m": 0.003126099705696106,
+        "foot_bottom_z_m": [
+          0.002610817551612854,
+          1.064687967300415e-05,
+          8.501112461090088e-06,
+          -1.6093254089355469e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          234.065673828125,
+          189.60255432128906,
+          27.759912490844727
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.3421788215637207,
+        "gripper_opening_normalized": 0.8544575520830369,
+        "gripper_target_opening_normalized": 0.8556978385108063,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0017734861467033625,
+            0.000489524332806468,
+            -0.004094807431101799
+          ],
+          "ee_rotation_offset_deg": [
+            0.004699170123785734,
+            -1.6139600276947021,
+            -0.2826332449913025
+          ],
+          "object_yaw_offset_deg": 14.755298614501953
+        },
+        "object_yaw_offset_deg": 14.750080108642578,
+        "grasp_candidate_index": 16,
+        "ee_to_grasp_candidate_m": 0.019911114126443863,
+        "candidate_local_offset_m": [
+          0.0057540163397789,
+          -0.015123400837182999,
+          -0.011602867394685745
+        ],
+        "ee_rotation_offset_deg": [
+          2.247091293334961,
+          -14.295135498046875,
+          -3.4348065853118896
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.2849999936297536,
+        "base_to_object_xy_m": 0.7511872053146362,
+        "ee_to_object_center_m": 0.06716080009937286,
+        "lift_above_original_support_m": 0.00288255512714386,
+        "foot_bottom_z_m": [
+          1.4252960681915283e-05,
+          1.788884401321411e-05,
+          6.332993507385254e-07,
+          7.249414920806885e-06
+        ],
+        "foot_contact_force_z_N": [
+          135.3093719482422,
+          153.7130889892578,
+          20.602005004882812,
+          162.7882537841797
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.3401639461517334,
+        "gripper_opening_normalized": 0.8531748425926031,
+        "gripper_target_opening_normalized": 0.8556978385108063,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0017734861467033625,
+            0.000489524332806468,
+            -0.004094807431101799
+          ],
+          "ee_rotation_offset_deg": [
+            0.004699170123785734,
+            -1.6139600276947021,
+            -0.2826332449913025
+          ],
+          "object_yaw_offset_deg": 14.755298614501953
+        },
+        "object_yaw_offset_deg": 14.839774131774902,
+        "grasp_candidate_index": 16,
+        "ee_to_grasp_candidate_m": 0.03018750436604023,
+        "candidate_local_offset_m": [
+          0.006229138933122158,
+          -0.025821931660175323,
+          -0.01434263400733471
+        ],
+        "ee_rotation_offset_deg": [
+          6.090466022491455,
+          -25.398481369018555,
+          -7.272512435913086
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.4449999900534749,
+        "base_to_object_xy_m": 0.7562463283538818,
+        "ee_to_object_center_m": 0.07671703398227692,
+        "lift_above_original_support_m": -0.005049452185630798,
+        "foot_bottom_z_m": [
+          6.499886512756348e-05,
+          1.1108815670013428e-05,
+          8.29249620437622e-06,
+          5.356967449188232e-06
+        ],
+        "foot_contact_force_z_N": [
+          269.810546875,
+          113.1627426147461,
+          107.6473388671875,
+          164.12339782714844
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.3383666276931763,
+        "gripper_opening_normalized": 0.852030634156485,
+        "gripper_target_opening_normalized": 0.8556978385108063,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0017734861467033625,
+            0.000489524332806468,
+            -0.004094807431101799
+          ],
+          "ee_rotation_offset_deg": [
+            0.004699170123785734,
+            -1.6139600276947021,
+            -0.2826332449913025
+          ],
+          "object_yaw_offset_deg": 14.755298614501953
+        },
+        "object_yaw_offset_deg": 14.886520385742188,
+        "grasp_candidate_index": 16,
+        "ee_to_grasp_candidate_m": 0.047623880207538605,
+        "candidate_local_offset_m": [
+          0.015268592163920403,
+          -0.03651052340865135,
+          -0.026493126526474953
+        ],
+        "ee_rotation_offset_deg": [
+          17.48505210876465,
+          -50.83181381225586,
+          -16.520902633666992
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.584999986924231,
+        "base_to_object_xy_m": 0.7691993117332458,
+        "ee_to_object_center_m": 0.08461970090866089,
+        "lift_above_original_support_m": -0.01771502196788788,
+        "foot_bottom_z_m": [
+          3.574788570404053e-05,
+          1.12876296043396e-05,
+          1.846998929977417e-05,
+          -4.92483377456665e-06
+        ],
+        "foot_contact_force_z_N": [
+          214.4936981201172,
+          120.42447662353516,
+          241.7650909423828,
+          37.031639099121094
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.3372362852096558,
+        "gripper_opening_normalized": 0.8513110358019533,
+        "gripper_target_opening_normalized": 0.8556978385108063,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0017734861467033625,
+            0.000489524332806468,
+            -0.004094807431101799
+          ],
+          "ee_rotation_offset_deg": [
+            0.004699170123785734,
+            -1.6139600276947021,
+            -0.2826332449913025
+          ],
+          "object_yaw_offset_deg": 14.755298614501953
+        },
+        "object_yaw_offset_deg": 14.845307350158691,
+        "grasp_candidate_index": 16,
+        "ee_to_grasp_candidate_m": 0.07472382485866547,
+        "candidate_local_offset_m": [
+          0.046576570719480515,
+          -0.04354288429021835,
+          -0.038965243846178055
+        ],
+        "ee_rotation_offset_deg": [
+          114.16034698486328,
+          -70.169921875,
+          -107.1657485961914
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.7449999833479524,
+        "base_to_object_xy_m": 0.769709050655365,
+        "ee_to_object_center_m": 0.08273579925298691,
+        "lift_above_original_support_m": -0.017289623618125916,
+        "foot_bottom_z_m": [
+          -1.5616416931152344e-05,
+          2.0772218704223633e-05,
+          1.7620623111724854e-05,
+          5.342066287994385e-06
+        ],
+        "foot_contact_force_z_N": [
+          65.12545013427734,
+          230.66632080078125,
+          205.7468719482422,
+          187.779296875
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.3359860181808472,
+        "gripper_opening_normalized": 0.8505150911128238,
+        "gripper_target_opening_normalized": 0.8556978385108063,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0017734861467033625,
+            0.000489524332806468,
+            -0.004094807431101799
+          ],
+          "ee_rotation_offset_deg": [
+            0.004699170123785734,
+            -1.6139600276947021,
+            -0.2826332449913025
+          ],
+          "object_yaw_offset_deg": 14.755298614501953
+        },
+        "object_yaw_offset_deg": 15.862336158752441,
+        "grasp_candidate_index": 16,
+        "ee_to_grasp_candidate_m": 0.07097616046667099,
+        "candidate_local_offset_m": [
+          0.04273528605699539,
+          -0.04212137684226036,
+          -0.03790909796953201
+        ],
+        "ee_rotation_offset_deg": [
+          104.10546112060547,
+          -69.28874969482422,
+          -98.55716705322266
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 0.8849999802187085,
+        "base_to_object_xy_m": 0.7622117400169373,
+        "ee_to_object_center_m": 0.08201635628938675,
+        "lift_above_original_support_m": -0.01633267104625702,
+        "foot_bottom_z_m": [
+          2.8967857360839844e-05,
+          1.7158687114715576e-05,
+          7.53253698348999e-06,
+          1.0125339031219482e-05
+        ],
+        "foot_contact_force_z_N": [
+          87.02592468261719,
+          168.51658630371094,
+          110.51963806152344,
+          168.344970703125
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.3347537517547607,
+        "gripper_opening_normalized": 0.8497306059629827,
+        "gripper_target_opening_normalized": 0.8556978385108063,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0017734861467033625,
+            0.000489524332806468,
+            -0.004094807431101799
+          ],
+          "ee_rotation_offset_deg": [
+            0.004699170123785734,
+            -1.6139600276947021,
+            -0.2826332449913025
+          ],
+          "object_yaw_offset_deg": 14.755298614501953
+        },
+        "object_yaw_offset_deg": 15.829947471618652,
+        "grasp_candidate_index": 16,
+        "ee_to_grasp_candidate_m": 0.07033365964889526,
+        "candidate_local_offset_m": [
+          0.042367689311504364,
+          -0.04069037735462189,
+          -0.03867940232157707
+        ],
+        "ee_rotation_offset_deg": [
+          104.93387603759766,
+          -67.9220962524414,
+          -101.32969665527344
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 1.0249999770894647,
+        "base_to_object_xy_m": 0.7628931999206543,
+        "ee_to_object_center_m": 0.08148512244224548,
+        "lift_above_original_support_m": -0.015236422419548035,
+        "foot_bottom_z_m": [
+          6.556510925292969e-06,
+          1.2405216693878174e-05,
+          1.6219913959503174e-05,
+          7.368624210357666e-06
+        ],
+        "foot_contact_force_z_N": [
+          75.37195587158203,
+          167.89903259277344,
+          126.87039184570312,
+          179.3679656982422
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.3335559368133545,
+        "gripper_opening_normalized": 0.848968053308866,
+        "gripper_target_opening_normalized": 0.8556978385108063,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0017734861467033625,
+            0.000489524332806468,
+            -0.004094807431101799
+          ],
+          "ee_rotation_offset_deg": [
+            0.004699170123785734,
+            -1.6139600276947021,
+            -0.2826332449913025
+          ],
+          "object_yaw_offset_deg": 14.755298614501953
+        },
+        "object_yaw_offset_deg": 15.84689998626709,
+        "grasp_candidate_index": 16,
+        "ee_to_grasp_candidate_m": 0.06981717795133591,
+        "candidate_local_offset_m": [
+          0.041938453912734985,
+          -0.03937402740120888,
+          -0.039563748985528946
+        ],
+        "ee_rotation_offset_deg": [
+          106.63191986083984,
+          -66.6106185913086,
+          -105.07901000976562
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1534,
+        "family_sample_index": 510,
+        "elapsed_sim_seconds": 1.1649999739602208,
+        "base_to_object_xy_m": 0.7675468921661377,
+        "ee_to_object_center_m": 0.08368216454982758,
+        "lift_above_original_support_m": -0.011521920561790466,
+        "foot_bottom_z_m": [
+          1.4953315258026123e-05,
+          4.6193599700927734e-06,
+          1.2166798114776611e-05,
+          1.0095536708831787e-05
+        ],
+        "foot_contact_force_z_N": [
+          57.51436996459961,
+          134.21481323242188,
+          151.97914123535156,
+          190.29452514648438
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -1.3325870037078857,
+        "gripper_opening_normalized": 0.8483512113529883,
+        "gripper_target_opening_normalized": 0.8556978385108063,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0017734861467033625,
+            0.000489524332806468,
+            -0.004094807431101799
+          ],
+          "ee_rotation_offset_deg": [
+            0.004699170123785734,
+            -1.6139600276947021,
+            -0.2826332449913025
+          ],
+          "object_yaw_offset_deg": 14.755298614501953
+        },
+        "object_yaw_offset_deg": 14.391085624694824,
+        "grasp_candidate_index": 16,
+        "ee_to_grasp_candidate_m": 0.0760798454284668,
+        "candidate_local_offset_m": [
+          0.04817204922437668,
+          -0.036371346563100815,
+          -0.04631113260984421
+        ],
+        "ee_rotation_offset_deg": [
+          127.78913879394531,
+          -57.35430145263672,
+          -126.14668273925781
+        ]
+      }
+    ],
+    "1043": [
+      {
+        "family": "at_grasp",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.004999999888241291,
+        "base_to_object_xy_m": 0.7058212757110596,
+        "ee_to_object_center_m": 0.043229833245277405,
+        "lift_above_original_support_m": 0.0009166747331619263,
+        "foot_bottom_z_m": [
+          5.497783422470093e-05,
+          5.2325427532196045e-05,
+          5.595386028289795e-05,
+          1.4044344425201416e-05
+        ],
+        "foot_contact_force_z_N": [
+          210.96701049804688,
+          255.70773315429688,
+          268.5072326660156,
+          116.13619232177734
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.8633713126182556,
+        "gripper_opening_normalized": 0.5496392332126288,
+        "gripper_target_opening_normalized": 0.5496728908661022,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0010977911297231913,
+            0.00020129047334194183,
+            -0.004304844886064529
+          ],
+          "ee_rotation_offset_deg": [
+            -0.02536732330918312,
+            -1.2207187414169312,
+            -0.08565057069063187
+          ],
+          "object_yaw_offset_deg": 12.083930015563965
+        },
+        "object_yaw_offset_deg": 12.083370208740234,
+        "grasp_candidate_index": 13,
+        "ee_to_grasp_candidate_m": 0.004758014343678951,
+        "candidate_local_offset_m": [
+          0.002002557273954153,
+          0.0002555185928940773,
+          -0.004308500327169895
+        ],
+        "ee_rotation_offset_deg": [
+          -0.025121435523033142,
+          -1.6041382551193237,
+          -0.16471683979034424
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.1649999963119626,
+        "base_to_object_xy_m": 0.7248649001121521,
+        "ee_to_object_center_m": 0.042688820511102676,
+        "lift_above_original_support_m": 0.0034382492303848267,
+        "foot_bottom_z_m": [
+          0.027744218707084656,
+          1.3962388038635254e-05,
+          9.08970832824707e-06,
+          7.443130016326904e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          244.94747924804688,
+          159.51492309570312,
+          157.6839141845703
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -0.8618005514144897,
+        "gripper_opening_normalized": 0.5486392556004703,
+        "gripper_target_opening_normalized": 0.5496728908661022,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0010977911297231913,
+            0.00020129047334194183,
+            -0.004304844886064529
+          ],
+          "ee_rotation_offset_deg": [
+            -0.02536732330918312,
+            -1.2207187414169312,
+            -0.08565057069063187
+          ],
+          "object_yaw_offset_deg": 12.083930015563965
+        },
+        "object_yaw_offset_deg": 12.183199882507324,
+        "grasp_candidate_index": 13,
+        "ee_to_grasp_candidate_m": 0.016983306035399437,
+        "candidate_local_offset_m": [
+          0.009016250260174274,
+          -0.009716017171740532,
+          -0.010617859661579132
+        ],
+        "ee_rotation_offset_deg": [
+          3.771289110183716,
+          -17.0812931060791,
+          -3.907346248626709
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.3249999927356839,
+        "base_to_object_xy_m": 0.7306870222091675,
+        "ee_to_object_center_m": 0.043420806527137756,
+        "lift_above_original_support_m": -0.00177823007106781,
+        "foot_bottom_z_m": [
+          5.7637691497802734e-05,
+          1.68532133102417e-05,
+          -2.7939677238464355e-06,
+          1.1675059795379639e-05
+        ],
+        "foot_contact_force_z_N": [
+          193.9464874267578,
+          125.07200622558594,
+          36.60623550415039,
+          158.71214294433594
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.859619140625,
+        "gripper_opening_normalized": 0.5472505263988702,
+        "gripper_target_opening_normalized": 0.5496728908661022,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0010977911297231913,
+            0.00020129047334194183,
+            -0.004304844886064529
+          ],
+          "ee_rotation_offset_deg": [
+            -0.02536732330918312,
+            -1.2207187414169312,
+            -0.08565057069063187
+          ],
+          "object_yaw_offset_deg": 12.083930015563965
+        },
+        "object_yaw_offset_deg": 12.399320602416992,
+        "grasp_candidate_index": 13,
+        "ee_to_grasp_candidate_m": 0.035895366221666336,
+        "candidate_local_offset_m": [
+          0.023841701447963715,
+          -0.01593073084950447,
+          -0.021593110635876656
+        ],
+        "ee_rotation_offset_deg": [
+          15.37325382232666,
+          -43.3474006652832,
+          -12.619033813476562
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.46499998960644007,
+        "base_to_object_xy_m": 0.74098801612854,
+        "ee_to_object_center_m": 0.05278211086988449,
+        "lift_above_original_support_m": -0.024602040648460388,
+        "foot_bottom_z_m": [
+          1.7195940017700195e-05,
+          1.1816620826721191e-05,
+          1.3358891010284424e-05,
+          2.853572368621826e-06
+        ],
+        "foot_contact_force_z_N": [
+          210.49905395507812,
+          114.077880859375,
+          163.19625854492188,
+          99.5805435180664
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.8585270047187805,
+        "gripper_opening_normalized": 0.5465552511062061,
+        "gripper_target_opening_normalized": 0.5496728908661022,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0010977911297231913,
+            0.00020129047334194183,
+            -0.004304844886064529
+          ],
+          "ee_rotation_offset_deg": [
+            -0.02536732330918312,
+            -1.2207187414169312,
+            -0.08565057069063187
+          ],
+          "object_yaw_offset_deg": 12.083930015563965
+        },
+        "object_yaw_offset_deg": 12.274874687194824,
+        "grasp_candidate_index": 13,
+        "ee_to_grasp_candidate_m": 0.06604321300983429,
+        "candidate_local_offset_m": [
+          0.05313913896679878,
+          -0.018750013783574104,
+          -0.034443795680999756
+        ],
+        "ee_rotation_offset_deg": [
+          89.8389663696289,
+          -72.1377944946289,
+          -80.76404571533203
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.6049999864771962,
+        "base_to_object_xy_m": 0.7483610510826111,
+        "ee_to_object_center_m": 0.05180786922574043,
+        "lift_above_original_support_m": -0.023644372820854187,
+        "foot_bottom_z_m": [
+          4.6193599700927734e-06,
+          1.9527971744537354e-05,
+          2.4981796741485596e-05,
+          -2.5853514671325684e-06
+        ],
+        "foot_contact_force_z_N": [
+          33.32506561279297,
+          193.80841064453125,
+          246.01309204101562,
+          84.2563247680664
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.8576018214225769,
+        "gripper_opening_normalized": 0.5459662611431687,
+        "gripper_target_opening_normalized": 0.5496728908661022,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0010977911297231913,
+            0.00020129047334194183,
+            -0.004304844886064529
+          ],
+          "ee_rotation_offset_deg": [
+            -0.02536732330918312,
+            -1.2207187414169312,
+            -0.08565057069063187
+          ],
+          "object_yaw_offset_deg": 12.083930015563965
+        },
+        "object_yaw_offset_deg": 12.51323413848877,
+        "grasp_candidate_index": 13,
+        "ee_to_grasp_candidate_m": 0.06468010693788528,
+        "candidate_local_offset_m": [
+          0.052025631070137024,
+          -0.018782638013362885,
+          -0.03352704271674156
+        ],
+        "ee_rotation_offset_deg": [
+          83.14568328857422,
+          -73.487548828125,
+          -76.6075668334961
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.7449999833479524,
+        "base_to_object_xy_m": 0.7441564202308655,
+        "ee_to_object_center_m": 0.05088343843817711,
+        "lift_above_original_support_m": -0.023851022124290466,
+        "foot_bottom_z_m": [
+          1.5519559383392334e-05,
+          1.7695128917694092e-05,
+          6.400048732757568e-06,
+          7.770955562591553e-06
+        ],
+        "foot_contact_force_z_N": [
+          34.59562301635742,
+          193.29330444335938,
+          138.34390258789062,
+          176.78280639648438
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.8563138246536255,
+        "gripper_opening_normalized": 0.5451462969561263,
+        "gripper_target_opening_normalized": 0.5496728908661022,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0010977911297231913,
+            0.00020129047334194183,
+            -0.004304844886064529
+          ],
+          "ee_rotation_offset_deg": [
+            -0.02536732330918312,
+            -1.2207187414169312,
+            -0.08565057069063187
+          ],
+          "object_yaw_offset_deg": 12.083930015563965
+        },
+        "object_yaw_offset_deg": 12.555526733398438,
+        "grasp_candidate_index": 13,
+        "ee_to_grasp_candidate_m": 0.06310829520225525,
+        "candidate_local_offset_m": [
+          0.050568487495183945,
+          -0.01840892992913723,
+          -0.03296355903148651
+        ],
+        "ee_rotation_offset_deg": [
+          77.06588745117188,
+          -73.330322265625,
+          -72.79589080810547
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 0.9049999797716737,
+        "base_to_object_xy_m": 0.7285800576210022,
+        "ee_to_object_center_m": 0.04986605793237686,
+        "lift_above_original_support_m": -0.023899361491203308,
+        "foot_bottom_z_m": [
+          2.339482307434082e-06,
+          1.4759600162506104e-05,
+          2.2359192371368408e-05,
+          -2.689659595489502e-06
+        ],
+        "foot_contact_force_z_N": [
+          5.381939888000488,
+          188.1192626953125,
+          205.89227294921875,
+          146.69775390625
+        ],
+        "feet_near_ground": true,
+        "gripper_joint_rad": -0.8549615740776062,
+        "gripper_opening_normalized": 0.5442854275261928,
+        "gripper_target_opening_normalized": 0.5496728908661022,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0010977911297231913,
+            0.00020129047334194183,
+            -0.004304844886064529
+          ],
+          "ee_rotation_offset_deg": [
+            -0.02536732330918312,
+            -1.2207187414169312,
+            -0.08565057069063187
+          ],
+          "object_yaw_offset_deg": 12.083930015563965
+        },
+        "object_yaw_offset_deg": 12.693496704101562,
+        "grasp_candidate_index": 13,
+        "ee_to_grasp_candidate_m": 0.06165962293744087,
+        "candidate_local_offset_m": [
+          0.04934997856616974,
+          -0.01701703853905201,
+          -0.03281629458069801
+        ],
+        "ee_rotation_offset_deg": [
+          70.21488189697266,
+          -71.68475341796875,
+          -69.00113677978516
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 1.0449999766424298,
+        "base_to_object_xy_m": 0.709037184715271,
+        "ee_to_object_center_m": 0.04934709146618843,
+        "lift_above_original_support_m": -0.02396349608898163,
+        "foot_bottom_z_m": [
+          0.02236887812614441,
+          1.9975006580352783e-05,
+          3.888458013534546e-05,
+          -7.890164852142334e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          216.42959594726562,
+          253.3792266845703,
+          83.75740051269531
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -0.8542659282684326,
+        "gripper_opening_normalized": 0.543842565661832,
+        "gripper_target_opening_normalized": 0.5496728908661022,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0010977911297231913,
+            0.00020129047334194183,
+            -0.004304844886064529
+          ],
+          "ee_rotation_offset_deg": [
+            -0.02536732330918312,
+            -1.2207187414169312,
+            -0.08565057069063187
+          ],
+          "object_yaw_offset_deg": 12.083930015563965
+        },
+        "object_yaw_offset_deg": 12.747496604919434,
+        "grasp_candidate_index": 13,
+        "ee_to_grasp_candidate_m": 0.06059042736887932,
+        "candidate_local_offset_m": [
+          0.048195891082286835,
+          -0.014907067641615868,
+          -0.0335579439997673
+        ],
+        "ee_rotation_offset_deg": [
+          68.09503173828125,
+          -68.31441497802734,
+          -69.22687530517578
+        ]
+      },
+      {
+        "family": "at_grasp",
+        "config_id": 1043,
+        "family_sample_index": 19,
+        "elapsed_sim_seconds": 1.184999973513186,
+        "base_to_object_xy_m": 0.6911123394966125,
+        "ee_to_object_center_m": 0.04939129203557968,
+        "lift_above_original_support_m": -0.02396319806575775,
+        "foot_bottom_z_m": [
+          0.02276124805212021,
+          6.16908073425293e-06,
+          2.2701919078826904e-05,
+          -2.034008502960205e-06
+        ],
+        "foot_contact_force_z_N": [
+          0.0,
+          206.7547149658203,
+          198.99270629882812,
+          117.26237487792969
+        ],
+        "feet_near_ground": false,
+        "gripper_joint_rad": -0.8535614609718323,
+        "gripper_opening_normalized": 0.54339408786431,
+        "gripper_target_opening_normalized": 0.5496728908661022,
+        "hold_counter": 0,
+        "success": false,
+        "terminated": false,
+        "gripper_command": "saved",
+        "saved_geometry": {
+          "candidate_local_offset": [
+            0.0010977911297231913,
+            0.00020129047334194183,
+            -0.004304844886064529
+          ],
+          "ee_rotation_offset_deg": [
+            -0.02536732330918312,
+            -1.2207187414169312,
+            -0.08565057069063187
+          ],
+          "object_yaw_offset_deg": 12.083930015563965
+        },
+        "object_yaw_offset_deg": 13.51209545135498,
+        "grasp_candidate_index": 13,
+        "ee_to_grasp_candidate_m": 0.06046319007873535,
+        "candidate_local_offset_m": [
+          0.04781219735741615,
+          -0.012442700564861298,
+          -0.03485642746090889
+        ],
+        "ee_rotation_offset_deg": [
+          67.89745330810547,
+          -63.77854537963867,
+          -69.99821472167969
+        ]
+      }
+    ]
+  }
+}
