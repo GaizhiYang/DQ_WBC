@@ -62,6 +62,7 @@ def euler_from_quat(q):
 
 NAMESPACE = {
     "torch": torch, "F": torch.nn.functional,
+    "tqdm": SimpleNamespace(write=print),
     "quat_apply": quat_apply, "quat_rotate_inverse": quat_rotate_inverse,
     "quat_rotate": quat_apply,
     "quat_mul": quat_mul, "quat_from_euler_xyz": quat_from_euler_xyz,
@@ -134,7 +135,7 @@ class BaseStandIn:
 
 
 def production_environment_class():
-    methods = ("reset", "_reset_sgs_envs", "_record_sgs_metrics",
+    methods = ("reset", "_reset_sgs_envs", "_record_sgs_metrics", "_print_sgs_success_rates",
                "update_roboinfo", "step", "check_termination", "_yaw_deviation")
     cls = ast.ClassDef(
         name="B1Z1PickMulti", bases=[ast.Name(id="B1Z1Base", ctx=ast.Load())],
@@ -327,6 +328,8 @@ class TestEnvironment(ProductionEnvironment):
         self.sgs_family_successes = torch.zeros(len(self.sgs_family_names), dtype=torch.long)
         self.sgs_family_samples = torch.zeros(len(self.sgs_family_names), dtype=torch.long)
         self.sgs_aborted = torch.zeros((), dtype=torch.long)
+        self.sgs_log_interval = 24
+        self._sgs_last_print_step = None
         self.extras = {}
         self.sim = object()
         self.gym = SimSubmission()

@@ -41,7 +41,7 @@ def main():
     from isaacgym.torch_utils import quat_apply, quat_from_euler_xyz, quat_mul
     import torch
     from utils.config import get_params
-    from train_multistate_DQ_teacher import get_trainer
+    from train_multistate_DQ_teacher import get_trainer, finalize_teacher_logging
 
     args = get_params()
     if args.stop_after != 96 or args.timesteps < 96:
@@ -182,6 +182,7 @@ def main():
             trainer.train()
         finally:
             env.step = original_step
+        finalize_teacher_logging(trainer)
         torch.cuda.synchronize(env.sgs_sampler.device)
         after = [parameter for model in models for parameter in model.parameters()]
         check("parameters_finite", all(bool(torch.isfinite(parameter).all()) for parameter in after))
@@ -201,6 +202,28 @@ def main():
         check("all_reset_families_sampled", bool((env.sgs_family_samples > 0).all()))
         check("family_statistics_match_loaded_bank", len(env.sgs_family_samples) == len(env.sgs_bank.family_names))
         check("final_observation_finite", bool(torch.isfinite(env.obs_buf).all()))
+        # Read the real TensorBoard event file used by wandb sync, including the
+        # final reset outcomes written after the trainer's last ordinary write.
+        from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
+        events = EventAccumulator(agent.experiment_dir).Reload()
+        family_rates = {}
+        for index, family in enumerate(env.sgs_family_names):
+            episodes = int(env.sgs_family_episodes[index].item())
+            successes = int(env.sgs_family_successes[index].item())
+            for tag, expected in (("SGS / episodes_" + family, episodes),
+                                  ("SGS / successes_" + family, successes)):
+                rows = events.Scalars(tag)
+                check("family_log/" + tag, rows[-1].step == env.global_step_counter
+                      and abs(rows[-1].value - expected) < 1e-6)
+            rate = successes / episodes if episodes else None
+            family_rates[family] = rate
+            tag = "SuccessRate / " + family
+            if episodes:
+                rows = events.Scalars(tag)
+                check("family_log/" + tag, rows[-1].step == env.global_step_counter
+                      and abs(rows[-1].value - rate) < 1e-6)
+            else:
+                check("family_log/unknown_" + family, tag not in events.Tags()["scalars"])
         diagnostics = output.with_suffix(".sampler.pt")
         env.save_sgs_diagnostics(str(diagnostics))
         report.update({
@@ -218,6 +241,8 @@ def main():
             "family_names": list(env.sgs_bank.family_names),
             "family_completed": env.sgs_family_episodes.cpu().tolist(),
             "family_successes": env.sgs_family_successes.cpu().tolist(),
+            "family_success_rates": family_rates,
+            "tensorboard_dir": str(Path(agent.experiment_dir).resolve()),
             "cancelled_episodes": int(env.sgs_aborted.item()),
             "sampler_device": str(env.sgs_sampler.device),
             "torch_peak_allocated_gib": torch.cuda.max_memory_allocated(agent.device) / 2**30,
@@ -233,6 +258,9 @@ def main():
         output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
         print("SGS_SMOKE_RESULT " + json.dumps(report, ensure_ascii=False))
         if trainer is not None:
+            if args.wandb:
+                import wandb
+                wandb.finish()
             env = trainer.env._env
             if getattr(env, "viewer", None) is not None:
                 env.gym.destroy_viewer(env.viewer)

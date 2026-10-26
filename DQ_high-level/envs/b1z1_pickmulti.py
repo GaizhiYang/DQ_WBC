@@ -208,15 +208,45 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             num_families=len(self.sgs_family_names))
         for i, name in enumerate(self.sgs_family_names):
             metrics["success_" + name] = self.sgs_family_successes[i] / self.sgs_family_episodes[i].clamp_min(1)
+            metrics["successes_" + name] = self.sgs_family_successes[i]
             metrics["sample_fraction_" + name] = self.sgs_family_samples[i] / self.sgs_family_samples.sum().clamp_min(1)
             metrics["episodes_" + name] = self.sgs_family_episodes[i]
         metrics["aborted"] = self.sgs_aborted
         self.extras["SGS"] = metrics
-        # The vendored logger consumes only success_rate. Copy scalar metrics
-        # in one transfer rather than converting each CUDA scalar separately.
-        values = torch.stack([value.float() for value in metrics.values()]).detach().cpu().tolist()
-        self.extras.setdefault("success_rate", {}).update(
-            {"SGS / " + name: value for name, value in zip(metrics, values)})
+        # Transfer scalar diagnostics together. Float64 preserves large integer
+        # episode counters when combining them with floating-point diagnostics.
+        values = torch.stack([value.double() for value in metrics.values()]).detach().cpu().tolist()
+        snapshots = {"SGS / " + name: value for name, value in zip(metrics, values)}
+        # Keep the old SGS tags, and expose discoverable success-rate curves.
+        # No completed episodes means unknown, not an observed zero success rate.
+        for name in self.sgs_family_names:
+            episodes = snapshots["SGS / episodes_" + name]
+            if episodes > 0:
+                snapshots["SuccessRate / " + name] = snapshots["SGS / successes_" + name] / episodes
+        self.extras.setdefault("success_rate", {}).update(snapshots)
+        # Cumulative counters and ratios must use the latest snapshot, rather
+        # than the logger's ordinary mean over a 24-step writing window.
+        self.extras["scalar_snapshots"] = snapshots
+        self._print_sgs_success_rates()
+
+    def _print_sgs_success_rates(self, force=False):
+        step = self.global_step_counter
+        last_step = getattr(self, "_sgs_last_print_step", None)
+        interval = getattr(self, "sgs_log_interval", 24)
+        if not force and last_step is not None and step - last_step < interval:
+            return
+        snapshots = self.extras.get("scalar_snapshots", {})
+        if not snapshots:
+            return
+        parts = []
+        for name in self.sgs_family_names:
+            successes = int(snapshots["SGS / successes_" + name])
+            episodes = int(snapshots["SGS / episodes_" + name])
+            rate = f"{100. * successes / episodes:.2f}%" if episodes else "N/A"
+            parts.append(f"{name}={rate} ({successes}/{episodes})")
+        suffix = " final" if force else ""
+        tqdm.write(f"[SGS step={step}{suffix}] SuccessRate: " + " | ".join(parts))
+        self._sgs_last_print_step = step
 
     def save_sgs_diagnostics(self, path):
         """Export per-configuration statistics; this is not a training resume."""
@@ -918,6 +948,7 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         res = super().step(actions)
         if getattr(self, "sgs_enabled", False):
             self._sgs_pending_done.copy_(self.reset_buf.bool())
+            self._print_sgs_success_rates()
 
         pred_lift = actions[...,-1] > 0
         if self.pred_success and (actions.shape[-1] == (self.action_space.shape[-1]+1)):

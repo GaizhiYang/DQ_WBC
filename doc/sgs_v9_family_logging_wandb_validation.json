@@ -1,0 +1,115 @@
+{
+  "passed": true,
+  "date": "2026-10-26",
+  "mode": "offline",
+  "cloud_upload_performed": false,
+  "bank_fingerprint": "c6c7f69d8e8a3fd67012eeab4026f86bf8d7be58c7f4edbe6b1f63b95f5498ec",
+  "wandb_file": "/tmp/wandb/offline-run-20261026_150342-r82np5hb/run-r82np5hb.wandb",
+  "wandb_file_sha256": "35eb0538600deb72a1f67591c4da79a8cbe8564b3a0311220377a671816086f1",
+  "checks": {
+    "summary/SGS / episodes_full_task": true,
+    "history/SGS / episodes_full_task": true,
+    "summary/SGS / successes_full_task": true,
+    "history/SGS / successes_full_task": true,
+    "summary/SuccessRate / full_task": true,
+    "history/SuccessRate / full_task": true,
+    "summary/SGS / episodes_pregrasp": true,
+    "history/SGS / episodes_pregrasp": true,
+    "summary/SGS / successes_pregrasp": true,
+    "history/SGS / successes_pregrasp": true,
+    "summary/SuccessRate / pregrasp": true,
+    "history/SuccessRate / pregrasp": true,
+    "summary/SGS / episodes_at_grasp": true,
+    "history/SGS / episodes_at_grasp": true,
+    "summary/SGS / successes_at_grasp": true,
+    "history/SGS / successes_at_grasp": true,
+    "summary/SuccessRate / at_grasp": true,
+    "history/SuccessRate / at_grasp": true,
+    "summary/SGS / episodes_near_goal": true,
+    "history/SGS / episodes_near_goal": true,
+    "summary/SGS / successes_near_goal": true,
+    "history/SGS / successes_near_goal": true,
+    "summary/SuccessRate / near_goal": true,
+    "history/SuccessRate / near_goal": true
+  },
+  "expected_family_scalars": {
+    "SGS / episodes_full_task": 9,
+    "SGS / successes_full_task": 0,
+    "SuccessRate / full_task": 0.0,
+    "SGS / episodes_pregrasp": 14,
+    "SGS / successes_pregrasp": 0,
+    "SuccessRate / pregrasp": 0.0,
+    "SGS / episodes_at_grasp": 5,
+    "SGS / successes_at_grasp": 0,
+    "SuccessRate / at_grasp": 0.0,
+    "SGS / episodes_near_goal": 12,
+    "SGS / successes_near_goal": 0,
+    "SuccessRate / near_goal": 0.0
+  },
+  "wandb_summary": {
+    "SGS / episodes_full_task": 9,
+    "SGS / successes_full_task": 0,
+    "SuccessRate / full_task": 0,
+    "SGS / episodes_pregrasp": 14,
+    "SGS / successes_pregrasp": 0,
+    "SuccessRate / pregrasp": 0,
+    "SGS / episodes_at_grasp": 5,
+    "SGS / successes_at_grasp": 0,
+    "SuccessRate / at_grasp": 0,
+    "SGS / episodes_near_goal": 12,
+    "SGS / successes_near_goal": 0,
+    "SuccessRate / near_goal": 0
+  },
+  "final_history": {
+    "SGS / episodes_full_task": {
+      "value": 9,
+      "global_step": 96
+    },
+    "SGS / successes_full_task": {
+      "value": 0,
+      "global_step": 96
+    },
+    "SuccessRate / full_task": {
+      "value": 0,
+      "global_step": 96
+    },
+    "SGS / episodes_pregrasp": {
+      "value": 14,
+      "global_step": 96
+    },
+    "SGS / successes_pregrasp": {
+      "value": 0,
+      "global_step": 96
+    },
+    "SuccessRate / pregrasp": {
+      "value": 0,
+      "global_step": 96
+    },
+    "SGS / episodes_at_grasp": {
+      "value": 5,
+      "global_step": 96
+    },
+    "SGS / successes_at_grasp": {
+      "value": 0,
+      "global_step": 96
+    },
+    "SuccessRate / at_grasp": {
+      "value": 0,
+      "global_step": 96
+    },
+    "SGS / episodes_near_goal": {
+      "value": 12,
+      "global_step": 96
+    },
+    "SGS / successes_near_goal": {
+      "value": 0,
+      "global_step": 96
+    },
+    "SuccessRate / near_goal": {
+      "value": 0,
+      "global_step": 96
+    }
+  },
+  "history_rows": 266,
+  "note": "Read actual wandb offline binary records after wandb.finish; verifies local capture, not cloud upload or learned success."
+}

@@ -172,6 +172,10 @@ class Agent:
         """
         self.tracking_data[tag].append(value)
 
+    def track_data_latest(self, tag: str, value: float) -> None:
+        """Track a cumulative scalar snapshot without averaging older values."""
+        self.tracking_data[tag] = [value]
+
     def write_tracking_data(self, timestep: int, timesteps: int) -> None:
         """Write tracking data to TensorBoard
 
@@ -314,6 +318,11 @@ class Agent:
             if "success_rate" in infos.keys():
                 for key in infos["success_rate"]:
                     self.tracking_data[key].append(np.mean(infos["success_rate"][key]).item())
+
+            # Environment counters/rates describe the latest completed episodes,
+            # not samples to average over this logging window.
+            for key, value in infos.get("scalar_snapshots", {}).items():
+                self.track_data_latest(key, float(value))
 
             if len(self._track_rewards):
                 track_rewards = np.array(self._track_rewards)

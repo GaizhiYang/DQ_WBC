@@ -163,7 +163,7 @@ python eval_sgs_teacher.py \
 | `bank_metadata.json` | 保存 bank 路径、配置数和指纹；核对 uniform/SGS 是否使用同一库 |
 | `sgs_diagnostics.pt` | 正常训练结束时导出每配置成功率、历史样本数、累计访问数、采样概率、类别统计及 bank 指纹 |
 | `checkpoints/agent_*.pt` | 用于加载策略评估；不包含完整 SGS/仿真续训状态 |
-| TensorBoard events | 查看训练曲线及 `SGS / ...` 统计 |
+| TensorBoard events | 查看训练曲线、`SuccessRate / <family>` 分类成功率及 `SGS / ...` 统计；启用 `--wandb` 后同步到 wandb |
 
 `sgs_diagnostics.pt` 明确标记为诊断文件，不能用于恢复训练。未完成回合不会被当作失败加入成功历史。
 
@@ -438,3 +438,30 @@ python tests/audit_sgs_near_goal_gpu.py \
 **210 项 CPU / CUDA 回归测试通过**。新增的 7 项[奖励行为回归](../DQ_high-level/tests/test_teacher_rewards.py)覆盖成功高度门槛、正对/侧对/背对物体、yaw 惩罚与终止门槛、角度环绕，以及最终保持步偏航失败后向 SGS 登记失败的完整统计路径。
 
 修复后已在 `cuda:1` 使用原 2048 条正式库完成 **32 环境、96 步、4 次 PPO 更新**，76 项训练链路检查通过；40 个完成回合正确登记，四类实际抽取次数为 **24、24、9、16**，模型参数有限且实际更新。原计划仍为 `--timesteps 120000`，通过 `--stop_after 96` 提前结束；没有开启在线 wandb。记录见 [sgs_v9_reward_fix_gpu_validation.json](sgs_v9_reward_fix_gpu_validation.json)。这次短训练验证运行与统计链路，不代表长期训练成功率改善。
+
+## 16. 四类成功率、wandb 与终端日志
+
+2026-10-26 已增加四类明确的成功率曲线。原训练命令保留 `--wandb` 即可，不需要修改配置库：
+
+| wandb / TensorBoard 指标 | 初态类别 |
+| --- | --- |
+| `SuccessRate / full_task` | 完整任务起步 |
+| `SuccessRate / pregrasp` | 临近抓取 |
+| `SuccessRate / at_grasp` | 已到达抓取位姿 |
+| `SuccessRate / near_goal` | 已抓住并抬升 5–10 cm |
+
+统计口径为**从该类初态开始的累计成功回合数 / 累计已完成回合数**，成功仍使用超过 20 cm 并保持 15 步的任务条件。按回合起始配置归属类别；失败和超时计入完成回合，主动取消的重置和仍在进行的回合不计入分母。它不是对每条配置成功率求平均，也不是 SGS 采样器的最近 100 回合成功率。
+
+同时记录 `SGS / successes_<family>` 和 `SGS / episodes_<family>`，便于核对分子、分母。旧的 `SGS / success_<family>` 保留。分类成功率及 SGS 累计计数采用最新快照，避免对一个日志窗口内的多个累计比率再次求均值；普通奖励、损失等日志保持原有聚合方式。某类尚无完成回合时，新 `SuccessRate / <family>` 曲线暂不生成数据点，终端显示 `N/A (0/0)`；旧 SGS 成功率标签保留原零值约定。
+
+终端每 **24 个高层训练步**输出一次四类成功率和成功数/完成数，训练结束另输出带 `final` 的最终统计。例如本轮短训练实际输出：
+
+```text
+[SGS step=96 final] SuccessRate: full_task=0.00% (0/9) | pregrasp=0.00% (0/14) | at_grasp=0.00% (0/5) | near_goal=0.00% (0/12)
+```
+
+常规日志使用已完成 reset 结算的回合，因此相对刚结束的环境步最多滞后一帧；训练结束时显式刷新，包含最后一步结算的回合。最终刷新可能在 TensorBoard 原始事件文件中留下相同 step 的两个记录，最终值取最后一个。保留原总体 `SuccessRate / sugar_box` 指标；四类训练成功率不能直接替代原始 2 m 起点的独立评估。
+
+验证结果：**216 项 CPU / CUDA 回归测试通过**，包括不同类别分别得到 1、1/2、1/3、0 的真实计数路径、取消回合排除、零回合处理、打印节流、最新快照聚合和最终刷新。使用正式 v9 库在 `cuda:0` 完成 **32 环境、96 步、4 次 PPO 更新**；88 项运行与实际 TensorBoard 文件检查通过，见 [GPU 日志验证](sgs_v9_family_logging_gpu_validation.json)。
+
+本轮还以 `WANDB_MODE=offline` 开启真实 wandb，结束后读取其二进制记录；四类成功率、成功次数、完成回合数的最终 summary 和 history 均与环境统计一致，24 项检查通过，见 [wandb 离线写入验证](sgs_v9_family_logging_wandb_validation.json)。没有上传这次测试到云端；正常训练不设置该离线环境变量，并保留 `--wandb` 即走在线同步。上述短训练仅验证日志链路，0 成功不能解释为完整训练效果。

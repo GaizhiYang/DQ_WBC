@@ -391,6 +391,7 @@ def get_trainer(is_eval=False, strict_eval=False):
     cfg_ppo["value_preprocessor_kwargs"] = {"size": 1, "device": device}
     # logging to TensorBoard and write checkpoints each 120 and 1200 timesteps respectively
     cfg_ppo["experiment"]["write_interval"] = 24
+    env._env.sgs_log_interval = cfg_ppo["experiment"]["write_interval"]
     cfg_ppo["experiment"]["checkpoint_interval"] = 5000 ## my change
     if is_eval:
         cfg_ppo["experiment"]["write_interval"] = 0
@@ -399,7 +400,7 @@ def get_trainer(is_eval=False, strict_eval=False):
     cfg_ppo["experiment"]["experiment_name"] = args.wandb_name
     cfg_ppo["experiment"]["wandb"] = args.wandb
     if args.wandb:
-        cfg_ppo["experiment"]["wandb_kwargs"] = {"project": args.wandb_project, "tensorboard": False, "name": args.wandb_name}
+        cfg_ppo["experiment"]["wandb_kwargs"] = {"project": args.wandb_project, "sync_tensorboard": True, "name": args.wandb_name}
         # cfg_ppo["experiment"]["wandb_kwargs"]["resume"] = True
         
     agent = PPO(models=models_ppo,
@@ -456,10 +457,27 @@ def get_trainer(is_eval=False, strict_eval=False):
                 json.dumps(bank_metadata, indent=2) + "\n")
     
     return trainer
-    
+
+
+def finalize_teacher_logging(trainer):
+    """Include final reset outcomes, which arrive after the last agent write."""
+    env = trainer.env
+    if not getattr(env, "sgs_enabled", False):
+        return
+    env._record_sgs_metrics()
+    env._print_sgs_success_rates(force=True)
+    agent = trainer.agents
+    if agent.write_interval > 0:
+        for key, value in env.extras["scalar_snapshots"].items():
+            agent.track_data_latest(key, value)
+        agent.write_tracking_data(env.global_step_counter, trainer.timesteps)
+        agent.writer.flush()
+
+
 if __name__ == "__main__":
     trainer = get_trainer()
     trainer.train()
+    finalize_teacher_logging(trainer)
     run_dir = Path(trainer.teacher_args.experiment_dir) / trainer.teacher_args.wandb_name
     if trainer.teacher_config["env"]["sgs"]["mode"] != "disabled":
         # Diagnostic history is not a checkpoint for resuming training.
