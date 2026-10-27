@@ -317,6 +317,7 @@ class TestEnvironment(ProductionEnvironment):
         self.num_envs = num_envs
         self.device = "cpu"
         self.sgs_enabled = True
+        self.object_pose_predictor = None
         self._sgs_natural_reset = False
         self._sgs_has_pending_reset = False
         self.sgs_bank = make_bank() if bank is None else bank
@@ -433,6 +434,52 @@ class TestEnvironment(ProductionEnvironment):
 
 
 class SGSEnvironmentTests(unittest.TestCase):
+    def test_sgs_reset_clears_pose_history_before_observations_only_for_reset_envs(self):
+        spec = importlib.util.spec_from_file_location(
+            "sgs_pose_prediction_test", ROOT / "modules" / "pose_prediction.py")
+        prediction = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(prediction)
+        env = TestEnvironment()
+        predictor = prediction.RollingSE3Predictor(env.num_envs, "cpu")
+        env.object_pose_predictor = predictor
+        env.gym.get_sim_time = lambda sim: 1.0
+        env.initialize()
+        self.assertEqual(predictor.count.tolist(), [1] * 4)
+        for step in range(1, 5):
+            poses = env._cube_root_states[:, :7].clone()
+            poses[:, 0] += 100.0 + step * .03
+            predictor.push(poses, 1.0 + .15 * step)
+        predictor.predict()
+        self.assertTrue(predictor.valid.all().item())
+        untouched = {name: getattr(predictor, name)[[1, 3]].clone()
+                     for name in ("poses", "times", "count", "future_poses", "valid")}
+        env.gym.get_sim_time = lambda sim: 1.75
+        compute_observations = env._compute_observations
+
+        def check_first_observations(ids):
+            self.assertEqual(ids.tolist(), [0, 2])
+            self.assertEqual(predictor.count[ids].tolist(), [1, 1])
+            self.assertFalse(predictor.valid[ids].any().item())
+            torch.testing.assert_close(predictor.poses[ids, -1], env._cube_root_states[ids, :7])
+            torch.testing.assert_close(
+                predictor.future_poses[ids], env._cube_root_states[ids, None, :7].expand(-1, 2, -1))
+            return compute_observations(ids)
+
+        with patch.object(env, "_compute_observations", side_effect=check_first_observations) as observe:
+            env.finish([0, 2], [True, False], [4, 5])
+            observe.assert_called_once()
+        for name, expected in untouched.items():
+            torch.testing.assert_close(getattr(predictor, name)[[1, 3]], expected)
+        self.assertEqual(env.sgs_sampler.visits_total.tolist(), [1, 0, 1, 0, 0, 0])
+        # A stationary new episode must not inherit the old episode's motion.
+        ids = torch.tensor([0, 2])
+        poses = env._cube_root_states[ids, :7].clone()
+        for step in range(1, 5):
+            predictor.push(poses, 1.75 + .15 * step, ids)
+        predictor.predict()
+        self.assertTrue(predictor.valid[ids].all().item())
+        torch.testing.assert_close(predictor.future_poses[ids], poses[:, None].expand(-1, 2, -1))
+
     def test_near_goal_reset_restores_actual_aperture_closed_target_and_clean_success(self):
         bank = make_near_goal_bank()
         env = TestEnvironment(bank=bank)

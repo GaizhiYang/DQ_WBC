@@ -22,7 +22,7 @@ from skrl.utils import set_seed
 from envs import *    #import b1z1_pickmulti.py
 from PredictPiontTransform.predictpoint_mul import PredictPoint
 from utils.config import (load_cfg, get_params, copy_cfg, configure_teacher_experiment,
-                          teacher_run_end)
+                          teacher_run_end, apply_pose_prediction_config)
 import utils.wrapper as wrapper
 import time
 from legged_gym.envs.manip_loco.b1z1_config import B1Z1RoughCfg
@@ -74,6 +74,7 @@ def teacher_config_path(args, is_eval=False, strict_eval=False):
     return "data/cfg/DQ_teacher.yaml"
 
 def create_env(cfg, args, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor ):
+    apply_pose_prediction_config(cfg, args)
     cfg_terrain = B1Z1RoughCfg()
 
     cfg["env"]["enableDebugVis"] = args.debugvis
@@ -303,6 +304,8 @@ def get_trainer(is_eval=False, strict_eval=False):
         
     cfg = load_cfg(file_path)
     configure_teacher_experiment(cfg, args, is_eval=is_eval, strict_eval=strict_eval)
+    prediction_cfg = apply_pose_prediction_config(cfg, args)
+    cprint(f"Teacher future pose observations: {prediction_cfg}", "yellow")
     if args.no_velocity_obs:
         cfg["env"]["noVelocityObs"] = True
     cprint(f"Teacher velocity observations: {'disabled' if cfg['env'].get('noVelocityObs', False) else 'enabled'}", "yellow")

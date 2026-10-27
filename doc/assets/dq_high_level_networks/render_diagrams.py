@@ -1,6 +1,7 @@
 """Render the architecture figures with Graphviz (no Python dependencies).
 
 Run from any directory: python /path/to/render_diagrams.py
+Teacher figures describe --no_velocity_obs --future_pose_obs, horizons .30/.60 s.
 """
 from pathlib import Path
 import json
@@ -14,6 +15,7 @@ COLORS = {
     "output": ("#FFF1DC", "#B48640"),
     "fixed": ("#F1F3F5", "#8A949E"),
     "loss": ("#FCEDEC", "#B87570"),
+    "forecast": ("#DDF4F1", "#218B80"),
 }
 
 
@@ -47,16 +49,19 @@ class Figure:
     def same_rank(self, *keys):
         self.lines.append("{rank=same; " + "; ".join(keys) + ";}")
 
-    def render(self):
+    def render(self, png=False):
         source = "\n".join(self.lines + ["}"])
         subprocess.run(["dot", "-Tsvg", "-o", str(OUT / (self.name + ".svg"))], input=source, text=True, check=True)
+        if png:
+            subprocess.run(["dot", "-Tpng", "-Gdpi=150", "-o", str(OUT / (self.name + ".png"))], input=source, text=True, check=True)
 
 
 def overview():
     g = Figure("01_training_overview", "高层训练与执行：两阶段学习，同一套动作接口")
     for key, label, kind in [
         ("env", "B1Z1PickMulti 仿真环境", "fixed"),
-        ("ot", "教师观测 oT：[B,1276]\n物体特征、位姿、速度、候选、机器人状态", "input"),
+        ("prediction", "环境侧：最近5帧世界位姿 + 时间戳\n固定EKF预测0.30 / 0.60秒，再转换坐标", "fixed"),
+        ("ot", "教师观测 oT：[B,1284]\n包含未来位姿12 + 有效标志1\n已移除机器人线速度3与物体相对速度2", "input"),
         ("os", "学生观测 oS：[B,62269]\n双视角 × 三帧 × 双通道图像 + 状态61", "input"),
         ("t", "教师 Actor\n特征编码 + 抓取注意力 + MLP", "net"),
         ("v", "教师 Critic\n独立编码、注意力、价值MLP", "net"),
@@ -70,6 +75,7 @@ def overview():
     ]:
         g.node(key, label, kind)
     g.edge("env", "ot"); g.edge("env", "os")
+    g.chain("env", "prediction", "ot")
     g.edge("ot", "t"); g.edge("ot", "v"); g.edge("t", "ppo"); g.edge("v", "ppo")
     g.edge("env", "ppo", "奖励", True)
     g.chain("os", "s", "as"); g.chain("t", "label", "dag"); g.edge("as", "dag")
@@ -81,18 +87,21 @@ def overview():
 
 
 def teacher_actor():
-    g = Figure("02_teacher_actor", "教师 Actor：1276维原始观测 → 206维融合 → 9维动作")
+    g = Figure("02_teacher_actor", "最新教师 Actor：1284维观测 → 214维融合 → 9维动作")
     for key, label, kind in [
-        ("raw", "oT：[B,1276]", "input"),
-        ("norm", "RunningStandardScaler\n按观测分量标准化", "fixed"),
-        ("f", "物体特征 f：[B,1024]", "input"),
-        ("p", "物体位姿 p：[B,6]", "input"),
-        ("gs", "候选位置90 + 候选姿态90\n重排为 G：[B,30,6]", "input"),
-        ("other", "其余观测63 + 上一步动作9\n[B,72]（包含上述物体位姿6）", "input"),
+        ("source", "环境侧生成新增13维（详见EKF流程图）\n最近5帧世界位姿 → EKF → 0.30 / 0.60秒预测\n使用当前机器人参考转换；EKF无可学习参数", "fixed"),
+        ("raw", "教师观测 oT：[B,1284]\n特征1024 + 当前状态58 + 预测13 + 候选180 + 上一动作9", "input"),
+        ("norm", "RunningStandardScaler\n全部1284维标准化（含有效标志），再分支", "fixed"),
+        ("f", "物体特征：[B,1024]\n[0:1024]", "input"),
+        ("p", "当前物体位姿：[B,6]\n[1024:1030]", "input"),
+        ("gs", "当前位置候选90 + 当前姿态候选90\n[1095:1275] → G：[B,30,6]", "input"),
+        ("other", "当前状态：[B,58]\n[1024:1082]，含当前物体位姿6", "input"),
+        ("future", "新增预测观测：[B,13]\n[1082:1095]\n0.30秒位姿6 + 0.60秒位姿6 + valid1", "forecast"),
+        ("previous", "上一高层动作：[B,9]\n[1275:1284]", "input"),
         ("enc", "feature_encoder\nLinear 1024→512 + ELU\nLinear 512→128", "net"),
-        ("att", "PredictAttentionSelector\nQuery 134→64；Key/Value 6→64\n单头汇总；Output 64→6", "net"),
-        ("cat", "concat([其余63, 上一动作9, 编码128, 抓取表示6])\n[B,206]", "op"),
-        ("l1", "Linear 206→512 + ELU", "net"),
+        ("att", "抓取候选注意力\nQuery = 编码128 + 当前物体位姿6\nKey / Value = 当前30个抓取候选\n输出抓取表示：[B,6]", "net"),
+        ("cat", "按代码顺序拼接：[当前58, 预测13, 上一动作9, 编码128, 抓取表示6]\n58 + 13 + 9 + 128 + 6 = 214", "op"),
+        ("l1", "Linear 214→512 + ELU", "net"),
         ("l2", "Linear 512→256 + ELU", "net"),
         ("l3", "Linear 256→128 + ELU", "net"),
         ("mean", "Linear 128→9\n动作均值 μ：[B,9]", "net"),
@@ -101,10 +110,11 @@ def teacher_actor():
         ("out", "高层动作 aT：[B,9]", "output"),
     ]:
         g.node(key, label, kind)
-    g.chain("raw", "norm")
-    for k in ("f", "p", "gs", "other"): g.edge("norm", k)
+    g.chain("source", "raw", "norm")
+    for k in ("f", "p", "gs", "other", "future", "previous"): g.edge("norm", k)
     g.chain("f", "enc"); g.edge("enc", "att", "编码128"); g.edge("p", "att"); g.edge("gs", "att")
     g.edge("enc", "cat", "编码128"); g.edge("other", "cat"); g.edge("att", "cat", "抓取表示6")
+    g.edge("future", "cat", "预测直接进入主MLP"); g.edge("previous", "cat")
     g.chain("cat", "l1", "l2", "l3", "mean", "dist", "out"); g.edge("std", "dist")
     return g
 
@@ -125,10 +135,10 @@ def feature_encoder():
 def grasp_attention():
     g = Figure("04_grasp_attention", "抓取候选注意力：单头、单Query、30个Key/Value")
     for key, label, kind in [
-        ("z", "物体编码 z：[B,128]", "input"), ("p", "物体位姿 p：[B,6]", "input"),
+        ("z", "物体编码 z：[B,128]", "input"), ("p", "当前物体位姿 p：[B,6]\n未来13维不进入Query", "input"),
         ("context", "concat(z,p)：[B,134]", "op"),
         ("q", "query_proj：Linear 134→64\nunsqueeze → Q：[B,1,64]", "net"),
-        ("grasps", "G：[B,30,6]\n每个候选 = xyz + RPY", "input"),
+        ("grasps", "G：[B,30,6]\n由当前物体位姿变换的抓取候选", "input"),
         ("k", "key_proj：Linear 6→64\nK：[B,30,64]", "net"),
         ("v", "value_proj：Linear 6→64\nV：[B,30,64]", "net"),
         ("score", "Q × transpose(K) / √64\n[B,1,30]", "op"),
@@ -143,24 +153,49 @@ def grasp_attention():
 
 
 def teacher_critic():
-    g = Figure("05_teacher_critic", "教师 Critic：独立的编码器、抓取注意力与价值网络")
+    g = Figure("05_teacher_critic", "最新教师 Critic：同样接收预测13维，参数与Actor独立")
     for key, label, kind in [
-        ("o", "教师观测1276\n经过同一PPO状态标准化器", "input"),
+        ("o", "教师观测：[B,1284]\n经过同一PPO状态标准化器", "input"),
         ("e", "Critic独立 feature_encoder\n1024→512 + ELU→128", "net"),
-        ("g", "物体位姿6 + 抓取候选30×6", "input"),
+        ("g", "当前物体位姿6 + 当前抓取候选30×6", "input"),
         ("a", "Critic独立 PredictAttentionSelector\n134/6→64→6", "net"),
-        ("r", "其余状态与上一动作72", "input"),
-        ("c", "concat(72,128,6) → [B,206]", "op"),
-        ("l1", "Linear 206→512 + ELU", "net"),
+        ("r", "当前状态58 + 上一动作9\n物体当前位姿包含在58维中", "input"),
+        ("future", "新增预测观测：[B,13]\n未来0.30秒6 + 0.60秒6 + valid1", "forecast"),
+        ("c", "concat([当前58, 预测13, 上一动作9, 编码128, 抓取表示6])\n[B,214]", "op"),
+        ("l1", "Linear 214→512 + ELU", "net"),
         ("l2", "Linear 512→256 + ELU", "net"),
         ("l3", "Linear 256→128 + ELU", "net"),
         ("l4", "Linear 128→1", "net"),
         ("v", "价值输出：[B,1]\nPPO配合价值标准化/逆变换使用", "output"),
         ("unused", "注册的 log_std：[9]\n未参与 Critic 前向", "fixed"),
     ]: g.node(key, label, kind)
-    for k in ("e", "g", "r"): g.edge("o", k)
+    for k in ("e", "g", "r", "future"): g.edge("o", k)
+    g.edge("future", "c")
     g.edge("e", "a"); g.edge("g", "a"); g.edge("r", "c"); g.edge("e", "c"); g.edge("a", "c")
     g.chain("c", "l1", "l2", "l3", "l4", "v")
+    return g
+
+
+def pose_prediction():
+    g = Figure("18_teacher_pose_prediction", "EKF观测生成：世界系预测 → 原教师坐标表示 → 新增13维")
+    for key, label, kind in [
+        ("world", "当前物体世界位姿\n位置xyz + 四元数xyzw：[B,7]", "input"),
+        ("time", "真实仿真时间戳\ngym.get_sim_time()", "input"),
+        ("history", "每个环境独立的滚动缓存\n最近5帧世界位姿 [B,5,7] + 时间戳 [B,5]", "fixed"),
+        ("ekf", "RollingSE3Predictor：固定SE(3) EKF\n每次用5帧重新初始化并更新\nQ scale=1；R scale=0.01；使用实际Δt\n不读仿真真值速度，不参与PPO反向传播", "fixed"),
+        ("forecast", "预测未来世界位姿：[B,2,7]\nt + 0.30秒、t + 0.60秒", "output"),
+        ("robot", "当前时刻 t 的机器人位置和姿态\n计算机械臂基座世界位置、机器人yaw\n两组未来位姿共用这一个参考", "input"),
+        ("convert", "object_pose_in_teacher_frame\nxy：机械臂基座相对位置，经机器人yaw逆旋转\nz：直接保留预测的世界高度\nRPY：预测姿态去掉机器人yaw后转欧拉角", "op"),
+        ("pose", "两组未来位姿：[B,2,6]\n每组 [x,y,z,roll,pitch,yaw]", "forecast"),
+        ("valid", "有效标志 valid：[B,1]\n5帧齐全且预测数值正常才为1\n不是准确率或置信概率", "fixed"),
+        ("reset", "环境reset：只清空对应环境历史\n历史不足或数值异常：valid=0\n两组未来位姿都填当前物体观测6维", "fixed"),
+        ("block", "拼接新增观测：[B,13]\n0.30秒位姿6 | 0.60秒位姿6 | valid1", "forecast"),
+        ("obs", "放在当前状态之后、抓取候选之前\n完整观测1284 → 标准化 → Actor / Critic主MLP", "output"),
+    ]: g.node(key, label, kind)
+    g.edge("world", "history"); g.edge("time", "history")
+    g.chain("history", "ekf", "forecast", "convert", "pose", "block", "obs")
+    g.edge("robot", "convert"); g.edge("ekf", "valid"); g.edge("valid", "block")
+    g.edge("reset", "history", "清空", True); g.edge("reset", "block", "回退规则", True)
     return g
 
 
@@ -401,7 +436,7 @@ def execution():
 
 
 if __name__ == "__main__":
-    figures = [overview(), teacher_actor(), feature_encoder(), grasp_attention(), teacher_critic(), gaussian(), student(), cnn(), guided(), encoder_layer(), mha(), heads(), training(), low_actor(), low_history(), low_unused(), execution()]
+    figures = [overview(), teacher_actor(), feature_encoder(), grasp_attention(), teacher_critic(), gaussian(), student(), cnn(), guided(), encoder_layer(), mha(), heads(), training(), low_actor(), low_history(), low_unused(), execution(), pose_prediction()]
     for figure in figures:
-        figure.render()
+        figure.render(png=figure.name in {"02_teacher_actor", "05_teacher_critic", "18_teacher_pose_prediction"})
     print(f"Rendered {len(figures)} SVG figures in {OUT}")

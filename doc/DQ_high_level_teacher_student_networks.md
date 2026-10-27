@@ -1,13 +1,18 @@
 **DQ_high-level 教师策略与学生策略：网络结构、张量流与训练关系**
 
-本文基于当前仓库的实际代码，沿着 README 的高层训练入口梳理网络。教师使用 **物体特征编码器＋抓取候选注意力＋Actor/Critic MLP**；学生使用 **共享视觉 CNN＋双分支状态引导时序 Transformer＋主动作头＋残差动作头**。两者输出相同的 9 维高层动作，并调用已经训练好的底层控制器。
+本文按当前代码更新，教师图采用你正在使用的新配置：**移除机器人线速度和物体相对速度观测，加入 EKF 对未来 0.30 秒、0.60 秒的位姿预测**。教师观测为 **1284 维**，Actor/Critic 主 MLP 的融合输入为 **214 维**，高层动作仍为 **9 维**。
 
-本文包含 **17 张可缩放 SVG 结构图**。图中蓝色表示输入，绿色表示含可学习参数的网络，紫色表示张量运算，橙色表示输出，灰色表示数据、非学习运算或当前路径不使用的模块，红色表示训练损失。绿色表示模块具有参数，并不表示这些参数在每个训练阶段都被更新；具体更新范围见训练关系说明。
+建议先看 [最新教师 Actor 全图（SVG，可放大）](assets/dq_high_level_networks/02_teacher_actor.svg)，再看 [EKF 预测与坐标转换图](assets/dq_high_level_networks/18_teacher_pose_prediction.svg) 和 [Critic 全图](assets/dq_high_level_networks/05_teacher_critic.svg)。**新增预测13维直接进入两个主 MLP；抓取注意力的 Query 仍使用当前物体位姿。**
+
+教师使用 **物体特征编码器＋抓取候选注意力＋Actor/Critic MLP**；EKF 是环境侧的固定滤波器，没有可学习参数。学生使用 **共享视觉 CNN＋双分支状态引导时序 Transformer＋主动作头＋残差动作头**。两者输出相同的 9 维高层动作，并调用已经训练好的底层控制器。
+
+本文包含 **18 张可缩放 SVG 结构图**。图中蓝色表示输入，**青色突出新增的未来位姿观测**，绿色表示含可学习参数的网络，紫色表示张量运算，橙色表示输出，灰色表示数据、非学习运算或当前路径不使用的模块，红色表示训练损失。绿色表示模块具有参数，并不表示这些参数在每个训练阶段都被更新；具体更新范围见训练关系说明。
 
 | 阅读内容 | 对应图 |
 |---|---|
 | [范围、入口与总体关系](#scope) | 图 1 |
 | [教师观测的精确组成](#teacher-input) | 观测维度与切片表 |
+| [新增 EKF 预测、坐标转换与更新时序](#teacher-prediction) | 图 18 |
 | [教师 Actor、物体编码器与抓取注意力](#teacher-actor) | 图 2—4 |
 | [教师 Critic 与高斯动作分布](#teacher-critic) | 图 5—6 |
 | [学生输入与整体结构](#student-input) | 图 7 |
@@ -19,14 +24,16 @@
 
 <a id="scope"></a>
 
-**本文采用 README 主路径对应的配置。** 教师入口是 [`train_multistate_DQ_teacher.py`](../DQ_high-level/train_multistate_DQ_teacher.py)，学生入口是 [`train_multi_bc_deter_DQ_stu.py`](../DQ_high-level/train_multi_bc_deter_DQ_stu.py)。两个 `play` 脚本复用这些训练脚本中的模型定义。
+**本文采用最新 sugar_box 教师训练配置。** 教师入口是 [`train_multistate_DQ_teacher.py`](../DQ_high-level/train_multistate_DQ_teacher.py)，学生入口是 [`train_multi_bc_deter_DQ_stu.py`](../DQ_high-level/train_multi_bc_deter_DQ_stu.py)。两个 `play` 脚本复用这些训练脚本中的模型定义。仓库 YAML 中预测功能默认关闭；本文教师图对应显式启用 `--future_pose_obs` 的路径。
 
 | 条件 | 本文取值 |
 |---|---|
 | 任务 | `B1Z1PickMulti` |
 | 机器人状态 | 启用 `--roboinfo` |
 | 底层步态观测 | 启用 `--observe_gait_commands` |
-| 教师速度观测 | 默认保留，不启用 `--no_velocity_obs`；消融实验见下文 |
+| 教师速度观测 | 启用 `--no_velocity_obs`，移除机器人线速度3维、物体相对平面速度2维 |
+| 未来物体位姿 | 启用 `--future_pose_obs --future_pose_horizons 0.30 0.60` |
+| EKF 输入与参数 | 最近5帧世界位姿及实际时间戳；`q_scale=1.0`，`r_scale=0.01` |
 | 底座与动作 | 非 `floating_base`，不启用 `--pitch_control`，9 维高层动作 |
 | 物体特征 | 启用，1024 维；不启用 `--no_feature` |
 | 教师动作分布 | 默认 `use_tanh=False` |
@@ -50,32 +57,35 @@
 
 <a id="teacher-input"></a>
 
-**教师网络的原始输入是 1276 维。** 环境把物体特征、状态、抓取候选和上一动作写入 `obs_buf`。下表中的切片均采用 Python 左闭右开区间。
+**最新教师网络的原始输入是 1284 维。** 环境把物体特征、当前状态、未来位姿观测、抓取候选和上一动作写入 `obs_buf`。下表中的切片均采用 Python 左闭右开区间，尚未经过标准化。
 
 | `obs_buf` 切片 | 内容 | 维度 | 学生数值状态是否保留 |
 |---|---|---:|---|
 | `[0:1024]` | 从物体 `features.npy` 读取的特征 | 1024 | 否 |
-| `[1024:1030]` | 物体位置与 RPY 姿态 | 6 | 否 |
+| `[1024:1030]` | 当前物体位置与 RPY 姿态 | 6 | 否 |
 | `[1030:1036]` | 当前末端位置与 RPY 姿态 | 6 | 是 |
 | `[1036:1055]` | 全部关节位置，包含夹爪 | 19 | 是 |
 | `[1055:1073]` | 不含夹爪的关节速度，乘 `0.05` | 18 | 是 |
 | `[1073:1076]` | 当前底盘命令 `commands` | 3 | 是 |
 | `[1076:1082]` | 当前末端目标位置与目标 RPY | 6 | 是 |
-| `[1082:1085]` | 机器人局部线速度 | 3 | 否 |
-| `[1085:1087]` | 物体相对机器人的平面速度 | 2 | 否 |
-| `[1087:1177]` | 30 个抓取候选的位置，先整体展开 | 90 | 否 |
-| `[1177:1267]` | 30 个抓取候选的 RPY，再整体展开 | 90 | 否 |
-| `[1267:1276]` | 上一步高层动作 | 9 | 是 |
-| **合计** | | **1276** | **保留 61 维** |
+| `[1082:1088]` | **预测未来0.30秒的物体位置与RPY** | **6** | 否 |
+| `[1088:1094]` | **预测未来0.60秒的物体位置与RPY** | **6** | 否 |
+| `[1094:1095]` | **预测有效标志 valid** | **1** | 否 |
+| `[1095:1185]` | 30 个当前抓取候选的位置，先整体展开 | 90 | 否 |
+| `[1185:1275]` | 30 个当前抓取候选的 RPY，再整体展开 | 90 | 否 |
+| `[1275:1284]` | 上一步高层动作 | 9 | 是 |
+| **合计** | | **1284** | **保留 61 维** |
 
-来源：[`B1Z1PickMulti._compute_observations`](../DQ_high-level/envs/b1z1_pickmulti.py#L534)、[`compute_robot_observations`](../DQ_high-level/envs/b1z1_pickmulti.py#L783)、[`_setup_obs_and_action_info`](../DQ_high-level/envs/b1z1_base.py#L209)。
+来源：[`B1Z1PickMulti._compute_observations`](../DQ_high-level/envs/b1z1_pickmulti.py#L627)、[`_setup_obs_and_action_info`](../DQ_high-level/envs/b1z1_pickmulti.py#L52)、[`原教师坐标转换`](../DQ_high-level/utils/object_pose.py)。
 
 这个维度也可以从环境的配置计算式得到：
 
 ```text
-num_obs = 38 + 30×6 + 2 + 1024 - 1
-最终观测 = num_obs + 高层动作9 + roboinfo扩展24
-         = 1276
+原教师（有速度）            = 1276
+移除机器人/物体速度        = 1276 - 5 = 1271
+加入两组未来位姿及有效标志  = 1271 + 6 + 6 + 1 = 1284
+
+按拼接块核对：1024 + 58 + 13 + 180 + 9 = 1284
 ```
 
 有三个数据来源细节直接影响网络解释。
@@ -84,24 +94,25 @@ num_obs = 38 + 30×6 + 2 + 1024 - 1
 
 第二，候选抓取由 `contact_grasp_info_mul/predictions_image_*.json` 加载。资源中有 30 份物体抓取文件，每份包含 `(30,4,4)` 的候选变换。**物体类别数 30 与每个物体的候选抓取数 30 是两个概念**。每个环境中的目标物体使用自己的 30 个候选；教师注意力的候选轴为 `[B,30,6]`。
 
-第三，`PredictPoint` 根据物体当前位姿更新候选变换，环境再将候选转换为机器人相关坐标中的位置和姿态。这个模块执行坐标变换，没有可训练神经网络。`compute_robot_observations` 临时返回的最后 6 维物体世界位姿用于该变换，随后被候选数据替换，不能把这 6 维再次加到最终 1276 维中。物体观测本身也有坐标约定：位置的水平分量在机器人 yaw 相关坐标中表达，z 分量保留物体世界高度；候选位置则相对机械臂基座并使用机身旋转转换。见 [`PredictPoint.get_grasp_world`](../DQ_high-level/PredictPiontTransform/predictpoint_mul.py#L167)。
+第三，`PredictPoint` 仍根据物体**当前**位姿更新候选变换，环境再将候选转换为机器人相关坐标中的位置和姿态；没有生成两组未来抓取候选。这个模块执行坐标变换，没有可训练神经网络。`compute_robot_observations` 临时返回的最后 6 维物体世界位姿用于该变换，随后从最终观测中移除，不能再次加到 1284 维中。见 [`PredictPoint.get_grasp_world`](../DQ_high-level/PredictPiontTransform/predictpoint_mul.py#L167)。
 
-**送入教师网络前，全部 1276 维观测先经过 `RunningStandardScaler`。** 这包含预计算物体特征与抓取候选，并不只是机器人状态。该预处理器维护运行均值和方差，默认将标准化值裁剪到 `[-5,5]`；它不是可学习的神经网络。后面的教师网络图均以这个实际预处理顺序为准。来源：[`PPO 配置`](../DQ_high-level/train_multistate_DQ_teacher.py#L313)、[`PPO.act`](../third_party/skrl/skrl/agents/torch/ppo/ppo.py#L199)、[`RunningStandardScaler`](../third_party/skrl/skrl/resources/preprocessors/torch/running_standard_scaler.py)。
+**送入教师网络前，全部 1284 维观测先经过 `RunningStandardScaler`。** 这包含预计算物体特征、抓取候选、未来位姿以及有效标志。`valid` 在环境原始观测中是0/1，标准化后不再要求保持0/1。该预处理器维护运行均值和方差，默认将标准化值裁剪到 `[-5,5]`；它不是可学习的神经网络。后面的教师网络图均以这个实际预处理顺序为准。来源：[`PPO 配置`](../DQ_high-level/train_multistate_DQ_teacher.py)、[`PPO.act`](../third_party/skrl/skrl/agents/torch/ppo/ppo.py#L199)、[`RunningStandardScaler`](../third_party/skrl/skrl/resources/preprocessors/torch/running_standard_scaler.py)。
 
-**速度观测消融：`--no_velocity_obs`。** 对 `B1Z1PickMulti`，该开关同时从教师 Actor 和 Critic 的输入中删除机器人局部线速度 3 维、物体相对机器人的平面速度 2 维，即 baseline 的 `[1082:1087]`。这 5 维从观测张量中实际移除，不是置零；观测空间、PPO 内存及 `RunningStandardScaler` 随之缩小。默认不开启，本文其余结构图和参数表仍描述 baseline。
+**三种常用配置的维度对比。** `--no_velocity_obs` 实际删除5维观测，不是置零；关节速度仍保留。新增预测使用历史位姿估计运动，不读取仿真真值速度。
 
-| 项目 | baseline | 开启 `--no_velocity_obs` |
-|---|---|---|
-| 教师观测维度 | 1276 | 1271 |
-| 抓取候选位置切片 | `[1087:1177]` | `[1082:1172]` |
-| 抓取候选 RPY 切片 | `[1177:1267]` | `[1172:1262]` |
-| 上一步高层动作切片 | `[1267:1276]` | `[1262:1271]` |
-| Actor / Critic 主 MLP 输入 | 206 | 201 |
-| 学生数值状态 / 完整输入 | 61 / 62269 | 61 / 62269 |
+| 项目 | 原始教师：有速度 | 移除速度 | **本文：移除速度＋两组EKF预测** |
+|---|---|---|---|
+| 教师观测维度 | 1276 | 1271 | **1284** |
+| 新增预测切片 | 无 | 无 | `[1082:1095]` |
+| 抓取候选位置切片 | `[1087:1177]` | `[1082:1172]` | `[1095:1185]` |
+| 抓取候选 RPY 切片 | `[1177:1267]` | `[1172:1262]` | `[1185:1275]` |
+| 上一步高层动作切片 | `[1267:1276]` | `[1262:1271]` | `[1275:1284]` |
+| Actor / Critic 主 MLP 输入 | 206 | 201 | **214** |
+| 学生数值状态 / 完整输入 | 61 / 62269 | 61 / 62269 | **61 / 62269** |
 
-教师的特征编码器、抓取注意力和 9 维动作输出保持原结构；局部线速度等仿真状态仍可供环境内部计算使用。关节速度观测、奖励和底层控制器不受此开关影响。学生本来就排除了这两项速度，环境会同步调整学生状态切片及维度计算。
+如果保留速度并开启两组预测，教师观测为 `1276+13=1289`，主 MLP 输入为219；这不是本文图示的配置。
 
-在 `DQ_high-level` 目录执行单物体消融训练：
+在 `DQ_high-level` 目录执行本文对应的训练：
 
 ```bash
 python train_multistate_DQ_teacher.py \
@@ -110,42 +121,81 @@ python train_multistate_DQ_teacher.py \
   --timesteps 120000 \
   --task B1Z1PickMulti \
   --object_name sugar_box \
-  --experiment_dir DQ_teacher/b1-pick-sugar-box-no-velocity \
+  --experiment_dir DQ_teacher/b1-pick-sugar-box-ekf-future \
   --roboinfo \
   --observe_gait_commands \
   --small_value_set_zero \
   --rand_control \
   --no_velocity_obs \
-  --headless --wandb --wandb_name no_velocity_obs
+  --future_pose_obs \
+  --future_pose_horizons 0.30 0.60 \
+  --ekf_history 5 --ekf_q_scale 1.0 --ekf_r_scale 0.01 \
+  --headless --wandb --wandb_name ekf_future_030_060
 ```
 
-开关会写入实验 YAML 的 `env.noVelocityObs`，使用 `--resume` 从该实验恢复时会保留。直接用 `--checkpoint` 回放不会自动读取实验 YAML，因此运行 `play_multistate_DQ_teacher.py` 时也要传 `--no_velocity_obs`；用该教师首次训练学生时，在 `train_multi_bc_deter_DQ_stu.py` 命令中同样加入该参数。baseline 的 checkpoint 与消融模型的首层和标准化器维度不同，此实验应使用新实验目录从头训练，后续恢复使用对应消融 checkpoint。
+配置会写入实验 YAML 的 `env.noVelocityObs` 和 `env.posePrediction`，使用 `--resume` 从该实验恢复时会保留。直接用 `--checkpoint` 回放不会自动读取实验 YAML，因此 `play_multistate_DQ_teacher.py` 也要传入匹配的速度、预测开关及预测参数；首次用该教师训练学生时，`train_multi_bc_deter_DQ_stu.py` 同样需要这些参数。旧checkpoint的首层和标准化器维度与1284维模型不同，应使用新实验目录从头训练。
+
+---
+
+<a id="teacher-prediction"></a>
+
+**EKF 先在世界坐标系预测，再转换成原教师的物体位姿表示。** 这部分在环境中执行，产生观测；它不是 Actor 或 Critic 的可学习预测头。
+
+![图18：EKF历史输入、预测、坐标转换及观测拼接](assets/dq_high_level_networks/18_teacher_pose_prediction.svg)
+
+*图18：两个预测时刻共用当前时刻的机器人参考。原始历史不会直接展开拼接给MLP；网络接收的是两组预测位姿及有效标志。*
+
+设当前时刻为 $t$，机器人世界位置与姿态为 $p_B(t),R_B(t)$，yaw旋转为 $R_z(\psi_B(t))$。机械臂基座世界位置为：
+
+$$
+p_A(t)=p_B(t)+R_B(t)[0.3,0,0.09]^\top.
+$$
+
+对 $\tau\in\{0.30,0.60\}$，EKF 输出世界预测 $\hat p_O^W(t+\tau),\hat R_O^W(t+\tau)$。位置编码为：
+
+$$
+u_\tau=R_z(\psi_B(t))^\top\big(\hat p_O^W(t+\tau)-p_A(t)\big),
+\qquad
+\hat p_{\mathrm{obs},\tau}=[u_{\tau,x},u_{\tau,y},\hat p_{O,z}^W(t+\tau)].
+$$
+
+姿态编码为：
+
+$$
+\hat r_{\mathrm{obs},\tau}=\operatorname{RPY}\left(R_z(\psi_B(t))^\top\hat R_O^W(t+\tau)\right).
+$$
+
+因此这是一种**水平位置相对机械臂基座、轴向按机器人yaw对齐、z保留世界高度**的混合表示；使用当前机器人参考，而不是预测未来机器人base。当前物体位姿和两组未来物体位姿共用 [`object_pose_in_teacher_frame`](../DQ_high-level/utils/object_pose.py)。位置单位为米，RPY单位为弧度。候选抓取仍采用原有的完整机身旋转变换，不能与物体的yaw表示混为一谈。
+
+预测实现是 [`RollingSE3Predictor`](../DQ_high-level/modules/pose_prediction.py)：每次用最近5帧重新初始化并更新滤波器，然后仅外推未来位姿。`--rand_control` 下用真实时间差，因此0.30/0.60表示秒数，不是固定控制步数。物理步结束后刷新状态、写入一次历史、完成预测，再生成教师观测；重复读取观测不会重复写历史。环境reset只清空对应环境的历史。
+
+`valid=1` 表示历史齐全且预测数值正常，**不是置信概率，也不保证预测准确**。历史不足或数值异常时，两组预测填入当前物体观测，`valid=0`。预测分支不读取未来真实轨迹；后续PPO训练学习的是“如何使用预测信息控制机器人”，而不是通过PPO调整EKF参数。
 
 ---
 
 <a id="teacher-actor"></a>
 
-**教师 Actor 由一个物体编码器、一个抓取候选注意力模块和一个动作均值 MLP 组成。** 类定义为 `Policy(GaussianMixin, Model, PredictAttentionSelector)`，见 [`教师 Policy`](../DQ_high-level/train_multistate_DQ_teacher.py#L58)。
+**教师 Actor 由一个物体编码器、一个抓取候选注意力模块和一个动作均值 MLP 组成。** 类定义为 `Policy(GaussianMixin, Model, PredictAttentionSelector)`，见 [`教师 Policy`](../DQ_high-level/train_multistate_DQ_teacher.py)。图中青色块为新增的预测观测。
 
 ![图2：教师Actor完整网络](assets/dq_high_level_networks/02_teacher_actor.svg)
 
-*图 2：教师 Actor 的全部可学习模块。物体位姿 6 维既参与注意力 Query，也保留在通向主 MLP 的 72 维状态中。*
+*图 2：当前物体位姿6维既参与注意力Query，也包含在当前状态58维中。未来预测13维在标准化后直接进入主MLP，不进入抓取注意力。图中两个当前物体位姿入口是同一份数据的两种用途，不是在原始观测中存储了两份。*
 
 进入主 MLP 的维度为：
 
 $$
-d_{\mathrm{teacher\ fusion}}=(1276-1024-180)+128+6=206.
+d_{\mathrm{teacher\ fusion}}=(1284-1024-180)+128+6=214.
 $$
 
-其中其余状态 72 维由当前状态 63 维和上一动作 9 维组成。代码中的拼接顺序是：
+其中直接进入主MLP的状态为 `当前58 + 预测13 + 上一动作9 = 80` 维。当前58维由物体位姿6维、末端位姿6维、关节位置19维、关节速度18维、底盘命令3维、末端目标6维组成。实际代码一次切出当前状态和预测，共71维，再按如下顺序拼接：
 
 ```python
 concat([
-    states[..., 1024:1087],  # 63维状态
-    states[..., -9:],        # 上一动作9
+    states[..., 1024:1095],  # 当前状态58 + 未来预测13 = 71
+    states[..., -9:],        # 上一动作9，即 [1275:1284]
     features_encode,        # 物体编码128
     right_predict_point     # 抓取表示6
-], dim=-1)                  # 206维
+], dim=-1)                  # 71 + 9 + 128 + 6 = 214维
 ```
 
 **物体编码器把 1024 维输入压缩到 128 维。** Actor 和 Critic 分别拥有一份结构相同、参数独立的编码器。
@@ -163,13 +213,13 @@ concat([
 
 该编码 $z\in\mathbb{R}^{128}$ 一路直接进入动作 MLP，另一路与物体位姿拼接以生成注意力 Query。因此物体特征同时影响“如何汇总抓取候选”和“最终如何行动”。
 
-**抓取注意力根据物体特征和物体位姿，对 30 个抓取候选做连续汇总。** 实现位于 [`PredictAttentionSelector`](../DQ_high-level/modules/predictattention.py#L6)。
+**抓取注意力根据物体特征和当前物体位姿，对30个当前抓取候选做连续汇总。** EKF未来位姿不进入该模块，所以Query输入仍是 `128+6=134` 维。实现位于 [`PredictAttentionSelector`](../DQ_high-level/modules/predictattention.py#L6)。
 
 ![图4：抓取候选注意力](assets/dq_high_level_networks/04_grasp_attention.svg)
 
 *图 4：单头、单 Query 的缩放点积注意力。四个线性投影均为可学习参数，没有额外 FFN、LayerNorm 或位置编码。*
 
-设标准化后的物体位姿为 $p\in\mathbb{R}^{B\times6}$，候选集合为 $G\in\mathbb{R}^{B\times30\times6}$，则：
+设标准化后的当前物体位姿为 $p\in\mathbb{R}^{B\times6}$，当前候选集合为 $G\in\mathbb{R}^{B\times30\times6}$，则：
 
 $$
 c=[z,p]\in\mathbb{R}^{B\times134},
@@ -196,31 +246,31 @@ $$
 
 虽然变量名为 `selected_grasp` 或 `right_predict_point`，实际计算没有 `argmax`，没有返回某个候选的索引，也没有直接抓取位姿真值损失。输出应解释为 **6 维可学习抓取表示**：它由标准化候选经注意力和线性投影得到，不保证恰好等于某个候选，也不保证自身就是合法物理位姿。这个表示与其他状态一起服务于动作决策。
 
-**Actor 主 MLP 把融合后的 206 维信息映射成 9 维动作均值。** 它的层次为：
+**Actor 主 MLP 把融合后的214维信息映射成9维动作均值。** 它的层次为：
 
 | 顺序 | 层 | 输出形状 |
 |---:|---|---|
-| 1 | `Linear(206,512) → ELU` | `[B,512]` |
+| 1 | `Linear(214,512) → ELU` | `[B,512]` |
 | 2 | `Linear(512,256) → ELU` | `[B,256]` |
 | 3 | `Linear(256,128) → ELU` | `[B,128]` |
 | 4 | `Linear(128,9)` | `[B,9]` |
 
-这里没有 RNN 或图像历史。教师的动态信息直接包含机器人速度、物体相对平面速度和上一动作。MLP 输出层不带激活，后续由动作分布与环境动作处理决定采样和限制方式。
+Actor内部没有RNN或图像历史。环境侧EKF利用物体历史位姿，Actor通过新增13维间接获得这部分运动信息；输入也保留关节速度、命令和上一动作。移除的5维机器人/物体速度不再直接输入教师。MLP输出层不带激活，后续由动作分布与环境动作处理决定采样和限制方式。
 
 ---
 
 <a id="teacher-critic"></a>
 
-**教师 Critic 具有独立的同构特征处理分支，最终输出一个标量价值。** `Value(DeterministicMixin, Model, PredictAttentionSelector)` 与 Actor 分别实例化，因此物体编码器、注意力四个投影和主 MLP 都不共享参数。见 [`教师 Value`](../DQ_high-level/train_multistate_DQ_teacher.py#L106) 和 [`模型实例化`](../DQ_high-level/train_multistate_DQ_teacher.py#L291)。
+**教师 Critic 具有独立的同构特征处理分支，最终输出一个标量价值。** `Value(DeterministicMixin, Model, PredictAttentionSelector)` 与Actor分别实例化，因此物体编码器、注意力四个投影和主MLP都不共享参数。见 [`教师Value及模型实例化`](../DQ_high-level/train_multistate_DQ_teacher.py)。
 
 ![图5：教师Critic完整网络](assets/dq_high_level_networks/05_teacher_critic.svg)
 
-*图 5：Critic 使用和 Actor 相同的教师观测，但在自己的参数下重新计算物体编码和抓取表示。*
+*图5：Critic使用与Actor相同的1284维教师观测，包括同一份EKF预测；它在自己的参数下重新计算物体编码和抓取表示。EKF不需要为Actor和Critic各运行一次。*
 
 Critic 的主 MLP 为：
 
 ```text
-206 → Linear(206,512) → ELU
+214 → Linear(214,512) → ELU
     → Linear(512,256) → ELU
     → Linear(256,128) → ELU
     → Linear(128,1)
@@ -276,9 +326,9 @@ o_S=[\operatorname{flatten}(I_{t-2:t}),r_t]\in\mathbb{R}^{B\times(62208+61)}
 =\mathbb{R}^{B\times62269}.
 $$
 
-学生不直接接收物体特征、物体位姿、机器人线速度、物体相对速度或抓取候选。它得到的机器人状态 token 是**当前 61 维状态**，并不是三帧机器人状态；三帧历史只在视觉输入中显式保存。
+学生不直接接收物体特征、当前物体位姿、未来预测13维、机器人线速度、物体相对速度或抓取候选。新增预测已从学生数值状态中排除，因此学生输入仍为62269维。它得到的机器人状态token是**当前61维状态**，并不是三帧机器人状态；三帧历史只在视觉输入中显式保存。
 
-有一处模型元数据容易误导阅读：训练脚本将 `env.observation_space` 赋给 `student_obs_space`，因此传入学生 `Model` 构造器的名义观测维度仍是 1276。但是 `compute` 实际接收训练器传来的 `states["states"]`，内存也按 `env.state_space` 保存学生输入，所以真实前向输入是 62269。应以 `compute` 和环境拼接为准。见 [`学生实例化`](../DQ_high-level/train_multi_bc_deter_DQ_stu.py#L304)、[`训练器观测分流`](../DQ_high-level/learning/dagger_trainer.py#L117)、[`学生状态拼接`](../DQ_high-level/envs/b1z1_base.py#L2134)。
+有一处模型元数据容易误导阅读：训练脚本将 `env.observation_space` 赋给 `student_obs_space`，因此传入学生 `Model` 构造器的名义观测维度会跟随教师配置，本文为1284。但是 `compute` 实际接收训练器传来的 `states["states"]`，内存也按 `env.state_space` 保存学生输入，所以真实前向输入是62269。应以 `compute` 和环境拼接为准。见 [`学生实例化`](../DQ_high-level/train_multi_bc_deter_DQ_stu.py)、[`训练器观测分流`](../DQ_high-level/learning/dagger_trainer.py#L117)、[`学生状态拼接`](../DQ_high-level/envs/b1z1_base.py#L2156)。
 
 **图像两个通道分别是目标掩码和掩码后的深度。** 环境先根据目标 segmentation id 构造 0/1 mask，再将深度裁剪、转为正值并归一化，最后计算 `normalized_depth * mask`。RGB 虽被环境读取，但没有进入这里的学生网络。默认学生也没有额外 `RunningStandardScaler`；图像归一化和关节速度缩放由环境完成。
 
@@ -461,7 +511,7 @@ $$
 
 <a id="training"></a>
 
-**教师网络通过 PPO 学习，学生通过教师动作标签学习，两者不共享参数。** 教师损失会更新 Actor 的物体编码器、注意力、动作 MLP 和 log_std，也会更新 Critic 的独立编码器、注意力和价值 MLP。学生的模仿损失不直接对齐教师特征或注意力权重；没有单独的特征蒸馏、抓取表示重建或 Transformer 速度预测损失。
+**教师网络通过PPO学习，学生通过教师动作标签学习，两者不共享参数。** 教师损失会更新Actor的物体编码器、注意力、动作MLP和log_std，也会更新Critic的独立编码器、注意力和价值MLP。**EKF无可学习参数，不参与反向传播，也没有新增的未来位姿监督损失。** 学生的模仿损失不直接对齐教师特征或注意力权重；没有单独的特征蒸馏、抓取表示重建或Transformer速度预测损失。
 
 ![图13：学生分阶段训练和梯度范围](assets/dq_high_level_networks/13_student_training.svg)
 
@@ -470,7 +520,7 @@ $$
 训练器在同一状态下分别执行：
 
 ```python
-teacher_obs = states["obs"]       # 1276维
+teacher_obs = states["obs"]       # 1284维，包含未来预测13维
 student_obs = states["states"]    # 62269维
 teacher_actions = teacher.act(teacher_obs)[0]
 student_actions, residual_actions, _ = student.act(student_obs)
@@ -616,22 +666,23 @@ $$
 
 <a id="verification"></a>
 
-**参数量与维度已经根据实际类定义核对。** 高层模型使用源码原类独立实例化，避免触发 Isaac Gym 环境创建；底层模型按高层加载配置直接实例化。验证环境为本地 `dqwbc` Python、PyTorch `2.4.1+cu121`，随机输入批量 `B=2`。没有运行完整仿真训练或把随机前向当成策略性能验证。
+**最新教师的参数量与维度已重新按实际类定义核对。** 本次从源码加载Policy/Value类，使用1284维输入、批量 `B=2` 独立实例化并前向验证，没有创建Isaac Gym环境。实际捕获到Query投影输入 `[2,134]`、两个主MLP输入 `[2,214]`、Actor输出 `[2,9]`、Critic输出 `[2,1]`，输出均为有限值；两个模型参数对象互不共享。验证环境为本地 `dqwbc` Python、PyTorch `2.4.1+cu121`。学生与底层的结构和统计沿用原文核对结果。本次修改是图文更新，不把随机前向当成策略性能验证。
 
 | 网络 | 实际输入 | 核心融合维度 | 输出 | 注册参数总数 |
 |---|---|---|---|---:|
-| 高层教师 Actor | `[B,1276]` | 206 | 动作均值 `[B,9]`，log_std `[9]` | **871,768** |
-| 高层教师 Critic | `[B,1276]` | 206 | `[B,1]` | **870,736** |
+| 高层教师 Actor | `[B,1284]` | 214 | 动作均值 `[B,9]`，log_std `[9]` | **875,864** |
+| 高层教师 Critic | `[B,1284]` | 214 | `[B,1]` | **874,832** |
 | 高层学生 Policy | `[B,62269]` | 189；残差输入 198 | 最终动作 `[B,9]`，残差 `[B,9]` | **5,367,339** |
 | 底层 ActorCritic 整体 | 历史推理为 `[B,781]` | Actor 91；Critic 输入 89 | Actor 18；Critic 2 | **166,116** |
 
-教师 Actor＋Critic 总参数为 **1,742,504**。Critic 和学生各自有 9 个未使用的 `log_std_parameter`，统计中保留它们；教师 Actor 的 9 个 log_std 是实际高斯策略参数，不应扣为闲置。
+教师Actor＋Critic总参数为 **1,750,696**。相比移除速度、尚未加入预测的1271维教师，每个主MLP首层新增 `13×512=6,656` 个权重，两个网络共新增13,312个参数。EKF与历史缓存没有可学习参数。Critic和学生各自有9个未使用的 `log_std_parameter`，统计中保留它们；教师Actor的9个log_std是实际高斯策略参数，不应扣为闲置。
 
 | 高层模块 | 教师 Actor | 教师 Critic | 学生 Policy |
 |---|---:|---:|---:|
 | 物体特征编码器 | 590,464 | 590,464 | — |
 | 抓取注意力四个投影 | 9,926 | 9,926 | — |
-| 主 MLP | 271,369 | 270,337 | — |
+| 主 MLP | 275,465 | 274,433 | — |
+| 环境侧EKF与坐标转换 | 0；Actor/Critic共用预测观测 | 0 | 不输入学生 |
 | 共享 CNN | — | — | 4,158,992 |
 | 腕部 GuidedTransformerBlock | — | — | 566,272 |
 | 前向 GuidedTransformerBlock | — | — | 566,272 |
@@ -664,6 +715,9 @@ $$
 | 容易误读的对象 | 当前代码的实际含义 |
 |---|---|
 | `PredictPoint` | 抓取候选坐标变换，不是神经网络 |
+| `RollingSE3Predictor` | 环境侧固定EKF，滚动5帧历史；不会经PPO训练 |
+| 新增13维 | 两组未来位姿＋有效标志，进入Actor/Critic主MLP；不进入抓取注意力或学生数值状态 |
+| 当前/未来物体坐标 | yaw对齐、机械臂基座相对xy、世界z；两组未来使用当前机器人参考 |
 | `features.npy` 与抓取 JSON | 离线预计算输入；当前路径没有在线点云编码器或抓取提议网络 |
 | `PredictAttentionSelector` | 单头注意力与线性投影，不是完整 Transformer，也不做 argmax |
 | 教师 Actor/Critic | 同结构但不共享参数，使用同一类教师观测 |
@@ -680,6 +734,7 @@ $$
 | 模块 | 覆盖位置 |
 |---|---|
 | 高层教师 Actor 全图 | 图 2 |
+| EKF历史、预测、坐标转换与有效标志 | 图18；接入位置见图2、5 |
 | 教师 Actor/Critic 各自的物体编码器 | 图 3；独立关系见图 2、5 |
 | 抓取 Query/Key/Value/Output 四个投影 | 图 4 |
 | 教师 Critic 与价值 MLP | 图 5 |
@@ -694,7 +749,7 @@ $$
 | 底层特权编码器、Critic 骨干及双价值头 | 图 16 |
 | 模型与环境、解析执行模块之间的连接 | 图 1、13、17 |
 
-**所有图都作为相对路径 SVG 嵌入本文件。** 在支持 SVG 的 Markdown 阅读器中可以直接查看，并打开原图放大；移动文档时应同时保留 `assets/dq_high_level_networks` 文件夹。图源集中保存在 [`render_diagrams.py`](assets/dq_high_level_networks/render_diagrams.py)，可用本地 Graphviz 重新生成：
+**所有图都作为相对路径SVG嵌入本文件。** 在支持SVG的Markdown阅读器中可以直接查看，并打开原图放大；移动文档时应同时保留 `assets/dq_high_level_networks` 文件夹。另提供 [Actor PNG](assets/dq_high_level_networks/02_teacher_actor.png)、[Critic PNG](assets/dq_high_level_networks/05_teacher_critic.png)、[EKF流程PNG](assets/dq_high_level_networks/18_teacher_pose_prediction.png)，方便直接查看或插入演示文稿。图源集中保存在 [`render_diagrams.py`](assets/dq_high_level_networks/render_diagrams.py)，可用本地Graphviz重新生成：
 
 ```bash
 python doc/assets/dq_high_level_networks/render_diagrams.py

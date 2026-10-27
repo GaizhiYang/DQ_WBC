@@ -11,6 +11,8 @@ from tqdm import tqdm
 from .b1z1_base import B1Z1Base, reindex_all, reindex_feet, LIN_VEL_X_CLIP, ANG_VEL_YAW_CLIP, torch_rand_int
 from utils.low_level_model import ActorCritic
 from utils.config import load_cfg, get_params, copy_cfg
+from modules.pose_prediction import RollingSE3Predictor
+from utils.object_pose import object_pose_in_teacher_frame
 from PredictPiontTransform.predictpoint_mul import PredictPoint
 import time
 
@@ -31,12 +33,16 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
 
         B1Z1Base.__init__(self, *args, **kwargs)
         PredictPoint.__init__(self, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, device=self.device)
-        args = get_params()
+        # Standalone rollout tools can supply this through cfg without parsing
+        # their own command-line options again as training arguments.
+        total_timesteps = self.cfg["env"].get("totalTimesteps")
+        if total_timesteps is None:
+            total_timesteps = get_params().timesteps
         self.near_goal_stop = self.cfg["env"].get("near_goal_stop", False)
         self.obj_move_prob = self.cfg["env"].get("obj_move_prob", 0.0)
         self.table_heights_fix = table_height
-        self.total_timesteps = args.timesteps
-        self.train_reward_strict = args.timesteps / 2
+        self.total_timesteps = total_timesteps
+        self.train_reward_strict = total_timesteps / 2
         self._init_sgs()
 
     def _init_sgs(self):
@@ -199,6 +205,12 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.closest_dist[env_ids] = self.curr_dist[env_ids]
         self.curr_height[env_ids] = state["object_root"][:, 2] - state["table_height"] - self.init_height[env_ids]
         self.highest_object[env_ids] = self.curr_height[env_ids]
+        if self.object_pose_predictor is not None:
+            # SGS bypasses the ordinary reset path. Seed the restored bank pose
+            # before observations, without carrying history across episodes.
+            self.object_pose_predictor.reset(env_ids)
+            self.object_pose_predictor.push(
+                self._cube_root_states[env_ids, :7], self.gym.get_sim_time(self.sim), env_ids)
         self._compute_observations(env_ids)
         self._record_sgs_metrics()
 
@@ -277,13 +289,19 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.base_obj_dis = torch.norm(base_obj_dis, dim=-1)
         
     def _setup_obs_and_action_info(self):
+        self.pose_prediction_cfg = self.cfg["env"].get("posePrediction", {})
+        prediction_enabled = self.pose_prediction_cfg.get("enabled", False)
+        if prediction_enabled and (self.no_feature or self.cfg["env"].get("lastCommands", False)):
+            raise ValueError("Future pose observations require object features and lastCommands=False")
+        self.pose_prediction_horizons = self.pose_prediction_cfg.get("horizons", [0.30, 0.60])
+        self.num_future_pose_obs = 6 * len(self.pose_prediction_horizons) + 1 if prediction_enabled else 0
         self.num_velocity_obs = 0 if self.cfg["env"].get("noVelocityObs", False) else 5
         removed_velocity_dim = 5 - self.num_velocity_obs
         # Student states already exclude both velocities, so their size stays fixed.
         super()._setup_obs_and_action_info(
-            removed_dim=9+30*6+2-removed_velocity_dim,
+            removed_dim=9+30*6+2-removed_velocity_dim+self.num_future_pose_obs,
             num_action=9,
-            num_obs=38+30*6+2+self.num_features-1-removed_velocity_dim,
+            num_obs=38+30*6+2+self.num_features-1-removed_velocity_dim+self.num_future_pose_obs,
         )
         
         
@@ -318,6 +336,17 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self._cube_root_states = self._root_states.view(self.num_envs, self.num_actors, self._actor_root_state.shape[-1])[..., 2, :]
         self._initial_cube_root_states = self._cube_root_states.clone()
         self._initial_cube_root_states[:, 7:13] = 0.0
+
+        self.object_pose_predictor = None
+        self.future_object_obs = torch.zeros((self.num_envs, self.num_future_pose_obs), device=self.device)
+        if self.num_future_pose_obs:
+            self.object_pose_predictor = RollingSE3Predictor(
+                self.num_envs, self.device,
+                history=self.pose_prediction_cfg.get("history", 5),
+                horizons=self.pose_prediction_horizons,
+                q_scale=self.pose_prediction_cfg.get("qScale", 1.0),
+                r_scale=self.pose_prediction_cfg.get("rScale", 0.01),
+            )
         
         self._table_actor_ids = self.num_actors * torch.arange(self.num_envs, device=self.device, dtype=torch.long) + 1
         self._cube_actor_ids = self.num_actors * torch.arange(self.num_envs, device=self.device, dtype=torch.long) + 2
@@ -809,6 +838,12 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.lifted_object[env_ids] = 0
         self.curr_height[env_ids] = 0.
         self.highest_object[env_ids] = -1.
+        if self.object_pose_predictor is not None:
+            # super()._reset_envs computes observations immediately after this
+            # method. Clear old history BEFORE that first new-episode observation.
+            self.object_pose_predictor.reset(env_ids)
+            self.object_pose_predictor.push(
+                self._cube_root_states[env_ids, :7], self.gym.get_sim_time(self.sim), env_ids)
         return
     
     def _refresh_sim_tensors(self):
@@ -823,6 +858,31 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         
         self.curr_height[:] = self._cube_root_states[:, 2] - self.table_heights - self.init_height
         self.highest_object = torch.where(self.highest_object < 0, self.curr_height, self.highest_object)
+
+    def _update_object_pose_prediction(self):
+        if self.object_pose_predictor is not None:
+            self.object_pose_predictor.push(self._cube_root_states[:, :7], self.gym.get_sim_time(self.sim))
+            self.object_pose_predictor.predict()
+
+    def _future_object_observations(self, env_ids, current_object_obs):
+        if self.object_pose_predictor is None:
+            return self.future_object_obs[env_ids]
+        horizons = len(self.pose_prediction_horizons)
+        future = self.object_pose_predictor.future_poses[env_ids]
+        # Compute directly from current robot state, including on reset when
+        # update_roboinfo() has not run yet. All horizons share this reference.
+        robot = self._robot_root_states[env_ids]
+        offset = torch.tensor([0.3, 0., 0.09], device=self.device).expand(len(env_ids), -1)
+        arm_base = quat_apply(robot[:, 3:7], offset) + robot[:, :3]
+        encoded = object_pose_in_teacher_frame(
+            future[..., :3].reshape(-1, 3), future[..., 3:7].reshape(-1, 4),
+            arm_base[:, None, :].expand(-1, horizons, -1).reshape(-1, 3),
+            self.base_yaw_quat[env_ids, None, :].expand(-1, horizons, -1).reshape(-1, 4),
+        ).reshape(-1, horizons, 6)
+        valid = self.object_pose_predictor.valid[env_ids]
+        encoded = torch.where(valid[:, None, None], encoded, current_object_obs[:, None, :])
+        self.future_object_obs[env_ids] = torch.cat((encoded.flatten(1), valid[:, None].to(encoded.dtype)), dim=-1)
+        return self.future_object_obs[env_ids]
 
     def _compute_observations(self, env_ids=None):
         if env_ids is None:
@@ -859,7 +919,8 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
 
                 grasp_predict_world_pos_flat = grasp_predict_local_pos.view(grasp_predict_local_pos.shape[0], -1) ## [num_env,3*object_num]
                 grasp_predict_world_rpy_flat = grasp_predict_local_rpy.view(grasp_predict_local_rpy.shape[0], -1) ## [num_env,3*object_num]
-                obs_new = torch.cat([obs[...,:-6],grasp_predict_world_pos_flat,grasp_predict_world_rpy_flat],dim = -1)
+                future_obs = self._future_object_observations(env_ids, obs[:, :6])
+                obs_new = torch.cat([obs[...,:-6],future_obs,grasp_predict_world_pos_flat,grasp_predict_world_rpy_flat],dim = -1)
 
                 self.obs_buf[env_ids] = torch.cat([self.feature_obs[env_ids, :], obs_new, self.action_history_buf[env_ids, -1]], dim=-1) # self.action_history_buf: [num_env,3,9], obs: [num_env, 61]
 
@@ -1103,13 +1164,9 @@ def compute_robot_observations(robot_root_state, table_root_state, cube_root_sta
     arm_base_local = torch.tensor([0.3, 0.0, 0.09], device=robot_root_state.device).repeat(robot_root_state.shape[0], 1) ## have to change if change robot model
     arm_base = quat_apply(base_quat, arm_base_local) + robot_root_state[:, :3]
     
-    # cube_pos_local = quat_rotate_inverse(base_quat, cube_pos - arm_base)
-    # cube_orn_local = quat_mul(quat_conjugate(base_quat), cube_orn)
-    # cube_pos_local = quat_rotate_inverse(base_quat_yaw, cube_pos - spherical_center)
-    cube_pos_local = quat_rotate_inverse(base_quat_yaw, cube_pos - arm_base) # This represents the coordinates of the cube's position in the local coordinate system of the robot arm's base.
-    cube_pos_local[:, 2] = cube_pos[:, 2]
-    cube_orn_local = quat_mul(quat_conjugate(base_quat_yaw), cube_orn)
-    cube_orn_local_rpy = torch.stack(euler_from_quat(cube_orn_local), dim=-1) # rot-squen: x-y-z
+    object_pose_obs = object_pose_in_teacher_frame(cube_pos, cube_orn, arm_base, base_quat_yaw)
+    cube_pos_local = object_pose_obs[:, :3]
+    cube_orn_local_rpy = object_pose_obs[:, 3:]
     cube_vel_local = quat_rotate_inverse(base_quat_yaw, cube_vel)
     cube_angular_local = quat_rotate_inverse(base_quat_yaw, cube_angular) 
     car_mainbody_vel_local = quat_rotate_inverse(base_quat_yaw, car_mainbody_vel)

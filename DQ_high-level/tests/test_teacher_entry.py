@@ -36,6 +36,33 @@ def entry_function(name):
 
 
 class TeacherConfigurationTests(unittest.TestCase):
+    def test_sgs_and_pose_prediction_settings_coexist_and_survive_saved_config(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bank = Path(directory) / "bank.pt"
+            bank.touch()
+            args = config.get_params([
+                "--task", "B1Z1PickMulti", "--object_name", "sugar_box",
+                "--sgs_mode", "sgs", "--sgs_bank", str(bank),
+                "--timesteps", "120000", "--stop_after", "24",
+                "--future_pose_obs", "--future_pose_horizons", "0.2", "0.5",
+                "--ekf_history", "7", "--ekf_q_scale", "2", "--ekf_r_scale", "0.02",
+            ])
+            source = ROOT / "data/cfg/DQ_teacher.yaml"
+            cfg = config.configure_teacher_experiment(config.load_cfg(source), args)
+            settings = config.apply_pose_prediction_config(cfg, args)
+            self.assertEqual(cfg["env"]["sgs"]["mode"], "sgs")
+            self.assertEqual(cfg["env"]["successMode"], "hold")
+            self.assertEqual(config.teacher_run_end(args.timesteps, stop_after=args.stop_after), 24)
+            self.assertEqual(settings, dict(enabled=True, horizons=[.2, .5],
+                                            history=7, qScale=2., rScale=.02))
+            saved = Path(directory) / "run"
+            config.copy_cfg(source, saved, cfg=cfg)
+            restored = config.load_cfg(saved / source.name)
+            self.assertEqual(config.apply_pose_prediction_config(restored, config.get_params([])), settings)
+            config.apply_pose_prediction_config(restored, config.get_params(["--no_future_pose_obs"]))
+            self.assertFalse(restored["env"]["posePrediction"]["enabled"])
+            self.assertEqual(restored["env"]["sgs"], cfg["env"]["sgs"])
+
     def test_defaults_preserve_disabled_sampler_and_cuda(self):
         args = config.get_params([])
         cfg = config.configure_teacher_experiment({"env": {}}, args)

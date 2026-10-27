@@ -63,6 +63,7 @@ class B1Z1Base(RewardVecTask):
         self.mask_arm = mask_arm
         self.num_features = 0
         self.num_velocity_obs = 5
+        self.num_future_pose_obs = 0
         self.depth_random = depth_random
         self.stu_distill = stu_distill
         self.commands_curriculum = commands_curriculum
@@ -535,7 +536,10 @@ class B1Z1Base(RewardVecTask):
     
     def create_sim(self):
         self.up_axis_idx = 2 # Y=1, Z=2;
-        self.sim = super().create_sim(self.sim_id, self.sim_id, self.physics_engine, self.sim_params)
+        # Pose-only headless rollouts need no Vulkan graphics context. Creating
+        # one unnecessarily can also crash the driver during simulator teardown.
+        graphics_device = -1 if self.headless and not (self.enable_camera or self.camera_test) else self.sim_id
+        self.sim = super().create_sim(self.sim_id, graphics_device, self.physics_engine, self.sim_params)
         # Load exactly one ground surface to avoid overlapping geometry and flicker.
         terrain_type = self.cfg["env"].get("terrainType", "plane")
         if terrain_type == "plane":
@@ -2188,7 +2192,7 @@ class B1Z1Base(RewardVecTask):
                 self.commands[:, 0] = torch.clip(self.actions[:, 7], -0.45, 0.45)
     
     def _compute_states_buf(self): # if enabled_camera is true, then this function will be called
-        teacher_only_tail = self.num_actions + 180 + self.num_velocity_obs
+        teacher_only_tail = self.num_actions + 180 + self.num_velocity_obs + self.num_future_pose_obs
         self.states_buf[:] = torch.cat([self.camera_history_buf.view(self.num_envs, -1), self.obs_buf[:, (self.num_features + 6):-teacher_only_tail], self.obs_buf[:, -self.num_actions:]], dim=-1)
         # self.states_buf[:] = torch.cat([self.camera_history_buf.view(self.num_envs, -1), self.obs_buf[:, (self.num_features + 12):-(self.num_actions + 3)], self.obs_buf[:, -self.num_actions:]], dim=-1) # my change
         
@@ -2241,12 +2245,17 @@ class B1Z1Base(RewardVecTask):
         self.wrist_depth_image_flat, self.wrist_mask, self.wrist_depth_seg = self._get_wrist_camera_obs()
         self.gym.end_access_image_tensors(self.sim)
     
+    def _update_object_pose_prediction(self):
+        """Optional task hook: one prediction update per high-level physics step."""
+        pass
+
     def post_physics_step(self):
         self.progress_buf += 1
         self.global_step_counter += 1
         self.local_step_counter += 1
         self._refresh_sim_tensors()
         self.update_roboinfo()
+        self._update_object_pose_prediction()
         self.check_termination()
         self.compute_reward()
         self.last_actions[:] = self.actions[:]

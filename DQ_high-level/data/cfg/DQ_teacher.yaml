@@ -32,8 +32,14 @@ env:
     temperature: 2.0
     epsilon: 0.0001
     p_init: 0.0
+  posePrediction:
+    enabled: False # Enable with --future_pose_obs; original checkpoints keep their original observation size
+    horizons: [0.30, 0.60] # Seconds from the current observation, independent of control frequency
+    history: 5
+    qScale: 1.0
+    rScale: 0.01
 
-  low_policy_path: "/home/hehui/DQ_WBC/DQ_high-level/data/low_model/model_44000.pt" 
+  low_policy_path: "/home/hehui/DQ_WBC/DQ_high-level/data/low_model/model_44000.pt"
   taskddescription: "023"
 
   asset:
@@ -277,4 +283,3 @@ sensor:
     resolution: [2,3] 
     position: [0.0, -0.30, 0.80]
     rotation: [0.0, 0.70, 1.57]
-
