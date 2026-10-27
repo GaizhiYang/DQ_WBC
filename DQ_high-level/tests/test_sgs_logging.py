@@ -1,4 +1,4 @@
-"""SGS family accounting and the actual scalar writer, without a simulator."""
+"""SGS recent-episode windows and the actual scalar writer, without a simulator."""
 
 import ast
 from collections import defaultdict, deque
@@ -79,11 +79,11 @@ class TrackingAgent:
                                infos=info, timestep=0, timesteps=120000)
 
 
-def four_family_environment():
-    env = TestEnvironment(bank=make_bank(num_configs=8, num_families=4))
+def four_family_environment(num_envs=4):
+    env = TestEnvironment(num_envs=num_envs, bank=make_bank(num_configs=8, num_families=4))
     env.eval = False
     with redirect_stdout(io.StringIO()):
-        env.initialize((0, 1, 2, 3))
+        env.initialize(tuple(index % 8 for index in range(num_envs)))
     return env
 
 
@@ -96,11 +96,18 @@ class SGSFamilyLoggingTests(unittest.TestCase):
             env.finish([2], [False], [2])
         self.assertEqual(env.sgs_family_episodes.tolist(), [1, 2, 3, 2])
         self.assertEqual(env.sgs_family_successes.tolist(), [1, 1, 1, 0])
+        recent = env.recent_episode_stats
+        self.assertEqual(recent.family_count.tolist(), [1, 2, 3, 2])
+        self.assertEqual(recent.family_successes.tolist(), [1, 1, 1, 0])
         for name, rate in zip(env.sgs_family_names, (1., .5, 1 / 3, 0.)):
             self.assertAlmostEqual(env.extras["success_rate"]["SGS / success_" + name], rate)
             self.assertAlmostEqual(env.extras["scalar_snapshots"]["SuccessRate / " + name], rate)
             self.assertEqual(env.extras["scalar_snapshots"]["SGS / successes_" + name],
                              env.sgs_family_successes[env.sgs_family_names.index(name)].item())
+
+        for name in ("overall", "family_mean", "sugar_box"):
+            self.assertNotIn("SuccessRate / " + name, env.extras["scalar_snapshots"])
+            self.assertNotIn("SuccessRate / " + name, env.extras["success_rate"])
 
         # Neither a still-running success flag nor a cancelled reset is a result.
         env.episode_success.fill_(True)
@@ -111,7 +118,78 @@ class SGSFamilyLoggingTests(unittest.TestCase):
                 env.reset_idx(torch.tensor([3]))
         torch.testing.assert_close(env.sgs_family_episodes, old_episodes)
         torch.testing.assert_close(env.sgs_family_successes, old_successes)
+        torch.testing.assert_close(recent.family_count, old_episodes)
+        torch.testing.assert_close(recent.family_successes, old_successes)
         self.assertEqual(env.sgs_aborted.item(), 1)
+
+    def test_recent_windows_evict_old_episodes_across_natural_reset_batches(self):
+        env = four_family_environment(num_envs=404)
+        ids = list(range(env.num_envs))
+        config_ids = [index % 8 for index in ids]
+        with redirect_stdout(io.StringIO()):
+            env.finish(ids, [True] * 404, config_ids)
+            env.finish(ids, [False] * 404, config_ids)
+            env.finish(ids, [index % 4 == 2 for index in ids], config_ids)
+        recent = env.recent_episode_stats
+        self.assertEqual(env.sgs_family_episodes.tolist(), [303] * 4)
+        self.assertEqual(recent.family_count.tolist(), [100] * 4)
+        self.assertEqual(recent.family_successes.tolist(), [0, 0, 100, 0])
+        snapshots = env.extras["scalar_snapshots"]
+        for name, rate in zip(env.sgs_family_names, (0., 0., 1., 0.)):
+            self.assertEqual(snapshots["SuccessRate / " + name], rate)
+            self.assertEqual(snapshots["SGS / episodes_" + name], 100.)
+        stream = io.StringIO()
+        with redirect_stdout(stream):
+            env._print_sgs_success_rates(force=True)
+        self.assertIn("SuccessRate (each family last 100):", stream.getvalue())
+        self.assertIn("at_grasp=100.00% (100/100)", stream.getvalue())
+        self.assertNotIn("overall", stream.getvalue())
+        self.assertNotIn("family_mean", stream.getvalue())
+        self.assertNotIn("/303)", stream.getvalue())
+
+    def test_oversized_same_step_batch_preserves_supplied_completion_order(self):
+        env = four_family_environment(num_envs=1105)
+        # Events in one physics step have no finer timestamp. Use the supplied
+        # order consistently, including a non-sorted reset-index batch.
+        ids = torch.cat((torch.arange(500, 1105), torch.arange(500)))
+        successes = (torch.arange(env.num_envs) >= 900) | (torch.arange(env.num_envs) < 100)
+        families = env.sgs_bank.tensors["family_id"][env.active_config_id[ids]]
+        outcomes = successes[ids]
+        env.episode_success.copy_(successes)
+        env._sgs_pending_done.fill_(True)
+        env._sgs_natural_reset = True
+        with patch.object(env.sgs_sampler, "sample", return_value=ids % 8):
+            with redirect_stdout(io.StringIO()):
+                env._reset_sgs_envs(ids)
+        env._sgs_natural_reset = False
+        recent = env.recent_episode_stats
+        for family in range(4):
+            expected = outcomes[families == family][-100:]
+            self.assertEqual(recent.family_count[family].item(), len(expected))
+            self.assertEqual(recent.family_successes[family].item(), expected.sum().item())
+        self.assertEqual(env.sgs_family_episodes.sum().item(), 1105)
+
+    def test_logging_does_not_change_sampler_outcomes_probabilities_or_rng(self):
+        env = four_family_environment()
+        with redirect_stdout(io.StringIO()):
+            env.finish([0, 1, 2, 3], [True, False, True, False], [0, 1, 2, 3])
+        before = {name: getattr(env.sgs_sampler, name).clone()
+                  for name in env.sgs_sampler._TENSOR_STATE}
+        probability = env.sgs_sampler.probabilities().clone()
+        sampler_rng = env.sgs_sampler.generator.get_state().clone()
+        global_rng = torch.random.get_rng_state().clone()
+        with redirect_stdout(io.StringIO()):
+            # The display buffer itself is independent of sampler history.
+            env.recent_episode_stats.record(torch.tensor([0, 1]), torch.tensor([False, True]))
+            for _ in range(5):
+                env._record_sgs_metrics()
+                env._print_sgs_success_rates(force=True)
+        for name, value in before.items():
+            torch.testing.assert_close(getattr(env.sgs_sampler, name), value)
+        torch.testing.assert_close(env.sgs_sampler.probabilities(), probability)
+        torch.testing.assert_close(env.sgs_sampler.generator.get_state(), sampler_rng)
+        torch.testing.assert_close(torch.random.get_rng_state(), global_rng)
+        self.assertEqual(env.recent_episode_stats.family_count.tolist(), [2, 2, 1, 1])
 
     def test_unfinished_families_are_na_in_terminal_and_do_not_emit_a_zero_rate(self):
         env = four_family_environment()
@@ -121,15 +199,40 @@ class SGSFamilyLoggingTests(unittest.TestCase):
         message = stream.getvalue()
         self.assertEqual(message.count("N/A"), 4)
         self.assertEqual(message.count("(0/0)"), 4)
+        self.assertIn("SuccessRate (each family last 100):", message)
+        for name in ("overall", "family_mean", "sugar_box"):
+            self.assertNotIn(name, message)
+            self.assertNotIn("SuccessRate / " + name, env.extras["scalar_snapshots"])
         for name in env.sgs_family_names:
             self.assertIn(name, message)
             self.assertNotIn("SuccessRate / " + name, env.extras["scalar_snapshots"])
             self.assertEqual(env.extras["scalar_snapshots"]["SGS / episodes_" + name], 0)
 
+    def test_missing_family_remains_unknown_without_suppressing_other_families(self):
+        for missing_family in range(4):
+            with self.subTest(missing_family=missing_family):
+                env = four_family_environment()
+                completed = [family for family in range(4) if family != missing_family]
+                with redirect_stdout(io.StringIO()):
+                    env.finish(completed, [True] * 3, completed)
+                for family in completed:
+                    name = env.sgs_family_names[family]
+                    self.assertEqual(env.extras["scalar_snapshots"]["SuccessRate / " + name], 1.)
+                missing_name = env.sgs_family_names[missing_family]
+                self.assertNotIn("SuccessRate / " + missing_name, env.extras["scalar_snapshots"])
+                stream = io.StringIO()
+                with redirect_stdout(stream):
+                    env._print_sgs_success_rates(force=True)
+                self.assertIn(missing_name + "=N/A (0/0)", stream.getvalue())
+                with redirect_stdout(io.StringIO()):
+                    env.finish([missing_family], [False], [missing_family])
+                self.assertEqual(env.extras["scalar_snapshots"]["SuccessRate / " + missing_name], 0.)
+
     def test_terminal_prints_four_latest_rates_once_per_interval_without_new_resets(self):
         env = four_family_environment()
-        env.sgs_family_successes[:] = torch.tensor([1, 1, 1, 0])
-        env.sgs_family_episodes[:] = torch.tensor([1, 2, 4, 3])
+        env.recent_episode_stats.record(
+            torch.tensor([0, 1, 1, 2, 2, 2, 2, 3, 3, 3]),
+            torch.tensor([True, True, False, True, False, False, False, False, False, False]))
         env.global_step_counter = 0
         with redirect_stdout(io.StringIO()):
             env._record_sgs_metrics()
@@ -159,7 +262,7 @@ class SGSFamilyLoggingTests(unittest.TestCase):
         self.assertEqual(len([line for line in stream.getvalue().splitlines()
                               if "full_task" in line]), 2)
 
-    def test_scalar_snapshots_serialize_latest_cumulative_rate_not_time_average(self):
+    def test_scalar_snapshots_serialize_latest_window_rate_not_time_average(self):
         logger = TrackingAgent()
         for rate, count, reward in ((1., 1., 1.), (.25, 4., 3.)):
             logger.record({
@@ -209,6 +312,9 @@ class SGSFamilyLoggingTests(unittest.TestCase):
         for name, rate in zip(env.sgs_family_names, (1., 0., 1., 0.)):
             self.assertEqual(logger.writer.values["SuccessRate / " + name], (rate, 96))
             self.assertEqual(logger.writer.values["SGS / episodes_" + name], (1., 96))
+        for name in ("overall", "family_mean", "sugar_box"):
+            self.assertNotIn("SuccessRate / " + name, logger.writer.values)
+        self.assertNotIn("SGS / episodes_overall", logger.writer.values)
         self.assertEqual(logger.writer.flush_count, 1)
 
 

@@ -116,6 +116,10 @@ def main():
         check("sgs_enabled", getattr(env, "sgs_enabled", False))
         check("multiple_environments", env.num_envs >= 3)
         check("sampler_cuda", env.sgs_sampler.history.is_cuda)
+        recent = env.recent_episode_stats
+        check("recent_statistics_cuda", all(getattr(recent, name).is_cuda for name in (
+            "family_count", "family_successes")))
+        check("recent_statistics_window", recent.family_window == 100)
         check("hold_success_mode", env.success_mode == "hold")
         check("four_rollouts_planned",
               trainer.timesteps - trainer.initial_timestep == 96 and agent._rollouts == 24)
@@ -143,6 +147,8 @@ def main():
             "ids": env.active_config_id[1:].clone(),
             "visits": env.sgs_sampler.visits_total.clone(),
             "episodes": env.episode_counter.clone(),
+            "recent_family_count": recent.family_count.clone(),
+            "recent_family_successes": recent.family_successes.clone(),
         }
         aborted = env.sgs_aborted.item()
         single_id = all_ids[:1]
@@ -158,6 +164,8 @@ def main():
         compare("cancel_other_config_ids_unchanged", env.active_config_id[1:], snapshots["ids"])
         compare("cancel_no_sampler_outcomes", env.sgs_sampler.visits_total, snapshots["visits"])
         compare("cancel_no_completed_episodes", env.episode_counter, snapshots["episodes"])
+        for name in ("family_count", "family_successes"):
+            compare("cancel_no_recent_" + name, getattr(recent, name), snapshots["recent_" + name])
         check("cancel_counted_separately", env.sgs_aborted.item() == aborted + 1)
         check_bank_state(env, single_id, "cancel_reset")
 
@@ -208,8 +216,10 @@ def main():
         events = EventAccumulator(agent.experiment_dir).Reload()
         family_rates = {}
         for index, family in enumerate(env.sgs_family_names):
-            episodes = int(env.sgs_family_episodes[index].item())
-            successes = int(env.sgs_family_successes[index].item())
+            episodes = int(recent.family_count[index].item())
+            successes = int(recent.family_successes[index].item())
+            check("family_window/" + family, 0 <= successes <= episodes <= 100
+                  and episodes == min(100, int(env.sgs_family_episodes[index].item())))
             for tag, expected in (("SGS / episodes_" + family, episodes),
                                   ("SGS / successes_" + family, successes)):
                 rows = events.Scalars(tag)
@@ -224,6 +234,11 @@ def main():
                       and abs(rows[-1].value - rate) < 1e-6)
             else:
                 check("family_log/unknown_" + family, tag not in events.Tags()["scalars"])
+        for tag in ("SuccessRate / overall", "SuccessRate / family_mean",
+                    "SuccessRate / " + env.obj_list[0], "SGS / episodes_overall",
+                    "SGS / successes_overall", "SGS / success_overall"):
+            check("family_only_log/no_" + tag, tag not in events.Tags()["scalars"]
+                  and tag not in env.extras["scalar_snapshots"])
         diagnostics = output.with_suffix(".sampler.pt")
         env.save_sgs_diagnostics(str(diagnostics))
         report.update({
@@ -242,6 +257,10 @@ def main():
             "family_completed": env.sgs_family_episodes.cpu().tolist(),
             "family_successes": env.sgs_family_successes.cpu().tolist(),
             "family_success_rates": family_rates,
+            "family_recent_completed": recent.family_count.cpu().tolist(),
+            "family_recent_successes": recent.family_successes.cpu().tolist(),
+            "family_window_size": recent.family_window,
+            "recent_statistics_device": str(recent.family_count.device),
             "tensorboard_dir": str(Path(agent.experiment_dir).resolve()),
             "cancelled_episodes": int(env.sgs_aborted.item()),
             "sampler_device": str(env.sgs_sampler.device),

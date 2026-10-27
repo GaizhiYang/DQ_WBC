@@ -18,6 +18,8 @@ import warnings
 
 import torch
 
+from utils.episode_statistics import RecentEpisodeStatistics
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("sgs_env_test_sampler", ROOT / "utils" / "sgs.py")
@@ -328,6 +330,9 @@ class TestEnvironment(ProductionEnvironment):
         self.sgs_family_episodes = torch.zeros(len(self.sgs_family_names), dtype=torch.long)
         self.sgs_family_successes = torch.zeros(len(self.sgs_family_names), dtype=torch.long)
         self.sgs_family_samples = torch.zeros(len(self.sgs_family_names), dtype=torch.long)
+        self.recent_episode_stats = RecentEpisodeStatistics(
+            len(self.sgs_family_names), device=self.device, family_window=100)
+        self.obj_list = ["sugar_box"]
         self.sgs_aborted = torch.zeros((), dtype=torch.long)
         self.sgs_log_interval = 24
         self._sgs_last_print_step = None

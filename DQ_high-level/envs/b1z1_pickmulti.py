@@ -48,6 +48,7 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
     def _init_sgs(self):
         """Load one immutable bank; all online sampler state stays on the GPU."""
         from utils.sgs import ConfigurationBank, SGSSampler, SUPPORTED_FAMILY_PROFILES
+        from utils.episode_statistics import RecentEpisodeStatistics
 
         cfg = self.cfg["env"].get("sgs", {})
         self.sgs_enabled = cfg.get("mode", "disabled") != "disabled"
@@ -108,6 +109,9 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.sgs_family_episodes = torch.zeros(num_families, dtype=torch.long, device=self.device)
         self.sgs_family_successes = torch.zeros(num_families, dtype=torch.long, device=self.device)
         self.sgs_family_samples = torch.zeros(num_families, dtype=torch.long, device=self.device)
+        # Display-only windows, independent of the per-configuration SGS history.
+        self.recent_episode_stats = RecentEpisodeStatistics(
+            num_families, device=self.device, family_window=100)
         self.sgs_aborted = torch.zeros((), dtype=torch.long, device=self.device)
         print("SGS bank:", self.sgs_bank.num_configs, "configurations;",
               self.sgs_bank.fingerprint, "; device:", self.device)
@@ -135,6 +139,9 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         done_families = self.sgs_bank.tensors["family_id"][done_ids]
         self.sgs_family_episodes.scatter_add_(0, done_families, torch.ones_like(done_ids))
         self.sgs_family_successes.scatter_add_(0, done_families, successes.long())
+        # Within each family, same-step completions use env_ids order (normally
+        # ascending environment ID) to break ties at the window boundary.
+        self.recent_episode_stats.record(done_families, successes)
         self.sgs_aborted += (started & ~completed).sum()
         self.success_counter[done_envs] += successes.long()
         self.success_onetime_counter[done_envs] += self.episode_onetime_success[done_envs].long()
@@ -218,11 +225,12 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         metrics = self.sgs_sampler.metrics(
             step=self.global_step_counter, family_id=self.sgs_bank.tensors["family_id"],
             num_families=len(self.sgs_family_names))
+        recent = self.recent_episode_stats
         for i, name in enumerate(self.sgs_family_names):
-            metrics["success_" + name] = self.sgs_family_successes[i] / self.sgs_family_episodes[i].clamp_min(1)
-            metrics["successes_" + name] = self.sgs_family_successes[i]
+            metrics["success_" + name] = recent.family_successes[i] / recent.family_count[i].clamp_min(1)
+            metrics["successes_" + name] = recent.family_successes[i]
             metrics["sample_fraction_" + name] = self.sgs_family_samples[i] / self.sgs_family_samples.sum().clamp_min(1)
-            metrics["episodes_" + name] = self.sgs_family_episodes[i]
+            metrics["episodes_" + name] = recent.family_count[i]
         metrics["aborted"] = self.sgs_aborted
         self.extras["SGS"] = metrics
         # Transfer scalar diagnostics together. Float64 preserves large integer
@@ -236,8 +244,8 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             if episodes > 0:
                 snapshots["SuccessRate / " + name] = snapshots["SGS / successes_" + name] / episodes
         self.extras.setdefault("success_rate", {}).update(snapshots)
-        # Cumulative counters and ratios must use the latest snapshot, rather
-        # than the logger's ordinary mean over a 24-step writing window.
+        # Window counts and ratios use the latest snapshot, rather than the
+        # logger's ordinary mean over a 24-step writing window.
         self.extras["scalar_snapshots"] = snapshots
         self._print_sgs_success_rates()
 
@@ -257,7 +265,8 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             rate = f"{100. * successes / episodes:.2f}%" if episodes else "N/A"
             parts.append(f"{name}={rate} ({successes}/{episodes})")
         suffix = " final" if force else ""
-        tqdm.write(f"[SGS step={step}{suffix}] SuccessRate: " + " | ".join(parts))
+        tqdm.write(f"[SGS step={step}{suffix}] SuccessRate (each family last 100): "
+                   + " | ".join(parts))
         self._sgs_last_print_step = step
 
     def save_sgs_diagnostics(self, path):
@@ -281,6 +290,9 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             "family_samples": self.sgs_family_samples.cpu(),
             "family_episodes": self.sgs_family_episodes.cpu(),
             "family_successes": self.sgs_family_successes.cpu(),
+            "recent_family_window": self.recent_episode_stats.family_window,
+            "recent_family_episodes": self.recent_episode_stats.family_count.cpu(),
+            "recent_family_successes": self.recent_episode_stats.family_successes.cpu(),
         }, output)
 
     def update_roboinfo(self):
@@ -614,7 +626,6 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
     def _reset_envs(self, env_ids):
         if getattr(self, "sgs_enabled", False):
             self._reset_sgs_envs(env_ids)
-            self._record_single_object_success()
             return
         super()._reset_envs(env_ids)
         if len(env_ids) > 0:
