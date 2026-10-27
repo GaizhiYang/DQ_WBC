@@ -1,0 +1,170 @@
+env:
+  numEnvs: 512
+  numAgents: 1
+  envSpacing: 3
+  terrainType: plane
+  enableDebugVis: false
+  isFlagrun: false
+  maxEpisodeLength: 100
+  pdControl: true
+  powerScale: 1.0
+  controlFrequencyInv: 4
+  controlFrequencyLow: 8
+  imgDelayFrame: 4
+  D1_bench_task_level: Level02
+  robotStartDistanceRange:
+  - 2.0
+  - 2.0
+  cameraVisibilityReset: false
+  liftedSuccessThreshold: 0.2
+  liftedInitThreshold: 0.05
+  baseObjectDisThreshold: 0.2
+  holdSteps: 15
+  lastCommands: false
+  noVelocityObs: true
+  successMode: hold
+  sgs:
+    mode: sgs
+    bank_path: data/sgs/sugar_box_v9.pt
+    bank_size: null
+    history_size: 100
+    target_success: 0.5
+    kappa: 1.0
+    temperature: 2.0
+    epsilon: 0.0001
+    p_init: 0.0
+    seed: 43
+  posePrediction:
+    enabled: true
+    horizons:
+    - 0.3
+    - 0.6
+    history: 5
+    qScale: 1.0
+    rScale: 0.01
+  low_policy_path: data/low_model/model_44000.pt
+  taskddescription: '023'
+  asset:
+    assetRoot: data/asset
+    assetFileRobot: b1z1-col/urdf/b1z1.urdf
+    assetFileObj: obj_set/
+    asset_multi:
+      sugar_box:
+        dict_idx: 1
+        height: 0.045
+        orientation:
+        - 0.707
+        - 0
+        - 0
+        - 0.707
+        scale: 1.0
+    control:
+      stiffness:
+        joint: 80
+        z1: 5
+      damping:
+        joint: 2.0
+        z1: 0.5
+  plane:
+    staticFriction: 0.0
+    dynamicFriction: 0.0
+    restitution: 0.0
+  wandb: false
+  useTanh: false
+  near_goal_stop: false
+  obj_move_prob: 0.0
+physics_engine: physx
+sim:
+  substeps: 1
+  use_gpu_pipeline: true
+  up_axis: z
+  gravity:
+  - 0.0
+  - 0.0
+  - -9.81
+  dt: 0.005
+  physx:
+    use_gpu: true
+    num_threads: 4
+    solver_type: 1
+    num_position_iterations: 8
+    num_velocity_iterations: 0
+    contact_offset: 0.04
+    rest_offset: 0.0
+    bounce_threshold_velocity: 0.2
+    max_depenetration_velocity: 50.0
+    default_buffer_size_multiplier: 100.0
+    max_gpu_contact_pairs: 2097152
+reward:
+  base_height_target: 0.55
+  only_positive_rewards: false
+  scales:
+    approaching: 0.5
+    lifting: 0.8
+    pick_up: 3.5
+    acc_penalty: -0.001
+    command_reward: 0.05
+    action_rate: -0.001
+    ee_orn: 0.01
+    base_dir: 0.05
+    rad_penalty: 0.0
+    base_ang_pen: 0.0
+    base_approaching: 0.01
+    grasp_base_height: 0.5
+    gripper_rate: 0.0
+    limit_yaw_rotation_penalty: 0.4
+sensor:
+  depth_clip_lower: 0.15
+  depth_clip_rand_range:
+  - 0.18
+  - 0.25
+  enableCamera: false
+  resized_resolution:
+  - 96
+  - 54
+  onboard_camera:
+    horizontal_fov: 69
+    resolution:
+    - 96
+    - 54
+    position:
+    - 0.425
+    - 0.04
+    - 0.12
+    rotation:
+    - 0.0
+    - 0.0
+    - 0.0
+  wrist_camera:
+    horizontal_fov:
+    - 63
+    - 65
+    resolution:
+    - 96
+    - 54
+    position:
+    - 0.0955
+    - 0.22
+    - -0.03175
+    rotation:
+    - -1.57
+    - 0.0
+    - -0.87
+    rand_position:
+    - 0.005
+    - 0.005
+    - 0.005
+  fix_camera:
+    horizontal_fov: 69
+    resolution:
+    - 2
+    - 3
+    position:
+    - 0.0
+    - -0.3
+    - 0.8
+    rotation:
+    - 0.0
+    - 0.7
+    - 1.57
+seed: 43
