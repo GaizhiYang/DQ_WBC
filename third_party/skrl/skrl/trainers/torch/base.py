@@ -268,7 +268,9 @@ class Trainer:
                                               infos=infos,
                                               timestep=timestep,
                                               timesteps=self.timesteps)
-                super(type(self.agents), self.agents).post_interaction(timestep=timestep, timesteps=self.timesteps)
+                # Evaluation can run for a different length than training.
+                # Use its actual endpoint so the last partial log is written.
+                super(type(self.agents), self.agents).post_interaction(timestep=timestep, timesteps=traj_length)
 
             # reset environments
             if terminated.any() or truncated.any():

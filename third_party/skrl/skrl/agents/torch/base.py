@@ -61,6 +61,7 @@ class Agent:
                 model.to(model.device)
 
         self.tracking_data = collections.defaultdict(list)
+        self._success_rate_tracking_keys = set()
         self.write_interval = self.cfg.get("experiment", {}).get("write_interval", 1000)
 
         self._track_rewards = collections.deque(maxlen=100)
@@ -312,8 +313,16 @@ class Agent:
             self.tracking_data["Reward / Instantaneous reward (mean)"].append(torch.mean(rewards).item())
             
             if "success_rate" in infos.keys():
+                # Replace the whole snapshot: a category can disappear when
+                # its last completed episode leaves the shared window.
+                for key in self._success_rate_tracking_keys:
+                    self.tracking_data.pop(key, None)
+                self._success_rate_tracking_keys = set(infos["success_rate"])
                 for key in infos["success_rate"]:
-                    self.tracking_data[key].append(np.mean(infos["success_rate"][key]).item())
+                    # These are already aggregated episode-window snapshots.
+                    # Keep the latest rate/count instead of averaging snapshots
+                    # over high-level steps a second time.
+                    self.tracking_data[key] = [np.mean(infos["success_rate"][key]).item()]
 
             if len(self._track_rewards):
                 track_rewards = np.array(self._track_rewards)
@@ -651,9 +660,14 @@ class Agent:
             # write checkpoints
             self.write_checkpoint(timestep, timesteps)
 
-        # write to tensorboard
-        if timestep > 1 and self.write_interval > 0 and not timestep % self.write_interval:
+        # Include a partial final interval, with a single write when the final
+        # step also falls on a regular logging boundary.
+        if self.write_interval > 0 and (
+            (timestep > 1 and not timestep % self.write_interval) or timestep == timesteps
+        ):
             self.write_tracking_data(timestep, timesteps)
+            if timestep == timesteps:
+                self.writer.flush()
 
     def _update(self, timestep: int, timesteps: int) -> None:
         """Algorithm's main update step

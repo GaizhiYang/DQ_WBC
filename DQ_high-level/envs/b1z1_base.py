@@ -120,6 +120,8 @@ class B1Z1Base(RewardVecTask):
         self.control_freq_low_init = self.cfg["env"].get("controlFrequencyLow", 7)
         self.control_freq_low = self.control_freq_low_init
         self.hold_steps = self.cfg["env"].get("holdSteps", 10)
+        if isinstance(self.hold_steps, bool) or not isinstance(self.hold_steps, int) or self.hold_steps < 1:
+            raise ValueError("holdSteps must be a positive integer")
         self.img_delay_frame = self.cfg["env"].get("imgDelayFrame", 5) # 0.08s5
         self.enable_camera = self.cfg["sensor"].get("enableCamera", False)
         self.depth_clip_lower = self.cfg["sensor"].get("depth_clip_lower", 0.15)
@@ -1624,7 +1626,8 @@ class B1Z1Base(RewardVecTask):
         # curr_to_goal = self.curr_ee_goal_cart - curr_ee_pos_local
         # curr_ee_vel_unorm = curr_ee_pos_local - self.last_ee_pos
         # ik_fail = (torch.nn.CosineSimilarity(dim=1, eps=1e-6)(curr_to_goal, curr_ee_vel_unorm) <= 0) & (torch.norm(curr_ee_vel, dim=-1) > 0.02)
-        self.reset_buf[:] = self.timeout_buf | r_term | p_term | z_term | ik_fail
+        self._terminate_buf[:] = r_term | p_term | z_term | ik_fail
+        self.reset_buf[:] = self.timeout_buf | self._terminate_buf.bool()
         
         self.last_ee_pos = curr_ee_pos_local
 
@@ -1996,8 +1999,8 @@ class B1Z1Base(RewardVecTask):
         self.post_physics_step()
         #### obs , rew , reset and so on all can find in this func
 
-        # fill time out buffer: set to 1 if we reached the max episode length AND the reset buffer is 1. Timeout == 1 makes sense only if the reset buffer is 1.
-        self.timeout_buf = (self.progress_buf >= self.max_episode_length - 1) & (self.reset_buf != 0)
+        # check_termination already distinguishes the actual time limit from
+        # task success and other early resets; preserve that classification.
         # randomize observations
         if self.dr_randomizations.get('observations', None):
             self.obs_buf = self.dr_randomizations['observations']['noise_lambda'](self.obs_buf)

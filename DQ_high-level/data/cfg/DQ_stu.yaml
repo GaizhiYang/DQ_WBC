@@ -15,10 +15,10 @@ env:
   robotStartDistanceRange: [0.85, 1.1] # Match the teacher's base-to-object distance [m]
   cameraVisibilityReset: False # Match teacher termination rules when cameras are enabled
 
-  liftedSuccessThreshold: 0.2
+  liftedSuccessThreshold: 0.2 # Net lift above the object's resting height on the table [m]
   liftedInitThreshold: 0.05
   baseObjectDisThreshold: 0.2
-  holdSteps: 15
+  holdSteps: 10 # Consecutive high-level steps, shared by training and evaluation
   lastCommands: False
 
   low_policy_path: "/home/hehui/DQ_WBC/DQ_high-level/data/low_model/model_44000.pt" 

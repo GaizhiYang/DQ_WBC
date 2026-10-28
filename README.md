@@ -115,9 +115,32 @@ python train_multi_bc_deter_DQ_stu.py \
    save the selected objects and environment count in their experiment YAML,
    so `--resume` retains the single-object selection.
 
-   The DQ teacher and student configs use the same terrain, table motion,
-   start distance (0.85–1.1 m), lifting threshold (0.2 m), and hold time
-   (15 steps). `cameraVisibilityReset: False` keeps camera-only termination
+   DQ teacher and student success requires a net lift of at least 0.2 m above
+   the object's resting height on the current table, a closed-gripper command,
+   and an object-to-end-effector distance below 0.2 m for 10 consecutive
+   high-level steps. Training and evaluation use the same criterion. An
+   interrupted hold restarts its counter; each holding milestone earns shaping
+   reward only once per episode. Success is counted and rewarded once, when
+   the hold completes, and ends the episode. Saved experiment YAML files still
+   control `holdSteps` when resuming; update old snapshots to 10 if needed.
+
+   `SuccessRate / sugar_box` now reports successes among the **most recent 1000
+   completed episodes**, pooled across all parallel environments. Before 1000
+   episodes finish, the denominator is the actual number completed; no rate is
+   emitted for an empty window. `SuccessWindow / successes` and
+   `SuccessWindow / completed` expose its numerator and denominator. Success,
+   failure, and timeout each contribute one outcome. Initialization and manual
+   resets do not add outcomes. The window survives environment resets and starts
+   empty on a new run (including a checkpoint resume). Simultaneous completions
+   are ordered by ascending environment ID; only the last 1000 entries remain.
+   With multiple objects, `SuccessRate / total` uses this same global window and
+   named object rates use only that object's entries within it.
+   Terminal steps publish the updated snapshot immediately. TensorBoard/W&B
+   write the latest snapshot, including the final step, without averaging rates
+   over the logging interval. These metrics are also available without W&B.
+   The old cumulative and `Onetime_SuccessRate` outputs have been removed.
+
+   `cameraVisibilityReset: False` keeps camera-only termination
    rules from changing the student's episode distribution. The student
    enables cameras for its visual observations; the teacher uses privileged
    object features and grasp poses.

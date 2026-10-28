@@ -1,5 +1,5 @@
 env:
-  numEnvs: 5000 
+  numEnvs: 4096 
   numAgents: 1
   envSpacing: 3
   terrainType: plane # Flat ground; use trimesh to load rough terrain instead
@@ -15,10 +15,10 @@ env:
   robotStartDistanceRange: [2.0, 2.0] # Horizontal distance from robot base to object [m]
   cameraVisibilityReset: False # Keep termination rules consistent with visual distillation
 
-  liftedSuccessThreshold: 0.2
+  liftedSuccessThreshold: 0.2 # Net lift above the object's resting height on the table [m]
   liftedInitThreshold: 0.05
   baseObjectDisThreshold: 0.2
-  holdSteps: 15
+  holdSteps: 10 # Consecutive high-level steps, shared by training and evaluation
   lastCommands: False
   noVelocityObs: False # Set --no_velocity_obs to remove 3D robot + 2D relative object velocity
   posePrediction:
@@ -237,7 +237,7 @@ reward:
   scales:
     approaching: 0.5
     lifting: 0.80 
-    pick_up: 3.5 
+    pick_up: 50.0 
     acc_penalty: -0.001
     command_reward: 0.05 
     action_rate: -0.001
