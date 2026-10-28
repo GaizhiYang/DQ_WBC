@@ -433,8 +433,7 @@ class B1Z1Base(RewardVecTask):
         self.action_history_buf = torch.zeros(self.num_envs, 3, self.num_actions, device=self.device, dtype=torch.float)
         self.command_history_buf = torch.zeros(self.num_envs, 3, self.num_actions, device=self.device, dtype=torch.float)
         self.episode_counter = torch.zeros(self.num_envs, device=self.device, dtype=torch.long) - 1
-        self.success_counter = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
-        self.success_onetime_counter = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
+        self.episode_success = torch.zeros(self.num_envs, device=self.device, dtype=torch.bool)
         
         self.reach_counter = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
         self.pick_counter = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
@@ -1082,6 +1081,7 @@ class B1Z1Base(RewardVecTask):
         
         self.reach_counter[env_ids] = 0
         self.pick_counter[env_ids] = 0
+        self.episode_success[env_ids] = False
         
         if self.rand_cmd_scale:
             self.command_scale[env_ids] = torch_rand_float(0.5, 1.0, (len(env_ids),1), device=self.device).squeeze()

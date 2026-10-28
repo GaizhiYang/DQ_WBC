@@ -313,7 +313,10 @@ class Agent:
             
             if "success_rate" in infos.keys():
                 for key in infos["success_rate"]:
-                    self.tracking_data[key].append(np.mean(infos["success_rate"][key]).item())
+                    # Episode-window metrics are already aggregated. Keep the
+                    # latest snapshot so TensorBoard (and its W&B sync) does
+                    # not average different windows over the write interval.
+                    self.tracking_data[key] = [np.mean(infos["success_rate"][key]).item()]
 
             if len(self._track_rewards):
                 track_rewards = np.array(self._track_rewards)

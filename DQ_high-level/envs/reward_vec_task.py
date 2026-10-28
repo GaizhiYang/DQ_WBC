@@ -36,8 +36,7 @@ class RewardVecTask(VecTask):
     
     def _reward_pick_up(self): ## my change ##
         if self.global_step_counter < 1 or self.eval: ## my change ##
-            self.success_counter[self.lifted_object] += 1 
-            self.success_onetime_counter[self.lifted_object&self.surpass_dist_flag] += 1 
+            self.episode_success |= self.lifted_object
             # In this project VBC, if the reset_buf is all 1, then the env will be reset
             # The following line means that , because our timesteps_num is low or in the eval mode, we want simplize the success judging , 
             # so we assume that if the cube is lifted (don't care the hold time), it's successful and reset the env immediately
@@ -47,8 +46,9 @@ class RewardVecTask(VecTask):
             self.reset_buf = torch.where(self.lifted_object, torch.ones_like(self.reset_buf), self.reset_buf) # reset the picked envs
         else:
             # In contary to upon setting, here we should care about the hold time's inflence  
-            self.success_counter[self.lifted_object & (self.pick_counter < 1)] += 1 # Have a bug when the pick is fail during holding
             self.pick_counter = torch.where(self.lifted_object, self.pick_counter + 1, torch.zeros_like(self.pick_counter))
+            # A lift that fails before hold_steps is not a successful episode.
+            self.episode_success |= self.pick_counter >= self.hold_steps
             reward = torch.where(self.pick_counter >= 15, torch.ones_like(self.reset_buf, dtype=torch.float), torch.zeros_like(self.reset_buf, dtype=torch.float)) 
             self.reset_buf = torch.where(self.pick_counter >= self.hold_steps, torch.ones_like(self.reset_buf), self.reset_buf) # reset the picked after hold times
         

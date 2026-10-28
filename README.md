@@ -68,6 +68,18 @@ This part you can totally refer to [VBC's Low-level introduction](https://github
    Run these commands from `DQ_high-level`. Use the same `--object_name` when
    playing the resulting checkpoint. Training saves the selected object in the
    experiment config, so `--resume` retains it.
+
+   Terminal and W&B report `SuccessRate / Total` as successful episodes divided
+   by completed episodes in the most recent 1000 episodes across all environments.
+   `SuccessCount / Total` and `SuccessWindow / Episodes` expose the numerator and
+   denominator; before 1000 episodes finish, the actual completed count is used.
+   Training success requires reaching `holdSteps`; dropping the object before
+   that point is a failure. Each completed episode is counted once, including
+   failures and timeouts. Per-object rates use the actual asset names and only
+   that object's episodes within the same global window (`SuccessWindow / <name>`
+   gives its denominator). W&B records the latest window at each logging step,
+   without averaging successive windows. The window starts empty on a new
+   process, including checkpoint resume.
 ```bash
 cd /home/hehui/DQ_WBC/DQ_high-level
 

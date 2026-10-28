@@ -3,8 +3,6 @@ import os
 import torch
 import cv2
 from typing import Dict, Any, Tuple, List, Set
-from collections import defaultdict
-import wandb
 from termcolor import cprint    
 from tqdm import tqdm
 
@@ -13,6 +11,7 @@ from utils.low_level_model import ActorCritic
 from utils.config import load_cfg, get_params, copy_cfg
 from modules.pose_prediction import RollingSE3Predictor
 from utils.object_pose import object_pose_in_teacher_frame
+from utils.episode_success import EpisodeSuccessWindow
 from PredictPiontTransform.predictpoint_mul import PredictPoint
 import time
 
@@ -124,6 +123,8 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         
         self.random_angle = torch.as_tensor(np.array([0, 1.5708, -1.5708]), device=self.device, dtype=torch.float)
         self.lifted_now = torch.zeros(self.num_envs, device=self.device, dtype=torch.bool)
+        self.success_window = EpisodeSuccessWindow(self.obj_list)
+        self.success_recorded = torch.zeros(self.num_envs, device=self.device, dtype=torch.bool)
 
         if self.pred_success:
             self.predlift_success_counter = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
@@ -236,274 +237,35 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
 
         super()._create_envs()
         
-    def _record_single_object_success(self, one_time=False):
-        counter = self.success_onetime_counter if one_time else self.success_counter
-        successes = counter.sum().item()
-        episodes = self.episode_counter.clamp_min(0).sum().item()
-        rate = min(successes, episodes) / max(episodes, 1)
-        prefix = "Onetime_SuccessRate" if one_time else "SuccessRate"
-        rates = {f"{prefix} / {self.obj_list[0]}": rate}
-        if self.pred_success:
-            rates["SuccessRate / PredLifted"] = (
-                0 if self.global_step_counter == 0
-                else (self.predlift_success_counter / self.local_step_counter).mean().item()
-            )
-        if self.cfg["env"]["wandb"]:
-            self.extras.setdefault("success_rate", {}).update(rates)
-            print({"success_rate": rates, "episodes": episodes})
-        else:
-            print({"success_rate": rates, "episodes": episodes})
-
-    def _record_one_time_success(self):
-        if len(self.obj_list) == 1:
-            self._record_single_object_success(one_time=True)
-            if not self.cfg["env"]["wandb"]:
-                self.surpass_dist_flag[(self.closest_dist < 0.3) & (self.curr_dist > 0.5)] = 0
+    def _record_completed_episode_success(self):
+        # Publish before the trainer records this transition, not on the later
+        # reset. Initial/manual resets and unfinished episodes are excluded.
+        completed = (self.reset_buf.bool() & (self.progress_buf > 0)
+                     & ~self.success_recorded)
+        env_ids = completed.nonzero(as_tuple=False).flatten()
+        if not len(env_ids):
             return
-        num_group = self.num_envs // 30
-        bowl_indices_np = np.array([[0+i*30, 9+i*30, 8+i*30, 23+i*30, 27+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        bowl_indices = torch.from_numpy(bowl_indices_np).to(self.device)
-        ball_indices_np = np.array([[3+i*30, 14+i*30, 15+i*30, 19+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        ball_indices = torch.from_numpy(ball_indices_np).to(self.device)
-        long_box_indices_np = np.array([[1+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        long_box_indices = torch.from_numpy(long_box_indices_np).to(self.device)
-        square_box_indices_np = np.array([[11+i*30, 20+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        square_box_indices = torch.from_numpy(square_box_indices_np).to(self.device)
-        bottle_indices_np = np.array([[2+i*30, 6+i*30, 18+i*30, 21+i*30,26+i*30, 29+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        bottle_indices = torch.from_numpy(bottle_indices_np).to(self.device)
-        cup_indices_np = np.array([[5+i*30, 12+i*30, 24+i*30,25+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        cup_indices = torch.from_numpy(cup_indices_np).to(self.device)
-        drill_indices_np = np.array([[7+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        drill_indices = torch.from_numpy(drill_indices_np).to(self.device)
-        lipton_tea_indices_np = np.array([[7+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        lipton_tea_indices = torch.from_numpy(lipton_tea_indices_np).to(self.device)
-        plate_holder_indices_np = np.array([[16+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        plate_holder_tea_indices = torch.from_numpy(plate_holder_indices_np).to(self.device)
-        book_holder_3_indices_np = np.array([[17+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        book_holder_3_tea_indices = torch.from_numpy(book_holder_3_indices_np).to(self.device)
-        phillips_screwdriver_indices_np = np.array([[22+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        phillips_screwdriver_tea_indices = torch.from_numpy(phillips_screwdriver_indices_np).to(self.device)
-        Plastic_banana_indices_np = np.array([[2+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        Plastic_banana_tea_indices = torch.from_numpy(Plastic_banana_indices_np).to(self.device)
-        clear_box_indices_np = np.array([[28+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        clear_box_tea_indices = torch.from_numpy(clear_box_indices_np).to(self.device)
-        
-        # Ensure all index tensors are of long type
-        bowl_indices = bowl_indices.long()  
-        ball_indices = ball_indices.long()
-        long_box_indices = long_box_indices.long()
-        square_box_indices = square_box_indices.long()
-        bottle_indices = bottle_indices.long()
-        cup_indices = cup_indices.long()
-        drill_indices = drill_indices.long()
-        lipton_tea_indices = lipton_tea_indices.long()
-        plate_holder_tea_indices = plate_holder_tea_indices.long()
-        book_holder_3_tea_indices = book_holder_3_tea_indices.long()
-        phillips_screwdriver_tea_indices = phillips_screwdriver_tea_indices.long()
-        Plastic_banana_tea_indices = Plastic_banana_tea_indices.long()
-        clear_box_tea_indices = clear_box_tea_indices.long()
 
-        bowl_success_time = self.success_onetime_counter[bowl_indices].sum().item(), self.episode_counter[bowl_indices].sum().item()
-        ball_success_time = self.success_onetime_counter[ball_indices].sum().item(), self.episode_counter[ball_indices].sum().item()
-        longbox_success_time = self.success_onetime_counter[long_box_indices].sum().item(), self.episode_counter[long_box_indices].sum().item()
-        squarebox_success_time = self.success_onetime_counter[square_box_indices].sum().item(), self.episode_counter[square_box_indices].sum().item()
-        bottle_success_time = self.success_onetime_counter[bottle_indices].sum().item(), self.episode_counter[bottle_indices].sum().item()
-        cup_success_time = self.success_onetime_counter[cup_indices].sum().item(), self.episode_counter[cup_indices].sum().item()
-        drill_success_time = self.success_onetime_counter[drill_indices].sum().item(), self.episode_counter[drill_indices].sum().item()
-        lipton_tea_success_time = self.success_onetime_counter[lipton_tea_indices].sum().item(), self.episode_counter[lipton_tea_indices].sum().item()
-        plate_holder_tea_success_time = self.success_onetime_counter[plate_holder_tea_indices].sum().item(), self.episode_counter[plate_holder_tea_indices].sum().item()
-        book_holder_3_tea_success_time = self.success_onetime_counter[book_holder_3_tea_indices].sum().item(), self.episode_counter[book_holder_3_tea_indices].sum().item()
-        phillips_screwdriver_tea_success_time = self.success_onetime_counter[phillips_screwdriver_tea_indices].sum().item(), self.episode_counter[phillips_screwdriver_tea_indices].sum().item()
-        Plastic_banana_tea_success_time = self.success_onetime_counter[Plastic_banana_tea_indices].sum().item(), self.episode_counter[Plastic_banana_tea_indices].sum().item()
-        clear_box_tea_success_time = self.success_onetime_counter[clear_box_tea_indices].sum().item(), self.episode_counter[clear_box_tea_indices].sum().item()
+        successes = self.episode_success[env_ids].tolist()
+        one_time_successes = (self.episode_success[env_ids]
+                              & self.surpass_dist_flag[env_ids]).tolist()
+        for env_id, success, one_time in zip(env_ids.tolist(), successes, one_time_successes):
+            # Match _create_extra, including single-object configurations and
+            # environment counts that are not a multiple of the object count.
+            name = self.obj_list[env_id % len(self.obj_list)]
+            self.success_window.append(name, success, one_time)
+        self.success_recorded[env_ids] = True
 
+        metrics = self.success_window.metrics(include_one_time=self.eval)
+        self.extras["success_rate"] = metrics
+        tqdm.write(f"Success over the last 1000 completed episodes: {metrics}")
 
-        bowl_success_rate = min(bowl_success_time[0], bowl_success_time[1]) / max(bowl_success_time[1], 1)
-        ball_success_rate = min(ball_success_time[0], ball_success_time[1]) / max(ball_success_time[1], 1)
-        longbox_success_rate = min(longbox_success_time[0], longbox_success_time[1]) / max(longbox_success_time[1], 1)
-        squarebox_success_rate = min(squarebox_success_time[0], squarebox_success_time[1]) / max(squarebox_success_time[1], 1)
-        bottle_success_rate = min(bottle_success_time[0], bottle_success_time[1]) / max(bottle_success_time[1], 1)
-        cup_success_rate = min(cup_success_time[0], cup_success_time[1]) / max(cup_success_time[1], 1)
-        drill_success_rate = min(drill_success_time[0], drill_success_time[1]) / max(drill_success_time[1], 1)
-        lipton_tea_success_rate = min(lipton_tea_success_time[0], lipton_tea_success_time[1]) / max(lipton_tea_success_time[1], 1)
-        plate_holder_tea_success_rate = min(plate_holder_tea_success_time[0], plate_holder_tea_success_time[1]) / max(plate_holder_tea_success_time[1], 1)
-        book_holder_3_tea_success_rate = min(book_holder_3_tea_success_time[0], book_holder_3_tea_success_time[1]) / max(book_holder_3_tea_success_time[1], 1)
-        phillips_screwdriver_tea_success_rate = min(phillips_screwdriver_tea_success_time[0], phillips_screwdriver_tea_success_time[1]) / max(phillips_screwdriver_tea_success_time[1], 1)
-        Plastic_banana_tea_success_rate = min(Plastic_banana_tea_success_time[0], Plastic_banana_tea_success_time[1]) / max(Plastic_banana_tea_success_time[1], 1)
-        clear_box_tea_success_rate = min(clear_box_tea_success_time[0], clear_box_tea_success_time[1]) / max(clear_box_tea_success_time[1], 1)
-
-        wandb_dict = {
-            "success_rate": {
-                "Onetime_SuccessRate / Bowl": bowl_success_rate,
-                "Onetime_SuccessRate / Ball": ball_success_rate,
-                "Onetime_SuccessRate / LongBox": longbox_success_rate,
-                "Onetime_SuccessRate / SquareBox": squarebox_success_rate,
-                "Onetime_SuccessRate / Bottle": bottle_success_rate,
-                "Onetime_SuccessRate / Cup": cup_success_rate,
-                "Onetime_SuccessRate / Drill": drill_success_rate,
-                "Onetime_SuccessRate / Lipton_tea": lipton_tea_success_rate,
-                "Onetime_SuccessRate / Plate_holder": plate_holder_tea_success_rate,
-                "Onetime_SuccessRate / Book_holder_3": book_holder_3_tea_success_rate,
-                "Onetime_SuccessRate / Phillips_screwdriver": phillips_screwdriver_tea_success_rate,
-                "Onetime_SuccessRate / Plastic_banana": Plastic_banana_tea_success_rate,
-                "Onetime_SuccessRate / Clear_box": clear_box_tea_success_rate,
-            }
-        }
-        if self.pred_success:
-            predlift_success_rate = 0 if self.global_step_counter==0 else (self.predlift_success_counter / self.local_step_counter).mean().item()
-            wandb_dict["success_rate"]["SuccessRate / PredLifted"] = predlift_success_rate
-        
-        if self.cfg["env"]["wandb"]:
-            self.extras.update(wandb_dict)
-            tqdm.write(str(wandb_dict))
-            # wandb.log(wandb_dict, step=self.global_step_counter)
-        else:
-            print("\n",wandb_dict)
-            print("\n, Bowl count: {}\n, Ball count: {}\n, LongBox count: {}\n, SquareBox count: {}\n, Bottle count: {}\n, Cup count: {}\n, Drill count: {}\n, Lipton_tea count: {}\n, Plate_holder count: {}\n, Book_holder_3 count: {}\n, Phillips_screwdriver count: {}\n, Plastic_banana count: {}\n, Clear_box count: {}\n".format(bowl_success_time[1], ball_success_time[1], longbox_success_time[1], squarebox_success_time[1], 
-                                                        bottle_success_time[1], cup_success_time[1], drill_success_time[1], lipton_tea_success_time[1], 
-                                                        plate_holder_tea_success_time[1], book_holder_3_tea_success_time[1], phillips_screwdriver_tea_success_time[1], 
-                                                        Plastic_banana_tea_success_time[1], clear_box_tea_success_time[1]))
-            success_time = self.success_onetime_counter.sum().item(), self.episode_counter.sum().item()
-            success_rate = min(success_time[0], success_time[1]) / max(success_time[1], 1)
-            print("One time Total success rate", success_rate)
-            
-            mask1=self.closest_dist<0.3
-            mask2 = (self.curr_dist > 0.5) & mask1
-            self.surpass_dist_flag[mask2] = 0
-
-            
     def _reset_envs(self, env_ids):
+        # Reset only per-episode state; the rolling window survives resets.
+        self.episode_step_sum[env_ids] += self.one_epoch_step[env_ids]
+        self.one_epoch_step[env_ids] = 0.0
         super()._reset_envs(env_ids)
-        if len(env_ids) > 0:
-            if len(self.obj_list) == 1:
-                self._record_single_object_success()
-                self.episode_step_sum[env_ids] += self.one_epoch_step[env_ids]
-                self.one_epoch_step[env_ids] = 0.0
-                if self.eval:
-                    self._record_one_time_success()
-                return
 
-            num_group = self.num_envs // 30
-            bowl_indices_np = np.array([[0+i*30, 9+i*30, 8+i*30, 23+i*30, 27+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            bowl_indices = torch.from_numpy(bowl_indices_np).to(self.device)
-            ball_indices_np = np.array([[3+i*30, 14+i*30, 15+i*30, 19+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            ball_indices = torch.from_numpy(ball_indices_np).to(self.device)
-            long_box_indices_np = np.array([[1+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            long_box_indices = torch.from_numpy(long_box_indices_np).to(self.device)
-            square_box_indices_np = np.array([[11+i*30, 20+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            square_box_indices = torch.from_numpy(square_box_indices_np).to(self.device)
-            bottle_indices_np = np.array([[2+i*30, 6+i*30, 18+i*30, 21+i*30,26+i*30, 29+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            bottle_indices = torch.from_numpy(bottle_indices_np).to(self.device)
-            cup_indices_np = np.array([[5+i*30, 12+i*30, 24+i*30,25+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            cup_indices = torch.from_numpy(cup_indices_np).to(self.device)
-            drill_indices_np = np.array([[7+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            drill_indices = torch.from_numpy(drill_indices_np).to(self.device)
-            lipton_tea_indices_np = np.array([[7+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            lipton_tea_indices = torch.from_numpy(lipton_tea_indices_np).to(self.device)
-            plate_holder_indices_np = np.array([[16+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            plate_holder_tea_indices = torch.from_numpy(plate_holder_indices_np).to(self.device)
-            book_holder_3_indices_np = np.array([[17+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            book_holder_3_tea_indices = torch.from_numpy(book_holder_3_indices_np).to(self.device)
-            phillips_screwdriver_indices_np = np.array([[22+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            phillips_screwdriver_tea_indices = torch.from_numpy(phillips_screwdriver_indices_np).to(self.device)
-            Plastic_banana_indices_np = np.array([[2+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            Plastic_banana_tea_indices = torch.from_numpy(Plastic_banana_indices_np).to(self.device)
-            clear_box_indices_np = np.array([[28+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            clear_box_tea_indices = torch.from_numpy(clear_box_indices_np).to(self.device)
-            
-            # Ensure all index tensors are of long type
-            bowl_indices = bowl_indices.long()  
-            ball_indices = ball_indices.long()
-            long_box_indices = long_box_indices.long()
-            square_box_indices = square_box_indices.long()
-            bottle_indices = bottle_indices.long()
-            cup_indices = cup_indices.long()
-            drill_indices = drill_indices.long()
-            lipton_tea_indices = lipton_tea_indices.long()
-            plate_holder_tea_indices = plate_holder_tea_indices.long()
-            book_holder_3_tea_indices = book_holder_3_tea_indices.long()
-            phillips_screwdriver_tea_indices = phillips_screwdriver_tea_indices.long()
-            Plastic_banana_tea_indices = Plastic_banana_tea_indices.long()
-            clear_box_tea_indices = clear_box_tea_indices.long()
-
-            bowl_success_time = self.success_counter[bowl_indices].sum().item(), self.episode_counter[bowl_indices].sum().item()
-            ball_success_time = self.success_counter[ball_indices].sum().item(), self.episode_counter[ball_indices].sum().item()
-            longbox_success_time = self.success_counter[long_box_indices].sum().item(), self.episode_counter[long_box_indices].sum().item()
-            squarebox_success_time = self.success_counter[square_box_indices].sum().item(), self.episode_counter[square_box_indices].sum().item()
-            bottle_success_time = self.success_counter[bottle_indices].sum().item(), self.episode_counter[bottle_indices].sum().item()
-            cup_success_time = self.success_counter[cup_indices].sum().item(), self.episode_counter[cup_indices].sum().item()
-            drill_success_time = self.success_counter[drill_indices].sum().item(), self.episode_counter[drill_indices].sum().item()
-            lipton_tea_success_time = self.success_counter[lipton_tea_indices].sum().item(), self.episode_counter[lipton_tea_indices].sum().item()
-            plate_holder_tea_success_time = self.success_counter[plate_holder_tea_indices].sum().item(), self.episode_counter[plate_holder_tea_indices].sum().item()
-            book_holder_3_tea_success_time = self.success_counter[book_holder_3_tea_indices].sum().item(), self.episode_counter[book_holder_3_tea_indices].sum().item()
-            phillips_screwdriver_tea_success_time = self.success_counter[phillips_screwdriver_tea_indices].sum().item(), self.episode_counter[phillips_screwdriver_tea_indices].sum().item()
-            Plastic_banana_tea_success_time = self.success_counter[Plastic_banana_tea_indices].sum().item(), self.episode_counter[Plastic_banana_tea_indices].sum().item()
-            clear_box_tea_success_time = self.success_counter[clear_box_tea_indices].sum().item(), self.episode_counter[clear_box_tea_indices].sum().item()
-
-
-            bowl_success_rate = min(bowl_success_time[0], bowl_success_time[1]) / max(bowl_success_time[1], 1)
-            ball_success_rate = min(ball_success_time[0], ball_success_time[1]) / max(ball_success_time[1], 1)
-            longbox_success_rate = min(longbox_success_time[0], longbox_success_time[1]) / max(longbox_success_time[1], 1)
-            squarebox_success_rate = min(squarebox_success_time[0], squarebox_success_time[1]) / max(squarebox_success_time[1], 1)
-            bottle_success_rate = min(bottle_success_time[0], bottle_success_time[1]) / max(bottle_success_time[1], 1)
-            cup_success_rate = min(cup_success_time[0], cup_success_time[1]) / max(cup_success_time[1], 1)
-            drill_success_rate = min(drill_success_time[0], drill_success_time[1]) / max(drill_success_time[1], 1)
-            lipton_tea_success_rate = min(lipton_tea_success_time[0], lipton_tea_success_time[1]) / max(lipton_tea_success_time[1], 1)
-            plate_holder_tea_success_rate = min(plate_holder_tea_success_time[0], plate_holder_tea_success_time[1]) / max(plate_holder_tea_success_time[1], 1)
-            book_holder_3_tea_success_rate = min(book_holder_3_tea_success_time[0], book_holder_3_tea_success_time[1]) / max(book_holder_3_tea_success_time[1], 1)
-            phillips_screwdriver_tea_success_rate = min(phillips_screwdriver_tea_success_time[0], phillips_screwdriver_tea_success_time[1]) / max(phillips_screwdriver_tea_success_time[1], 1)
-            Plastic_banana_tea_success_rate = min(Plastic_banana_tea_success_time[0], Plastic_banana_tea_success_time[1]) / max(Plastic_banana_tea_success_time[1], 1)
-            clear_box_tea_success_rate = min(clear_box_tea_success_time[0], clear_box_tea_success_time[1]) / max(clear_box_tea_success_time[1], 1)
-
-            wandb_dict = {
-                "success_rate": {
-                    "SuccessRate / Bowl": bowl_success_rate,
-                    "SuccessRate / Ball": ball_success_rate,
-                    "SuccessRate / LongBox": longbox_success_rate,
-                    "SuccessRate / SquareBox": squarebox_success_rate,
-                    "SuccessRate / Bottle": bottle_success_rate,
-                    "SuccessRate / Cup": cup_success_rate,
-                    "SuccessRate / Drill": drill_success_rate,
-                    "SuccessRate / Lipton_tea": lipton_tea_success_rate,
-                    "SuccessRate / Plate_holder": plate_holder_tea_success_rate,
-                    "SuccessRate / Book_holder_3": book_holder_3_tea_success_rate,
-                    "SuccessRate / Phillips_screwdriver": phillips_screwdriver_tea_success_rate,
-                    "SuccessRate / Plastic_banana": Plastic_banana_tea_success_rate,
-                    "SuccessRate / Clear_box": clear_box_tea_success_rate,
-                }
-            }
-            if self.pred_success:
-                predlift_success_rate = 0 if self.global_step_counter==0 else (self.predlift_success_counter / self.local_step_counter).mean().item()
-                wandb_dict["success_rate"]["SuccessRate / PredLifted"] = predlift_success_rate
-            
-            if self.cfg["env"]["wandb"]:
-                self.extras.update(wandb_dict)
-                tqdm.write(str(wandb_dict))
-                # wandb.log(wandb_dict, step=self.global_step_counter)
-            else:
-                print(wandb_dict)
-                print("\n, Bowl count: {}\n, Ball count: {}\n, LongBox count: {}\n, SquareBox count: {}\n, Bottle count: {}\n, Cup count: {}\n, Drill count: {}\n, Lipton_tea count: {}\n, Plate_holder count: {}\n, Book_holder_3 count: {}\n, Phillips_screwdriver count: {}\n, Plastic_banana count: {}\n, Clear_box count: {}\n".format(bowl_success_time[1], ball_success_time[1], longbox_success_time[1], squarebox_success_time[1], 
-                                                           bottle_success_time[1], cup_success_time[1], drill_success_time[1], lipton_tea_success_time[1], 
-                                                           plate_holder_tea_success_time[1], book_holder_3_tea_success_time[1], phillips_screwdriver_tea_success_time[1], 
-                                                           Plastic_banana_tea_success_time[1], clear_box_tea_success_time[1]))
-                # Accumulate historical steps and count
-                self.episode_step_sum[env_ids] += self.one_epoch_step[env_ids]
-                # Reset the step count for this round.
-                self.one_epoch_step[env_ids] = 0.0
-                # Calculate the average step of the current batch of environments.
-                mean_step = (self.episode_step_sum[env_ids] / self.episode_counter[env_ids]).mean().item()
-                global_avg_step = (self.episode_step_sum.sum() / self.episode_counter.sum()).item()
-                print(f", global_avg_step: {global_avg_step}")
-                print(f", mean_step: {mean_step}\n")
-                success_time = self.success_counter.sum().item(), self.episode_counter.sum().item()
-                success_rate = min(success_time[0], success_time[1]) / max(success_time[1], 1)
-                print("Total success rate", success_rate)
-                if self.eval:
-                    self._record_one_time_success()
-                cprint(f"\n########################################################################################################################################################################","yellow")
-                
-
-                
     def _reset_objs(self, env_ids):
         if len(env_ids)==0:
             return
@@ -559,6 +321,7 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
     
     def _reset_env_tensors(self, env_ids):
         super()._reset_env_tensors(env_ids)
+        self.success_recorded[env_ids] = False
 
         robot_ids_int64 = self._robot_actor_ids[env_ids]
         table_ids_int64 = self._table_actor_ids[env_ids]
@@ -747,6 +510,9 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
 
         self.extras["lifted_now"] = self.lifted_now.unsqueeze(-1)*2-1 # This is for the lifted results from the last step, exactly what we want. Lifted = 1, unlifted = -1
         res = super().step(actions)
+        if self.eval:
+            self.surpass_dist_flag[(self.closest_dist < 0.3) & (self.curr_dist > 0.5)] = False
+        self._record_completed_episode_success()
 
         pred_lift = actions[...,-1] > 0
         if self.pred_success and (actions.shape[-1] == (self.action_space.shape[-1]+1)):
