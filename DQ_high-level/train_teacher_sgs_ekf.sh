@@ -49,14 +49,14 @@ train_command=(
     --rand_control
     --no_velocity_obs
     --sgs_mode sgs
-    --sgs_bank data/sgs/sugar_box_v9.pt
+    --sgs_bank data/sgs/sugar_box_v10.pt
     --future_pose_obs
     --future_pose_horizons 0.30 0.60
     --ekf_history 5
     --ekf_q_scale 1.0
     --ekf_r_scale 0.01
     --experiment_dir experiments
-    --wandb_name sgs_ekf_sugar_box_seed43
+    --wandb_name sgs_ekf_sugar_box_v10_seed43
     --seed 43
     --headless
     "$@"

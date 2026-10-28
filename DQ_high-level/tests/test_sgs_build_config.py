@@ -46,10 +46,10 @@ class BuildConfigTests(unittest.TestCase):
         normalized = validate_build_config(loaded, lifted_threshold=0.2)
         self.assertTrue(MODULE.DEFAULT_BUILD_CONFIG_PATH.is_absolute())
         self.assertEqual(normalized["full_task"]["arm_pose"], "default")
-        self.assertEqual(normalized["schema_version"], 4)
+        self.assertEqual(normalized["schema_version"], 5)
         self.assertEqual(normalized, loaded)
         self.assertEqual(set(normalized), {
-            "schema_version", "object", "validation", "full_task", "pregrasp", "at_grasp", "near_goal"})
+            "schema_version", "object", "validation", "full_task", "pregrasp", "near_goal"})
         self.assertEqual(set(normalized["pregrasp"]["ee_rotation_offset_range_deg"]),
                          {"roll", "pitch", "yaw"})
 
@@ -123,7 +123,7 @@ class BuildConfigTests(unittest.TestCase):
                         validate_build_config(config)
 
     def test_schema_version_requires_supported_integer(self):
-        for version in (True, False, 3., 4., "3", "4", 0, 1, 2, 5, None):
+        for version in (True, False, 3., 4., 5., "3", "4", "5", 0, 1, 2, 6, None):
             with self.subTest(version=version):
                 self.config["schema_version"] = version
                 with self.assertRaisesRegex(ValueError, "schema_version"):
@@ -235,6 +235,35 @@ class BuildConfigTests(unittest.TestCase):
         four["schema_version"] = 3
         with self.assertRaisesRegex(ValueError, "unknown keys.*near_goal"):
             validate_build_config(four)
+
+    def test_schema_five_removes_at_grasp_and_keeps_near_goal_required(self):
+        config = self.near_goal_config()
+        config["schema_version"] = 5
+        removed = config.pop("at_grasp")
+        self.assertEqual(validate_build_config(config), config)
+        self.assertEqual(MODULE.BUILD_FAMILIES[5], ("full_task", "pregrasp", "near_goal"))
+        with_at_grasp = copy.deepcopy(config)
+        with_at_grasp["at_grasp"] = removed
+        with self.assertRaisesRegex(ValueError, "unknown keys.*at_grasp"):
+            validate_build_config(with_at_grasp)
+        without_near_goal = copy.deepcopy(config)
+        without_near_goal.pop("near_goal")
+        with self.assertRaisesRegex(ValueError, "missing keys near_goal"):
+            validate_build_config(without_near_goal)
+
+    def test_schema_five_preserves_grasp_and_height_validation(self):
+        config = self.near_goal_config()
+        config["schema_version"] = 5
+        config.pop("at_grasp")
+        cases = (("object_lift_height_range_m", [.05, .2]),
+                 ("hold_time_s", .09), ("min_contact_fraction", 1.1),
+                 ("min_finger_contact_force_n", 0.), ("max_relative_slip_m", 0.))
+        for key, value in cases:
+            invalid = copy.deepcopy(config)
+            invalid["near_goal"][key] = value
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                validate_build_config(invalid, lifted_threshold=.2)
+        self.assertEqual(validate_build_config(config), config)
 
     def test_near_goal_missing_unknown_and_duplicate_fields_are_rejected(self):
         for key in self.near_goal_config()["near_goal"]:

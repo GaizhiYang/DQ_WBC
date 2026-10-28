@@ -17,9 +17,13 @@ import torch
 
 RESET_FAMILIES = ("full_task", "pregrasp", "at_grasp")
 NEAR_GOAL_FAMILIES = RESET_FAMILIES + ("near_goal",)
+# Current construction profile. Keep legacy tuples intact: saved family IDs
+# must retain their original meaning when inspecting an older immutable bank.
+ACTIVE_RESET_FAMILIES = ("full_task", "pregrasp", "near_goal")
 SUPPORTED_FAMILY_PROFILES = {
     "geometry_v1": RESET_FAMILIES,
     "geometry_grasp_v2": NEAR_GOAL_FAMILIES,
+    "geometry_grasp_v3": ACTIVE_RESET_FAMILIES,
 }
 
 
@@ -463,7 +467,7 @@ class ConfigurationBank:
                 raise ValueError("grounded bank requires initial foot contact forces")
             if not bool(grounded_mask(self.tensors["robot_root"], bottom, forces).all()):
                 raise ValueError("bank contains ungrounded or unsettled initial states")
-        if profile == "geometry_grasp_v2":
+        if geometry_profile and "near_goal" in self.family_names:
             self._validate_near_goal()
         return self
 
@@ -472,10 +476,10 @@ class ConfigurationBank:
         physical = self.metadata["physical_validation"]
         if (physical.get("near_goal_grasp_verified") is not True
                 or physical.get("stable_standing_required") is not False):
-            raise ValueError("geometry_grasp_v2 requires near_goal grasp validation without stable standing")
+            raise ValueError("near_goal requires grasp validation without stable standing")
         near = self.tensors["family_id"] == self.family_names.index("near_goal")
         if not bool(near.any()):
-            raise ValueError("geometry_grasp_v2 requires nonempty near_goal states")
+            raise ValueError("near_goal profile requires nonempty near_goal states")
         initial_height = self.metadata.get("object_init_height_m")
         if (type(initial_height) not in (int, float) or not math.isfinite(initial_height)
                 or initial_height <= 0):

@@ -5,11 +5,13 @@ import math
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
+from unittest.mock import Mock, patch
 import xml.etree.ElementTree as ET
 
 import torch
 
 from utils.sgs_bank_builder import PhysicsBankBuilder, pregrasp_local_offset
+from utils.sgs_build_config import load_build_config
 
 
 class BuilderRangeTests(unittest.TestCase):
@@ -185,6 +187,57 @@ class BuilderRangeTests(unittest.TestCase):
         for key in before:
             self.assertTrue(torch.equal(before[key], state[key]))
         self.assertEqual(base, base_before)
+
+    def test_schema_five_constructs_only_three_families_and_keeps_grasp_mesh(self):
+        builder = self.builder()
+        env = builder.env
+        asset_root = Path(__file__).resolve().parents[1] / "data/asset"
+        env.cfg = {"env": {"asset": {"assetRoot": str(asset_root),
+                                    "assetFileObj": "obj_set",
+                                    "asset_multi": {"sugar_box": {}}}}}
+        config = load_build_config()
+        rebuilt = PhysicsBankBuilder(env, per_family=2, reset_config=config)
+        self.assertEqual(rebuilt.family_names, ("full_task", "pregrasp", "near_goal"))
+        self.assertEqual(rebuilt.counts, [0, 0, 0])
+        self.assertEqual(len(rebuilt.parts), 3)
+        self.assertNotIn("at_grasp", rebuilt.reset_config)
+        self.assertGreater(rebuilt.object_vertices.shape[0], 0)
+        self.assertEqual(rebuilt.object_vertices.device.type, torch.device(self.device).type)
+
+    def test_schema_five_build_routes_near_goal_and_assigns_contiguous_family_ids(self):
+        builder = self.builder(2)
+        env = builder.env
+        config = load_build_config()
+        builder.reset_config = config
+        builder.family_names = ("full_task", "pregrasp", "near_goal")
+        builder.per_family = 2
+        env.obj_list = ["sugar_box"]
+        env.init_height = torch.tensor([.045], device=self.device)
+        env.num_dofs = 19
+        env._rigid_body_pos = torch.zeros(2, 27, 3, device=self.device)
+        env.hold_steps = 15
+        env.cfg = {"sim": {"dt": .005}, "env": {"asset": {"assetFileRobot": "b1z1.urdf"}}}
+        state = {"grasp_candidate_index": torch.tensor([-1, -1], device=self.device)}
+        checks = {"valid": torch.ones(2, dtype=torch.bool, device=self.device)}
+        builder._full = Mock(return_value=(state, checks))
+        builder._grasp_pose = Mock(return_value=(state, checks))
+        builder._near_goal = Mock(return_value=(state, checks))
+        builder.sampling_audit = Mock()
+        builder.sampling_audit.summary.return_value = {}
+        with patch("utils.sgs_bank_builder.foot_indices", return_value=[3, 7, 11, 15]), \
+                patch("utils.sgs.ConfigurationBank", side_effect=lambda tensors, metadata: (tensors, metadata)):
+            tensors, metadata = builder.build(max_batches=1)
+        builder._grasp_pose.assert_called_once_with(state, "pregrasp")
+        builder._near_goal.assert_called_once_with(state)
+        self.assertEqual(tensors["family_id"].tolist(), [0, 0, 1, 1, 2, 2])
+        self.assertEqual(metadata["family_names"], ["full_task", "pregrasp", "near_goal"])
+        self.assertEqual(metadata["version"], "b1z1-sugar-sgs-v10")
+        validation = metadata["physical_validation"]
+        self.assertEqual(validation["validation_profile"], "geometry_grasp_v3")
+        self.assertEqual(validation["accepted_per_family"], [2, 2, 2])
+        self.assertTrue(validation["near_goal_grasp_verified"])
+        self.assertTrue(validation["scripted_grasp_required"])
+        self.assertIn("cold-reset grip verification", validation["validation_by_family"]["near_goal"])
 
 
 @unittest.skipUnless(torch.cuda.is_available(), "CUDA unavailable")

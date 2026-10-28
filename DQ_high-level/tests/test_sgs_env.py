@@ -208,6 +208,17 @@ def make_near_goal_bank():
     return SGS.ConfigurationBank(tensors, metadata)
 
 
+def make_active_near_goal_bank():
+    bank = make_near_goal_bank()
+    retained = torch.tensor([0, 1, 2, 3, 6, 7])
+    tensors = {name: value[retained].clone() for name, value in bank.tensors.items()}
+    tensors["family_id"][tensors["family_id"] == 3] = 2
+    metadata = bank.metadata
+    metadata["family_names"] = ["full_task", "pregrasp", "near_goal"]
+    metadata["physical_validation"]["validation_profile"] = "geometry_grasp_v3"
+    return SGS.ConfigurationBank(tensors, metadata)
+
+
 class SGSInitializationTests(unittest.TestCase):
     initialize_sgs = staticmethod(source_method("b1z1_pickmulti.py", "B1Z1PickMulti", "_init_sgs"))
 
@@ -238,10 +249,10 @@ class SGSInitializationTests(unittest.TestCase):
             num_dofs=19, num_envs=4, _rigid_body_pos=torch.zeros(4, 5, 3),
             hold_steps=15, lifted_success_threshold=.2, init_height=torch.full((4,), .045))
 
-    def test_four_family_auto_size_initializes_both_modes_and_preserves_old_bank_loading(self):
+    def test_supported_profiles_initialize_both_modes_and_preserve_old_bank_loading(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "physical.pt"
-            for bank in (self.geometry_bank(), make_near_goal_bank()):
+            for bank in (self.geometry_bank(), make_near_goal_bank(), make_active_near_goal_bank()):
                 bank.save(path)
                 for mode in ("sgs", "uniform"):
                     with self.subTest(families=bank.family_names, mode=mode):
@@ -251,18 +262,22 @@ class SGSInitializationTests(unittest.TestCase):
                             self.initialize_sgs(env)
                         self.assertEqual(env.sgs_family_names, bank.family_names)
                         self.assertEqual(len(env.sgs_family_samples), len(bank.family_names))
+                        self.assertEqual(env.recent_episode_stats.family_count.tolist(),
+                                         [0] * len(bank.family_names))
                         self.assertEqual(env.sgs_sampler.num_configs, bank.num_configs)
                         self.assertEqual(env.sgs_bank.fingerprint, bank.fingerprint)
 
     def test_near_goal_metadata_must_match_task_object_support_height(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "near.pt"
-            make_near_goal_bank().save(path)
-            env = self.environment(path)
-            env.cfg["env"]["sgs"]["bank_size"] = None
-            env.init_height.fill_(.08)
-            with self.assertRaisesRegex(ValueError, "object_init_height_m"):
-                self.initialize_sgs(env)
+            for bank in (make_near_goal_bank(), make_active_near_goal_bank()):
+                bank.save(path)
+                env = self.environment(path)
+                env.cfg["env"]["sgs"]["bank_size"] = None
+                env.init_height.fill_(.08)
+                with self.subTest(families=bank.family_names), self.assertRaisesRegex(
+                        ValueError, "object_init_height_m"):
+                    self.initialize_sgs(env)
 
     def test_geometry_bank_initializes_gpu_compatible_sampler_in_both_training_modes(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -505,6 +520,25 @@ class SGSEnvironmentTests(unittest.TestCase):
         self.assertEqual(env.sgs_family_episodes.tolist(), [0, 0, 0, 1])
         self.assertEqual(env.sgs_family_successes.tolist(), [0, 0, 0, 1])
         self.assertEqual(env.sgs_sampler.visits_total[6].item(), 1)
+
+    def test_active_near_goal_id_two_restores_and_completes_without_at_grasp(self):
+        bank = make_active_near_goal_bank()
+        env = TestEnvironment(bank=bank)
+        with redirect_stdout(io.StringIO()):
+            env.initialize(ids=(4, 5, 4, 0))
+            torch.testing.assert_close(env.curr_height[:3], torch.tensor([.06, .09, .06]))
+            torch.testing.assert_close(env._dof_pos[:3, -1], torch.full((3,), -.7))
+            torch.testing.assert_close(env.gripper_dof_pos[:3], torch.zeros(3, 1))
+            self.assertEqual(env.sgs_family_samples.tolist(), [1, 0, 3])
+            self.assertEqual(env.pick_counter.tolist(), [0] * 4)
+            self.assertFalse(bool(env.episode_success.any()))
+            env.finish([0, 1], [True, False], [0, 2])
+        self.assertEqual(env.sgs_family_episodes.tolist(), [0, 0, 2])
+        self.assertEqual(env.sgs_family_successes.tolist(), [0, 0, 1])
+        self.assertEqual(env.recent_episode_stats.family_count.tolist(), [0, 0, 2])
+        self.assertEqual(env.sgs_sampler.visits_total.tolist(), [0, 0, 0, 0, 1, 1])
+        self.assertEqual(env.extras["scalar_snapshots"]["SuccessRate / near_goal"], .5)
+        self.assertFalse(any("at_grasp" in key for key in env.extras["scalar_snapshots"]))
 
     def test_initial_reset_never_records_stale_success_or_failure(self):
         env = TestEnvironment()

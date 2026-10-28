@@ -87,6 +87,17 @@ def near_goal_bank_fixture():
     return tensors, metadata
 
 
+def active_near_goal_bank_fixture():
+    """Keep the physically verified near-goal rows when removing at_grasp."""
+    tensors, metadata = near_goal_bank_fixture()
+    retained = torch.tensor([0, 1, 2, 3, 6, 7])
+    tensors = {name: value[retained].clone() for name, value in tensors.items()}
+    tensors["family_id"][tensors["family_id"] == 3] = 2
+    metadata["family_names"] = ["full_task", "pregrasp", "near_goal"]
+    metadata["physical_validation"]["validation_profile"] = "geometry_grasp_v3"
+    return tensors, metadata
+
+
 class RingReference:
     """Deliberately sequential oracle, not a copy of the vectorized algorithm."""
 
@@ -253,6 +264,49 @@ class CudaSamplerTests(SamplerTests):
 
 
 class ConfigurationBankTests(unittest.TestCase):
+    def test_active_three_family_roundtrip_preserves_near_goal_rows_under_new_id(self):
+        tensors, metadata = active_near_goal_bank_fixture()
+        bank = ConfigurationBank(tensors, metadata)
+        self.assertEqual(bank.family_names, ("full_task", "pregrasp", "near_goal"))
+        self.assertEqual(bank.tensors["family_id"].tolist(), [0, 0, 1, 1, 2, 2])
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "three.pt"
+            bank.save(path)
+            loaded = ConfigurationBank.load(path)
+            self.assertEqual(bank.fingerprint, loaded.fingerprint)
+            restored = loaded.batch([4, 5])
+            self.assertEqual(restored["near_goal_restore_verified"].tolist(), [1., 1.])
+            torch.testing.assert_close(restored["lift_height"], torch.tensor([.06, .09]))
+            torch.testing.assert_close(restored["gripper_target"], torch.zeros(2, 1))
+
+    def test_active_profile_rejects_forged_near_goal_or_missing_physical_evidence(self):
+        for field, value in (("near_goal_restore_verified", 0.),
+                             ("near_goal_contact_fraction", .2),
+                             ("near_goal_relative_slip_m", .02),
+                             ("lift_height", .2), ("gripper_target", -1.)):
+            with self.subTest(field=field):
+                tensors, metadata = active_near_goal_bank_fixture()
+                tensors[field][4] = value
+                with self.assertRaisesRegex(ValueError, "near_goal"):
+                    ConfigurationBank(tensors, metadata)
+        tensors, metadata = active_near_goal_bank_fixture()
+        tensors.pop("near_goal_restore_verified")
+        with self.assertRaisesRegex(ValueError, "evidence"):
+            ConfigurationBank(tensors, metadata)
+
+    def test_old_bank_family_two_is_never_silently_relabelled_near_goal(self):
+        old_tensors, old_metadata = bank_fixture()
+        legacy = ConfigurationBank(old_tensors, old_metadata)
+        self.assertEqual(legacy.family_names[2], "at_grasp")
+        four_tensors, four_metadata = near_goal_bank_fixture()
+        four = ConfigurationBank(four_tensors, four_metadata)
+        self.assertEqual(four.family_names[2:], ("at_grasp", "near_goal"))
+        for wrong_profile in ("geometry_v1", "geometry_grasp_v2"):
+            tensors, metadata = active_near_goal_bank_fixture()
+            metadata["physical_validation"]["validation_profile"] = wrong_profile
+            with self.subTest(profile=wrong_profile), self.assertRaisesRegex(ValueError, "family_names"):
+                ConfigurationBank(tensors, metadata)
+
     def test_four_family_roundtrip_preserves_grasp_evidence_and_closed_target(self):
         tensors, metadata = near_goal_bank_fixture()
         bank = ConfigurationBank(tensors, metadata)

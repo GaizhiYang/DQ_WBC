@@ -12,9 +12,9 @@ export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
 
 本实现已在本机 `dqwbc` 环境运行。当前机器仅激活 conda 不会自动加入其动态库目录；上面的 `export` 用于解决 Isaac Gym 导入时找不到 `libpython3.8.so.1.0` 的问题。
 
-## 2. 构建可重复抽取的固定配置库（v9）
+## 2. 构建可重复抽取的固定配置库（v10）
 
-构库入口读取 [data/cfg/sgs_bank.yaml](../DQ_high-level/data/cfg/sgs_bank.yaml)，当前为 `schema_version: 4`。四类为 `full_task`（完整任务起步）、`pregrasp`（临近抓取）、`at_grasp`（已到达抓取位姿）和 `near_goal`（已抓住、抬升 5–10 cm）。修改 YAML 后重新构库；训练只读取生成的 `.pt` 缓冲区。旧 schema 3 仍可构建原三类库。
+构库入口读取 [data/cfg/sgs_bank.yaml](../DQ_high-level/data/cfg/sgs_bank.yaml)，当前为 `schema_version: 5`。已删除 `at_grasp`（到达抓取位姿、随机夹爪开度）配置类，仅保留 `full_task`（完整任务起步）、`pregrasp`（临近抓取）和 `near_goal`（已抓住、抬升 5–10 cm），类别 ID 依次为 0、1、2。修改 YAML 后重新构库；训练只读取生成的 `.pt` 缓冲区。旧 schema 3/4 和 v8/v9 库保留兼容性，不自动改写旧文件或重新解释旧类别编号。
 
 ```bash
 python build_sgs_bank.py \
@@ -24,10 +24,10 @@ python build_sgs_bank.py \
   --seed 43 \
   --max-batches 512 \
   --reset-config data/cfg/sgs_bank.yaml \
-  --output data/sgs/sugar_box_v9.pt
+  --output data/sgs/sugar_box_v10.pt
 ```
 
-`--reset-config` 表示上述初态参数文件；`--config` 表示教师环境配置（默认 `data/cfg/DQ_teacher.yaml`），两者用途不同。当前配置保留用户调节的底盘范围和第三类夹爪开度：
+`--reset-config` 表示上述初态参数文件；`--config` 表示教师环境配置（默认 `data/cfg/DQ_teacher.yaml`），两者用途不同。保留的三类参数范围没有因删除类别而改变：
 
 | YAML 字段 | 含义 | 当前值 |
 | --- | --- | --- |
@@ -37,19 +37,16 @@ python build_sgs_bank.py \
 | `pregrasp.base.x_range_m` / `y_range_m` | 临近抓取底盘与物体间隔 | `[0.68, 0.95]` / `[-0.2, 0.2]` |
 | `pregrasp.base.heading_offset_range_deg` | 临近抓取底盘朝向偏角 | `[-15, 15]` |
 | `pregrasp.ee_approach_distance_range_m` | 末端到候选抓取原点的欧氏距离，单位 m | `[0.05, 0.15]` |
-| `at_grasp.base.x_range_m` / `y_range_m` | 到达抓取位姿类别的底盘与物体间隔 | `[0.68, 0.85]` / `[-0.1, 0.1]` |
-| `at_grasp.base.heading_offset_range_deg` | 到达抓取位姿类别的底盘朝向偏角 | `[-10, 10]` |
-| `at_grasp.gripper_opening_range` | 随机夹爪开度，归一化 0 为闭合、1 为全开 | `[0.5, 1.0]` |
 | `near_goal.base.x_range_m` / `y_range_m` | 已抓住类别的底盘与物体间隔 | `[0.68, 0.85]` / `[-0.1, 0.1]` |
 | `near_goal.base.heading_offset_range_deg` | 已抓住类别的底盘朝向偏角 | `[-10, 10]` |
 | `near_goal.object_lift_height_range_m` | 物体中心相对原桌面支撑位置的实际抬升量 | `[0.05, 0.10]` |
 
-四类 `base` 使用相同定义：`x = object_world_x - robot_base_world_x`，`y = object_world_y - robot_base_world_y`；不是底盘局部坐标，也不是水平欧氏距离。偏角为 `wrap(robot_yaw - atan2(y, x))`，0° 表示正朝向物体，正值表示逆时针，范围须位于 `[-180, 180]` 内。
+三类 `base` 使用相同定义：`x = object_world_x - robot_base_world_x`，`y = object_world_y - robot_base_world_y`；不是底盘局部坐标，也不是水平欧氏距离。偏角为 `wrap(robot_yaw - atan2(y, x))`，0° 表示正朝向物体，正值表示逆时针，范围须位于 `[-180, 180]` 内。
 
 以下是当前可调扰动参数，数值是本仓库的工程设置，不是论文推荐常数：
 
 ```yaml
-schema_version: 4
+schema_version: 5
 object:
   yaw_offset_range_deg: [-15, 15]
 validation:
@@ -68,16 +65,15 @@ pregrasp:
 
 `object.yaw_offset_range_deg` 用于物体在桌面上的起始朝向，绕世界 z 轴、相对于任务正常 reset 的 `init_quat` 旋转。临近抓取的横向 y、上下 z 和 roll/pitch/yaw 都相对于**所选候选抓取位姿的局部坐标系**，不是底盘或世界坐标。独立采样欧氏距离 `d` 和偏移 `y/z` 后，只保留 `y² + z² < d²` 的组合，再取 `x = -sqrt(d² - y² - z²)`；不可行的组合记入 `sample_geometry` 拒绝统计。增加横向扰动不会自动扩大距离，也不会悄悄缩小用户指定的 y/z 范围。配置检查只拒绝完全没有可行交集的范围；部分不可行组合会降低采样效率。每轴旋转范围限制在 `[-45, 45]` 度。
 
-四类构造方法：
+三类构造方法：
 
 1. **完整任务起步**：正常重置，按 YAML 放置底盘、校正足底到地面附近，机械臂保持原任务 reset 使用的 `_initial_dof_pos` 默认关节姿态。
 2. **临近抓取**：物体仍在桌上，夹爪张开；在候选抓取位姿的 local -x 一侧采样距离、横向/上下偏移及小角度姿态扰动，使用 IK 设置机械臂。检查实际距离、姿态、可达性、碰撞和足底几何。不执行完整抓取脚本，不以脚本抓取成功作为入库条件。
-3. **已到达抓取位姿**：物体仍在桌上，使用 IK 将末端对齐候选抓取位姿，按 `gripper_opening_range` 随机设置关节位置和控制目标。不预先抬升，不要求已可靠夹持。归一化值映射到 URDF 关节上下限；`[0, 0]` 固定闭合，`[1, 1]` 固定全开。
-4. **Near-Goal**：从可行抓取位姿开始，使用原低层控制器，实际闭爪、控制末端抬升并短时保持；物体依靠物理接触随夹爪运动。检查真实抬升量、夹爪接触、物体相对末端滑移/转动和末尾速度，并验证保存状态能够重新恢复后保持抓持。保存实际关节开度、持续闭爪目标及当时实际使用的末端控制目标。额外抓持过程只用于这一类。
+3. **Near-Goal**：从可行抓取位姿开始，使用原低层控制器，实际闭爪、控制末端抬升并短时保持；物体依靠物理接触随夹爪运动。检查真实抬升量、夹爪接触、物体相对末端滑移/转动和末尾速度，并验证保存状态能够重新恢复后保持抓持。保存实际关节开度、持续闭爪目标及当时实际使用的末端控制目标。该流程直接使用 `near_goal` 参数，不依赖已删除的 `at_grasp` 配置类。
 
-`pregrasp.ee_approach_distance_range_m` 与末端到物体中心的距离不同。旧的 `grasped_before_lift` 类不自动映射为新第三类或第四类；schema 1/2 需迁移后再构库。新第四类的参数路径是 `near_goal.object_lift_height_range_m`，与旧第三类的同名参数区分。
+`pregrasp.ee_approach_distance_range_m` 与末端到物体中心的距离不同。历史 `grasped_before_lift` 不自动映射为 Near-Goal；schema 1/2 需迁移后再构库。Near-Goal 的参数路径是 `near_goal.object_lift_height_range_m`。
 
-四类的足底均只要求碰撞球底面大致位于地面附近，当前允许 **−5 mm 至 +20 mm**；用 **4 cm 碰撞球半径**计算。**不要求稳定站立、连续承重脚数或底盘静止速度。** 前三类运行可配置的短物理窗口，默认 5 个物理步、每步 5 ms，共 25 ms；检查窗口内物体相对候选初始位置的最大位移和峰值接触力，默认上限分别为 2 cm 和 5000 N。第四类采用专用的抬升/抓持验收，不能沿用“仍在桌上”与总位移不超过 2 cm 的条件。允许足地及合理夹爪物体接触，保留关节限位、数值合法性和保存帧参数范围检查。
+三类的足底均只要求碰撞球底面大致位于地面附近，当前允许 **−5 mm 至 +20 mm**；用 **4 cm 碰撞球半径**计算。**不要求稳定站立、连续承重脚数或底盘静止速度。** 前两类运行可配置的短物理窗口，默认 5 个物理步、每步 5 ms，共 25 ms；检查窗口内物体相对候选初始位置的最大位移和峰值接触力，默认上限分别为 2 cm 和 5000 N。Near-Goal 采用专用的抬升/抓持验收，不能沿用“仍在桌上”与总位移不超过 2 cm 的条件。允许足地及合理夹爪物体接触，保留关节限位、数值合法性和保存帧参数范围检查。
 
 目标范围先均匀采样，经过 IK 和物理筛选后，最终库内分布不保证均匀。`[a, a]` 是固定值，只有这类零宽范围允许位置和末端距离 **±5 mm**、偏角 **±1°** 的物理容差。不可达设置仍可能导致样本不足；构库不会自动扩展用户范围或复制样本补齐。
 
@@ -85,13 +81,13 @@ pregrasp:
 
 成功后输出 `.pt` 缓冲区和同名 `.json` 审计文件。除配置数、指纹和有效 YAML 外，`metadata.sampling_audit` 区分提出的候选、通过筛选的候选和最终入库数量，记录拒绝原因及分布，帮助定位哪些范围过窄或难以到达。独立拒绝计数可能重叠，`first_rejection_counts` 只记每条候选首次失败的检查。通过筛选但超过某类剩余名额的候选不算物理失败。保存帧还记录所选候选 ID、候选局部位移、末端局部姿态偏差和实际物体 yaw，便于复查采样目标与实际状态的差别。采样耗尽时不保存不完整库，拒绝统计写入同名 `.failed.json`。
 
-目标是四类各 512 条、共 2048 条。新库使用 `validation_profile: geometry_grasp_v2`、`near_goal_grasp_verified: true`，保留 `feet_near_ground: true`、`collision_checked: true`、`object_attachment: false`。v8 的三类 `geometry_v1` 库仍可加载；v1–v4 的第三类语义不同，不能直接使用。历史文件与报告保留，新训练命令使用 v9。
+目标是三类各 512 条、共 1536 条。新库使用 `validation_profile: geometry_grasp_v3`、`near_goal_grasp_verified: true`，保留 `feet_near_ground: true`、`collision_checked: true`、`object_attachment: false`。v8 的三类 `geometry_v1`、v9 的四类 `geometry_grasp_v2` 仍可加载；旧库包含的 `at_grasp` 不会因为编辑 YAML 自动消失，因此本次重建和训练使用新文件 v10。
 
 构建一次后即可反复训练。修改 YAML 后需要重新生成文件，SGS 和 uniform 对照应读取同一个文件和指纹。训练期间从缓冲区抽取已有初态，**不会重跑离线 IK 或物理筛选流程**。
 
 ## 3. 正式训练
 
-先按第 2 节成功构建四类各 512 条的 v9 库，再在原命令上增加 `--sgs_mode sgs` 和 `--sgs_bank`。训练不读取 `sgs_bank.yaml`，也不接受构库入口的 `--reset-config`：
+先按第 2 节成功构建三类各 512 条的 v10 库，再在原命令上增加 `--sgs_mode sgs` 和 `--sgs_bank`。`train_teacher_sgs_ekf.sh` 默认也已切换至 v10，运行前需先完成构库。训练不读取 `sgs_bank.yaml`，也不接受构库入口的 `--reset-config`：
 
 ```bash
 python train_multistate_DQ_teacher.py \
@@ -107,20 +103,20 @@ python train_multistate_DQ_teacher.py \
   --rand_control \
   --no_velocity_obs \
   --sgs_mode sgs \
-  --sgs_bank data/sgs/sugar_box_v9.pt \
+  --sgs_bank data/sgs/sugar_box_v10.pt \
   --seed 43 \
   --headless --wandb --wandb_name no_velocity_obs
 ```
 
 固定库均匀采样对照只需将 `--sgs_mode sgs` 改为 `--sgs_mode uniform`，同时为 `--experiment_dir` 使用不同目录，保留相同 bank、seed、环境数和训练步数。原始任务基线使用 `--sgs_mode disabled`，无需 bank。
 
-默认 `bank_size: null`，从库读取实际配置数；也可显式填写整数，加载时核对一致。SGS 参数为每配置最近 100 个已完成回合、目标成功率 0.5、`kappa=1`、`temperature=2`、`epsilon=1e-4`、`p_init=0`。配置位于 `data/cfg/DQ_teacher.yaml` 的 `env.sgs`。uniform/SGS 训练使用 hold 成功标签。四类等量时，初始每类总采样概率约 25%；后续仍按每条配置的历史成功率调整，不强制各类保持等概率。
+默认 `bank_size: null`，从库读取实际配置数；也可显式填写整数，加载时核对一致。SGS 参数为每配置最近 100 个已完成回合、目标成功率 0.5、`kappa=1`、`temperature=2`、`epsilon=1e-4`、`p_init=0`。配置位于 `data/cfg/DQ_teacher.yaml` 的 `env.sgs`。uniform/SGS 训练使用 hold 成功标签。新三类等量时，初始每类总采样概率约 1/3；后续仍按每条配置的历史成功率调整，不强制各类保持等概率。
 
 当前实现从头训练，不支持 SGS/uniform 的 `--resume` 或 `--checkpoint`。不能将 agent checkpoint 或诊断文件当作完整续训状态。
 
 ## 4. 小规模 GPU 冒烟
 
-以下命令同样以第 2 节的 v9 库已构建成功为前提；本轮验证进展见第 14 节。
+以下命令同样以第 2 节的 v10 库已构建成功为前提；第 14 节为 v9 历史验证记录。
 
 ```bash
 python train_multistate_DQ_teacher.py \
@@ -130,7 +126,7 @@ python train_multistate_DQ_teacher.py \
   --experiment_dir DQ_teacher/sgs-smoke --wandb_name seed43 \
   --roboinfo --observe_gait_commands --small_value_set_zero \
   --rand_control --no_velocity_obs \
-  --sgs_mode sgs --sgs_bank data/sgs/sugar_box_v9.pt \
+  --sgs_mode sgs --sgs_bank data/sgs/sugar_box_v10.pt \
   --seed 43 --headless
 ```
 
@@ -194,18 +190,22 @@ b02cdb5def5c2fa2bae5bdc294533c9ed6c6843e800d8b6435bf98f6d141e835
 
 ## 8. 随机抽样可视化配置
 
-在第 1 节的环境和目录中运行；默认读取 v9，每类随机抽取 3 条，共 12 条。读取旧 v8 库时自动展示三类、共 9 条：
+在第 1 节的环境和目录中运行；默认读取新构建的 v10，每类随机抽取 3 条，共 9 条。旧 v8/v9 需要显式指定 `--bank`，按文件原有类别展示：
 
 ```bash
 python visualize_sgs_bank.py --device cuda:0 \
-  --bank data/sgs/sugar_box_v9.pt --samples-per-family 3 --seed 43
+  --bank data/sgs/sugar_box_v10.pt --samples-per-family 3 --seed 43
 ```
 
 窗口打开后暂停，终端显示抽到的配置 ID。更换 `--seed` 可换一组，`--samples-per-family` 调节数量；该抽样用于检查，与训练 SGS 采样独立。
 
+2026-10-27 修复 EKF 分支合并后的预览相机初始化错误：底层构库环境默认无窗口且没有内置视觉相机，新加入的无渲染优化会把图形设备设为 `-1`，导致预览脚本随后创建相机失败。现在预览显式请求图形上下文，交互模式与 `--headless` 导图均可使用；普通构库和无相机的 headless 训练继续关闭图形设备，不启用视觉观测。遇到旧版的 `Isaac Gym could not create the preview camera` 且日志显示 `graphics_device is -1` 时，使用修复后的代码重跑原命令即可，无需重建 bank。
+
+修复验证：252 项 CPU / CUDA 回归通过，2 项缺少外部基准而跳过；在 `cuda:0` 随机抽取每类 1 条，成功导出四类图片、GIF 和测量文件。当前工具会话的 `DISPLAY=:10.0` 出现 X11 授权错误，交互 viewer 未通过本次实测；此时图形设备已正确为 `0`，预览相机已成功创建，失败位置是另一个窗口显示连接问题。
+
 | 按键 | 功能 |
 | --- | --- |
-| `1` / `2` / `3` / `4` | 完整任务起步 / 临近抓取 / 已到达抓取位姿 / Near-Goal（旧三类库无 `4`） |
+| `1` / `2` / `3` | v10：完整任务起步 / 临近抓取 / Near-Goal；旧库仍按自身类别顺序映射数字键 |
 | `←` / `→` | 切换当前类别的抽样配置 |
 | `F` / `C` | 全景 / 末端与物体近景 |
 | 空格 / `N` | 播放或暂停 / 前进一个高层控制步 |
@@ -213,16 +213,16 @@ python visualize_sgs_bank.py --device cuda:0 \
 | `O` | 人为切换开合目标，下一步生效 |
 | `S` / `Esc` | 保存截图 / 退出 |
 
-**默认播放保持库里保存的夹爪目标，包括第三类的随机开度和第四类的闭爪目标。** 预览对当前环境实例单独保留该目标，因为训练原动作中 0 表示开爪，不能用 0 代表保持；训练动作语义未改。按 `O` 后才切换为全开/全闭，按 `R` 恢复库中的值。第三类没有物体已抓稳或会保持悬空的保证。
+**默认播放保持库里保存的夹爪目标，包括 Near-Goal 的闭爪目标。** 预览对当前环境实例单独保留该目标，因为训练原动作中 0 表示开爪，不能用 0 代表保持；训练动作语义未改。按 `O` 后才切换为全开/全闭，按 `R` 恢复库中的值。若读取旧库，原 `at_grasp` 的随机开度仍按旧文件恢复，不能将其误当 Near-Goal。
 
 无窗口导出图片、GIF 和测量 JSON：
 
 ```bash
 python visualize_sgs_bank.py \
   --device cuda:0 --headless \
-  --bank data/sgs/sugar_box_v9.pt \
+  --bank data/sgs/sugar_box_v10.pt \
   --samples-per-family 3 --seed 43 --steps 8 \
-  --output ../doc/sgs_preview/v9_random_seed43
+  --output ../doc/sgs_preview/v10_random_seed43
 ```
 
 输出 `overview.png`、全景 `grounding_overview.png`、每条配置带 ID 的图片/动画及 `measurements.json`。复查指定条目用 `--config-id 1024`。不同 bank 中相同 ID 不代表同一个状态。
@@ -231,11 +231,11 @@ python visualize_sgs_bank.py \
 
 `measurements.json` 和交互终端增加以下实测字段：`ee_to_grasp_candidate_m` 是到保存时所选候选的实际距离；`candidate_local_offset_m` 是候选局部 `[x, y, z]` 偏移；`ee_rotation_offset_deg` 是相对候选的局部 `[roll, pitch, yaw]`；`object_yaw_offset_deg` 是相对正常 reset 姿态的物体 yaw。候选按物体当前姿态重新计算，不以另一个更近的候选替换。完整任务没有所选候选，对应字段为 `null`；物体 yaw 仍正常记录。`saved_geometry` 保存构库时实测值，用于区别恢复后物理推进产生的变化。对比图只额外标注候选距离，详细参数查看 JSON。
 
-Near-Goal 还记录 `saved_grasp_evidence`（构库的抬升、滑移/旋转、接触帧比例、末尾速度和恢复验证标记），以及预览中的 `relative_slip_from_saved_m`、`relative_rotation_from_saved_deg`、`object_in_ee_position_m`、`finger_contact_force_n`、`both_fingers_contact`、`object_speed_m_s`、`near_goal_lift_in_range`。接触力按固定指侧、活动指侧顺序记录。当前仿真会折叠固定关节，固定指 `gripperStator` 的碰撞合并到 `link06`，因此使用 `link06` 与 `gripperMover` 的净接触力诊断；未折叠时使用独立的 `gripperStator`。这些值不是独立的指物接触对，更不能凭一帧接触证明稳定抓持，需要结合夹持几何与持续保持结果。前三类对应近目标诊断为 `null`。
+Near-Goal 还记录 `saved_grasp_evidence`（构库的抬升、滑移/旋转、接触帧比例、末尾速度和恢复验证标记），以及预览中的 `relative_slip_from_saved_m`、`relative_rotation_from_saved_deg`、`object_in_ee_position_m`、`finger_contact_force_n`、`both_fingers_contact`、`object_speed_m_s`、`near_goal_lift_in_range`。接触力按固定指侧、活动指侧顺序记录。当前仿真会折叠固定关节，固定指 `gripperStator` 的碰撞合并到 `link06`，因此使用 `link06` 与 `gripperMover` 的净接触力诊断；未折叠时使用独立的 `gripperStator`。这些值不是独立的指物接触对，更不能凭一帧接触证明稳定抓持，需要结合夹持几何与持续保持结果。其他类别对应近目标诊断为 `null`。
 
 恢复首帧只推进渲染所需的一个 **5 ms** 物理步，没有长时间落地等待；这与构库时默认 5 步的筛选窗口用途不同。播放采用低层行走控制和机械臂 IK，高层位姿增量与底盘指令为零，保留 Level02 桌面运动。因此短动画展示初态的物理响应，不代表训练好的教师表现。`ee_to_object_center_m` 不能直接用来核对 YAML 的候选抓取距离。
 
-旧版本预览图留在各自目录。新版预览接受三类 `geometry_v1` 或四类 `geometry_grasp_v2` 库，避免把旧的已抓持样本误标为新第三类。
+旧版本预览图留在各自目录。新版预览根据 `geometry_v1`、`geometry_grasp_v2`、`geometry_grasp_v3` 分别读取对应的类别名称，避免仅凭类别数推断第三类含义。
 
 ## 9. v2 历史距离调整与验证（2026-10-22）
 
@@ -439,25 +439,26 @@ python tests/audit_sgs_near_goal_gpu.py \
 
 修复后已在 `cuda:1` 使用原 2048 条正式库完成 **32 环境、96 步、4 次 PPO 更新**，76 项训练链路检查通过；40 个完成回合正确登记，四类实际抽取次数为 **24、24、9、16**，模型参数有限且实际更新。原计划仍为 `--timesteps 120000`，通过 `--stop_after 96` 提前结束；没有开启在线 wandb。记录见 [sgs_v9_reward_fix_gpu_validation.json](sgs_v9_reward_fix_gpu_validation.json)。这次短训练验证运行与统计链路，不代表长期训练成功率改善。
 
-## 16. 四类成功率、wandb 与终端日志
+## 16. 各类成功率、wandb 与终端日志
 
 2026-10-27 将展示指标改为近期已完成回合的滑动窗口。原训练命令保留 `--wandb` 即可，不需要修改配置库；`train_teacher_sgs_ekf.sh` 需要附加 `--wandb` 才会开启云端记录。以下修改在重新启动训练后生效，窗口从空开始：
+
+当前 v10 运行按三类生成下列指标。分类统计根据实际加载的 bank 自动确定；读取旧 v9 时仍会产生该旧库的 `at_grasp` 指标。
 
 | wandb / TensorBoard 指标 | 统计窗口 |
 | --- | --- |
 | `SuccessRate / full_task` | 完整任务起步，最近 100 个已完成回合 |
 | `SuccessRate / pregrasp` | 临近抓取，最近 100 个已完成回合 |
-| `SuccessRate / at_grasp` | 已到达抓取位姿，最近 100 个已完成回合 |
 | `SuccessRate / near_goal` | 已抓住并抬升 5–10 cm，最近 100 个已完成回合 |
 
-各窗口成功率为**窗口内成功回合数 / 窗口内已完成回合数**；未满窗口时使用实际完成数作分母。按回合起始配置归属类别，各类分别按完成顺序入窗，同一个向量环境步中结束的回合按环境 ID 顺序处理。失败和超时也计入完成回合；初始化、主动取消的重置和仍在进行的回合不计入。按最终需求，SGS 模式只显示各类近期成功率，移除原 `SuccessRate / sugar_box` 总体累计曲线，不新增总体窗口或四类均值。未启用 SGS 的旧训练分支不受此修改影响。
+各窗口成功率为**窗口内成功回合数 / 窗口内已完成回合数**；未满窗口时使用实际完成数作分母。按回合起始配置归属类别，各类分别按完成顺序入窗，同一个向量环境步中结束的回合按环境 ID 顺序处理。失败和超时也计入完成回合；初始化、主动取消的重置和仍在进行的回合不计入。按最终需求，SGS 模式只显示各类近期成功率，移除原 `SuccessRate / sugar_box` 总体累计曲线，不新增总体窗口或类别均值。未启用 SGS 的旧训练分支不受此修改影响。
 
 `SGS / successes_<family>` 和 `SGS / episodes_<family>` 同步改为**当前窗口的**成功数、完成数，完成数最多为 100。旧的 `SGS / success_<family>` 同步使用近期成功率。所有这些曲线采用最新快照，避免再次对日志区间内的比率取均值。某项尚无完成回合时，`SuccessRate / ...` 暂不生成数据点，终端显示 `N/A (0/0)`；兼容的 `SGS / success_...` 在空窗口时仍为零，应结合完成数理解。新的日志口径与旧累计曲线不同，比较实验时请注明代码版本。
 
-终端每 **24 个高层训练步**输出四类近期成功率，训练结束另输出带 `final` 的统计。输出格式示例（以下数字仅作说明）：
+终端每 **24 个高层训练步**输出各类近期成功率，训练结束另输出带 `final` 的统计。v10 输出格式示例（以下数字仅作说明）：
 
 ```text
-[SGS step=2400] SuccessRate (each family last 100): full_task=20.00% (20/100) | pregrasp=40.00% (40/100) | at_grasp=60.00% (60/100) | near_goal=80.00% (80/100)
+[SGS step=2400] SuccessRate (each family last 100): full_task=20.00% (20/100) | pregrasp=40.00% (40/100) | near_goal=80.00% (80/100)
 ```
 
 展示窗口是独立的 GPU 张量缓冲区，不读取或修改采样器的历史、不消耗随机数、不参与观测、奖励或 PPO 更新。SGS 用来调整采样概率的仍是**每条具体配置**最近 100 个已完成回合的内部成功率，原算法保持不变。原始累计次数仍留在诊断文件中用于核对回合结算，不再用于成功率展示。
@@ -472,7 +473,7 @@ python tests/audit_sgs_near_goal_gpu.py \
 
 ## 17. 当前 SGS + EKF 教师的回合成功判定复核
 
-四类共享相同的任务成功条件。`utils/config.py` 在 SGS / uniform 模式强制 `successMode=hold`，当前 `DQ_teacher.yaml` 的 `liftedSuccessThreshold=0.2`、`holdSteps=15`：
+各类共享相同的任务成功条件。`utils/config.py` 在 SGS / uniform 模式强制 `successMode=hold`，当前 `DQ_teacher.yaml` 的 `liftedSuccessThreshold=0.2`、`holdSteps=15`：
 
 1. 物体中心的世界坐标高度减去当前桌面高度，再减去物体静置时的中心高度（sugar_box 为 0.045 m），结果严格大于 0.20 m。
 2. 物体中心距机械臂末端 `ee_pos` 严格小于 0.20 m。
@@ -487,3 +488,11 @@ Near-Goal 初态只抬升 5–10 cm；恢复时保持计数、成功标志清零
 - **成功更新仍在 `_reward_pick_up()` 中。** 当前 `pick_up: 3.5` 开启，流程正常；若将这一奖励权重设为零，该函数会从奖励列表移除，保持计数及成功判定也会停用。这是潜在的结构耦合，需要在计划禁用该奖励时先拆分。此次没有更改奖励或终止行为。
 
 另有独立的超时字段瑕疵：`extras["time_outs"]` 使用 `progress_buf >= max_episode_length - 1`，而实际超时终止使用 `>= max_episode_length`，且字段未排除同帧成功/真实失败。当前 wrapper 将 done 全部作为 terminated，PPO 未开启 time-limit bootstrap，SGS 成功统计也不读取这个字段，所以不影响本次成功率；以后若启用超时价值自举，需要先修正并统一 truncated/terminated 的传递。
+
+## 18. v10 删除 at_grasp 后的集成验证
+
+2026-10-27 删除默认配置中的 `at_grasp`，新 schema 5 / `geometry_grasp_v3` 仅包含完整任务、临近抓取和 Near-Goal。三类仍使用相同的成功判定、SGS 每配置历史和每类最近 100 回合展示窗口；Near-Goal 的物理抓持验证没有放宽。训练启动脚本与预览默认读取 `sugar_box_v10.pt`，正式库需按第 2 节命令重新构建；旧 v9 文件保持不变。
+
+本轮只构建了验证用临时小库，**没有代替用户生成正式 1536 条库**。在 `cuda:1` 用 128 个构建环境、每类 4 条，2 批得到 12 条真实物理验证初态；随后使用该库完成开启 EKF 的 32 环境、96 步、4 次 PPO 更新，98 项 GPU/TensorBoard 检查通过。实际 TensorBoard 和 wandb 离线记录只有三类 `SuccessRate`，没有 `at_grasp`；每类最近完成数为 11、9、8。在 `cuda:0` 每类抽取 1 条，成功导出三类预览图片和动画。结果见 [v10 小库集成验证](sgs_v10_smoke_gpu_validation.json)。
+
+266 项 CPU/CUDA 回归通过，2 项因缺少本地 Paparazzo 基准跳过；覆盖新类别 ID、旧库兼容、抓持证据拒绝、三类成功率结算及预览键位。短程验证证明构库、GPU 训练和日志链路可执行，不代表完整训练收益。

@@ -538,7 +538,9 @@ class B1Z1Base(RewardVecTask):
         self.up_axis_idx = 2 # Y=1, Z=2;
         # Pose-only headless rollouts need no Vulkan graphics context. Creating
         # one unnecessarily can also crash the driver during simulator teardown.
-        graphics_device = -1 if self.headless and not (self.enable_camera or self.camera_test) else self.sim_id
+        needs_graphics = (self.enable_camera or self.camera_test
+                          or self.cfg.get("enableCameraSensors", False))
+        graphics_device = -1 if self.headless and not needs_graphics else self.sim_id
         self.sim = super().create_sim(self.sim_id, graphics_device, self.physics_engine, self.sim_params)
         # Load exactly one ground surface to avoid overlapping geometry and flicker.
         terrain_type = self.cfg["env"].get("terrainType", "plane")

@@ -221,6 +221,23 @@ class BuildAuditTests(unittest.TestCase):
             self.assertNotIn("lift_height", report["families"][name]["coverage"])
             self.assertNotIn("near_goal_contact_fraction", report["families"][name]["coverage"])
 
+    def test_near_goal_evidence_uses_family_name_after_removing_at_grasp(self):
+        bank = self.bank()
+        bank["lift_height"] = self.vector([0., 0., 0., .075], torch.float32)
+        bank["near_goal_contact_fraction"] = self.vector([0., 0., 0., .95], torch.float32)
+        bank["near_goal_restore_verified"] = self.vector([0., 0., 0., 1.], torch.float32)
+        audit = BuildAudit(("full_task", "pregrasp", "near_goal"))
+        audit.record(2, self.vector([23]), {"held": self.vector([True], torch.bool)}, self.vector([0]))
+        report = audit.summary(bank)
+        self.assertEqual(set(report["families"]), {"full_task", "pregrasp", "near_goal"})
+        near = report["families"]["near_goal"]
+        self.assertEqual(near["stored"], 1)
+        self.assertAlmostEqual(near["coverage"]["lift_height"]["min"], .075, places=6)
+        self.assertAlmostEqual(near["coverage"]["near_goal_contact_fraction"]["min"], .95, places=6)
+        self.assertEqual(near["coverage"]["near_goal_restore_verified"]["min"], 1.)
+        self.assertNotIn("near_goal_contact_fraction", report["families"]["pregrasp"]["coverage"])
+        json.dumps(report, allow_nan=False)
+
     def test_optional_grasp_evidence_requires_one_value_per_configuration(self):
         bank = self.bank()
         bank["near_goal_relative_slip_m"] = torch.zeros(4, 1, device=self.device)

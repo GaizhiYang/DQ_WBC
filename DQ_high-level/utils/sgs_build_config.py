@@ -1,8 +1,9 @@
 """Read and validate SGS bank-construction parameters without a simulator.
 
 The builder samples targets from these ranges and checks geometry, collision and
-approximate ground contact. Schema 4 adds a near-goal family with a short physical
-grasp/lift/hold check; schema 3 keeps the original three geometry-only families.
+approximate ground contact. Schema 5 keeps full_task, pregrasp and physically
+verified near_goal. Legacy schema 4 also includes at_grasp; schema 3 keeps the
+original three geometry-only families.
 Neither profile requires stable standing. Accepted states need not be uniform.
 """
 
@@ -17,6 +18,11 @@ import yaml
 DEFAULT_BUILD_CONFIG_PATH = Path(__file__).resolve().parents[1] / "data" / "cfg" / "sgs_bank.yaml"
 SINGLE_VALUE_POSITION_TOLERANCE_M = 0.005
 SINGLE_VALUE_HEADING_TOLERANCE_DEG = 1.0
+BUILD_FAMILIES = {
+    3: ("full_task", "pregrasp", "at_grasp"),
+    4: ("full_task", "pregrasp", "at_grasp", "near_goal"),
+    5: ("full_task", "pregrasp", "near_goal"),
+}
 
 _BASE_KEYS = {"x_range_m", "y_range_m", "heading_offset_range_deg"}
 _FAMILY_EXTRA = {
@@ -120,7 +126,7 @@ def _base(value, path):
 def validate_build_config(mapping, lifted_threshold=None):
     """Return a detached, normalized config, rejecting ambiguous settings.
 
-    ``lifted_threshold`` is used only for schema 4: a near-goal state must be
+    ``lifted_threshold`` is used for schemas 4 and 5: a near-goal state must be
     strictly below the task's success height (default 0.2 m). Schema 3 does not
     pre-lift objects and keeps its earlier threshold-independent behavior.
     """
@@ -141,11 +147,10 @@ def validate_build_config(mapping, lifted_threshold=None):
     if "schema_version" not in mapping:
         raise ValueError("SGS build config: missing keys schema_version")
     version = mapping["schema_version"]
-    if type(version) is not int or version not in (3, 4):
-        raise ValueError("schema_version must be the integer 3 or 4")
-    root_keys = {"schema_version", "object", "validation", *_FAMILY_EXTRA}
-    if version == 4:
-        root_keys.add("near_goal")
+    if type(version) is not int or version not in BUILD_FAMILIES:
+        raise ValueError("schema_version must be the integer 3, 4 or 5")
+    families = BUILD_FAMILIES[version]
+    root_keys = {"schema_version", "object", "validation", *families}
     _keys(mapping, root_keys, "SGS build config")
     _keys(mapping["object"], {"yaw_offset_range_deg"}, "object")
     _keys(mapping["validation"], _VALIDATION_KEYS, "validation")
@@ -165,6 +170,8 @@ def validate_build_config(mapping, lifted_threshold=None):
         "validation": validation,
     }
     for family, extra_key in _FAMILY_EXTRA.items():
+        if family not in families:
+            continue
         source = mapping[family]
         extra_keys = _PREGRASP_OFFSET_KEYS if family == "pregrasp" else set()
         _keys(source, {"base", extra_key, *extra_keys}, family)
@@ -204,7 +211,7 @@ def validate_build_config(mapping, lifted_threshold=None):
             if opening[0] < 0 or opening[1] > 1:
                 raise ValueError(f"{family}.{extra_key} must stay within [0, 1]")
             result[family][extra_key] = opening
-    if version == 4:
+    if "near_goal" in families:
         source = mapping["near_goal"]
         _keys(source, {"base", "object_lift_height_range_m", *_NEAR_GOAL_POSITIVE_KEYS},
               "near_goal")

@@ -14,7 +14,7 @@ import numpy as np
 import torch
 
 from utils.sgs_build_config import (
-    load_build_config, validate_build_config,
+    BUILD_FAMILIES, load_build_config, validate_build_config,
     SINGLE_VALUE_POSITION_TOLERANCE_M, SINGLE_VALUE_HEADING_TOLERANCE_DEG,
 )
 from utils.sgs_grounding import (
@@ -36,8 +36,8 @@ def _environment_arguments():
 
 
 def create_builder_environment(num_envs=32, device="cuda:0", seed=43,
-                               config_path="data/cfg/DQ_teacher.yaml"):
-    """Construct the real teacher environment without PPO or a training run."""
+                               config_path="data/cfg/DQ_teacher.yaml", enable_graphics=False):
+    """Construct the teacher without PPO; previews may request external cameras."""
     from envs.b1z1_pickmulti import B1Z1PickMulti
     from legged_gym.envs.manip_loco.b1z1_config import B1Z1RoughCfg
     from train_multistate_DQ_teacher import get_predict_point
@@ -63,6 +63,11 @@ def create_builder_environment(num_envs=32, device="cuda:0", seed=43,
         sgs={"mode": "disabled"}, successMode="hold",
     )
     cfg["sensor"]["enableCamera"] = False
+    # External preview cameras need graphics even though this environment has
+    # no built-in viewer or visual policy observations. Ordinary bank building
+    # remains a physics-only headless job.
+    cfg["enableCameraSensors"] = bool(enable_graphics)
+    graphics_device = (torch.device(device).index or 0) if enable_graphics else -1
     camera, grasps, initial = get_predict_point(
         cube_predict_info_path="contact_grasp_info_mul",
         cube_root_states_info_path="30all_nomove_cube_root_states5.pt",
@@ -72,7 +77,7 @@ def create_builder_environment(num_envs=32, device="cuda:0", seed=43,
     with _environment_arguments():
         env = B1Z1PickMulti(
             cfg=cfg, rl_device=device, sim_device=device,
-            graphics_device_id=-1, headless=True, use_roboinfo=True,
+            graphics_device_id=graphics_device, headless=True, use_roboinfo=True,
             observe_gait_commands=True, rand_control=False,
             camera_6p_tensor=camera, grasp_cv_tensor=grasps,
             cube_init_tensor=initial, cfg_terrain=B1Z1RoughCfg(),
@@ -287,7 +292,7 @@ def restored_physics_tick(env, state):
 class PhysicsBankBuilder:
     """Diverse reset geometry with a bounded physics window, without task rollouts."""
 
-    FAMILY_NAMES = ("full_task", "pregrasp", "at_grasp", "near_goal")
+    FAMILY_NAMES = BUILD_FAMILIES[5]
     NON_GRASP_CONTACT_LIMIT_N = 5.
     GRASP_CONTACT_LIMIT_N = 250.
     AT_GRASP_POSITION_TOLERANCE_M = .005
@@ -301,7 +306,7 @@ class PhysicsBankBuilder:
         self.reset_config = validate_build_config(
             load_build_config(lifted_threshold=env.lifted_success_threshold) if reset_config is None else reset_config,
             lifted_threshold=env.lifted_success_threshold)
-        self.family_names = self.FAMILY_NAMES[:4 if "near_goal" in self.reset_config else 3]
+        self.family_names = BUILD_FAMILIES[self.reset_config["schema_version"]]
         self.kinematics = Z1Kinematics(env.device)
         self.parts = [[] for _ in self.family_names]
         self.counts, self.audit = [0] * len(self.family_names), []
@@ -835,7 +840,8 @@ class PhysicsBankBuilder:
         tensors = {key: torch.cat([part[key] for family in self.parts for part in family])
                    for key in self.parts[0][0]}
         metadata = {
-            "version": "b1z1-sugar-sgs-v9", "object_name": env.obj_list[0],
+            "version": ("b1z1-sugar-sgs-v10" if self.reset_config["schema_version"] == 5
+                        else "b1z1-sugar-sgs-v9"), "object_name": env.obj_list[0],
             "object_init_height_m": float(env.init_height[0].item()),
             "robot_asset": env.cfg["env"]["asset"]["assetFileRobot"],
             "num_dofs": env.num_dofs, "num_bodies": env._rigid_body_pos.shape[1],
@@ -858,7 +864,9 @@ class PhysicsBankBuilder:
                 "object_yaw": "world-z rotation * normal-reset object quaternion; offline construction only",
             },
             "physical_validation": {
-                "passed": True, "validation_profile": ("geometry_grasp_v2" if "near_goal" in self.family_names else "geometry_v1"),
+                "passed": True,
+                "validation_profile": {3: "geometry_v1", 4: "geometry_grasp_v2",
+                                       5: "geometry_grasp_v3"}[self.reset_config["schema_version"]],
                 "feet_near_ground": True,
                 "collision_checked": True, "object_attachment": False,
                 "near_goal_grasp_verified": "near_goal" in self.family_names,

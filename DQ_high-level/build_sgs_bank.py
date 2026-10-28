@@ -22,7 +22,7 @@ def main():
     parser.add_argument("--config", default="data/cfg/DQ_teacher.yaml")
     parser.add_argument("--reset-config", default=str(DEFAULT_BUILD_CONFIG_PATH),
                         help="YAML ranges for reset families (separate from --config).")
-    parser.add_argument("--output", default="data/sgs/sugar_box_v9.pt")
+    parser.add_argument("--output", default="data/sgs/sugar_box_v10.pt")
     args = parser.parse_args()
     if min(args.num_envs, args.per_family, args.max_batches) < 1:
         parser.error("--num-envs, --per-family and --max-batches must be positive")

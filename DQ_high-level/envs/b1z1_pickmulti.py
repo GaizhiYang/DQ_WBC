@@ -80,7 +80,7 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         if (profile not in SUPPORTED_FAMILY_PROFILES
                 or self.sgs_family_names != SUPPORTED_FAMILY_PROFILES[profile]):
             raise ValueError("SGS requires supported validation profile and family_names")
-        if profile == "geometry_grasp_v2" and not torch.allclose(
+        if "near_goal" in self.sgs_family_names and not torch.allclose(
                 self.init_height, torch.full_like(self.init_height,
                                                  self.sgs_bank.metadata["object_init_height_m"]),
                 atol=1e-6, rtol=0):

@@ -2,9 +2,9 @@
 
 Run with the Isaac Gym / dqwbc environment, for example:
 
-    python tests/audit_sgs_grounding_gpu.py --bank data/sgs/sugar_box_v9.pt \
+    python tests/audit_sgs_grounding_gpu.py --bank data/sgs/sugar_box_v10.pt \
       --device cuda:0 --num-envs 128 --seed 1043 \
-      --output ../doc/sgs_v9_grounding_audit.json
+      --output ../doc/sgs_v10_grounding_audit.json
 
 Relative paths resolve from DQ_high-level, even when launched elsewhere. Each
 configuration is restored once and advanced exactly one 5 ms physics tick with
@@ -12,7 +12,7 @@ the production low-level controller and Level02 table motion. No settling steps
 are inserted. The final partial batch repeats its last ID only to fill simulator
 slots; repeated padding is excluded from the audit records and counts.
 
-For geometry_v1 and geometry_grasp_v2 banks, both frames pass solely when every
+For supported geometry profiles, both frames pass solely when every
 foot collision bottom is within [-5 mm, +20 mm] of the ground. Contact force and
 base velocity are reported for inspection but do not determine acceptance.
 This audit does not certify near-goal grasp retention. Historical strict banks
@@ -91,11 +91,11 @@ def summarize(report, records):
 def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--bank", default="data/sgs/sugar_box_v9.pt")
+    parser.add_argument("--bank", default="data/sgs/sugar_box_v10.pt")
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--num-envs", type=positive_int, default=128)
     parser.add_argument("--seed", type=int, default=1043)
-    parser.add_argument("--output", default="../doc/sgs_v9_grounding_audit.json")
+    parser.add_argument("--output", default="../doc/sgs_v10_grounding_audit.json")
     args = parser.parse_args()
     os.chdir(ROOT)
     sys.path.insert(0, str(ROOT))
@@ -121,7 +121,7 @@ def main():
         # Isaac Gym must precede torch and all project modules importing torch.
         from isaacgym import gymapi  # noqa: F401
         import torch
-        from utils.sgs import ConfigurationBank
+        from utils.sgs import ConfigurationBank, SUPPORTED_FAMILY_PROFILES
         from utils.sgs_bank_builder import create_builder_environment, restored_physics_tick
         from utils.sgs_grounding import (
             APPROX_GROUND_LIMITS, FOOT_RADIUS, GROUND_LIMITS, RESET_MIN_SUPPORT_FEET,
@@ -134,7 +134,7 @@ def main():
         bank = ConfigurationBank.load(args.bank, device=args.device)
         physical = bank.metadata.get("physical_validation", {})
         profile_name = physical.get("validation_profile")
-        geometry_profile = profile_name in ("geometry_v1", "geometry_grasp_v2")
+        geometry_profile = profile_name in SUPPORTED_FAMILY_PROFILES
         if not geometry_profile:
             bank.validate({"physical_validation": {"grounded_initial_states": True}})
         limits = APPROX_GROUND_LIMITS if geometry_profile else GROUND_LIMITS

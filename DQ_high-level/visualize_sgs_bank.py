@@ -24,7 +24,7 @@ GRASP_EVIDENCE = (
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--bank", default="data/sgs/sugar_box_v9.pt")
+    parser.add_argument("--bank", default="data/sgs/sugar_box_v10.pt")
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--family", choices=FAMILIES, default="full_task")
     parser.add_argument("--samples-per-family", type=int, default=3,
@@ -51,7 +51,7 @@ class BankPreview:
         # Isaac Gym must precede torch, including transitive imports.
         from isaacgym import gymapi, gymtorch
         import torch
-        from utils.sgs import ConfigurationBank
+        from utils.sgs import ConfigurationBank, SUPPORTED_FAMILY_PROFILES
         from utils.sgs_bank_builder import create_builder_environment
 
         self.args, self.gymapi, self.gymtorch, self.torch = args, gymapi, gymtorch, torch
@@ -63,9 +63,8 @@ class BankPreview:
                                    "object_attachment": False}})
         self.families = tuple(self.bank.metadata.get("family_names", ()))
         physical = self.bank.metadata["physical_validation"]
-        expected = {"geometry_v1": FAMILIES[:3], "geometry_grasp_v2": FAMILIES}
-        if self.families != expected.get(physical.get("validation_profile")):
-            raise ValueError("Preview requires a three-family v8 or four-family v9 SGS bank")
+        if self.families != SUPPORTED_FAMILY_PROFILES.get(physical.get("validation_profile")):
+            raise ValueError("Preview requires a supported SGS family/validation profile")
         if "near_goal" in self.families and physical.get("near_goal_grasp_verified") is not True:
             raise ValueError("Near-goal preview requires offline grasp verification")
         if args.family not in self.families:
@@ -85,7 +84,9 @@ class BankPreview:
             for ids in self.family_ids]
         if args.config_id is not None and not 0 <= args.config_id < self.bank.num_configs:
             raise ValueError("--config-id is outside the bank")
-        self.env = create_builder_environment(num_envs=1, device=args.device, seed=args.seed)
+        # Both interactive viewing and headless image export need rendering.
+        self.env = create_builder_environment(
+            num_envs=1, device=args.device, seed=args.seed, enable_graphics=True)
         self.env.rand_control = True
         # The real policy interprets action 0 as fully open, not "hold".
         # Override only this preview instance so playback preserves the saved

@@ -2,9 +2,9 @@
 
 Run manually in the Isaac Gym / dqwbc environment, for example:
 
-    python tests/audit_sgs_near_goal_gpu.py --bank data/sgs/sugar_box_v9.pt \
+    python tests/audit_sgs_near_goal_gpu.py --bank data/sgs/sugar_box_v10.pt \
       --device cuda:0 --num-envs 32 --seed 1043 \
-      --output ../doc/sgs_v9_near_goal_restore_audit.json
+      --output ../doc/sgs_v10_near_goal_restore_audit.json
 
 Paths resolve from DQ_high-level. Sample IDs are drawn uniformly without
 replacement. The closed-gripper test uses saved targets and the builder's hold
@@ -31,11 +31,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--bank", default="data/sgs/sugar_box_v9.pt")
+    parser.add_argument("--bank", default="data/sgs/sugar_box_v10.pt")
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--num-envs", type=int, default=32)
     parser.add_argument("--seed", type=int, default=1043)
-    parser.add_argument("--output", default="../doc/sgs_v9_near_goal_restore_audit.json")
+    parser.add_argument("--output", default="../doc/sgs_v10_near_goal_restore_audit.json")
     args = parser.parse_args()
     if args.num_envs < 1:
         parser.error("--num-envs must be positive")
@@ -74,7 +74,7 @@ def main():
         # Isaac Gym must precede torch and every transitive torch import.
         from isaacgym import gymapi  # noqa: F401
         import torch
-        from utils.sgs import ConfigurationBank
+        from utils.sgs import ConfigurationBank, SUPPORTED_FAMILY_PROFILES
         from utils.sgs_bank_builder import (
             PhysicsBankBuilder, create_builder_environment, restore_snapshot,
             quaternion_matrix,
@@ -83,9 +83,10 @@ def main():
 
         bank = ConfigurationBank.load(args.bank, device=args.device, expected_metadata={
             "object_name": "sugar_box", "table_level": "Level02",
-            "physical_validation": {"validation_profile": "geometry_grasp_v2",
-                                    "near_goal_grasp_verified": True},
+            "physical_validation": {"near_goal_grasp_verified": True},
         })
+        if bank.metadata["physical_validation"].get("validation_profile") not in SUPPORTED_FAMILY_PROFILES:
+            raise ValueError("The selected bank requires a supported physical validation profile")
         report["fingerprint"] = bank.fingerprint
         names = bank.metadata["family_names"]
         if "near_goal" not in names:

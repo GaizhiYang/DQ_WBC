@@ -15,7 +15,7 @@ import warnings
 import numpy as np
 import torch
 
-from test_sgs_env import TestEnvironment, make_bank
+from test_sgs_env import TestEnvironment, make_bank, make_active_near_goal_bank
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -88,6 +88,31 @@ def four_family_environment(num_envs=4):
 
 
 class SGSFamilyLoggingTests(unittest.TestCase):
+    def test_active_three_families_keep_recent_windows_in_terminal_and_writer(self):
+        env = TestEnvironment(num_envs=303, bank=make_active_near_goal_bank())
+        env.eval = False
+        ids = list(range(303))
+        config_ids = [2 * (index % 3) for index in ids]
+        with redirect_stdout(io.StringIO()):
+            env.initialize(tuple(config_ids))
+            env.finish(ids, [False] * 303, config_ids)
+            env.finish(ids, [index % 3 == 2 for index in ids], config_ids)
+        self.assertEqual(env.recent_episode_stats.family_count.tolist(), [100] * 3)
+        self.assertEqual(env.recent_episode_stats.family_successes.tolist(), [0, 0, 100])
+        agent = TrackingAgent()
+        agent.record(env.extras)
+        agent.write_tracking_data(24, 120000)
+        for name, rate in (("full_task", 0.), ("pregrasp", 0.), ("near_goal", 1.)):
+            self.assertEqual(agent.writer.values["SuccessRate / " + name], (rate, 24))
+            self.assertEqual(agent.writer.values["SGS / episodes_" + name], (100., 24))
+        self.assertFalse(any("at_grasp" in key for key in agent.writer.values))
+        stream = io.StringIO()
+        with redirect_stdout(stream):
+            env._print_sgs_success_rates(force=True)
+        self.assertIn("near_goal=100.00% (100/100)", stream.getvalue())
+        self.assertNotIn("at_grasp", stream.getvalue())
+        self.assertNotIn("overall", stream.getvalue())
+
     def test_four_family_rates_use_completed_episodes_and_original_reset_family(self):
         env = four_family_environment()
         with redirect_stdout(io.StringIO()):
