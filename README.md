@@ -68,6 +68,33 @@ This part you can totally refer to [VBC's Low-level introduction](https://github
    Run these commands from `DQ_high-level`. Use the same `--object_name` when
    playing the resulting checkpoint. Training saves the selected object in the
    experiment config, so `--resume` retains it.
+
+   To train the sugar-box teacher with **both SGS and EKF**, run from the
+   repository root after activating `dqwbc`:
+   ```bash
+   bash DQ_high-level/train_teacher_sgs_ekf.sh
+   ```
+   On the **727 server**, use the dedicated launcher to select physical GPU 2:
+   ```bash
+   bash DQ_high-level/train_teacher_sgs_ekf_727.sh
+   ```
+   It sets `CUDA_VISIBLE_DEVICES=2` before launching Python and uses logical
+   `cuda:0` for both the policy and simulator. Other settings and options are
+   inherited from the shared launcher, including `--dry-run`.
+   The launcher enables headless training and W&B, using the validated v10
+   SGS bank, 16384 environments, 120000 training steps, seed 43, and EKF
+   horizons of 0.60/0.90 seconds (history 5, Q scale 1.0, R scale 0.01).
+   Runs get a timestamped name under
+   `DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/`.
+   Use `--dry-run` to inspect the command without starting training, or
+   `--help` to see device, bank, run-name, and output-directory overrides:
+   ```bash
+   bash DQ_high-level/train_teacher_sgs_ekf.sh --dry-run
+   NUM_ENVS=64 RUN_NAME=sgs_ekf_smoke bash DQ_high-level/train_teacher_sgs_ekf.sh --no-wandb --stop_after 48
+   ```
+   `--stop_after` limits this invocation while retaining the 120000-step
+   reward schedule. SGS runs start from scratch and do not support resuming.
+
 ```bash
 cd /home/hehui/DQ_WBC/DQ_high-level
 
