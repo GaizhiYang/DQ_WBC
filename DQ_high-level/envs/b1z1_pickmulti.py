@@ -11,6 +11,7 @@ from tqdm import tqdm
 from .b1z1_base import B1Z1Base, reindex_all, reindex_feet, LIN_VEL_X_CLIP, ANG_VEL_YAW_CLIP, torch_rand_int
 from utils.low_level_model import ActorCritic
 from utils.config import load_cfg, get_params, copy_cfg
+from utils.pick_success import lifted_grasp_mask, advance_pick_hold, RollingEpisodeSuccess
 from modules.pose_prediction import RollingSE3Predictor
 from utils.object_pose import object_pose_in_teacher_frame
 from PredictPiontTransform.predictpoint_mul import PredictPoint
@@ -47,7 +48,8 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
 
     def _init_sgs(self):
         """Load one immutable bank; all online sampler state stays on the GPU."""
-        from utils.sgs import ConfigurationBank, SGSSampler, SUPPORTED_FAMILY_PROFILES
+        from utils.sgs import (ConfigurationBank, SGSSampler, SUPPORTED_FAMILY_PROFILES,
+                               validate_task_hold_steps)
         from utils.episode_statistics import RecentEpisodeStatistics
 
         cfg = self.cfg["env"].get("sgs", {})
@@ -58,8 +60,6 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             raise ValueError("SGS requires a single object and Level02")
         if self.enable_camera or self.floating_base or self.obj_move_prob:
             raise ValueError("SGS requires the nonvisual walking teacher and obj_move_prob=0")
-        if self.success_mode != "hold":
-            raise ValueError("Bank training requires successMode=hold")
         self.sgs_bank = ConfigurationBank.load(
             cfg.get("bank_path", ""), device=self.device,
             expected_metadata={
@@ -67,13 +67,14 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
                 "robot_asset": self.cfg["env"]["asset"]["assetFileRobot"],
                 "num_dofs": self.num_dofs,
                 "num_bodies": self._rigid_body_pos.shape[1],
-                "hold_steps": self.hold_steps,
                 "lifted_threshold": self.lifted_success_threshold,
                 "table_level": "Level02",
                 "physical_validation": {
                     "passed": True,
                 },
             })
+        self.sgs_hold_compatibility = validate_task_hold_steps(
+            self.sgs_bank.metadata, self.hold_steps)
         physical = self.sgs_bank.metadata.get("physical_validation", {})
         profile = physical.get("validation_profile")
         self.sgs_family_names = self.sgs_bank.family_names
@@ -114,7 +115,10 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             num_families, device=self.device, family_window=100)
         self.sgs_aborted = torch.zeros((), dtype=torch.long, device=self.device)
         print("SGS bank:", self.sgs_bank.num_configs, "configurations;",
-              self.sgs_bank.fingerprint, "; device:", self.device)
+              self.sgs_bank.fingerprint, "; device:", self.device,
+              "; bank hold_steps:", self.sgs_bank.metadata["hold_steps"],
+              "; task hold_steps:", self.hold_steps,
+              "; compatibility:", self.sgs_hold_compatibility)
 
     def reset(self):
         # Trainer reset() follows a real terminal transition. Direct reset_idx()
@@ -143,8 +147,8 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         # ascending environment ID) to break ties at the window boundary.
         self.recent_episode_stats.record(done_families, successes)
         self.sgs_aborted += (started & ~completed).sum()
-        self.success_counter[done_envs] += successes.long()
-        self.success_onetime_counter[done_envs] += self.episode_onetime_success[done_envs].long()
+        # Success counters were already updated by check_termination, exactly
+        # once at completion, independently of the reset sampler.
         self.episode_counter[env_ids] = self.episode_counter[env_ids].clamp_min(0)
         self.episode_counter[done_envs] += 1
         self.episode_step_sum[done_envs] += self.one_epoch_step[done_envs]
@@ -159,6 +163,9 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         # Only clear episode/controller history. Do not invoke the old reset's
         # global simulate(): an asynchronous reset must not advance other trials.
         B1Z1Base._reset_env_tensors(self, env_ids)
+        self._reset_pick_state(env_ids)
+        # A bank can jump directly into a grasp. Keep its controller/cache
+        # isolation intact while sharing task progress and success rules.
         for name in ("actions", "gait_indices", "clock_inputs", "gait_wait_timer",
                      "is_walking", "low_obs_history_buf", "action_data_history_buf",
                      "states_history_buf", "timeout_buf", "foot_contacts_from_sensor",
@@ -171,8 +178,6 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         else:
             self.rand_change_step[env_ids] = torch.randint(40, 60, (len(env_ids),), device=self.device)
         self.surpass_dist_flag[env_ids] = True
-        self.lifted_object[env_ids] = False
-        self.lifted_now[env_ids] = False
 
         self._robot_root_states[env_ids] = state["robot_root"]
         self._table_root_states[env_ids] = state["table_root"]
@@ -208,10 +213,9 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         local_orn = quat_from_euler_xyz(*state["ee_goal_orn_rpy"].unbind(-1))
         self.ee_goal_global_orn_quat[env_ids] = quat_mul(
             self._robot_root_states[env_ids, 3:7], local_orn)
-        self.curr_dist[env_ids] = torch.norm(self.ee_pos[env_ids] - state["object_root"][:, :3], dim=-1)
-        self.closest_dist[env_ids] = self.curr_dist[env_ids]
-        self.curr_height[env_ids] = state["object_root"][:, 2] - state["table_height"] - self.init_height[env_ids]
-        self.highest_object[env_ids] = self.curr_height[env_ids]
+        # Use the same distance/height history initialization as an ordinary
+        # reset's final refresh, without advancing any environment's physics.
+        self._update_curr_dist()
         if self.object_pose_predictor is not None:
             # SGS bypasses the ordinary reset path. Seed the restored bank pose
             # before observations, without carrying history across episodes.
@@ -281,6 +285,8 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             "global_step": self.global_step_counter,
             "bank_fingerprint": self.sgs_bank.fingerprint,
             "bank_metadata": self.sgs_bank.metadata,
+            "task_hold_steps": self.hold_steps,
+            "hold_compatibility": getattr(self, "sgs_hold_compatibility", "exact"),
             "mode": self.sgs_sampler.mode,
             "family_id": self.sgs_bank.tensors["family_id"].cpu(),
             "success_rate": self.sgs_sampler.success_rates().cpu(),
@@ -369,6 +375,12 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.lifted_init_threshold = self.cfg["env"]["liftedInitThreshold"]
         self.base_object_distace_threshold = self.cfg["env"]["baseObjectDisThreshold"] # default 0.6
         self.lifted_object = torch.zeros(self.num_envs, device=self.device, dtype=torch.bool)
+        self.pick_success = torch.zeros_like(self.lifted_object)
+        self.pick_success_recorded = torch.zeros_like(self.lifted_object)
+        self.pick_hold_progress = torch.zeros_like(self.lifted_object)
+        self.best_pick_counter = torch.zeros_like(self.pick_counter)
+        self.success_window = RollingEpisodeSuccess(window_size=1000)
+        self.episode_outcome_recorded = torch.zeros_like(self.lifted_object)
         
         self.highest_object = -torch.ones(self.num_envs, device=self.device, dtype=torch.float)
         self.curr_height = torch.zeros(self.num_envs, device=self.device, dtype=torch.float)
@@ -378,6 +390,8 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
 
         if self.pred_success:
             self.predlift_success_counter = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
+        # SGS and evaluation read the same latched outcome as the original task.
+        self.episode_success = self.pick_success_recorded
 
         
 
@@ -487,274 +501,45 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
 
         super()._create_envs()
         
-    def _record_single_object_success(self, one_time=False):
-        counter = self.success_onetime_counter if one_time else self.success_counter
-        successes = counter.sum().item()
-        episodes = self.episode_counter.clamp_min(0).sum().item()
-        rate = min(successes, episodes) / max(episodes, 1)
-        prefix = "Onetime_SuccessRate" if one_time else "SuccessRate"
-        rates = {f"{prefix} / {self.obj_list[0]}": rate}
-        if self.pred_success:
-            rates["SuccessRate / PredLifted"] = (
-                0 if self.global_step_counter == 0
-                else (self.predlift_success_counter / self.local_step_counter).mean().item()
-            )
-        if self.cfg["env"]["wandb"]:
-            self.extras.setdefault("success_rate", {}).update(rates)
-            print({"success_rate": rates, "episodes": episodes})
-        else:
-            print({"success_rate": rates, "episodes": episodes})
 
-    def _record_one_time_success(self):
-        if len(self.obj_list) == 1:
-            self._record_single_object_success(one_time=True)
-            if not self.cfg["env"]["wandb"]:
-                self.surpass_dist_flag[(self.closest_dist < 0.3) & (self.curr_dist > 0.5)] = 0
+
+            
+    def _record_episode_outcomes(self):
+        """Publish the last 1000 completed episodes before step returns infos.
+
+        A reset is not itself an outcome. Only actual terminal steps enter the
+        window, once per episode, including failures and timeouts. Simultaneous
+        completions have no temporal order; ascending env ID breaks that tie.
+        """
+        finished = (self.reset_buf.bool() & ~self.episode_outcome_recorded
+                    & (self.progress_buf > 0))
+        env_ids = finished.nonzero(as_tuple=False).flatten()
+        if env_ids.numel() == 0:
             return
-        num_group = self.num_envs // 30
-        bowl_indices_np = np.array([[0+i*30, 9+i*30, 8+i*30, 23+i*30, 27+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        bowl_indices = torch.from_numpy(bowl_indices_np).to(self.device)
-        ball_indices_np = np.array([[3+i*30, 14+i*30, 15+i*30, 19+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        ball_indices = torch.from_numpy(ball_indices_np).to(self.device)
-        long_box_indices_np = np.array([[1+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        long_box_indices = torch.from_numpy(long_box_indices_np).to(self.device)
-        square_box_indices_np = np.array([[11+i*30, 20+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        square_box_indices = torch.from_numpy(square_box_indices_np).to(self.device)
-        bottle_indices_np = np.array([[2+i*30, 6+i*30, 18+i*30, 21+i*30,26+i*30, 29+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        bottle_indices = torch.from_numpy(bottle_indices_np).to(self.device)
-        cup_indices_np = np.array([[5+i*30, 12+i*30, 24+i*30,25+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        cup_indices = torch.from_numpy(cup_indices_np).to(self.device)
-        drill_indices_np = np.array([[7+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        drill_indices = torch.from_numpy(drill_indices_np).to(self.device)
-        lipton_tea_indices_np = np.array([[7+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        lipton_tea_indices = torch.from_numpy(lipton_tea_indices_np).to(self.device)
-        plate_holder_indices_np = np.array([[16+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        plate_holder_tea_indices = torch.from_numpy(plate_holder_indices_np).to(self.device)
-        book_holder_3_indices_np = np.array([[17+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        book_holder_3_tea_indices = torch.from_numpy(book_holder_3_indices_np).to(self.device)
-        phillips_screwdriver_indices_np = np.array([[22+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        phillips_screwdriver_tea_indices = torch.from_numpy(phillips_screwdriver_indices_np).to(self.device)
-        Plastic_banana_indices_np = np.array([[2+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        Plastic_banana_tea_indices = torch.from_numpy(Plastic_banana_indices_np).to(self.device)
-        clear_box_indices_np = np.array([[28+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-        clear_box_tea_indices = torch.from_numpy(clear_box_indices_np).to(self.device)
-        
-        # Ensure all index tensors are of long type
-        bowl_indices = bowl_indices.long()  
-        ball_indices = ball_indices.long()
-        long_box_indices = long_box_indices.long()
-        square_box_indices = square_box_indices.long()
-        bottle_indices = bottle_indices.long()
-        cup_indices = cup_indices.long()
-        drill_indices = drill_indices.long()
-        lipton_tea_indices = lipton_tea_indices.long()
-        plate_holder_tea_indices = plate_holder_tea_indices.long()
-        book_holder_3_tea_indices = book_holder_3_tea_indices.long()
-        phillips_screwdriver_tea_indices = phillips_screwdriver_tea_indices.long()
-        Plastic_banana_tea_indices = Plastic_banana_tea_indices.long()
-        clear_box_tea_indices = clear_box_tea_indices.long()
+        outcomes = torch.stack((env_ids % len(self.obj_list),
+                                self.pick_success_recorded[env_ids].long()), dim=1)
+        self.success_window.extend(outcomes.cpu().tolist())
+        self.episode_outcome_recorded[env_ids] = True
+        # Replace the snapshot so object-specific rates disappear when their
+        # last sample leaves the global window. Logging is independent of W&B.
+        metrics = self.success_window.metrics(self.obj_list)
+        self.extras["success_rate"] = metrics
+        print({"success_rate": metrics, "window_size": self.success_window.window_size})
 
-        bowl_success_time = self.success_onetime_counter[bowl_indices].sum().item(), self.episode_counter[bowl_indices].sum().item()
-        ball_success_time = self.success_onetime_counter[ball_indices].sum().item(), self.episode_counter[ball_indices].sum().item()
-        longbox_success_time = self.success_onetime_counter[long_box_indices].sum().item(), self.episode_counter[long_box_indices].sum().item()
-        squarebox_success_time = self.success_onetime_counter[square_box_indices].sum().item(), self.episode_counter[square_box_indices].sum().item()
-        bottle_success_time = self.success_onetime_counter[bottle_indices].sum().item(), self.episode_counter[bottle_indices].sum().item()
-        cup_success_time = self.success_onetime_counter[cup_indices].sum().item(), self.episode_counter[cup_indices].sum().item()
-        drill_success_time = self.success_onetime_counter[drill_indices].sum().item(), self.episode_counter[drill_indices].sum().item()
-        lipton_tea_success_time = self.success_onetime_counter[lipton_tea_indices].sum().item(), self.episode_counter[lipton_tea_indices].sum().item()
-        plate_holder_tea_success_time = self.success_onetime_counter[plate_holder_tea_indices].sum().item(), self.episode_counter[plate_holder_tea_indices].sum().item()
-        book_holder_3_tea_success_time = self.success_onetime_counter[book_holder_3_tea_indices].sum().item(), self.episode_counter[book_holder_3_tea_indices].sum().item()
-        phillips_screwdriver_tea_success_time = self.success_onetime_counter[phillips_screwdriver_tea_indices].sum().item(), self.episode_counter[phillips_screwdriver_tea_indices].sum().item()
-        Plastic_banana_tea_success_time = self.success_onetime_counter[Plastic_banana_tea_indices].sum().item(), self.episode_counter[Plastic_banana_tea_indices].sum().item()
-        clear_box_tea_success_time = self.success_onetime_counter[clear_box_tea_indices].sum().item(), self.episode_counter[clear_box_tea_indices].sum().item()
+    def compute_reward(self):
+        super().compute_reward()
+        # Some optional rewards can also terminate an episode. Record the final
+        # done state, after all rewards, and before the trainer receives infos.
+        self._record_episode_outcomes()
 
-
-        bowl_success_rate = min(bowl_success_time[0], bowl_success_time[1]) / max(bowl_success_time[1], 1)
-        ball_success_rate = min(ball_success_time[0], ball_success_time[1]) / max(ball_success_time[1], 1)
-        longbox_success_rate = min(longbox_success_time[0], longbox_success_time[1]) / max(longbox_success_time[1], 1)
-        squarebox_success_rate = min(squarebox_success_time[0], squarebox_success_time[1]) / max(squarebox_success_time[1], 1)
-        bottle_success_rate = min(bottle_success_time[0], bottle_success_time[1]) / max(bottle_success_time[1], 1)
-        cup_success_rate = min(cup_success_time[0], cup_success_time[1]) / max(cup_success_time[1], 1)
-        drill_success_rate = min(drill_success_time[0], drill_success_time[1]) / max(drill_success_time[1], 1)
-        lipton_tea_success_rate = min(lipton_tea_success_time[0], lipton_tea_success_time[1]) / max(lipton_tea_success_time[1], 1)
-        plate_holder_tea_success_rate = min(plate_holder_tea_success_time[0], plate_holder_tea_success_time[1]) / max(plate_holder_tea_success_time[1], 1)
-        book_holder_3_tea_success_rate = min(book_holder_3_tea_success_time[0], book_holder_3_tea_success_time[1]) / max(book_holder_3_tea_success_time[1], 1)
-        phillips_screwdriver_tea_success_rate = min(phillips_screwdriver_tea_success_time[0], phillips_screwdriver_tea_success_time[1]) / max(phillips_screwdriver_tea_success_time[1], 1)
-        Plastic_banana_tea_success_rate = min(Plastic_banana_tea_success_time[0], Plastic_banana_tea_success_time[1]) / max(Plastic_banana_tea_success_time[1], 1)
-        clear_box_tea_success_rate = min(clear_box_tea_success_time[0], clear_box_tea_success_time[1]) / max(clear_box_tea_success_time[1], 1)
-
-        wandb_dict = {
-            "success_rate": {
-                "Onetime_SuccessRate / Bowl": bowl_success_rate,
-                "Onetime_SuccessRate / Ball": ball_success_rate,
-                "Onetime_SuccessRate / LongBox": longbox_success_rate,
-                "Onetime_SuccessRate / SquareBox": squarebox_success_rate,
-                "Onetime_SuccessRate / Bottle": bottle_success_rate,
-                "Onetime_SuccessRate / Cup": cup_success_rate,
-                "Onetime_SuccessRate / Drill": drill_success_rate,
-                "Onetime_SuccessRate / Lipton_tea": lipton_tea_success_rate,
-                "Onetime_SuccessRate / Plate_holder": plate_holder_tea_success_rate,
-                "Onetime_SuccessRate / Book_holder_3": book_holder_3_tea_success_rate,
-                "Onetime_SuccessRate / Phillips_screwdriver": phillips_screwdriver_tea_success_rate,
-                "Onetime_SuccessRate / Plastic_banana": Plastic_banana_tea_success_rate,
-                "Onetime_SuccessRate / Clear_box": clear_box_tea_success_rate,
-            }
-        }
-        if self.pred_success:
-            predlift_success_rate = 0 if self.global_step_counter==0 else (self.predlift_success_counter / self.local_step_counter).mean().item()
-            wandb_dict["success_rate"]["SuccessRate / PredLifted"] = predlift_success_rate
-        
-        if self.cfg["env"]["wandb"]:
-            self.extras.update(wandb_dict)
-            tqdm.write(str(wandb_dict))
-            # wandb.log(wandb_dict, step=self.global_step_counter)
-        else:
-            print("\n",wandb_dict)
-            print("\n, Bowl count: {}\n, Ball count: {}\n, LongBox count: {}\n, SquareBox count: {}\n, Bottle count: {}\n, Cup count: {}\n, Drill count: {}\n, Lipton_tea count: {}\n, Plate_holder count: {}\n, Book_holder_3 count: {}\n, Phillips_screwdriver count: {}\n, Plastic_banana count: {}\n, Clear_box count: {}\n".format(bowl_success_time[1], ball_success_time[1], longbox_success_time[1], squarebox_success_time[1], 
-                                                        bottle_success_time[1], cup_success_time[1], drill_success_time[1], lipton_tea_success_time[1], 
-                                                        plate_holder_tea_success_time[1], book_holder_3_tea_success_time[1], phillips_screwdriver_tea_success_time[1], 
-                                                        Plastic_banana_tea_success_time[1], clear_box_tea_success_time[1]))
-            success_time = self.success_onetime_counter.sum().item(), self.episode_counter.sum().item()
-            success_rate = min(success_time[0], success_time[1]) / max(success_time[1], 1)
-            print("One time Total success rate", success_rate)
-            
-            mask1=self.closest_dist<0.3
-            mask2 = (self.curr_dist > 0.5) & mask1
-            self.surpass_dist_flag[mask2] = 0
-
-            
     def _reset_envs(self, env_ids):
         if getattr(self, "sgs_enabled", False):
             self._reset_sgs_envs(env_ids)
             return
         super()._reset_envs(env_ids)
         if len(env_ids) > 0:
-            if len(self.obj_list) == 1:
-                self._record_single_object_success()
-                self.episode_step_sum[env_ids] += self.one_epoch_step[env_ids]
-                self.one_epoch_step[env_ids] = 0.0
-                if self.eval:
-                    self._record_one_time_success()
-                return
-
-            num_group = self.num_envs // 30
-            bowl_indices_np = np.array([[0+i*30, 9+i*30, 8+i*30, 23+i*30, 27+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            bowl_indices = torch.from_numpy(bowl_indices_np).to(self.device)
-            ball_indices_np = np.array([[3+i*30, 14+i*30, 15+i*30, 19+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            ball_indices = torch.from_numpy(ball_indices_np).to(self.device)
-            long_box_indices_np = np.array([[1+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            long_box_indices = torch.from_numpy(long_box_indices_np).to(self.device)
-            square_box_indices_np = np.array([[11+i*30, 20+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            square_box_indices = torch.from_numpy(square_box_indices_np).to(self.device)
-            bottle_indices_np = np.array([[2+i*30, 6+i*30, 18+i*30, 21+i*30,26+i*30, 29+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            bottle_indices = torch.from_numpy(bottle_indices_np).to(self.device)
-            cup_indices_np = np.array([[5+i*30, 12+i*30, 24+i*30,25+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            cup_indices = torch.from_numpy(cup_indices_np).to(self.device)
-            drill_indices_np = np.array([[7+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            drill_indices = torch.from_numpy(drill_indices_np).to(self.device)
-            lipton_tea_indices_np = np.array([[7+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            lipton_tea_indices = torch.from_numpy(lipton_tea_indices_np).to(self.device)
-            plate_holder_indices_np = np.array([[16+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            plate_holder_tea_indices = torch.from_numpy(plate_holder_indices_np).to(self.device)
-            book_holder_3_indices_np = np.array([[17+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            book_holder_3_tea_indices = torch.from_numpy(book_holder_3_indices_np).to(self.device)
-            phillips_screwdriver_indices_np = np.array([[22+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            phillips_screwdriver_tea_indices = torch.from_numpy(phillips_screwdriver_indices_np).to(self.device)
-            Plastic_banana_indices_np = np.array([[2+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            Plastic_banana_tea_indices = torch.from_numpy(Plastic_banana_indices_np).to(self.device)
-            clear_box_indices_np = np.array([[28+i*30] for i in range(num_group)]).reshape(1,-1).squeeze()
-            clear_box_tea_indices = torch.from_numpy(clear_box_indices_np).to(self.device)
-            
-            # Ensure all index tensors are of long type
-            bowl_indices = bowl_indices.long()  
-            ball_indices = ball_indices.long()
-            long_box_indices = long_box_indices.long()
-            square_box_indices = square_box_indices.long()
-            bottle_indices = bottle_indices.long()
-            cup_indices = cup_indices.long()
-            drill_indices = drill_indices.long()
-            lipton_tea_indices = lipton_tea_indices.long()
-            plate_holder_tea_indices = plate_holder_tea_indices.long()
-            book_holder_3_tea_indices = book_holder_3_tea_indices.long()
-            phillips_screwdriver_tea_indices = phillips_screwdriver_tea_indices.long()
-            Plastic_banana_tea_indices = Plastic_banana_tea_indices.long()
-            clear_box_tea_indices = clear_box_tea_indices.long()
-
-            bowl_success_time = self.success_counter[bowl_indices].sum().item(), self.episode_counter[bowl_indices].sum().item()
-            ball_success_time = self.success_counter[ball_indices].sum().item(), self.episode_counter[ball_indices].sum().item()
-            longbox_success_time = self.success_counter[long_box_indices].sum().item(), self.episode_counter[long_box_indices].sum().item()
-            squarebox_success_time = self.success_counter[square_box_indices].sum().item(), self.episode_counter[square_box_indices].sum().item()
-            bottle_success_time = self.success_counter[bottle_indices].sum().item(), self.episode_counter[bottle_indices].sum().item()
-            cup_success_time = self.success_counter[cup_indices].sum().item(), self.episode_counter[cup_indices].sum().item()
-            drill_success_time = self.success_counter[drill_indices].sum().item(), self.episode_counter[drill_indices].sum().item()
-            lipton_tea_success_time = self.success_counter[lipton_tea_indices].sum().item(), self.episode_counter[lipton_tea_indices].sum().item()
-            plate_holder_tea_success_time = self.success_counter[plate_holder_tea_indices].sum().item(), self.episode_counter[plate_holder_tea_indices].sum().item()
-            book_holder_3_tea_success_time = self.success_counter[book_holder_3_tea_indices].sum().item(), self.episode_counter[book_holder_3_tea_indices].sum().item()
-            phillips_screwdriver_tea_success_time = self.success_counter[phillips_screwdriver_tea_indices].sum().item(), self.episode_counter[phillips_screwdriver_tea_indices].sum().item()
-            Plastic_banana_tea_success_time = self.success_counter[Plastic_banana_tea_indices].sum().item(), self.episode_counter[Plastic_banana_tea_indices].sum().item()
-            clear_box_tea_success_time = self.success_counter[clear_box_tea_indices].sum().item(), self.episode_counter[clear_box_tea_indices].sum().item()
-
-
-            bowl_success_rate = min(bowl_success_time[0], bowl_success_time[1]) / max(bowl_success_time[1], 1)
-            ball_success_rate = min(ball_success_time[0], ball_success_time[1]) / max(ball_success_time[1], 1)
-            longbox_success_rate = min(longbox_success_time[0], longbox_success_time[1]) / max(longbox_success_time[1], 1)
-            squarebox_success_rate = min(squarebox_success_time[0], squarebox_success_time[1]) / max(squarebox_success_time[1], 1)
-            bottle_success_rate = min(bottle_success_time[0], bottle_success_time[1]) / max(bottle_success_time[1], 1)
-            cup_success_rate = min(cup_success_time[0], cup_success_time[1]) / max(cup_success_time[1], 1)
-            drill_success_rate = min(drill_success_time[0], drill_success_time[1]) / max(drill_success_time[1], 1)
-            lipton_tea_success_rate = min(lipton_tea_success_time[0], lipton_tea_success_time[1]) / max(lipton_tea_success_time[1], 1)
-            plate_holder_tea_success_rate = min(plate_holder_tea_success_time[0], plate_holder_tea_success_time[1]) / max(plate_holder_tea_success_time[1], 1)
-            book_holder_3_tea_success_rate = min(book_holder_3_tea_success_time[0], book_holder_3_tea_success_time[1]) / max(book_holder_3_tea_success_time[1], 1)
-            phillips_screwdriver_tea_success_rate = min(phillips_screwdriver_tea_success_time[0], phillips_screwdriver_tea_success_time[1]) / max(phillips_screwdriver_tea_success_time[1], 1)
-            Plastic_banana_tea_success_rate = min(Plastic_banana_tea_success_time[0], Plastic_banana_tea_success_time[1]) / max(Plastic_banana_tea_success_time[1], 1)
-            clear_box_tea_success_rate = min(clear_box_tea_success_time[0], clear_box_tea_success_time[1]) / max(clear_box_tea_success_time[1], 1)
-
-            wandb_dict = {
-                "success_rate": {
-                    "SuccessRate / Bowl": bowl_success_rate,
-                    "SuccessRate / Ball": ball_success_rate,
-                    "SuccessRate / LongBox": longbox_success_rate,
-                    "SuccessRate / SquareBox": squarebox_success_rate,
-                    "SuccessRate / Bottle": bottle_success_rate,
-                    "SuccessRate / Cup": cup_success_rate,
-                    "SuccessRate / Drill": drill_success_rate,
-                    "SuccessRate / Lipton_tea": lipton_tea_success_rate,
-                    "SuccessRate / Plate_holder": plate_holder_tea_success_rate,
-                    "SuccessRate / Book_holder_3": book_holder_3_tea_success_rate,
-                    "SuccessRate / Phillips_screwdriver": phillips_screwdriver_tea_success_rate,
-                    "SuccessRate / Plastic_banana": Plastic_banana_tea_success_rate,
-                    "SuccessRate / Clear_box": clear_box_tea_success_rate,
-                }
-            }
-            if self.pred_success:
-                predlift_success_rate = 0 if self.global_step_counter==0 else (self.predlift_success_counter / self.local_step_counter).mean().item()
-                wandb_dict["success_rate"]["SuccessRate / PredLifted"] = predlift_success_rate
-            
-            if self.cfg["env"]["wandb"]:
-                self.extras.update(wandb_dict)
-                tqdm.write(str(wandb_dict))
-                # wandb.log(wandb_dict, step=self.global_step_counter)
-            else:
-                print(wandb_dict)
-                print("\n, Bowl count: {}\n, Ball count: {}\n, LongBox count: {}\n, SquareBox count: {}\n, Bottle count: {}\n, Cup count: {}\n, Drill count: {}\n, Lipton_tea count: {}\n, Plate_holder count: {}\n, Book_holder_3 count: {}\n, Phillips_screwdriver count: {}\n, Plastic_banana count: {}\n, Clear_box count: {}\n".format(bowl_success_time[1], ball_success_time[1], longbox_success_time[1], squarebox_success_time[1], 
-                                                           bottle_success_time[1], cup_success_time[1], drill_success_time[1], lipton_tea_success_time[1], 
-                                                           plate_holder_tea_success_time[1], book_holder_3_tea_success_time[1], phillips_screwdriver_tea_success_time[1], 
-                                                           Plastic_banana_tea_success_time[1], clear_box_tea_success_time[1]))
-                # Accumulate historical steps and count
-                self.episode_step_sum[env_ids] += self.one_epoch_step[env_ids]
-                # Reset the step count for this round.
-                self.one_epoch_step[env_ids] = 0.0
-                # Calculate the average step of the current batch of environments.
-                mean_step = (self.episode_step_sum[env_ids] / self.episode_counter[env_ids]).mean().item()
-                global_avg_step = (self.episode_step_sum.sum() / self.episode_counter.sum()).item()
-                print(f", global_avg_step: {global_avg_step}")
-                print(f", mean_step: {mean_step}\n")
-                success_time = self.success_counter.sum().item(), self.episode_counter.sum().item()
-                success_rate = min(success_time[0], success_time[1]) / max(success_time[1], 1)
-                print("Total success rate", success_rate)
-                if self.eval:
-                    self._record_one_time_success()
-                cprint(f"\n########################################################################################################################################################################","yellow")
+            self.episode_step_sum[env_ids] += self.one_epoch_step[env_ids]
+            self.one_epoch_step[env_ids] = 0.0
                 
 
                 
@@ -811,6 +596,18 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
 
         return
     
+    def _reset_pick_state(self, env_ids):
+        """Reset task progress identically for ordinary and bank initial states."""
+        self.lifted_object[env_ids] = 0
+        self.lifted_now[env_ids] = False
+        self.pick_success[env_ids] = False
+        self.pick_success_recorded[env_ids] = False
+        self.episode_outcome_recorded[env_ids] = False
+        self.pick_hold_progress[env_ids] = False
+        self.best_pick_counter[env_ids] = 0
+        self.curr_height[env_ids] = 0.
+        self.highest_object[env_ids] = -1.
+
     def _reset_env_tensors(self, env_ids):
         super()._reset_env_tensors(env_ids)
 
@@ -825,30 +622,11 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
                                                     gymtorch.unwrap_tensor(robot_ids_int32), len(robot_ids_int64))
         self.gym.set_actor_root_state_tensor_indexed(self.sim, gymtorch.unwrap_tensor(self._root_states),
                                                         gymtorch.unwrap_tensor(multi_ids_int32), len(multi_ids_int64))
-        if self.success_mode == "hold":
-            # Strict evaluation restarts original tasks independently of the
-            # preceding policy's joint targets and leg effort.
-            self.gripper_dof_pos[env_ids] = self.dof_pos_gripper[env_ids]
-            targets = self._dof_pos.contiguous()
-            forces = torch.zeros_like(targets)
-            self.gym.set_dof_position_target_tensor_indexed(
-                self.sim, gymtorch.unwrap_tensor(targets),
-                gymtorch.unwrap_tensor(robot_ids_int32), len(robot_ids_int32))
-            self.gym.set_dof_actuation_force_tensor_indexed(
-                self.sim, gymtorch.unwrap_tensor(forces),
-                gymtorch.unwrap_tensor(robot_ids_int32), len(robot_ids_int32))
-            for name in ("gait_indices", "clock_inputs", "gait_wait_timer", "is_walking",
-                         "low_obs_history_buf"):
-                value = getattr(self, name, None)
-                if value is not None:
-                    value[env_ids] = 0
         self.gym.simulate(self.sim)
         self._refresh_sim_tensors()
         self.render()
 
-        self.lifted_object[env_ids] = 0
-        self.curr_height[env_ids] = 0.
-        self.highest_object[env_ids] = -1.
+        self._reset_pick_state(env_ids)
         if self.object_pose_predictor is not None:
             # super()._reset_envs computes observations immediately after this
             # method. Clear old history BEFORE that first new-episode observation.
@@ -1037,28 +815,19 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
     def check_termination(self):
         super().check_termination()
 
-        # Resolve yaw failure before pick_up records a held success. Keep the
-        # original opt-out when this reward/termination rule is disabled.
-        if self.reward_scales.get("limit_yaw_rotation_penalty", 0.) != 0:
-            yaw_failure = self._yaw_deviation() > 70. * torch.pi / 180.
-            self._failure_now |= yaw_failure
-            self.reset_buf[:] = self.reset_buf | yaw_failure
-
-        # Check if lifted
+        # One grasp/lift definition for shaping, holding and evaluation.
         cube_height = self._cube_root_states[:, 2]
         box_pos = self._cube_root_states[:, :3]
         d1 = torch.norm(box_pos - self.ee_pos, dim=-1)
-        self.lifted_now = torch.logical_and((cube_height - self.table_heights) > (0.03 / 2 + self.lifted_success_threshold), d1 < 0.2)
-        dropped = ~self.lifted_now & self.lifted_object
-        self._failure_now |= dropped
-        self.reset_buf = torch.where(dropped, torch.ones_like(self.reset_buf), self.reset_buf) # reset the dropped envs
-        self.lifted_object = torch.logical_and((cube_height - self.table_heights - self.init_height) > (self.lifted_success_threshold), d1 < 0.2)
+        self.lifted_now[:] = lifted_grasp_mask(
+            cube_height, self.table_heights, self.init_height, d1,
+            self.actions[:, 6], self.lifted_success_threshold)
+        self.lifted_object[:] = self.lifted_now
 
         z_cube = self._cube_root_states[:, 2]
         # cube_falls = (z_cube < (self.table_heights + 0.03 / 2 - 0.05))
         cube_falls = z_cube+0.015 < self.table_heights # Fall or model glitch
-        self._failure_now |= cube_falls
-        self.reset_buf[:] = self.reset_buf | cube_falls
+        self._terminate_buf[:] |= cube_falls
         
         if self.enable_camera and self.cfg["env"].get("cameraVisibilityReset", True):
             robot_head_dir = quat_apply(self.base_yaw_quat, torch.tensor([1., 0., 0.], device=self.device).repeat(self.num_envs, 1))
@@ -1070,20 +839,34 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             fov_camera_pos = self._robot_root_states[:, :3] + quat_apply(self._robot_root_states[:, 3:7], torch.tensor(self.cfg["sensor"]["onboard_camera"]["position"], device=self.device).repeat(self.num_envs, 1))
             too_close_table = (fov_camera_pos[:, 0] > 0.)
             
-            self.reset_buf = self.reset_buf | deviate_much | too_close_table
-            self._failure_now |= deviate_much | too_close_table
+            self._terminate_buf[:] |= deviate_much | too_close_table
+
+        # Resolve hard failures before awarding success, including the yaw limit.
+        self._terminate_buf[:] |= self._yaw_deviation() > np.deg2rad(70.0)
+        self.reset_buf[:] |= self._terminate_buf
+        count, best_count, progress, success = advance_pick_hold(
+            self.lifted_object, self._terminate_buf.bool(), self.pick_counter,
+            self.best_pick_counter, self.pick_success_recorded, self.hold_steps)
+        self.pick_counter[:] = count
+        self.best_pick_counter[:] = best_count
+        self.pick_hold_progress[:] = progress
+        self.pick_success[:] = success
+        self.pick_success_recorded |= success
+        self.success_counter[success] += 1
+        self.success_onetime_counter[success & self.surpass_dist_flag] += 1
+        self.reset_buf[:] |= self.pick_success_recorded
+        # The last allowed step may complete the task. Hard failures still win.
+        self.timeout_buf[:] &= ~(self.pick_success_recorded | self._terminate_buf.bool())
 
     # --------------------------------- reward functions ---------------------------------
     
     def _yaw_deviation(self):
-        """Shortest yaw deviation from the task's original heading, in radians."""
         yaw = euler_from_quat(self._robot_root_states[:, 3:7])[2]
-        delta = yaw - self.initial_yaw_z
-        return (torch.remainder(delta + torch.pi, 2 * torch.pi) - torch.pi).abs()
+        return torch.abs(yaw - self.initial_yaw_z)
 
     def _reward_limit_yaw_rotation_penalty(self):
         delta_yaw = self._yaw_deviation()
-        reward = torch.where(delta_yaw > 60. * torch.pi / 180.,
+        reward = torch.where(delta_yaw > np.deg2rad(60.0),
                              -torch.tanh(delta_yaw), torch.zeros_like(delta_yaw))
         return reward, reward
 
@@ -1102,15 +885,13 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
     
     def _reward_grasp_base_height(self):
         reward, _ = self._reward_base_height()
-        # Use the same object-relative height and proximity as pick_up; the
-        # looser dropped-object predicate must not reward sub-goal hovering.
-        reward *= self.lifted_object
+        # Repeating an interrupted hold must not earn its shaping reward again.
+        reward *= self.pick_hold_progress
         
         return reward, reward
     
     def _reward_approaching(self):
-        """Change the reward function to be effective only when the object is lifted
-        """
+        """Reward approaching until the object is grasped at the target height."""
         reward, _ = super()._reward_approaching()
         reward *= ~self.lifted_object
         return reward, reward

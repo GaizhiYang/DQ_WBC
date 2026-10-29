@@ -61,6 +61,7 @@ class Agent:
                 model.to(model.device)
 
         self.tracking_data = collections.defaultdict(list)
+        self._success_rate_tracking_keys = set()
         self.write_interval = self.cfg.get("experiment", {}).get("write_interval", 1000)
 
         self._track_rewards = collections.deque(maxlen=100)
@@ -316,8 +317,13 @@ class Agent:
             self.tracking_data["Reward / Instantaneous reward (mean)"].append(torch.mean(rewards).item())
             
             if "success_rate" in infos.keys():
+                # These are completed-episode window snapshots. Replace the
+                # previous snapshot, including categories that left the window.
+                for key in self._success_rate_tracking_keys:
+                    self.tracking_data.pop(key, None)
+                self._success_rate_tracking_keys = set(infos["success_rate"])
                 for key in infos["success_rate"]:
-                    self.tracking_data[key].append(np.mean(infos["success_rate"][key]).item())
+                    self.tracking_data[key] = [np.mean(infos["success_rate"][key]).item()]
 
             # Environment counters/rates describe the latest completed episodes,
             # not samples to average over this logging window.
@@ -660,9 +666,14 @@ class Agent:
             # write checkpoints
             self.write_checkpoint(timestep, timesteps)
 
-        # write to tensorboard
-        if timestep > 1 and self.write_interval > 0 and not timestep % self.write_interval:
+        # Include the final partial interval, with one write if it also lands on
+        # a regular boundary.
+        if self.write_interval > 0 and (
+            (timestep > 1 and not timestep % self.write_interval) or timestep == timesteps
+        ):
             self.write_tracking_data(timestep, timesteps)
+            if timestep == timesteps:
+                self.writer.flush()
 
     def _update(self, timestep: int, timesteps: int) -> None:
         """Algorithm's main update step

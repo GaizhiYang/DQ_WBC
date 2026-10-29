@@ -268,7 +268,8 @@ class Trainer:
                                               infos=infos,
                                               timestep=timestep,
                                               timesteps=self.timesteps)
-                super(type(self.agents), self.agents).post_interaction(timestep=timestep, timesteps=self.timesteps)
+                # Flush the final partial interval of this evaluation run.
+                super(type(self.agents), self.agents).post_interaction(timestep=timestep, timesteps=traj_length)
 
             # reset environments
             if terminated.any() or truncated.any():

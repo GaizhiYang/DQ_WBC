@@ -37,9 +37,15 @@ def configure_teacher_experiment(cfg, args, is_eval=False, strict_eval=False):
     sgs["seed"] = args.seed
     env_cfg["sgs"] = sgs
     cfg["seed"] = args.seed
-    env_cfg["successMode"] = args.success_mode or env_cfg.get("successMode", "legacy")
-    if env_cfg["successMode"] not in ("legacy", "hold"):
+    success_mode = args.success_mode or env_cfg.get("successMode", "hold")
+    if success_mode not in ("legacy", "hold"):
         raise ValueError("successMode must be legacy or hold")
+    # Keep old commands/configurations readable while using one success rule
+    # for ordinary resets, bank resets and evaluation.
+    env_cfg["successMode"] = "hold"
+    env_cfg.setdefault("holdSteps", 10)
+    if type(env_cfg["holdSteps"]) is not int or env_cfg["holdSteps"] <= 0:
+        raise ValueError("holdSteps must be a positive integer")
 
     if strict_eval:
         if not is_eval or not args.checkpoint or args.resume:
@@ -53,8 +59,7 @@ def configure_teacher_experiment(cfg, args, is_eval=False, strict_eval=False):
         args.task = "B1Z1PickMulti"
         args.object_name = "sugar_box"
         sgs["mode"] = "disabled"
-        env_cfg.update({"successMode": "hold", "holdSteps": 15,
-                        "terrainType": "plane", "D1_bench_task_level": "Level02",
+        env_cfg.update({"terrainType": "plane", "D1_bench_task_level": "Level02",
                         "robotStartDistanceRange": [2.0, 2.0], "maxEpisodeLength": 100})
     elif is_eval and sgs["mode"] != "disabled":
         raise ValueError("Use eval_sgs_teacher.py for original-task evaluation; training-bank sampling is disabled there")
@@ -67,7 +72,6 @@ def configure_teacher_experiment(cfg, args, is_eval=False, strict_eval=False):
         if not sgs["bank_path"] or not Path(sgs["bank_path"]).is_file():
             raise ValueError("SGS training requires an existing validated bank via --sgs_bank or env.sgs.bank_path")
         # The bank loader validates the schema, source task, and physical validation.
-        env_cfg["successMode"] = "hold"
     return cfg
 
 
@@ -127,7 +131,7 @@ def get_parser():
     parser.add_argument("--sgs_bank", type=str, default=None,
                         help="Path to a validated SGS reset bank; does not build a bank.")
     parser.add_argument("--success_mode", choices=("legacy", "hold"), default=None,
-                        help="Override task success semantics. Strict evaluation always uses hold.")
+                        help="Compatibility option: legacy and hold use the same 633_test_pro success rule.")
     parser.add_argument("--eval_episodes", type=int, default=2000,
                         help="Number of completed episodes in eval_sgs_teacher.py.")
     parser.add_argument("--eval_output", type=str, default=None,

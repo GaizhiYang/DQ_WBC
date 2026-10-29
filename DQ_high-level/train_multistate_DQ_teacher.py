@@ -455,7 +455,9 @@ def get_trainer(is_eval=False, strict_eval=False):
         if experiment_cfg["env"]["sgs"]["mode"] != "disabled":
             bank = env.sgs_bank
             bank_metadata = {"fingerprint": bank.fingerprint, "num_configs": bank.num_configs,
-                             "bank_path": str(Path(experiment_cfg["env"]["sgs"]["bank_path"]).resolve())}
+                             "bank_path": str(Path(experiment_cfg["env"]["sgs"]["bank_path"]).resolve()),
+                             "task_hold_steps": env.hold_steps,
+                             "hold_compatibility": env.sgs_hold_compatibility}
             (metadata_path.parent / "bank_metadata.json").write_text(
                 json.dumps(bank_metadata, indent=2) + "\n")
     

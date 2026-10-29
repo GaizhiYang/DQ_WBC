@@ -34,32 +34,10 @@ class RewardVecTask(VecTask):
         
         return reward, reward
     
-    def _reward_pick_up(self): ## my change ##
-        strict_hold = getattr(self, "success_mode", "legacy") == "hold"
-        if not strict_hold and (self.global_step_counter < 1 or self.eval):
-            self.episode_success |= self.lifted_object
-            self.episode_onetime_success |= self.lifted_object & self.surpass_dist_flag
-            # In this project VBC, if the reset_buf is all 1, then the env will be reset
-            # The following line means that , because our timesteps_num is low or in the eval mode, we want simplize the success judging , 
-            # so we assume that if the cube is lifted (don't care the hold time), it's successful and reset the env immediately
-            # !!!!!!!!!!!!! just the related env will be reset , not all !!!!!!!!!!!!!!!!!!!!!!
-            # Here, "self.lifted_object" is also an array may be [True,False,...,True,False]
-            reward = torch.where(self.lifted_object, torch.ones_like(self.reset_buf, dtype=torch.float), torch.zeros_like(self.reset_buf, dtype=torch.float))
-            self.reset_buf = torch.where(self.lifted_object, torch.ones_like(self.reset_buf), self.reset_buf) # reset the picked envs
-        else:
-            # In contary to upon setting, here we should care about the hold time's inflence  
-            self.pick_counter = torch.where(self.lifted_object, self.pick_counter + 1, torch.zeros_like(self.pick_counter))
-            # Match the training success condition, rather than counting each lift.
-            held = self.pick_counter >= self.hold_steps
-            if strict_hold:
-                # A fall or IK failure on the final hold step is not a success.
-                held = held & ~getattr(self, "_failure_now", torch.zeros_like(held))
-                self.episode_onetime_success |= held & self.surpass_dist_flag
-            self.episode_success |= held
-            rewarded = held if strict_hold else self.pick_counter >= 15
-            reward = rewarded.to(dtype=torch.float)
-            self.reset_buf = torch.where(self.pick_counter >= self.hold_steps, torch.ones_like(self.reset_buf), self.reset_buf) # reset the picked after hold times
-        
+    def _reward_pick_up(self):
+        # Success/counting/termination are updated once by check_termination,
+        # independently of whether this reward is enabled and in train or eval.
+        reward = self.pick_success.to(dtype=torch.float)
         return reward, reward
     
     def _reward_acc_penalty(self):
@@ -148,7 +126,7 @@ class RewardVecTask(VecTask):
         base_x_dir = torch.tensor([1., 0., 0.], device=self.device).repeat(self.num_envs, 1)
         base_x_dir_world = quat_apply(self.base_yaw_quat, base_x_dir) 
         obj_dir = obj_pos - self._robot_root_states[:, :3]
-        obj_dir[:, 2] = 0.
+        obj_dir[:,:2] = 0.
         obj_dist = torch.norm(obj_dir, dim=-1)
         
         safe_dis = obj_dist >= 0.01

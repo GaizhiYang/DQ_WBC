@@ -19,6 +19,7 @@ import warnings
 import torch
 
 from utils.episode_statistics import RecentEpisodeStatistics
+from utils.pick_success import RollingEpisodeSuccess, advance_pick_hold, lifted_grasp_mask
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -72,6 +73,8 @@ NAMESPACE = {
     "gymtorch": SimpleNamespace(unwrap_tensor=lambda value: value),
     "torch_rand_float": lambda low, high, shape, device: torch.full(
         shape, (low + high) / 2, device=device),
+    "np": SimpleNamespace(pi=torch.pi, deg2rad=lambda value: value * torch.pi / 180.),
+    "advance_pick_hold": advance_pick_hold, "lifted_grasp_mask": lifted_grasp_mask,
 }
 
 
@@ -138,7 +141,8 @@ class BaseStandIn:
 
 def production_environment_class():
     methods = ("reset", "_reset_sgs_envs", "_record_sgs_metrics", "_print_sgs_success_rates",
-               "update_roboinfo", "step", "check_termination", "_yaw_deviation")
+               "update_roboinfo", "step", "check_termination", "_yaw_deviation",
+               "_reset_pick_state", "_record_episode_outcomes", "_update_curr_dist")
     cls = ast.ClassDef(
         name="B1Z1PickMulti", bases=[ast.Name(id="B1Z1Base", ctx=ast.Load())],
         keywords=[], body=[method_node("b1z1_pickmulti.py", "B1Z1PickMulti", name)
@@ -360,7 +364,7 @@ class TestEnvironment(ProductionEnvironment):
         self.rand_cmd_scale = False
         self.success_mode = "hold"
         self.eval = True
-        self.hold_steps = 15
+        self.hold_steps = 10
         self.max_episode_length = 100
         self.lifted_success_threshold = 0.2
         self.reward_scales = {"limit_yaw_rotation_penalty": 0.4}
@@ -386,7 +390,7 @@ class TestEnvironment(ProductionEnvironment):
         self.init_height = torch.full((num_envs,), 0.045)
         for name in (
                 "episode_counter", "success_counter", "success_onetime_counter",
-                "pick_counter", "reach_counter", "progress_buf", "reset_buf",
+                "pick_counter", "best_pick_counter", "reach_counter", "progress_buf", "reset_buf",
                 "_terminate_buf", "num_steps_to_change_mode", "increase_to_change_step",
                 "rand_change_step"):
             setattr(self, name, torch.zeros(num_envs, dtype=torch.long))
@@ -395,8 +399,11 @@ class TestEnvironment(ProductionEnvironment):
         for name in (
                 "_sgs_pending_done", "_sgs_pending_reset", "episode_success", "episode_onetime_success",
                 "surpass_dist_flag", "lifted_object", "lifted_now", "timeout_buf",
-                "lin_circle_select", "next_done"):
+                "lin_circle_select", "next_done", "pick_success", "pick_success_recorded",
+                "pick_hold_progress", "episode_outcome_recorded"):
             setattr(self, name, torch.zeros(num_envs, dtype=torch.bool))
+        self.episode_success = self.pick_success_recorded
+        self.success_window = RollingEpisodeSuccess(window_size=1000)
         for name in (
                 "episode_step_sum", "one_epoch_step", "curr_dist", "closest_dist",
                 "curr_height", "highest_object", "table_heights",
@@ -441,11 +448,31 @@ class TestEnvironment(ProductionEnvironment):
         with patch.object(self.sgs_sampler, "sample", return_value=torch.tensor(ids)):
             self.reset()
 
+    def grasp_step(self, lifted=True):
+        """Run real terminal predicates on a closed grasp with tracked IK."""
+        lifted = torch.as_tensor(lifted, dtype=torch.bool).expand(self.num_envs)
+        self.actions[:, 6] = -1
+        self._cube_root_states[:, 2] = (
+            self.table_heights + self.init_height + torch.where(lifted, .21, .05))
+        self._rigid_body_state[:, 1, :3] = self._cube_root_states[:, :3]
+        self.update_roboinfo()
+        self.curr_ee_goal_cart[:] = quat_rotate_inverse(
+            self._robot_root_states[:, 3:7], self.ee_pos - self.arm_base)
+        self.progress_buf += 1
+        self.check_termination()
+        reward, _ = self._reward_pick_up()
+        self._record_episode_outcomes()
+        return reward
+
     def finish(self, env_ids, successes, next_ids):
         self.next_done.zero_()
         self.next_done[env_ids] = True
         self.episode_success[env_ids] = torch.tensor(successes)
         self.episode_onetime_success[env_ids] = torch.tensor(successes)
+        # Terminal predicates own lifetime counters; SGS reset must only update
+        # configuration statistics, without counting these outcomes again.
+        self.success_counter[env_ids] += torch.tensor(successes, dtype=torch.long)
+        self.success_onetime_counter[env_ids] += torch.tensor(successes, dtype=torch.long)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
             self.step(torch.zeros(self.num_envs, 9))
@@ -565,6 +592,7 @@ class SGSEnvironmentTests(unittest.TestCase):
         }
         env.actions[[1, 3]] = 9
         env.low_obs_history_buf[[1, 3]] = 8
+        env.low_obs_history_buf[[0, 2]] = 7
         env.foot_contacts_from_sensor[[1, 3]] = True
         env.finish([0, 2], [True, False], [4, 5])
         self.assertEqual(env.active_config_id.tolist(), [4, 1, 5, 3])
@@ -581,6 +609,8 @@ class SGSEnvironmentTests(unittest.TestCase):
         torch.testing.assert_close(env.obs[[1, 3]], untouched["obs"])
         self.assertTrue(bool((env.actions[[1, 3]] == 9).all()))
         self.assertTrue(bool((env.low_obs_history_buf[[1, 3]] == 8).all()))
+        # Bank restoration isolates controller caches for selected trials.
+        self.assertTrue(bool((env.low_obs_history_buf[[0, 2]] == 0).all()))
         self.assertTrue(env.foot_contacts_from_sensor[[1, 3]].all().item())
         self.assertFalse(env.foot_contacts_from_sensor[[0, 2]].any().item())
         self.assertEqual(env._sgs_pending_reset.tolist(), [True, False, True, False])
@@ -626,6 +656,36 @@ class SGSEnvironmentTests(unittest.TestCase):
         self.assertEqual(env.sgs_sampler.history[0, :3].tolist(), [True, False, True])
         self.assertAlmostEqual(env.sgs_sampler.success_rates()[0].item(), 2 / 3, places=6)
 
+    def test_real_terminal_outcomes_reach_sampler_once_before_resampling(self):
+        env = TestEnvironment()
+        env.initialize()
+        for _ in range(9):
+            env.grasp_step()
+        env.progress_buf[[1, 3]] = env.max_episode_length - 1
+        self.assertEqual(env.grasp_step([True, False, True, False]).tolist(), [1., 0., 1., 0.])
+        self.assertTrue(env.reset_buf.bool().all().item())
+        self.assertEqual(env.success_counter.tolist(), [1, 0, 1, 0])
+        self.assertEqual(env.success_window.metrics(env.obj_list)["SuccessWindow / completed"], 4)
+        # The real task step copies terminal flags before trainer.reset().
+        env._sgs_pending_done.copy_(env.reset_buf.bool())
+        with patch.object(env.sgs_sampler, "sample", return_value=torch.tensor([4, 5, 4, 5])):
+            env.reset()
+        self.assertEqual(env.active_config_id.tolist(), [4, 5, 4, 5])
+        self.assertEqual(env.sgs_sampler.visits_total.tolist(), [1, 1, 1, 1, 0, 0])
+        self.assertEqual(env.sgs_sampler.success_sum.tolist(), [1, 0, 1, 0, 0, 0])
+        self.assertEqual(env.success_counter.tolist(), [1, 0, 1, 0])
+        self.assertEqual(env.pick_counter.tolist(), [0] * 4)
+        self.assertEqual(env.best_pick_counter.tolist(), [0] * 4)
+        self.assertFalse(env.pick_success_recorded.any().item())
+        self.assertFalse(env.episode_outcome_recorded.any().item())
+        self.assertEqual(env.episode_success.data_ptr(), env.pick_success_recorded.data_ptr())
+        self.assertEqual(env.success_window.metrics(env.obj_list)["SuccessWindow / completed"], 4)
+        self.assertTrue(env._sgs_pending_reset.all().item())
+        self.assertEqual(env.gym.robot_ids, [])  # Deferred upload; no reset-time physics.
+        env.reset()
+        self.assertEqual(env.sgs_sampler.visits_total.sum().item(), 4)
+        self.assertEqual(env.success_counter.tolist(), [1, 0, 1, 0])
+
     def test_cancelled_or_repeated_reset_is_not_a_failed_episode(self):
         env = TestEnvironment()
         env.initialize()
@@ -658,7 +718,7 @@ class SGSEnvironmentTests(unittest.TestCase):
         torch.testing.assert_close(env.ee_j_eef, torch.eye(6)[None].repeat(4, 1, 1))
         env.check_termination()
         self.assertFalse(env.reset_buf.any().item())
-        self.assertFalse(env._failure_now.any().item())
+        self.assertFalse(env._terminate_buf.any().item())
         self.assertFalse(env.lifted_object.any().item())
         self.assertFalse(env.foot_contacts_from_sensor.any().item())
         self.assertEqual(env.force_sensor_tensor.abs().sum().item(), 0)
@@ -672,26 +732,29 @@ class SGSEnvironmentTests(unittest.TestCase):
             env.initialize()
             env.eval = evaluate
             env.global_step_counter = global_step
-            env.lifted_object.fill_(True)
-            for _ in range(14):
-                reward, _ = env._reward_pick_up()
+            for _ in range(9):
+                reward = env.grasp_step()
                 self.assertFalse(env.reset_buf.any().item())
                 self.assertFalse(env.episode_success.any().item())
                 self.assertEqual(reward.sum().item(), 0)
-            env._reward_pick_up()
+            reward = env.grasp_step()
             self.assertTrue(env.reset_buf.bool().all().item())
             self.assertTrue(env.episode_success.all().item())
-            self.assertTrue(env.episode_onetime_success.all().item())
+            self.assertEqual(env.success_onetime_counter.tolist(), [1] * 4)
+            self.assertEqual(env.success_counter.tolist(), [1] * 4)
+            self.assertEqual(reward.tolist(), [1.] * 4)
+            self.assertEqual(env.grasp_step().tolist(), [0.] * 4)
+            self.assertEqual(env.success_counter.tolist(), [1] * 4)
 
     def test_interrupted_hold_restarts_counter(self):
         env = TestEnvironment()
         env.initialize()
-        for lifted in [True] * 10 + [False] + [True] * 14:
-            env.lifted_object.fill_(lifted)
-            env._reward_pick_up()
-        self.assertEqual(env.pick_counter.tolist(), [14] * 4)
+        for lifted in [True] * 9 + [False] + [True] * 9:
+            env.grasp_step(lifted)
+        self.assertEqual(env.pick_counter.tolist(), [9] * 4)
+        self.assertFalse(env.pick_hold_progress.any().item())
         self.assertFalse(env.episode_success.any().item())
-        env._reward_pick_up()
+        env.grasp_step()
         self.assertTrue(env.episode_success.all().item())
 
     def test_timeout_does_not_hide_real_failure_on_last_hold_step(self):
@@ -700,6 +763,7 @@ class SGSEnvironmentTests(unittest.TestCase):
         # Both objects are high enough and close to the gripper. Env 0 has an
         # IK failure coincident with timeout; Env 1 has only a timeout.
         env._cube_root_states[:, 2] = 0.9
+        env.actions[:, 6] = -1
         env._rigid_body_state[:, 1, :3] = env._cube_root_states[:, :3]
         env.update_roboinfo()
         local = quat_rotate_inverse(
@@ -707,10 +771,11 @@ class SGSEnvironmentTests(unittest.TestCase):
         env.curr_ee_goal_cart[:] = local
         env.curr_ee_goal_cart[0, 2] += 0.4
         env.progress_buf.fill_(env.max_episode_length)
-        env.pick_counter.fill_(14)
+        env.pick_counter.fill_(9)
+        env.best_pick_counter.fill_(9)
         env.check_termination()
-        self.assertTrue(env.timeout_buf.all().item())
-        self.assertEqual(env._failure_now.tolist(), [True, False, False, False])
+        self.assertFalse(env.timeout_buf.any().item())
+        self.assertEqual(env._terminate_buf.tolist(), [1, 0, 0, 0])
         env._reward_pick_up()
         self.assertEqual(env.episode_success.tolist(), [False, True, True, True])
 

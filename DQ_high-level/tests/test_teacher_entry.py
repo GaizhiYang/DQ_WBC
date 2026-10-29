@@ -67,7 +67,8 @@ class TeacherConfigurationTests(unittest.TestCase):
         args = config.get_params([])
         cfg = config.configure_teacher_experiment({"env": {}}, args)
         self.assertEqual(cfg["env"]["sgs"]["mode"], "disabled")
-        self.assertEqual(cfg["env"]["successMode"], "legacy")
+        self.assertEqual(cfg["env"]["successMode"], "hold")
+        self.assertEqual(cfg["env"]["holdSteps"], 10)
         self.assertIsNone(cfg["env"]["sgs"]["bank_size"])
         self.assertEqual(cfg["env"]["sgs"]["p_init"], 0.0)
         self.assertEqual(args.rl_device, "cuda:0")
@@ -97,6 +98,32 @@ class TeacherConfigurationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "validated bank"):
             config.configure_teacher_experiment({"env": {}}, args)
 
+    def test_sampler_and_success_aliases_preserve_the_same_task(self):
+        source = ROOT / "data/cfg/DQ_teacher.yaml"
+        with tempfile.TemporaryDirectory() as directory:
+            bank = Path(directory) / "bank.pt"
+            bank.touch()
+            for mode in ("disabled", "uniform", "sgs"):
+                for alias in ("legacy", "hold"):
+                    with self.subTest(mode=mode, success_mode=alias):
+                        args = config.get_params([
+                            "--task", "B1Z1PickMulti", "--object_name", "sugar_box",
+                            "--sgs_mode", mode, "--sgs_bank", str(bank),
+                            "--success_mode", alias])
+                        cfg = config.configure_teacher_experiment(config.load_cfg(source), args)
+                        self.assertEqual(cfg["env"]["successMode"], "hold")
+                        self.assertEqual(cfg["env"]["holdSteps"], 10)
+                        self.assertEqual(cfg["env"]["numEnvs"], 4096)
+                        self.assertEqual(cfg["reward"]["scales"]["pick_up"], 50.0)
+
+    def test_custom_hold_length_is_preserved_and_invalid_lengths_are_rejected(self):
+        args = config.get_params([])
+        cfg = config.configure_teacher_experiment({"env": {"holdSteps": 15}}, args)
+        self.assertEqual(cfg["env"]["holdSteps"], 15)
+        for invalid in (0, -1, True, 2.5, "10"):
+            with self.subTest(value=invalid), self.assertRaisesRegex(ValueError, "holdSteps"):
+                config.configure_teacher_experiment({"env": {"holdSteps": invalid}}, args)
+
     def test_explicit_bank_size_remains_an_optional_positive_integer_assertion(self):
         args = config.get_params([])
         cfg = config.configure_teacher_experiment({"env": {"sgs": {"bank_size": 2048}}}, args)
@@ -112,11 +139,17 @@ class TeacherConfigurationTests(unittest.TestCase):
         config.configure_teacher_experiment(cfg, args, is_eval=True, strict_eval=True)
         self.assertEqual(cfg["env"]["sgs"]["mode"], "disabled")
         self.assertEqual(cfg["env"]["successMode"], "hold")
-        self.assertEqual(cfg["env"]["holdSteps"], 15)
+        self.assertEqual(cfg["env"]["holdSteps"], 1)
         self.assertEqual(cfg["env"]["robotStartDistanceRange"], [2.0, 2.0])
         self.assertEqual(cfg["env"]["D1_bench_task_level"], "Level02")
         self.assertEqual(args.task, "B1Z1PickMulti")
         self.assertEqual(args.object_name, "sugar_box")
+
+    def test_strict_eval_uses_default_ten_steps_when_no_training_value_is_saved(self):
+        args = config.get_params(["--checkpoint", "agent_24.pt"])
+        cfg = config.configure_teacher_experiment({"env": {}}, args,
+                                                  is_eval=True, strict_eval=True)
+        self.assertEqual(cfg["env"]["holdSteps"], 10)
 
     def test_stop_after_is_relative_to_invocation_not_a_new_schedule(self):
         self.assertEqual(config.teacher_run_end(120000, 5000, 24), 5024)
@@ -215,6 +248,17 @@ class EvaluationEnv:
 
 
 class StrictEvaluationTests(unittest.TestCase):
+    def test_success_alias_does_not_change_evaluation_or_saved_hold_length(self):
+        for alias in ("legacy", "hold"):
+            with self.subTest(success_mode=alias):
+                env = EvaluationEnv()
+                env.cfg["env"]["successMode"] = alias
+                trainer = SimpleNamespace(env=env, agents=EvaluationAgent(), headless=True,
+                                          timesteps=120000, teacher_args=SimpleNamespace(seed=99))
+                result = evaluator.evaluate_teacher(trainer, episodes=3)
+                self.assertEqual(result["hold_steps"], env.hold_steps)
+                self.assertEqual(result["hold_success_rate"], 1 / 3)
+
     def test_slow_success_cases_are_not_displaced_by_fast_failures(self):
         agent = EvaluationAgent()
         trainer = SimpleNamespace(env=EvaluationEnv(), agents=agent, headless=True, timesteps=120000,

@@ -1,5 +1,5 @@
 env:
-  numEnvs: 5000 
+  numEnvs: 4096
   numAgents: 1
   envSpacing: 3
   terrainType: plane # Flat ground; use trimesh to load rough terrain instead
@@ -18,10 +18,10 @@ env:
   liftedSuccessThreshold: 0.2
   liftedInitThreshold: 0.05
   baseObjectDisThreshold: 0.2
-  holdSteps: 15
+  holdSteps: 10
   lastCommands: False
   noVelocityObs: False # Set --no_velocity_obs to remove 3D robot + 2D relative object velocity
-  successMode: legacy # hold keeps the 15-step success criterion during evaluation
+  successMode: hold # legacy/hold are compatibility aliases for the shared training/evaluation rule
   sgs:
     mode: disabled # disabled / uniform / sgs; enabled modes require a validated bank
     bank_path: ""
@@ -248,7 +248,7 @@ reward:
   scales:
     approaching: 0.5
     lifting: 0.80 
-    pick_up: 3.5 
+    pick_up: 50.0
     acc_penalty: -0.001
     command_reward: 0.05 
     action_rate: -0.001

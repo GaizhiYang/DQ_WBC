@@ -69,6 +69,7 @@ class TrackingAgent:
         self._track_rewards = deque()
         self._track_timesteps = deque()
         self.tracking_data = defaultdict(list)
+        self._success_rate_tracking_keys = set()
         self.writer = MemoryWriter()
 
     def record(self, info, reward=1.):

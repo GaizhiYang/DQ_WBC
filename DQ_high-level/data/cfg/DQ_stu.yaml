@@ -18,7 +18,7 @@ env:
   liftedSuccessThreshold: 0.2
   liftedInitThreshold: 0.05
   baseObjectDisThreshold: 0.2
-  holdSteps: 15
+  holdSteps: 10
   lastCommands: False
 
   low_policy_path: "/home/hehui/DQ_WBC/DQ_high-level/data/low_model/model_44000.pt" 

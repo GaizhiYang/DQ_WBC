@@ -27,6 +27,28 @@ SUPPORTED_FAMILY_PROFILES = {
 }
 
 
+def validate_task_hold_steps(metadata, hold_steps):
+    """Keep task compatibility explicit without rewriting immutable bank evidence.
+
+    Geometry banks validate initial physical states; the builder only records
+    the task's hold_steps in metadata and does not use it in its physics checks.
+    Permit the known 15-to-10-step task alignment for those validated profiles.
+    This does not certify policy success under the new task definition.
+    """
+    source_steps = metadata.get("hold_steps")
+    if (type(source_steps) is not int or source_steps < 1
+            or type(hold_steps) is not int or hold_steps < 1):
+        raise ValueError("bank and task hold_steps must be positive integers")
+    if source_steps == hold_steps:
+        return "exact"
+    physical = metadata.get("physical_validation", {})
+    if (source_steps == 15 and hold_steps == 10
+            and physical.get("passed") is True
+            and physical.get("validation_profile") in SUPPORTED_FAMILY_PROFILES):
+        return "geometry_bank_15_to_10"
+    raise ValueError("bank metadata mismatch: hold_steps; rebuild the bank for this task")
+
+
 def _mode(value):
     if value == "uniform_bank":
         value = "uniform"

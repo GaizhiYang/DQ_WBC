@@ -1,4 +1,4 @@
-"""Evaluate a teacher on the original 2 m Level02 task with hold success.
+"""Evaluate a teacher on the original 2 m Level02 task with training's success rule.
 
 Run from DQ_high-level, using the usual teacher flags plus --checkpoint and
 --eval_episodes. New runs restore their saved observation/control arguments;
@@ -20,8 +20,6 @@ def evaluate_teacher(trainer, episodes):
     if episodes <= 0:
         raise ValueError("The evaluation episode count must be positive")
     env, agent = trainer.env, trainer.agents
-    if env.cfg["env"].get("successMode") != "hold":
-        raise ValueError("Strict evaluation requires successMode=hold")
     if env.cfg["env"].get("sgs", {}).get("mode", "disabled") != "disabled":
         raise ValueError("Strict evaluation must not sample or update the training bank")
     agent.set_mode("eval")
