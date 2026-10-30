@@ -1,6 +1,7 @@
 import os
 import yaml
 import argparse
+import math
 from pathlib import Path
 
 
@@ -15,6 +16,46 @@ SGS_DEFAULTS = {
     "epsilon": 1e-4,
     "p_init": 0.0,
 }
+
+TSIL_DEFAULTS = {
+    "enabled": False,
+    "top_k": 5,
+    "samples_per_trajectory": 32,
+    "coefficient": 0.05,
+    "value_coefficient": 0.05,
+    "micro_batch_size": 2048,
+    "screen_batch_size": 4096,
+}
+
+
+def apply_tsil_config(cfg, args, is_eval=False):
+    """One complete temporal method; chunk sizes change memory use, not sampling."""
+    settings = dict(TSIL_DEFAULTS)
+    settings.update(cfg["env"].get("tsil", {}))
+    for key, argument in (("enabled", "tsil"), ("micro_batch_size", "tsil_micro_batch_size"),
+                          ("screen_batch_size", "tsil_screen_batch_size")):
+        value = getattr(args, argument, None)
+        if value is not None:
+            settings[key] = value
+    if type(settings["enabled"]) is not bool:
+        raise ValueError("env.tsil.enabled must be Boolean")
+    for name in ("top_k", "samples_per_trajectory", "micro_batch_size", "screen_batch_size"):
+        if type(settings[name]) is not int or settings[name] <= 0:
+            raise ValueError(f"env.tsil.{name} must be a positive integer")
+    for name in ("coefficient", "value_coefficient"):
+        if not math.isfinite(float(settings[name])) or float(settings[name]) <= 0:
+            raise ValueError(f"env.tsil.{name} must be finite and positive")
+    if settings["enabled"]:
+        if args.resume or (args.checkpoint and not is_eval):
+            raise ValueError("TSIL training starts from scratch; checkpoints support evaluation, not archive/sampler resume")
+        if not is_eval and cfg["env"]["sgs"]["mode"] == "disabled":
+            raise ValueError("TSIL teacher training requires SGS configuration identities (--sgs_mode sgs or uniform)")
+        if args.task != "B1Z1PickMulti":
+            raise ValueError("TSIL is implemented for the B1Z1PickMulti teacher")
+        if cfg.get("reward", {}).get("only_positive_rewards", False):
+            raise ValueError("TSIL requires signed task rewards (only_positive_rewards=False)")
+    cfg["env"]["tsil"] = settings
+    return settings
 
 
 def configure_teacher_experiment(cfg, args, is_eval=False, strict_eval=False):
@@ -72,6 +113,7 @@ def configure_teacher_experiment(cfg, args, is_eval=False, strict_eval=False):
         if not sgs["bank_path"] or not Path(sgs["bank_path"]).is_file():
             raise ValueError("SGS training requires an existing validated bank via --sgs_bank or env.sgs.bank_path")
         # The bank loader validates the schema, source task, and physical validation.
+    apply_tsil_config(cfg, args, is_eval=is_eval)
     return cfg
 
 
@@ -130,6 +172,15 @@ def get_parser():
                         help="Override env.sgs.mode. Enabled modes require a validated reset bank.")
     parser.add_argument("--sgs_bank", type=str, default=None,
                         help="Path to a validated SGS reset bank; does not build a bank.")
+    temporal = parser.add_mutually_exclusive_group()
+    temporal.add_argument("--tsil", dest="tsil", action="store_true",
+                          help="Enable the complete temporal self-imitation teacher method.")
+    temporal.add_argument("--no_tsil", dest="tsil", action="store_false")
+    parser.set_defaults(tsil=None)
+    parser.add_argument("--tsil_micro_batch_size", type=int, default=None,
+                        help="Replay GPU chunk size; the full logical batch and optimizer count are unchanged.")
+    parser.add_argument("--tsil_screen_batch_size", type=int, default=None,
+                        help="Critic screening chunk size; every archived configuration is still visited.")
     parser.add_argument("--success_mode", choices=("legacy", "hold"), default=None,
                         help="Compatibility option: legacy and hold use the same 633_test_pro success rule.")
     parser.add_argument("--eval_episodes", type=int, default=2000,

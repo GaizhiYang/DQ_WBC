@@ -38,6 +38,11 @@ class RewardVecTask(VecTask):
         # Success/counting/termination are updated once by check_termination,
         # independently of whether this reward is enabled and in train or eval.
         reward = self.pick_success.to(dtype=torch.float)
+        if getattr(self, "tsil_enabled", False):
+            # The goal is soft: slow successes retain their original task
+            # success label and receive a multiplier in [1, 2].
+            reward = reward * (1.0 + (self.tsil_episode_D /
+                                      self.tsil_elapsed.clamp_min(1e-8)).clamp(max=1.0))
         return reward, reward
     
     def _reward_acc_penalty(self):
@@ -53,6 +58,11 @@ class RewardVecTask(VecTask):
         
         reward = torch.zeros(self.num_envs, device=self.device, dtype=torch.float)
         reward[base_obj_dis < COMMAND_SMOOTH_THRESHOLD] = torch.exp(-torch.abs(self.commands[:, 0]))[base_obj_dis < COMMAND_SMOOTH_THRESHOLD] # linear vel smooth 
+        if getattr(self, "tsil_enabled", False):
+            # Capture before the training curriculum gate, without invoking
+            # reward functions a second time during recording or replay.
+            self.tsil_reward_command_raw.copy_(
+                reward * self.reward_scales.get("command_reward", 0.0))
         
         if self.global_step_counter < self.train_reward_strict:
             reward = 0.

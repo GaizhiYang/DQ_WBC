@@ -1664,6 +1664,10 @@ class B1Z1Base(RewardVecTask):
     
     def compute_reward(self):
         self.rew_buf[:] = 0.0
+        tsil_enabled = getattr(self, "tsil_enabled", False)
+        if tsil_enabled:
+            self.tsil_reward_fixed.zero_()
+            self.tsil_reward_command_raw.zero_()
         reward_components = dict.fromkeys(
             self.reward_component_names, self.rew_buf.new_zeros(()))
         
@@ -1672,6 +1676,8 @@ class B1Z1Base(RewardVecTask):
             rew, metric = self.reward_functions[i]()    
             rew *= self.reward_scales[name]    
             self.rew_buf += rew
+            if tsil_enabled and name not in ("pick_up", "command_reward"):
+                self.tsil_reward_fixed += rew
             self.episode_sums[name] += rew
             self.episode_metric_sums[name] += metric
             reward_components[name] = torch.as_tensor(
@@ -1687,6 +1693,8 @@ class B1Z1Base(RewardVecTask):
             rew, metric = self._reward_termination()
             rew *= self.reward_scales["termination"]
             self.rew_buf += rew
+            if tsil_enabled:
+                self.tsil_reward_fixed += rew
             self.episode_sums["termination"] += rew   
             self.episode_metric_sums["termination"] += metric
             reward_components["termination"] = torch.as_tensor(
@@ -2194,7 +2202,8 @@ class B1Z1Base(RewardVecTask):
                 self.commands[:, 0] = torch.clip(self.actions[:, 7], -0.45, 0.45)
     
     def _compute_states_buf(self): # if enabled_camera is true, then this function will be called
-        teacher_only_tail = self.num_actions + 180 + self.num_velocity_obs + self.num_future_pose_obs
+        teacher_only_tail = (self.num_actions + 180 + self.num_velocity_obs + self.num_future_pose_obs
+                             + getattr(self, "num_tsil_obs", 0))
         self.states_buf[:] = torch.cat([self.camera_history_buf.view(self.num_envs, -1), self.obs_buf[:, (self.num_features + 6):-teacher_only_tail], self.obs_buf[:, -self.num_actions:]], dim=-1)
         # self.states_buf[:] = torch.cat([self.camera_history_buf.view(self.num_envs, -1), self.obs_buf[:, (self.num_features + 12):-(self.num_actions + 3)], self.obs_buf[:, -self.num_actions:]], dim=-1) # my change
         
@@ -2253,6 +2262,10 @@ class B1Z1Base(RewardVecTask):
 
     def post_physics_step(self):
         self.progress_buf += 1
+        if getattr(self, "tsil_enabled", False):
+            # rand_control chooses 7 or 8 low-level cycles for this action.
+            # Count the actual duration before success reward and next obs.
+            self.tsil_elapsed += self.control_freq_low * self.dt
         self.global_step_counter += 1
         self.local_step_counter += 1
         self._refresh_sim_tensors()

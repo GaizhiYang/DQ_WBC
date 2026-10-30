@@ -32,7 +32,7 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.num_actors = 3
         cprint(f"B1Z1PickMulti is called","cyan")
 
-        B1Z1Base.__init__(self, *args, **kwargs)
+        B1Z1Base.__init__(self, *args, eval=eval, **kwargs)
         PredictPoint.__init__(self, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, device=self.device)
         # Standalone rollout tools can supply this through cfg without parsing
         # their own command-line options again as training arguments.
@@ -45,6 +45,79 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.total_timesteps = total_timesteps
         self.train_reward_strict = total_timesteps / 2
         self._init_sgs()
+        self._init_tsil()
+
+    def _init_tsil(self):
+        """Persistent TSIL targets follow configurations, never simulator slots."""
+        self.tsil_state = None
+        if not self.tsil_enabled:
+            return
+        from utils.tsil import TemporalState, geometry_descriptors, GEOMETRY_DESCRIPTOR_SCHEMA
+
+        if self.cfg["reward"]["only_positive_rewards"]:
+            raise ValueError("TSIL requires only_positive_rewards=False for exact reward relabeling")
+        if self.enable_camera or self.floating_base or self.obj_move_prob:
+            raise ValueError("TSIL requires the nonvisual walking teacher and obj_move_prob=0")
+        if not self.sgs_enabled and not self.eval:
+            raise ValueError("TSIL training requires the SGS configuration bank")
+        if self.sgs_enabled:
+            bank = self.sgs_bank
+            descriptors = geometry_descriptors(
+                bank.tensors["robot_root"], bank.tensors["object_root"],
+                bank.tensors["table_height"], bank.tensors["dof_pos"])
+            self.tsil_state = TemporalState(
+                bank.num_configs, self.tsil_time_reference, device=self.device,
+                bank_fingerprint=bank.fingerprint,
+                family_ids=bank.tensors["family_id"], descriptors=descriptors,
+                descriptor_schema=GEOMETRY_DESCRIPTOR_SCHEMA)
+        else:
+            # Strict evaluation loads matching checkpoint targets/descriptors
+            # into this object before its first ordinary, non-SGS reset.
+            self.tsil_state = TemporalState(0, self.tsil_time_reference, device=self.device)
+
+    def _reset_tsil_state(self, env_ids):
+        if not getattr(self, "tsil_enabled", False) or len(env_ids) == 0:
+            return
+        self.tsil_elapsed[env_ids] = 0
+        self.tsil_episode_id[env_ids] += 1
+        if getattr(self, "sgs_enabled", False):
+            from utils.tsil import LOOKUP_CONFIGURATION
+            self.tsil_episode_D[env_ids] = self.tsil_state.targets[self.active_config_id[env_ids]]
+            self.tsil_lookup_status[env_ids] = LOOKUP_CONFIGURATION
+        else:
+            from utils.tsil import geometry_descriptors
+            descriptor = geometry_descriptors(
+                self._robot_root_states[env_ids], self._cube_root_states[env_ids],
+                self.table_heights[env_ids], self._dof_pos[env_ids])
+            target, status = self.tsil_state.lookup_targets(descriptor, return_status=True)
+            self.tsil_episode_D[env_ids] = target
+            self.tsil_lookup_status[env_ids] = status
+
+    def _tsil_observations(self, env_ids):
+        if not getattr(self, "tsil_enabled", False):
+            return self.obs_buf.new_empty((len(env_ids), 0))
+        return torch.stack((self.tsil_elapsed[env_ids], self.tsil_episode_D[env_ids]),
+                           dim=-1) / self.tsil_time_reference
+
+    def _record_tsil_transition(self):
+        """Publish owned pre-reset data; replay never reads mutable env buffers."""
+        if not getattr(self, "tsil_enabled", False):
+            return
+        config_ids = (self.active_config_id if self.sgs_enabled else
+                      torch.full_like(self.tsil_episode_id, -1))
+        step_seconds = self.control_freq_low * self.dt
+        fields = {
+            "config_id": config_ids,
+            "episode_id": self.tsil_episode_id,
+            "elapsed": self.tsil_elapsed,
+            "elapsed_before": self.tsil_elapsed - step_seconds,
+            "success": self.pick_success,
+            "reward_fixed": self.tsil_reward_fixed,
+            "reward_command_raw": self.tsil_reward_command_raw,
+            "episode_D": self.tsil_episode_D,
+        }
+        self.extras["tsil"] = {name: value.detach().clone() for name, value in fields.items()}
+        self.extras["tsil"]["command_gate"] = self.global_step_counter >= self.train_reward_strict
 
     def _init_sgs(self):
         """Load one immutable bank; all online sampler state stays on the GPU."""
@@ -222,6 +295,8 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             self.object_pose_predictor.reset(env_ids)
             self.object_pose_predictor.push(
                 self._cube_root_states[env_ids, :7], self.gym.get_sim_time(self.sim), env_ids)
+        if getattr(self, "tsil_enabled", False):
+            self._reset_tsil_state(env_ids)
         self._compute_observations(env_ids)
         self._record_sgs_metrics()
 
@@ -307,6 +382,11 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.base_obj_dis = torch.norm(base_obj_dis, dim=-1)
         
     def _setup_obs_and_action_info(self):
+        self.tsil_enabled = self.cfg["env"].get("tsil", {}).get("enabled", False)
+        self.num_tsil_obs = 2 if self.tsil_enabled else 0
+        self.tsil_time_indices = (-191, -190) if self.tsil_enabled else ()
+        if self.tsil_enabled and (self.no_feature or self.cfg["env"].get("lastCommands", False)):
+            raise ValueError("TSIL observations require object features and lastCommands=False")
         self.pose_prediction_cfg = self.cfg["env"].get("posePrediction", {})
         prediction_enabled = self.pose_prediction_cfg.get("enabled", False)
         if prediction_enabled and (self.no_feature or self.cfg["env"].get("lastCommands", False)):
@@ -317,9 +397,9 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         removed_velocity_dim = 5 - self.num_velocity_obs
         # Student states already exclude both velocities, so their size stays fixed.
         super()._setup_obs_and_action_info(
-            removed_dim=9+30*6+2-removed_velocity_dim+self.num_future_pose_obs,
+            removed_dim=9+30*6+2-removed_velocity_dim+self.num_future_pose_obs+self.num_tsil_obs,
             num_action=9,
-            num_obs=38+30*6+2+self.num_features-1-removed_velocity_dim+self.num_future_pose_obs,
+            num_obs=38+30*6+2+self.num_features-1-removed_velocity_dim+self.num_future_pose_obs+self.num_tsil_obs,
         )
         
         
@@ -346,6 +426,17 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         """Add extra tensors for cube and table
         """
         super()._init_tensors()
+        if self.tsil_enabled:
+            self.tsil_time_reference = float(
+                self.max_episode_length * self.control_freq_low_init * self.dt)
+            self.tsil_elapsed = torch.zeros(self.num_envs, device=self.device)
+            self.tsil_episode_D = torch.full_like(self.tsil_elapsed, self.tsil_time_reference)
+            self.tsil_episode_id = torch.full((self.num_envs,), -1, dtype=torch.long, device=self.device)
+            # Per-reset diagnostics are ephemeral; querying never mutates the
+            # checkpoint's targets, descriptors, or success flags.
+            self.tsil_lookup_status = torch.full_like(self.tsil_episode_id, -1)
+            self.tsil_reward_fixed = torch.zeros_like(self.tsil_elapsed)
+            self.tsil_reward_command_raw = torch.zeros_like(self.tsil_elapsed)
         
         self._table_root_states = self._root_states.view(self.num_envs, self.num_actors, self._actor_root_state.shape[-1])[..., 1, :]
         self._initial_table_root_states = self._table_root_states.clone()
@@ -633,6 +724,8 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             self.object_pose_predictor.reset(env_ids)
             self.object_pose_predictor.push(
                 self._cube_root_states[env_ids, :7], self.gym.get_sim_time(self.sim), env_ids)
+        if getattr(self, "tsil_enabled", False):
+            self._reset_tsil_state(env_ids)
         return
     
     def _refresh_sim_tensors(self):
@@ -709,7 +802,8 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
                 grasp_predict_world_pos_flat = grasp_predict_local_pos.view(grasp_predict_local_pos.shape[0], -1) ## [num_env,3*object_num]
                 grasp_predict_world_rpy_flat = grasp_predict_local_rpy.view(grasp_predict_local_rpy.shape[0], -1) ## [num_env,3*object_num]
                 future_obs = self._future_object_observations(env_ids, obs[:, :6])
-                obs_new = torch.cat([obs[...,:-6],future_obs,grasp_predict_world_pos_flat,grasp_predict_world_rpy_flat],dim = -1)
+                temporal_obs = self._tsil_observations(env_ids)
+                obs_new = torch.cat([obs[...,:-6],future_obs,temporal_obs,grasp_predict_world_pos_flat,grasp_predict_world_rpy_flat],dim = -1)
 
                 self.obs_buf[env_ids] = torch.cat([self.feature_obs[env_ids, :], obs_new, self.action_history_buf[env_ids, -1]], dim=-1) # self.action_history_buf: [num_env,3,9], obs: [num_env, 61]
 
@@ -796,6 +890,8 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
 
         self.extras["lifted_now"] = self.lifted_now.unsqueeze(-1)*2-1 # This is for the lifted results from the last step, exactly what we want. Lifted = 1, unlifted = -1
         res = super().step(actions)
+        if getattr(self, "tsil_enabled", False):
+            self._record_tsil_transition()
         if getattr(self, "sgs_enabled", False):
             self._sgs_pending_done.copy_(self.reset_buf.bool())
             self._print_sgs_success_rates()

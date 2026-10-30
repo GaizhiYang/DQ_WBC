@@ -9,6 +9,7 @@ slower test episodes. No transition is recorded and no PPO update is called.
 """
 
 import json
+from copy import deepcopy
 from pathlib import Path
 
 
@@ -25,7 +26,7 @@ def evaluate_teacher(trainer, episodes):
     agent.set_mode("eval")
     agent.policy.deterministic = True
     scaler_states = {}
-    for name in ("_state_preprocessor", "_value_preprocessor"):
+    for name in ("_state_preprocessor", "_value_preprocessor", "reward_normalizer"):
         preprocessor = getattr(agent, name, None)
         if hasattr(preprocessor, "eval"):
             preprocessor.eval()
@@ -34,6 +35,17 @@ def evaluate_teacher(trainer, episodes):
                                    for key, value in preprocessor.state_dict().items()}
 
     device = agent.device
+    temporal = bool(getattr(env, "tsil_enabled", False))
+    temporal_before = deepcopy(env.tsil_state.state_dict()) if temporal else None
+    if temporal:
+        from utils.tsil import LOOKUP_STATUS_NAMES, LOOKUP_CONFIGURATION, LOOKUP_NEAREST
+        lookup_counts = {name: 0 for code, name in LOOKUP_STATUS_NAMES.items()
+                         if code != LOOKUP_CONFIGURATION}
+    has_clock = temporal or (hasattr(env, "dt") and hasattr(env, "control_freq_low"))
+    t_ref = (env.tsil_time_reference if temporal else
+             env.max_episode_length * getattr(env, "control_freq_low_init", 8)
+             * getattr(env, "dt", 0.0))
+    success_seconds, penalized_time = [], 0.0
     eval_seed = trainer.teacher_args.seed
     total, n_success, n_lifts = 0, 0, 0
     waves = (episodes + env.num_envs - 1) // env.num_envs
@@ -51,17 +63,31 @@ def evaluate_teacher(trainer, episodes):
             env.reset_buf.fill_(1)
             states, _ = env.reset()
             active = torch.arange(env.num_envs, device=device) < min(env.num_envs, episodes - total)
+            if temporal:
+                statuses = env.tsil_lookup_status.to(device)[active]
+                for code in statuses.unique().tolist():
+                    if code not in LOOKUP_STATUS_NAMES or code == LOOKUP_CONFIGURATION:
+                        raise RuntimeError("Strict evaluation requires a recorded geometric lookup result")
+                    lookup_counts[LOOKUP_STATUS_NAMES[code]] += int((statuses == code).sum())
             completed = ~active
             episode_lifted = torch.zeros(env.num_envs, dtype=torch.bool, device=device)
+            elapsed = torch.zeros(env.num_envs, dtype=torch.float64, device=device)
             for _ in range(env.max_episode_length):
                 actions = agent.act(states, timestep=steps, timesteps=trainer.timesteps)[0]
                 actions[completed] = 0
                 states, _, terminated, truncated, _ = env.step(actions)
+                if has_clock:
+                    elapsed += float(env.control_freq_low * env.dt)
                 if not trainer.headless:
                     env.render()
                 episode_lifted |= env.lifted_object.to(device) & ~completed
                 finished = torch.logical_or(terminated, truncated).reshape(-1).to(device)
                 counted = finished & ~completed
+                if has_clock:
+                    success = env.episode_success.to(device)
+                    success_seconds.extend(elapsed[counted & success].cpu().tolist())
+                    penalized_time += torch.where(success, elapsed / t_ref,
+                                                  torch.ones_like(elapsed))[counted].sum().item()
                 n_success += int(env.episode_success.to(device)[counted].sum().item())
                 n_lifts += int(episode_lifted[counted].sum().item())
                 total += int(counted.sum().item())
@@ -78,7 +104,19 @@ def evaluate_teacher(trainer, episodes):
         after = getattr(agent, name).state_dict()
         if before.keys() != after.keys() or any(not torch.equal(value, after[key]) for key, value in before.items()):
             raise RuntimeError(f"Evaluation modified the frozen scaler {name}")
-    return {"episodes": total, "hold_successes": n_success,
+    if temporal:
+        def equal_state(first, second):
+            if isinstance(first, torch.Tensor):
+                return isinstance(second, torch.Tensor) and torch.equal(first, second)
+            if isinstance(first, dict):
+                return (first.keys() == second.keys() and
+                        all(equal_state(first[key], second[key]) for key in first))
+            if isinstance(first, (list, tuple)):
+                return len(first) == len(second) and all(equal_state(a, b) for a, b in zip(first, second))
+            return first == second
+        if not equal_state(temporal_before, env.tsil_state.state_dict()):
+            raise RuntimeError("Evaluation modified the frozen TSIL target state")
+    result = {"episodes": total, "hold_successes": n_success,
             "hold_success_rate": n_success / total,
             "ever_lifted_episodes": n_lifts,
             "num_envs": env.num_envs, "control_steps": steps,
@@ -89,6 +127,18 @@ def evaluate_teacher(trainer, episodes):
             "success_mode": "hold", "hold_steps": env.hold_steps,
             "start_distance": 2.0, "task_level": "Level02",
             "sampler_mode": "disabled"}
+    if has_clock:
+        result.update({"time_reference_seconds": t_ref,
+                       "success_time_mean_seconds": (sum(success_seconds) / len(success_seconds)
+                                                     if success_seconds else None),
+                       "failure_penalized_time": penalized_time / total})
+    if temporal:
+        result.update({"tsil_targets_unchanged": True,
+                       "target_lookup_method": "successful_full_task_5nn",
+                       "target_lookup_counts": lookup_counts,
+                       "target_lookup_nearest_fraction": lookup_counts[LOOKUP_STATUS_NAMES[LOOKUP_NEAREST]] / total,
+                       "tsil_bank_fingerprint": env.tsil_state.bank_fingerprint})
+    return result
 
 
 def main():

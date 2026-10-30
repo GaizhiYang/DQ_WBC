@@ -250,6 +250,8 @@ def get_trainer(is_eval=False):
     # assert use_roboinfo, "Are you sure not using roboinfo?" # TODO: temporarily for reminder
     args.wandb = args.wandb and (not args.eval) and (not args.debug)
     
+    from utils.tsil_checkpoint import reject_temporal_student_teacher
+    reject_temporal_student_teacher(args.teacher_ckpt_path)
     cfg_file = "DQ_stu.yaml"
     file_path = "data/cfg/" + cfg_file
     

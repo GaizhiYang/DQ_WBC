@@ -27,6 +27,8 @@ import utils.wrapper as wrapper
 import time
 from legged_gym.envs.manip_loco.b1z1_config import B1Z1RoughCfg
 from modules.predictattention import PredictAttentionSelector
+from utils.tsil_checkpoint import (TemporalCheckpointMetadata, read_temporal_checkpoint,
+                                   restore_temporal_arguments)
 
 
 def checkpoint_step(path, required=False):
@@ -275,11 +277,18 @@ def get_trainer(is_eval=False, strict_eval=False):
         if not args.checkpoint or args.resume:
             raise ValueError("Strict evaluation requires --checkpoint and does not accept --resume")
         restore_eval_arguments(args)
+    temporal_metadata = None
+    if is_eval and args.checkpoint:
+        temporal_metadata = read_temporal_checkpoint(args.checkpoint)
+        if temporal_metadata is not None:
+            restore_temporal_arguments(args, temporal_metadata)
     set_seed(args.seed)
     args.wandb = args.wandb and (not args.eval) and (not args.debug)
     if not is_eval and args.sgs_mode in ("uniform", "sgs") and (args.resume or args.checkpoint):
         raise ValueError("SGS/uniform-bank training starts from scratch; sampler resume is not implemented")
-    file_path = teacher_config_path(args, is_eval=is_eval, strict_eval=strict_eval)
+    embedded_config = temporal_metadata is not None and args.cfg_file is None
+    file_path = ("data/cfg/DQ_teacher.yaml" if embedded_config else
+                 teacher_config_path(args, is_eval=is_eval, strict_eval=strict_eval))
     cfg_file = Path(file_path).name
     
     if args.resume:
@@ -302,8 +311,10 @@ def get_trainer(is_eval=False, strict_eval=False):
     cprint(f"Training script: {os.path.realpath(__file__)}", "yellow")
     cprint(f"Using config file: {os.path.realpath(file_path)}", "red")
         
-    cfg = load_cfg(file_path)
+    cfg = deepcopy(temporal_metadata["config"]) if embedded_config else load_cfg(file_path)
     configure_teacher_experiment(cfg, args, is_eval=is_eval, strict_eval=strict_eval)
+    if is_eval and cfg["env"]["tsil"]["enabled"] and temporal_metadata is None:
+        raise ValueError("TSIL evaluation requires a checkpoint with matching temporal state and normalization")
     prediction_cfg = apply_pose_prediction_config(cfg, args)
     cprint(f"Teacher future pose observations: {prediction_cfg}", "yellow")
     if args.no_velocity_obs:
@@ -392,6 +403,7 @@ def get_trainer(is_eval=False, strict_eval=False):
     cfg_ppo["state_preprocessor_kwargs"] = {"size": env.observation_space, "device": device}
     cfg_ppo["value_preprocessor"] = RunningStandardScaler
     cfg_ppo["value_preprocessor_kwargs"] = {"size": 1, "device": device}
+    cfg_ppo["tsil"] = deepcopy(cfg["env"]["tsil"])
     # Log to TensorBoard/W&B every 10 PPO iterations (one rollout per iteration).
     cfg_ppo["experiment"]["write_interval"] = 10 * cfg_ppo["rollouts"]
     env._env.sgs_log_interval = cfg_ppo["experiment"]["write_interval"]
@@ -406,12 +418,19 @@ def get_trainer(is_eval=False, strict_eval=False):
         cfg_ppo["experiment"]["wandb_kwargs"] = {"project": args.wandb_project, "sync_tensorboard": True, "name": args.wandb_name}
         # cfg_ppo["experiment"]["wandb_kwargs"]["resume"] = True
         
-    agent = PPO(models=models_ppo,
+    agent_class, agent_kwargs = PPO, {}
+    if cfg["env"]["tsil"]["enabled"]:
+        from utils.tsil_ppo import TSILPPO
+        agent_class, agent_kwargs = TSILPPO, {"tsil_env": env._env}
+    agent = agent_class(models=models_ppo,
             memory=memory,
             cfg=cfg_ppo,
             observation_space=env.observation_space,
             action_space=env.action_space,
-            device=device)
+            device=device, **agent_kwargs)
+    if cfg["env"]["tsil"]["enabled"]:
+        agent.checkpoint_modules["tsil_metadata"] = TemporalCheckpointMetadata(
+            experiment_cfg, args, env.observation_space.shape[0], env.tsil_time_reference)
     
     # Keep the trainer's rendering setting consistent with the environment.
     # When --headless is omitted, SKRL must call env.render() so the Isaac Gym
@@ -451,7 +470,9 @@ def get_trainer(is_eval=False, strict_eval=False):
             with metadata_path.open("w") as stream:
                 json.dump({"arguments": vars(args), "config_file": cfg_file,
                            "planned_timesteps": args.timesteps,
-                           "checkpoint_kind": "model_only"}, stream, indent=2)
+                           "checkpoint_kind": ("temporal_teacher_evaluation" if
+                                               cfg["env"]["tsil"]["enabled"] else "model_only")},
+                          stream, indent=2)
         if experiment_cfg["env"]["sgs"]["mode"] != "disabled":
             bank = env.sgs_bank
             bank_metadata = {"fingerprint": bank.fingerprint, "num_configs": bank.num_configs,

@@ -248,6 +248,39 @@ class EvaluationEnv:
 
 
 class StrictEvaluationTests(unittest.TestCase):
+    def test_temporal_lookup_counts_follow_counted_episodes_including_partial_wave(self):
+        from utils.tsil import (LOOKUP_NEAREST, LOOKUP_NO_SUCCESS, LOOKUP_OUT_OF_SUPPORT,
+                                LOOKUP_INVALID)
+
+        class TemporalEvaluationEnv(EvaluationEnv):
+            tsil_enabled = True
+            tsil_time_reference = .3
+            dt, control_freq_low = .1, 1
+
+            def __init__(self):
+                super().__init__()
+                self.tsil_state = SimpleNamespace(
+                    state_dict=lambda: {"targets": torch.tensor([.3])}, bank_fingerprint="test")
+                self.wave = 0
+
+            def reset(self):
+                states = super().reset()
+                # Last slot in the final wave is inactive and must not count.
+                statuses = [(LOOKUP_NEAREST, LOOKUP_NO_SUCCESS),
+                            (LOOKUP_OUT_OF_SUPPORT, LOOKUP_INVALID),
+                            (LOOKUP_NEAREST, LOOKUP_INVALID)]
+                self.tsil_lookup_status = torch.tensor(statuses[self.wave])
+                self.wave += 1
+                return states
+
+        trainer = SimpleNamespace(env=TemporalEvaluationEnv(), agents=EvaluationAgent(),
+                                  headless=True, timesteps=120000, teacher_args=SimpleNamespace(seed=99))
+        result = evaluator.evaluate_teacher(trainer, episodes=5)
+        self.assertEqual(result["target_lookup_counts"],
+                         dict(nearest=2, no_success=1, out_of_support=1, invalid=1))
+        self.assertEqual(result["target_lookup_nearest_fraction"], 2 / 5)
+        self.assertTrue(result["tsil_targets_unchanged"])
+
     def test_success_alias_does_not_change_evaluation_or_saved_hold_length(self):
         for alias in ("legacy", "hold"):
             with self.subTest(success_mode=alias):
