@@ -315,6 +315,14 @@ class Agent:
             self.tracking_data["Reward / Instantaneous reward (max)"].append(torch.max(rewards).item())
             self.tracking_data["Reward / Instantaneous reward (min)"].append(torch.min(rewards).item())
             self.tracking_data["Reward / Instantaneous reward (mean)"].append(torch.mean(rewards).item())
+
+            # Each component is already averaged over environments. Preserve
+            # ordinary window averaging and transfer all GPU scalars together.
+            reward_components = infos.get("reward_components", {})
+            if reward_components:
+                values = torch.stack(tuple(reward_components.values())).detach().cpu().tolist()
+                for name, value in zip(reward_components, values):
+                    self.track_data(f"Reward components / {name} (mean)", value)
             
             if "success_rate" in infos.keys():
                 # These are completed-episode window snapshots. Replace the

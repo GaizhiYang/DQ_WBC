@@ -1641,6 +1641,9 @@ class B1Z1Base(RewardVecTask):
         self.last_ee_pos = curr_ee_pos_local
 
     def _prepare_reward_function(self):
+        # Keep disabled terms visible as zero contributions without evaluating
+        # their reward functions, which may have environment side effects.
+        self.reward_component_names = tuple(self.reward_scales)
         for key in list(self.reward_scales.keys()):
             scale = self.reward_scales[key]
             if scale == 0:
@@ -1661,6 +1664,8 @@ class B1Z1Base(RewardVecTask):
     
     def compute_reward(self):
         self.rew_buf[:] = 0.0
+        reward_components = dict.fromkeys(
+            self.reward_component_names, self.rew_buf.new_zeros(()))
         
         for i in range(len(self.reward_functions)):
             name = self.reward_names[i]
@@ -1669,7 +1674,13 @@ class B1Z1Base(RewardVecTask):
             self.rew_buf += rew
             self.episode_sums[name] += rew
             self.episode_metric_sums[name] += metric
+            reward_components[name] = torch.as_tensor(
+                rew, device=self.rew_buf.device, dtype=self.rew_buf.dtype).detach().mean()
         if self.cfg["reward"]["only_positive_rewards"]:
+            # Account for clipping so the logged contributions still add up
+            # to the total reward. Termination is added after this adjustment.
+            reward_components["positive_clipping_adjustment"] = (
+                torch.clamp(-self.rew_buf, min=0.0).detach().mean())
             self.rew_buf[:] = torch.clip(self.rew_buf, min=0.0)
         
         if "termination" in self.reward_scales:
@@ -1677,7 +1688,13 @@ class B1Z1Base(RewardVecTask):
             rew *= self.reward_scales["termination"]
             self.rew_buf += rew
             self.episode_sums["termination"] += rew   
-            self.episode_metric_sums["termination"] += metric    
+            self.episode_metric_sums["termination"] += metric
+            reward_components["termination"] = torch.as_tensor(
+                rew, device=self.rew_buf.device, dtype=self.rew_buf.dtype).detach().mean()
+
+        # Scalar tensors stay on the simulation device until the logger batches
+        # their transfer. These are per-step values, not episode snapshots.
+        self.extras["reward_components"] = reward_components
             
     def get_walking_cmd_mask(self, env_ids=None, return_all=False):
         if env_ids is None:
