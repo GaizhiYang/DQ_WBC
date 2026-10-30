@@ -392,8 +392,8 @@ def get_trainer(is_eval=False, strict_eval=False):
     cfg_ppo["state_preprocessor_kwargs"] = {"size": env.observation_space, "device": device}
     cfg_ppo["value_preprocessor"] = RunningStandardScaler
     cfg_ppo["value_preprocessor_kwargs"] = {"size": 1, "device": device}
-    # logging to TensorBoard and write checkpoints each 120 and 1200 timesteps respectively
-    cfg_ppo["experiment"]["write_interval"] = 24
+    # Log to TensorBoard/W&B every 10 PPO iterations (one rollout per iteration).
+    cfg_ppo["experiment"]["write_interval"] = 10 * cfg_ppo["rollouts"]
     env._env.sgs_log_interval = cfg_ppo["experiment"]["write_interval"]
     cfg_ppo["experiment"]["checkpoint_interval"] = 5000 ## my change
     if is_eval:

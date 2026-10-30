@@ -249,7 +249,7 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
                 snapshots["SuccessRate / " + name] = snapshots["SGS / successes_" + name] / episodes
         self.extras.setdefault("success_rate", {}).update(snapshots)
         # Window counts and ratios use the latest snapshot, rather than the
-        # logger's ordinary mean over a 24-step writing window.
+        # logger's ordinary mean over the writing window.
         self.extras["scalar_snapshots"] = snapshots
         self._print_sgs_success_rates()
 
