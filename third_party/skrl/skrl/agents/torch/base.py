@@ -153,6 +153,11 @@ class Agent:
             # init Weights & Biases
             import wandb
             wandb.init(**wandb_kwargs)
+            if self.cfg.get("experiment", {}).get("steps_per_iteration", 0) > 0:
+                wandb.define_metric("iteration")
+                # TensorBoard may sync each scalar as a separate history row.
+                # Carry the current iteration into every following metric row.
+                wandb.define_metric("*", step_metric="iteration", step_sync=True)
 
         # main entry to log data for consumption and visualization by TensorBoard
         if self.write_interval > 0:
@@ -185,6 +190,11 @@ class Agent:
         :param timesteps: Number of timesteps
         :type timesteps: int
         """
+        steps_per_iteration = self.cfg.get("experiment", {}).get("steps_per_iteration", 0)
+        if steps_per_iteration > 0 and self.tracking_data:
+            # Write the axis first to avoid assigning metrics to the previous
+            # iteration. A partial final rollout retains fractional progress.
+            self.writer.add_scalar("iteration", timestep / steps_per_iteration, timestep)
         for k, v in self.tracking_data.items():
             if k.endswith("(min)"):
                 self.writer.add_scalar(k, np.min(v), timestep)

@@ -7,6 +7,7 @@ import copy
 import io
 import os
 from pathlib import Path
+import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
@@ -16,6 +17,7 @@ import numpy as np
 import torch
 
 from test_sgs_env import TestEnvironment, make_bank, make_active_near_goal_bank
+from test_success_logging import LoggingAgent
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -45,6 +47,18 @@ def finalize_logging(trainer):
     namespace[node.name](trainer)
 
 
+def run_teacher_entrypoint(trainer):
+    """Execute the actual main block without importing simulator dependencies."""
+    path = ROOT / "DQ_high-level/train_multistate_DQ_teacher.py"
+    main = next(node for node in ast.parse(path.read_text()).body
+                if isinstance(node, ast.If) and isinstance(node.test, ast.Compare)
+                and isinstance(node.test.left, ast.Name) and node.test.left.id == "__name__")
+    namespace = {"__name__": "__main__", "get_trainer": lambda: trainer,
+                 "finalize_teacher_logging": finalize_logging, "Path": Path}
+    exec(compile(ast.fix_missing_locations(ast.Module(body=[main], type_ignores=[])),
+                 str(path), "exec"), namespace)
+
+
 class MemoryWriter:
     def __init__(self):
         self.values = {}
@@ -63,6 +77,7 @@ class TrackingAgent:
     track_data_latest = agent_method("track_data_latest")
 
     def __init__(self):
+        self.cfg = {}
         self.write_interval = 24
         self._cumulative_rewards = None
         self._cumulative_timesteps = None
@@ -342,6 +357,61 @@ class SGSFamilyLoggingTests(unittest.TestCase):
             self.assertNotIn("SuccessRate / " + name, logger.writer.values)
         self.assertNotIn("SGS / episodes_overall", logger.writer.values)
         self.assertEqual(logger.writer.flush_count, 1)
+
+    def test_keyboard_interrupt_flushes_partial_window_and_skips_completed_run_outputs(self):
+        # Cover stopping before the first regular write and just after one.
+        for interrupted_step in (5, 241):
+            with self.subTest(interrupted_step=interrupted_step), tempfile.TemporaryDirectory() as directory:
+                env = four_family_environment()
+                agent = LoggingAgent({}, device="cpu", cfg={"experiment": {
+                    "write_interval": 240, "checkpoint_interval": 0,
+                }})
+                agent.init()
+                env.save_sgs_diagnostics = Mock()
+                agent.save = Mock()
+                interruption = KeyboardInterrupt("interrupted during policy update")
+                states = torch.zeros(env.num_envs, 1)
+                flags = torch.zeros(env.num_envs, 1, dtype=torch.bool)
+
+                def interrupted_training():
+                    for step in range(1, interrupted_step + 1):
+                        env.global_step_counter = step
+                        reward = 3. if step == interrupted_step else 1.
+                        infos = dict(env.extras)
+                        infos["reward_components"] = {
+                            "positive": torch.tensor(reward + 1.), "penalty": torch.tensor(-1.),
+                        }
+                        agent.record_transition(states, states, torch.full_like(states, reward),
+                                                states, flags, flags, infos, step - 1, 120000)
+                        if step == interrupted_step:
+                            # Final reset outcomes appear after the last agent
+                            # recording, and the PPO update is then interrupted.
+                            env.finish([0, 1, 2, 3], [True, False, True, False], [0, 1, 2, 3])
+                            raise interruption
+                        agent.post_interaction(step - 1, 120000)
+
+                trainer = SimpleNamespace(
+                    env=env, agents=agent, timesteps=120000, train=interrupted_training,
+                    teacher_args=SimpleNamespace(experiment_dir=directory, wandb_name="interrupted",
+                                                 stop_after=interrupted_step),
+                    teacher_config={"env": {"sgs": {"mode": "active"}}})
+                with redirect_stdout(io.StringIO()), self.assertRaises(KeyboardInterrupt) as raised:
+                    run_teacher_entrypoint(trainer)
+                self.assertIs(raised.exception, interruption)
+                expected = [(1.4, 5)] if interrupted_step == 5 else [(1., 240), (3., 241)]
+                self.assertEqual(agent.writer.values("Reward / Instantaneous reward (mean)"), expected)
+                self.assertEqual(agent.writer.values("Reward components / positive (mean)"),
+                                 [(value + 1., step) for value, step in expected])
+                self.assertEqual(agent.writer.values("Reward components / penalty (mean)"),
+                                 [(-1., step) for _, step in expected])
+                self.assertEqual(agent.writer.values("SuccessRate / near_goal"), [(0., interrupted_step)])
+                self.assertEqual(agent.writer.values("SGS / episodes_near_goal")[-1], (1., interrupted_step))
+                self.assertEqual(agent.writer.flush_count, 1)
+                self.assertFalse(agent.tracking_data)
+                self.assertEqual(agent.write_interval, 240)
+                env.save_sgs_diagnostics.assert_not_called()
+                agent.save.assert_not_called()
+                self.assertFalse((Path(directory) / "interrupted").exists())
 
 
 if __name__ == "__main__":

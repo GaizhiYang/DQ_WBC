@@ -406,6 +406,7 @@ def get_trainer(is_eval=False, strict_eval=False):
     cfg_ppo["tsil"] = deepcopy(cfg["env"]["tsil"])
     # Log to TensorBoard/W&B every 10 PPO iterations (one rollout per iteration).
     cfg_ppo["experiment"]["write_interval"] = 10 * cfg_ppo["rollouts"]
+    cfg_ppo["experiment"]["steps_per_iteration"] = cfg_ppo["rollouts"]
     env._env.sgs_log_interval = cfg_ppo["experiment"]["write_interval"]
     cfg_ppo["experiment"]["checkpoint_interval"] = 5000 ## my change
     if is_eval:
@@ -502,7 +503,13 @@ def finalize_teacher_logging(trainer):
 
 if __name__ == "__main__":
     trainer = get_trainer()
-    trainer.train()
+    try:
+        trainer.train()
+    except KeyboardInterrupt:
+        # Preserve the partial logging window when training is interrupted,
+        # then propagate the interrupt instead of saving a completed run.
+        finalize_teacher_logging(trainer)
+        raise
     finalize_teacher_logging(trainer)
     run_dir = Path(trainer.teacher_args.experiment_dir) / trainer.teacher_args.wandb_name
     if trainer.teacher_config["env"]["sgs"]["mode"] != "disabled":
