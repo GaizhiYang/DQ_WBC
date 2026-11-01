@@ -71,6 +71,17 @@ def step_task(task):
     return task.rew_buf.clone()
 
 
+def enable_sgs(task, config_ids, family_ids=(0, 1, 2),
+               family_names=("full_task", "pregrasp", "near_goal")):
+    """Attach the actual bank lookup interface without loading physics states."""
+    task.sgs_enabled = True
+    task.active_config_id = torch.tensor(config_ids, dtype=torch.long)
+    task.sgs_family_names = list(family_names)
+    task.sgs_bank = SimpleNamespace(
+        num_configs=len(family_ids), family_names=list(family_names),
+        tensors={"family_id": torch.tensor(family_ids, dtype=torch.long)})
+
+
 class PickTaskTests(unittest.TestCase):
     def test_train_and_eval_require_ten_steps_and_award_success_only_once(self):
         traces = []
@@ -323,6 +334,107 @@ class PickTaskTests(unittest.TestCase):
         self.assertEqual(rates["SuccessRate / sugar_box"], 0.)
         self.assertAlmostEqual(rates["SuccessRate / mustard_bottle"], 1 / 500)
         self.assertAlmostEqual(rates["SuccessRate / total"], 1 / 1000)
+
+    def test_sgs_overall_rate_counts_full_task_failures_and_excludes_other_successes(self):
+        for tsil_enabled in (False, True):
+            with self.subTest(tsil_enabled=tsil_enabled):
+                task = make_task(num_envs=6)
+                enable_sgs(task, [1, 0, 2, 0, 1, 2])
+                task.tsil_enabled = tsil_enabled
+                task.progress_buf[:] = 1
+                task.reset_buf[:] = 1
+                task.pick_success_recorded[:] = torch.tensor(
+                    [True, False, True, True, True, True])
+                task._record_episode_outcomes()
+                rates = dict(task.extras["success_rate"])
+                self.assertEqual(rates["SuccessWindow / completed"], 2)
+                self.assertEqual(rates["SuccessWindow / successes"], 1)
+                self.assertEqual(rates["SuccessRate / sugar_box"], .5)
+                self.assertTrue(task.episode_outcome_recorded.all().item())
+                # An excluded terminal episode is still handled once. Neither
+                # reward/log repetition nor changing its config can recount it.
+                task.active_config_id[:] = 0
+                task._record_episode_outcomes()
+                self.assertEqual(task.extras["success_rate"], rates)
+
+    def test_sgs_full_task_filter_uses_family_names_and_configuration_mapping(self):
+        task = make_task(num_envs=4)
+        enable_sgs(task, [0, 1, 2, 3], family_ids=[2, 1, 0, 1],
+                   family_names=["pregrasp", "full_task", "near_goal"])
+        task.progress_buf[:] = 1
+        task.reset_buf[:] = 1
+        task.pick_success_recorded[:] = torch.tensor([True, False, True, True])
+        task._record_episode_outcomes()
+        rates = task.extras["success_rate"]
+        self.assertEqual(rates["SuccessWindow / completed"], 2)
+        self.assertEqual(rates["SuccessWindow / successes"], 1)
+        self.assertEqual(rates["SuccessRate / sugar_box"], .5)
+
+    def test_sgs_without_completed_full_task_omits_undefined_overall_rate(self):
+        task = make_task(num_envs=4)
+        enable_sgs(task, [1, 2, -1, 3])
+        task.progress_buf[:] = 1
+        task.reset_buf[:] = 1
+        task.pick_success_recorded[:] = True
+        task._record_episode_outcomes()
+        rates = task.extras["success_rate"]
+        self.assertEqual(rates["SuccessWindow / completed"], 0)
+        self.assertEqual(rates["SuccessWindow / successes"], 0)
+        self.assertFalse(any(key.startswith("SuccessRate /") for key in rates))
+        self.assertTrue(task.episode_outcome_recorded.all().item())
+        task._record_episode_outcomes()
+        self.assertEqual(task.extras["success_rate"], rates)
+
+    def test_sgs_initial_reset_is_not_a_full_task_outcome(self):
+        task = make_task(num_envs=3)
+        enable_sgs(task, [0, 1, 2])
+        task.reset_buf[:] = 1
+        task.pick_success_recorded[:] = True
+        task._record_episode_outcomes()
+        self.assertEqual(task.success_window.metrics(task.obj_list)[
+            "SuccessWindow / completed"], 0)
+        self.assertFalse(task.episode_outcome_recorded.any().item())
+
+    def test_sgs_window_contains_last_thousand_full_task_episodes(self):
+        task = make_task(num_envs=2002)
+        enable_sgs(task, [0] * 1001 + [1] * 1001)
+        task.progress_buf[:] = 1
+        task.reset_buf[0] = 1
+        task.pick_success_recorded[0] = True
+        task._record_episode_outcomes()
+        # More than a global window of easier completions must not evict the
+        # existing full-task success, nor change its rate or denominator.
+        task.reset_buf.zero_()
+        task.reset_buf[1001:] = 1
+        task.pick_success_recorded[1001:] = True
+        task._record_episode_outcomes()
+        self.assertEqual(task.extras["success_rate"]["SuccessWindow / completed"], 1)
+        self.assertEqual(task.extras["success_rate"]["SuccessRate / sugar_box"], 1.)
+        task.reset_buf.zero_()
+        task.reset_buf[1:1000] = 1
+        task._record_episode_outcomes()
+        self.assertEqual(task.extras["success_rate"]["SuccessWindow / completed"], 1000)
+        self.assertEqual(task.extras["success_rate"]["SuccessWindow / successes"], 1)
+        self.assertEqual(task.extras["success_rate"]["SuccessRate / sugar_box"], .001)
+        task.reset_buf.zero_()
+        task.reset_buf[1000] = 1
+        task._record_episode_outcomes()
+        self.assertEqual(task.extras["success_rate"]["SuccessWindow / completed"], 1000)
+        self.assertEqual(task.extras["success_rate"]["SuccessWindow / successes"], 0)
+        self.assertEqual(task.extras["success_rate"]["SuccessRate / sugar_box"], 0.)
+
+    def test_disabled_sgs_keeps_all_completed_baseline_episodes(self):
+        task = make_task(num_envs=3)
+        enable_sgs(task, [0, 1, 2])
+        task.sgs_enabled = False
+        task.progress_buf[:] = 1
+        task.reset_buf[:] = 1
+        task.pick_success_recorded[:] = torch.tensor([False, True, True])
+        task._record_episode_outcomes()
+        rates = task.extras["success_rate"]
+        self.assertEqual(rates["SuccessWindow / completed"], 3)
+        self.assertEqual(rates["SuccessWindow / successes"], 2)
+        self.assertAlmostEqual(rates["SuccessRate / sugar_box"], 2 / 3)
 
 
 if __name__ == "__main__":

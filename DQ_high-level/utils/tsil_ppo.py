@@ -111,14 +111,21 @@ class TSILPPO(PPO):
         self.checkpoint_modules["reward_normalizer"] = self.reward_normalizer
         self.replay = None
         if self.memory is not None:
-            self.replay = TemporalReplay(
+            replay_type = TemporalReplay
+            replay_device = {}
+            if self.device.type == "cuda":
+                from utils.tsil_replay_gpu import GPUTemporalReplay
+                replay_type = GPUTemporalReplay
+                replay_device = {"device": self.device}
+            self.replay = replay_type(
                 self.tsil_state, num_envs=tsil_env.num_envs,
                 observation_size=self._state_preprocessor.running_mean.numel(),
                 action_size=self.policy.num_actions, gamma=self._discount_factor,
                 topk=int(settings.get("top_k", 5)), time_indices=self.time_indices,
                 max_episode_steps=int(tsil_env.max_episode_length),
                 static_prefix_size=int(settings.get("static_prefix_size", 1024)),
-                success_reward_scale=float(getattr(tsil_env, "reward_scales", {}).get("pick_up", 50.)))
+                success_reward_scale=float(getattr(tsil_env, "reward_scales", {}).get("pick_up", 50.)),
+                **replay_device)
         self._command_gate = False
         self._diagnostic_steps = []
         self._episode_advantage_mass = {}
@@ -170,7 +177,7 @@ class TSILPPO(PPO):
         states = self._state_preprocessor(raw_states.to(device=self.device, dtype=torch.float32))
         target = self._value_preprocessor(scaled_returns.to(device=self.device, dtype=torch.float32))
         values = self._predict_values(states)
-        return (target - values).clamp_min(0).reshape(-1).cpu()
+        return (target - values).clamp_min(0).reshape(-1)
 
     @torch.no_grad()
     def _logical_weight_std(self, selection, indices):
@@ -194,33 +201,59 @@ class TSILPPO(PPO):
         return (squares / safe_count - (total / safe_count).square()).clamp_min(0).sqrt().float()
 
     def _backward_replay(self, selection, indices):
-        """Accumulate one logical SIL loss without changing optimizer frequency."""
-        metrics = dict(policy=0., value=0., gap=0., positive=0., logp=0., success=0.)
+        """Accumulate the exact logical SIL loss with one Critic pass per chunk.
+
+        The first pass backpropagates Critic and retains only detached actor
+        weights, so memory stays bounded by a microbatch. The Actor pass uses
+        one population standard deviation over all positive logical-batch
+        weights. No optimizer step or parameter change separates the passes.
+        """
+        names = ("policy", "value", "gap", "positive", "logp", "success")
+        metrics = torch.zeros(len(names), device=self.device)
         if indices.numel() == 0:
-            return metrics
-        weight_std = self._logical_weight_std(selection, indices)
+            return dict(zip(names, metrics.unbind()))
         logical_count = indices.numel()
+        moments = torch.zeros(3, dtype=torch.float64, device=self.device)
+        cached_weights = []
         for chunk in indices.split(self.micro_batch_size):
             batch = selection.get_batch(chunk, device=self.device)
             states = self._state_preprocessor(batch["states"])
             target = self._value_preprocessor(batch["returns"])
-            _, log_prob, _ = self.policy.act({"states": states, "taken_actions": batch["actions"]}, role="policy")
             values = self._predict_values(states)
-            actor, critic, gap, weights = positive_gap_losses(
-                log_prob, values, target, batch["efficiency"], weight_std)
+            gap = (target - values).clamp_min(0)
+            critic = 0.5 * gap.square().mean()
             fraction = chunk.numel() / logical_count
-            (self.coefficient * fraction * (actor + self.value_coefficient * critic)).backward()
-            metrics["policy"] += fraction * actor.detach().item()
-            metrics["value"] += fraction * critic.detach().item()
-            metrics["gap"] += fraction * gap.detach().mean().item()
-            metrics["positive"] += fraction * (gap.detach() > 0).float().mean().item()
-            metrics["logp"] += fraction * log_prob.detach().mean().item()
-            metrics["success"] += fraction * batch["success"].float().mean().item()
-        return metrics
+            (self.coefficient * self.value_coefficient * fraction * critic).backward()
+            with torch.no_grad():
+                weights = gap.detach() * batch["efficiency"]
+                cached_weights.append(weights)
+                double_weights = weights.double()
+                # Zero weights contribute zero moments, avoiding a variable-
+                # length GPU gather and its device-to-host synchronization.
+                moments += torch.stack(((weights > 0).sum().double(),
+                                        double_weights.sum(), double_weights.square().sum()))
+                metrics[1] += fraction * critic.detach()
+                metrics[2] += fraction * gap.detach().mean()
+                metrics[3] += fraction * (gap.detach() > 0).float().mean()
+                metrics[5] += fraction * batch["success"].float().mean()
+        safe_count = moments[0].clamp_min(1)
+        weight_std = (moments[2] / safe_count - (moments[1] / safe_count).square()).clamp_min(0).sqrt().float()
+        for chunk, raw_weights in zip(indices.split(self.micro_batch_size), cached_weights):
+            batch = selection.get_batch(chunk, device=self.device)
+            states = self._state_preprocessor(batch["states"])
+            _, log_prob, _ = self.policy.act({"states": states, "taken_actions": batch["actions"]}, role="policy")
+            weights = (raw_weights / (weight_std + 1e-8)).clamp(max=1.)
+            actor = -(weights * log_prob).mean()
+            fraction = chunk.numel() / logical_count
+            (self.coefficient * fraction * actor).backward()
+            metrics[0] += fraction * actor.detach()
+            metrics[4] += fraction * log_prob.detach().mean()
+        # Keep all metrics on device until the update's logging boundary.
+        return dict(zip(names, metrics.unbind()))
 
     @torch.no_grad()
     def _reference_log_likelihood(self, selection, indices):
-        total = 0.
+        total = torch.zeros((), device=self.device)
         count = 0
         for chunk in indices.split(self.micro_batch_size):
             if not chunk.numel():
@@ -229,9 +262,9 @@ class TSILPPO(PPO):
             _, log_prob, _ = self.policy.act(
                 {"states": self._state_preprocessor(batch["states"]),
                  "taken_actions": batch["actions"]}, role="policy")
-            total += log_prob.sum().item()
+            total += log_prob.sum()
             count += log_prob.numel()
-        return total / max(count, 1)
+        return (total / max(count, 1)).item()
 
     def _record_advantage_diagnostics(self, advantages):
         """Attribute actual PPO positive advantage to whole, possibly crossing episodes."""
@@ -294,8 +327,9 @@ class TSILPPO(PPO):
         # epoch. These exact historical success actions are measured twice.
         reference_indices = selection.success.reshape(-1).nonzero(as_tuple=False).flatten()[:1024]
         reference_before = self._reference_log_likelihood(selection, reference_indices)
-        totals = dict(policy=0., value=0., entropy=0., replay_policy=0., replay_value=0.,
-                      replay_gap=0., replay_positive=0., replay_logp=0., replay_success=0.)
+        total_names = ("policy", "value", "entropy", "replay_policy", "replay_value",
+                       "replay_gap", "replay_positive", "replay_logp", "replay_success")
+        totals = {name: torch.zeros((), device=self.device) for name in total_names}
         updates = 0
         replay_updates = 0
         flat_memory = {name: self.memory.get_tensor_by_name(name).flatten(0, 1)
@@ -307,7 +341,7 @@ class TSILPPO(PPO):
             # minibatch for an unusual num_envs setting.
             batches = torch.tensor_split(torch.randperm(flat_memory["states"].shape[0],
                                                         device=self.device), batch_count)
-            replay_batches = torch.tensor_split(torch.randperm(len(selection)), batch_count)
+            replay_batches = torch.tensor_split(torch.randperm(len(selection), device=selection.device), batch_count)
             divergences = []
             for online_indices, replay_indices in zip(batches, replay_batches):
                 batch = [flat_memory[name][online_indices] for name in self._tensors_names]
@@ -333,9 +367,9 @@ class TSILPPO(PPO):
                                   itertools.chain(self.policy.parameters(), self.value.parameters()))
                     torch.nn.utils.clip_grad_norm_(parameters, self._grad_norm_clip)
                 self.optimizer.step()
-                totals["policy"] += actor.detach().item()
-                totals["value"] += critic.detach().item()
-                totals["entropy"] += entropy.detach().item()
+                totals["policy"] += actor.detach()
+                totals["value"] += critic.detach()
+                totals["entropy"] += entropy.detach()
                 updates += 1
                 if replay_indices.numel():
                     replay_updates += 1
@@ -352,6 +386,8 @@ class TSILPPO(PPO):
             self.track_data("TSIL Reference / logp_before", reference_before)
             self.track_data("TSIL Reference / logp_after", reference_after)
             self.track_data("TSIL Reference / logp_change", reference_after - reference_before)
+        totals = dict(zip(total_names, torch.stack([totals[name] for name in total_names]).cpu().tolist()))
+        self.track_data("TSIL / replay_on_gpu", int(selection.device.type == "cuda"))
         for name in ("policy", "value", "entropy"):
             self.track_data("Loss / {} loss".format(name.capitalize()), totals[name] / max(updates, 1))
         for name in ("policy", "value", "gap", "positive", "logp", "success"):

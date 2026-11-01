@@ -596,26 +596,38 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
 
             
     def _record_episode_outcomes(self):
-        """Publish the last 1000 completed episodes before step returns infos.
+        """Publish the last 1000 complete-task outcomes before step returns infos.
 
         A reset is not itself an outcome. Only actual terminal steps enter the
         window, once per episode, including failures and timeouts. Simultaneous
         completions have no temporal order; ascending env ID breaks that tie.
+        SGS contributes only full_task starts; ordinary resets all qualify.
         """
         finished = (self.reset_buf.bool() & ~self.episode_outcome_recorded
                     & (self.progress_buf > 0))
         env_ids = finished.nonzero(as_tuple=False).flatten()
         if env_ids.numel() == 0:
             return
+        # All terminal episodes have been handled, even when their starting
+        # configuration excludes them from the baseline comparison metric.
+        self.episode_outcome_recorded[env_ids] = True
+        sgs_enabled = getattr(self, "sgs_enabled", False)
+        if sgs_enabled:
+            config_ids = self.active_config_id[env_ids]
+            family_ids = self.sgs_bank.tensors["family_id"]
+            valid = (config_ids >= 0) & (config_ids < family_ids.numel())
+            env_ids = env_ids[valid]
+            full_task_id = self.sgs_bank.family_names.index("full_task")
+            env_ids = env_ids[family_ids[config_ids[valid]] == full_task_id]
         outcomes = torch.stack((env_ids % len(self.obj_list),
                                 self.pick_success_recorded[env_ids].long()), dim=1)
         self.success_window.extend(outcomes.cpu().tolist())
-        self.episode_outcome_recorded[env_ids] = True
         # Replace the snapshot so object-specific rates disappear when their
         # last sample leaves the global window. Logging is independent of W&B.
         metrics = self.success_window.metrics(self.obj_list)
         self.extras["success_rate"] = metrics
-        print({"success_rate": metrics, "window_size": self.success_window.window_size})
+        print({"success_rate": metrics, "window_size": self.success_window.window_size,
+               "scope": "full_task" if sgs_enabled else "ordinary_reset"})
 
     def compute_reward(self):
         super().compute_reward()
@@ -648,14 +660,12 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self._cube_root_states[env_ids,7:13] = 0.0
         self._cube_root_states[env_ids,2] = self.table_heights[env_ids] + self.init_height[env_ids]
         
-        rand_yaw_box = torch_rand_float(-1.2, 1.2, (len(env_ids), 1), device=self.device).squeeze(1) 
-        
-        if True: 
-            self._cube_root_states[env_ids, 3:7] = self.init_quat[env_ids] # Make sure to learn basic grasp
-        else:
-            rand_r_box = self.random_angle[torch_rand_int(0, 3, (len(env_ids),1), device=self.device).squeeze(1)]
-            rand_p_box = self.random_angle[torch_rand_int(0, 3, (len(env_ids),1), device=self.device).squeeze(1)]
-            self._cube_root_states[env_ids, 3:7] = quat_mul(quat_from_euler_xyz(rand_r_box, rand_p_box, rand_yaw_box), self.init_quat[env_ids])
+        yaw_limit = np.pi / 12.0  # World-z yaw offset in [-15, 15] degrees.
+        rand_yaw_box = torch_rand_float(-yaw_limit, yaw_limit, (len(env_ids), 1), device=self.device).squeeze(1)
+        zero = torch.zeros_like(rand_yaw_box)
+        # Left multiplication rotates about world z, preserving the object's support face.
+        self._cube_root_states[env_ids, 3:7] = quat_mul(
+            quat_from_euler_xyz(zero, zero, rand_yaw_box), self.init_quat[env_ids])
         self._cube_root_states[env_ids, 7:13] = 0.
         
     def _reset_table(self, env_ids):

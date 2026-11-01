@@ -1,8 +1,9 @@
 TSIL source attribution
 =======================
 
-The TSIL algorithms adapted in `DQ_high-level/utils/tsil.py` and
-`DQ_high-level/utils/tsil_ppo.py` are based on the local TSIL source by
+The TSIL algorithms adapted in `DQ_high-level/utils/tsil.py`,
+`DQ_high-level/utils/tsil_replay_gpu.py` and `DQ_high-level/utils/tsil_ppo.py`
+are based on the local TSIL source by
 Yinsen Jia and Boyuan Chen, commit
 `137e3ab8d6f1eccf9cf6c611f957d106c2ff000c`:
 
@@ -19,3 +20,5 @@ episode recording, normalization, and full-configuration replay sampling for
 DQ's SGS resets and causal EKF observations. They do not import the upstream
 Isaac Gym task framework. The paper-defined once-per-update positive-advantage
 trajectory sampling is implemented explicitly where upstream differs.
+The tensorized GPU replay storage, batched archive maintenance and GPU weighted
+sampling are DQ adaptations; the CPU implementation remains a test reference.

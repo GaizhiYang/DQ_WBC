@@ -9,7 +9,9 @@ Usage: bash DQ_high-level/train_teacher_sgs_ekf_tsil.sh [--dry-run] [--no-wandb]
 Train the complete SGS+EKF+TSIL method: adaptive per-configuration time goals,
 fastest-success/high-return memory, full-configuration positive-gap replay,
 joint PPO/self-imitation, frozen observation/reward/value normalization.
-Defaults: 8192 environments, 120000 steps, seed 43, EKF 0.60/0.90 s.
+Replay recording, archive ranking, relabeling and sampling run on the RL GPU.
+Defaults inherited from train_teacher_sgs_ekf.sh: 4096 environments,
+120000 steps, seed 43, EKF 0.60/0.90 s.
 
 Supports the same environment overrides as train_teacher_sgs_ekf.sh, including
 PYTHON_BIN, NUM_ENVS, TIMESTEPS, SGS_BANK, RL_DEVICE, EXPERIMENT_DIR, RUN_NAME.

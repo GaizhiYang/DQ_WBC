@@ -1036,14 +1036,11 @@ class B1Z1Base(RewardVecTask):
         # self._robot_root_states[env_ids, 1] += torch.rand(len(env_ids),device=self.device) *(0.2 - (-0.2)) + (-0.2)
         # self._robot_root_states[env_ids, 0] += torch.rand(len(env_ids),device=self.device) *(0.0 - (-4.0)) + (-4.0)
 
-        rand_yaw_robot = torch_rand_float(-0.8, 0.8, (len(env_ids), 1), device=self.device).squeeze(1)
-        if self.enable_camera:
-            self._robot_root_states[env_ids, 3:7] = quat_from_euler_xyz(0*rand_yaw_robot, 0*rand_yaw_robot, 0.2*rand_yaw_robot)
-        else:
-            # self._robot_root_states[env_ids, 3:7] = quat_from_euler_xyz(0*rand_yaw_robot, 0*rand_yaw_robot, rand_yaw_robot)
-            self._robot_root_states[env_ids, 3:7] = quat_from_euler_xyz(0*rand_yaw_robot, 0*rand_yaw_robot, 0.2*rand_yaw_robot) # ############ my change ###############
+        yaw_limit = np.pi / 12.0  # Ordinary reset: uniform yaw in [-15, 15] degrees.
+        rand_yaw_robot = torch_rand_float(-yaw_limit, yaw_limit, (len(env_ids), 1), device=self.device).squeeze(1)
+        zero = torch.zeros_like(rand_yaw_robot)
+        self._robot_root_states[env_ids, 3:7] = quat_from_euler_xyz(zero, zero, rand_yaw_robot)
 
-        # self._robot_root_states[env_ids, 3:7] = quat_from_euler_xyz(0*rand_yaw_robot, 0*rand_yaw_robot, 0*rand_yaw_robot)
         # self._dof_pos[env_ids] = self._initial_dof_pos[env_ids] * torch_rand_float(0.8, 1.2, (len(env_ids), 1), device=self.device)
         self._dof_pos[env_ids] = self._initial_dof_pos[env_ids]
         self._dof_vel[env_ids] = self._initial_dof_vel[env_ids]

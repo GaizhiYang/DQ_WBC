@@ -1,4 +1,4 @@
-"""CPU algorithm checks for the joint SGS/EKF/TSIL teacher (no Isaac Gym)."""
+"""CPU algorithm and optional CUDA checks for joint SGS/EKF/TSIL (no Isaac Gym)."""
 
 import copy
 from pathlib import Path
@@ -56,8 +56,9 @@ class TinyValue(torch.nn.Module):
         self.train(mode == "train")
 
 
-def make_agent(num_envs=4, memory=True, micro_batch_size=3):
-    state = TemporalState(4, 16., family_ids=[0, 1, 2, 0])
+def make_agent(num_envs=4, memory=True, micro_batch_size=3, device="cpu"):
+    device = torch.device(device)
+    state = TemporalState(4, 16., family_ids=[0, 1, 2, 0], device=device)
     env = SimpleNamespace(tsil_state=state, num_envs=num_envs, max_episode_length=3,
                           tsil_time_reference=16.)
     cfg = dict(rollouts=2, learning_epochs=3, mini_batches=2, learning_rate=1e-3,
@@ -65,9 +66,13 @@ def make_agent(num_envs=4, memory=True, micro_batch_size=3):
                experiment=dict(write_interval=0, checkpoint_interval=0),
                tsil=dict(time_indices=(2, 3), static_prefix_size=0, samples_per_trajectory=2,
                          micro_batch_size=micro_batch_size, screen_batch_size=8))
-    agent = TSILPPO(models={"policy": TinyPolicy(), "value": TinyValue()},
-                    memory=RandomMemory(2, num_envs, device="cpu") if memory else None,
-                    cfg=cfg, observation_space=4, action_space=1, device="cpu", tsil_env=env)
+    models = {"policy": TinyPolicy(), "value": TinyValue()}
+    for model in models.values():
+        model.to(device)
+        model.device = device
+    agent = TSILPPO(models=models,
+                    memory=RandomMemory(2, num_envs, device=device) if memory else None,
+                    cfg=cfg, observation_space=4, action_space=1, device=device, tsil_env=env)
     agent.init()
     return agent
 
@@ -195,6 +200,66 @@ class NormalizationTests(unittest.TestCase):
 
 
 class JointLossTests(unittest.TestCase):
+    @unittest.skipUnless(torch.cuda.is_available(), "CUDA is required for device residency")
+    def test_cuda_replay_selection_and_backward_stay_on_device(self):
+        device = torch.device("cuda:1" if torch.cuda.device_count() > 1 else "cuda:0")
+        for micro_batch_size in (2, 100):
+            for returns in ([-.1, .2, .3, .8, 1., 2., 4.], [-2.] * 7):
+                with self.subTest(micro_batch_size=micro_batch_size, returns=returns):
+                    agent = make_agent(device=device, micro_batch_size=micro_batch_size)
+                    self.assertEqual(type(agent.replay).__name__, "GPUTemporalReplay")
+                    self.assertEqual(agent.replay.device, device)
+                    count = len(returns)
+                    states = torch.randn(count, 4, device=device)
+                    actions = torch.randn(count, 1, device=device)
+                    targets = torch.tensor(returns, device=device).reshape(-1, 1)
+                    efficiency = torch.tensor([1., 2., 1.5, 1., 1.8, 2., 1.], device=device).reshape(-1, 1)
+                    selection = ReplaySelection(
+                        states[:, 1:], actions, targets, efficiency,
+                        torch.zeros(count, dtype=torch.long, device=device),
+                        torch.ones(count, dtype=torch.bool, device=device), torch.ones(count, device=device),
+                        torch.zeros(count, 3, dtype=torch.long, device=device),
+                        torch.zeros(1, device=device), {})
+                    indices = torch.randperm(count, device=device)
+                    self.assertEqual(selection.device, device)
+                    batch = selection.get_batch(indices)
+                    self.assertTrue(all(value.device == device for value in batch.values()))
+                    # Compare to the original full SIL objective with a shifted
+                    # value adapter and online gradients already accumulated.
+                    reference = make_agent(device=device)
+                    reference.policy.load_state_dict(agent.policy.state_dict())
+                    reference.value.load_state_dict(agent.value.state_dict())
+                    for candidate in (reference, agent):
+                        candidate._value_preprocessor.update_returns(torch.full((8, 1), 10., device=device))
+                        online = sum(parameter.square().sum() for model in (candidate.policy, candidate.value)
+                                     for parameter in model.parameters())
+                        online.backward()
+                    gap = agent._screen_gap(batch["states"], batch["returns"])
+                    self.assertEqual(gap.device, device)
+                    normalized = reference._state_preprocessor(batch["states"])
+                    _, logp, _ = reference.policy.act({"states": normalized, "taken_actions": batch["actions"]})
+                    actor, critic, _, _ = positive_gap_losses(
+                        logp, reference._predict_values(normalized),
+                        reference._value_preprocessor(batch["returns"]), batch["efficiency"])
+                    (reference.coefficient * (actor + reference.value_coefficient * critic)).backward()
+                    critic_calls = []
+                    original_predict = agent._predict_values
+
+                    def counted_predict(inputs):
+                        critic_calls.append(inputs.shape[0])
+                        return original_predict(inputs)
+
+                    agent._predict_values = counted_predict
+                    metrics = agent._backward_replay(selection, indices)
+                    self.assertEqual(critic_calls, [2, 2, 2, 1] if micro_batch_size == 2 else [7])
+                    self.assertTrue(all(value.device == device for value in metrics.values()))
+                    torch.testing.assert_close(metrics["policy"], actor.detach(), rtol=3e-5, atol=2e-7)
+                    torch.testing.assert_close(metrics["value"], critic.detach(), rtol=3e-5, atol=2e-7)
+                    for name in ("policy", "value"):
+                        for expected, actual in zip(getattr(reference, name).parameters(),
+                                                    getattr(agent, name).parameters()):
+                            torch.testing.assert_close(actual.grad, expected.grad, rtol=3e-5, atol=2e-7)
+
     def test_value_clipping_keeps_unclipped_penalty_for_worsening_prediction(self):
         values = torch.tensor([[1.]], requires_grad=True)
         old = torch.zeros_like(values)
@@ -252,6 +317,57 @@ class JointLossTests(unittest.TestCase):
         for model_name in ("policy", "value"):
             for a, b in zip(getattr(full, model_name).parameters(), getattr(micro, model_name).parameters()):
                 torch.testing.assert_close(a.grad, b.grad, rtol=2e-5, atol=1e-7)
+
+    def test_one_pass_critic_matches_original_joint_loss_and_preserves_existing_gradients(self):
+        """The GPU optimization must change work, not the SIL objective."""
+        for returns in ([-2., .02, .3, 1., 2., 3., 4.], [-2.] * 7):
+            with self.subTest(returns=returns):
+                torch.manual_seed(17)
+                reference = make_agent(micro_batch_size=100)
+                optimized = make_agent(micro_batch_size=2)
+                optimized.policy.load_state_dict(reference.policy.state_dict())
+                optimized.value.load_state_dict(reference.value.state_dict())
+                for agent in (reference, optimized):
+                    agent._value_preprocessor.update_returns(torch.full((8, 1), 10.))
+                count = len(returns)
+                states, actions = torch.randn(count, 4), torch.randn(count, 1)
+                targets = torch.tensor(returns).reshape(-1, 1)
+                efficiency = torch.tensor([[1.], [2.], [1.5], [1.], [1.8], [2.], [1.]])
+                selection = ReplaySelection(
+                    states, actions, targets, efficiency, torch.zeros(count, dtype=torch.long),
+                    torch.ones(count, dtype=torch.bool), torch.ones(count),
+                    torch.zeros(count, 3, dtype=torch.long), None, {})
+                # Represent gradients already accumulated by online PPO.
+                for agent in (reference, optimized):
+                    online = sum(parameter.square().sum() for model in (agent.policy, agent.value)
+                                 for parameter in model.parameters())
+                    online.backward()
+                normalized = reference._state_preprocessor(states)
+                _, logp, _ = reference.policy.act({"states": normalized, "taken_actions": actions})
+                actor, critic, gap, _ = positive_gap_losses(
+                    logp, reference._predict_values(normalized),
+                    reference._value_preprocessor(targets), efficiency)
+                (reference.coefficient * (actor + reference.value_coefficient * critic)).backward()
+                expected_metrics = dict(policy=actor.detach(), value=critic.detach(),
+                                        gap=gap.detach().mean(),
+                                        positive=(gap > 0).float().mean(), logp=logp.detach().mean(),
+                                        success=torch.ones(()))
+                critic_calls = []
+                original_predict = optimized._predict_values
+
+                def counted_predict(inputs):
+                    critic_calls.append(inputs.shape[0])
+                    return original_predict(inputs)
+
+                optimized._predict_values = counted_predict
+                metrics = optimized._backward_replay(selection, torch.arange(count))
+                self.assertEqual(critic_calls, [2, 2, 2, 1])
+                for name, expected in expected_metrics.items():
+                    torch.testing.assert_close(metrics[name], expected, rtol=2e-5, atol=1e-7)
+                for model_name in ("policy", "value"):
+                    for expected, actual in zip(getattr(reference, model_name).parameters(),
+                                                getattr(optimized, model_name).parameters()):
+                        torch.testing.assert_close(actual.grad, expected.grad, rtol=2e-5, atol=1e-7)
 
     def test_replay_screen_and_losses_use_compensated_value_and_preserve_gradients(self):
         agent = make_agent()

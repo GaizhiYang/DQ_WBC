@@ -12,7 +12,7 @@ export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
 bash DQ_high-level/train_teacher_sgs_ekf_tsil.sh --no-wandb
 ```
 
-默认 8192 环境、120000 个高层交互步、seed 43、CUDA 0、v10 bank；EKF 使用 0.60/0.90 秒、history=5、Q=1、R=0.01。省略 `--no-wandb` 可沿用原入口的 W&B 记录。`NUM_ENVS`、`RUN_NAME`、`SGS_BANK`、`EXPERIMENT_DIR` 等环境变量用法与原脚本一致。
+环境数量沿用公共启动脚本的当前设置（4096），120000 个高层交互步、seed 43、CUDA 0、v10 bank；EKF 使用 0.60/0.90 秒、history=5、Q=1、R=0.01。省略 `--no-wandb` 可沿用原入口的 W&B 记录。`NUM_ENVS`、`RUN_NAME`、`SGS_BANK`、`EXPERIMENT_DIR` 等环境变量用法与原脚本一致。训练设备为 CUDA 时，TSIL 自动使用同一 GPU 完成轨迹记录、双榜维护、回报重标、筛选与采样，无须增加开关。
 
 ```bash
 # 仅显示完整命令
@@ -31,7 +31,8 @@ bash DQ_high-level/train_teacher_sgs_ekf_tsil.sh --no-wandb \
 |---|---|
 | [b1z1_pickmulti.py](../DQ_high-level/envs/b1z1_pickmulti.py) | 每回合固定的配置目标、实际秒数、两维时间观测、重置身份与终止前信息；保持 EKF 因果历史 |
 | [reward_vec_task.py](../DQ_high-level/envs/reward_vec_task.py)、[b1z1_base.py](../DQ_high-level/envs/b1z1_base.py) | `50 × success × [1+min(D/T,1)]`，负奖励保留，记录门控前 command 分量 |
-| [tsil.py](../DQ_high-level/utils/tsil.py) | 每配置最快成功 Top-5／高回报 Top-5 联合存储、成功优先补缺、完整回合录制、目标重标、全配置正 gap 抽样、5-NN 目标查询 |
+| [tsil.py](../DQ_high-level/utils/tsil.py) | 时间目标与 5-NN 查询、设备通用的回放批次、用于对照的 CPU 归档实现 |
+| [tsil_replay_gpu.py](../DQ_high-level/utils/tsil_replay_gpu.py) | GPU 完整回合缓存、每配置最快成功 Top-5／高回报 Top-5 联合存储、成功优先补缺、目标与回报重标、全配置正 gap 抽样 |
 | [tsil_ppo.py](../DQ_high-level/utils/tsil_ppo.py) | PPO 与 `0.05 × (SI_actor + 0.05 × SI_value)` 同一步优化；在线／回放共享价值输出适配；PPO 值损失采用未裁剪与裁剪误差的较大者 |
 | [tsil_normalization.py](../DQ_high-level/utils/tsil_normalization.py) | 时间通道豁免、物理观测快照、逐环境 raw reward trace、在线 returns 更新价值统计及输出仿射补偿、跨轮价值单位转换 |
 | [tsil_checkpoint.py](../DQ_high-level/utils/tsil_checkpoint.py)、[教师入口](../DQ_high-level/train_multistate_DQ_teacher.py) | 配套模型／目标／描述符／归一化／EKF 配置保存与加载 |
@@ -43,7 +44,15 @@ bash DQ_high-level/train_teacher_sgs_ekf_tsil.sh --no-wandb \
 
 每轮扫描所有有记忆的配置。每配置最多选 5 条轨迹，每轨迹按当前正 gap 不放回选最多 32 个 transition；整套索引只生成一次，5 个 epoch 复用。当前 6144 配置的理论上限为 983040 个 transition。没有额外候选数上限或 family 配额。每 epoch 保留 6 个 PPO 优化器更新；微批只改变内存占用。
 
-轨迹存 CPU。当前糖盒的固定 1024 维特征经逐次精确相等检查后共享存储，其余观测保留 float32；没有对 EKF 量化。满双榜的主机内存可能达到约 7 GB，完整采样及临时数据还会增加约 2 GB；这是完整配置遍历的存储成本，实际取决于轨迹数量与长度。
+轨迹数据驻留在训练 GPU。当前糖盒的固定 1024 维特征经逐次精确相等检查后共享存储，其余观测、动作与奖励分量保留 float32；没有对 EKF 量化。每配置预留 `2 × Top-K` 个共享轨迹槽，两个榜单只保存槽索引；同时进入两榜的轨迹不复制两份。仍在榜内的旧轨迹保留原槽，只复制新入榜的完整轨迹。
+
+6144 配置、Top-K=5、最长 100 步时，双榜轨迹槽的有效载荷约 6.27 GiB；4096 环境的在途轨迹约 0.42 GiB，8192 环境约 0.84 GiB。满额 983040 条采样的压缩观测、动作、回报及元数据另需约 1.03 GiB。上述数值不含仿真、在线 rollout、网络、梯度、CUDA 缓存与筛选临时张量；实际峰值见运行验证。静态特征若无法共享，存储会按完整观测维度增长。
+
+GPU 采样采用指数随机数竞赛：对每条轨迹的正 gap `w` 生成独立 `E ~ Exp(1)`，按 `E / w` 从小到大取最多 32 项，零 gap 不参与。这与按权重不放回采样具有相同分布。CPU 与 CUDA 的随机数流、并行运算舍入不同，不能要求同一 seed 产生逐项相同的训练轨迹。每轮仍只采样一次，并在所有 PPO epoch 中复用；没有削减配置覆盖、完整回合长度或回放样本预算。
+
+SI 更新在第一个微批遍历中计算 Critic 梯度，并缓存 detached 的正 gap × 效率权重；在整个逻辑 minibatch 的正权重总体标准差确定后，第二遍只计算 Actor。每条样本因此只需一次 Critic 前向，保留共享标准差、权重上限和同一次联合 optimizer step。标准差使用 float64 累积；损失日志在 GPU 汇总后再传回 CPU，避免逐微批逐指标同步。
+
+Python 调度、日志和显式调试导出仍在 CPU；训练热路径不再把整条轨迹或采样集合往返搬运。CPU `TemporalReplay` 保留为对照实现，以及纯 CPU 单元测试的后端。检查归档用的 `iter_selected`、`fastest`、`high_return` 导出接口会同步数据到 CPU，不应放进正常训练计时循环。
 
 价值统计变化使用明确的坐标补偿。记 Critic 原网络输出为 \(f_\psi(o)\)，实际归一化预测为 \(v=a f_\psi(o)+b\)，本轮奖励缩放单位中的反归一化预测为 \(V=\sigma v+\mu\)。在线 GAE returns 更新 RMS 后，保持网络参数不动，同时更新：
 
@@ -60,7 +69,7 @@ b'=\frac{\sigma b+\mu-\mu'}{\sigma'}.
 
 依据 `/home/hehui/TSIL` 的 `137e3ab8d6f1eccf9cf6c611f957d106c2ff000c`：移植 `sampling.py` 的最快成功优先、按回报补缺及去重规则，`memory.py` 的双榜排序／回报定义，以及 `loss.py` 的正 gap、效率权重、正权重总体标准差与 cap。联合优化沿用 `updater.py` 的损失组合语义，PPO 值裁剪依据 `algo/utils.py::compute_value_loss`。输出仿射补偿属于保证 DQ 归一化时序正确性的适配，不宣称是论文额外提出的算法。
 
-配置索引、CPU 存储、逐环境 trace、完整配置正优势预筛及评估适配按本仓库重写。作者主路径中与论文不同的固定成功比例、每 minibatch 重抽和非负奖励裁剪没有引入。来源与修改说明见 [NOTICE](../third_party/tsil/NOTICE.md)，上游 Apache-2.0 许可证保存在 [LICENSE](../third_party/tsil/LICENSE)。
+配置索引、GPU 存储与批量采样、逐环境 trace、完整配置正优势预筛及评估适配按本仓库重写。作者主路径中与论文不同的固定成功比例、每 minibatch 重抽和非负奖励裁剪没有引入。来源与修改说明见 [NOTICE](../third_party/tsil/NOTICE.md)，上游 Apache-2.0 许可证保存在 [LICENSE](../third_party/tsil/LICENSE)。
 
 ## 评估与 checkpoint
 
@@ -84,7 +93,29 @@ TSIL checkpoint 自带构建观测所需的参数、配置、目标表、成功�
 
 TensorBoard／W&B 新增 `TSIL Archive`、`TSIL Selection`、`TSIL Replay`、`TSIL Targets`、`TSIL PPO`、`TSIL Reference` 指标。其中正优势质量按真实完整回合归因，跨 rollout 累计；动作似然诊断使用同一组成功历史动作，最多 1024 个诊断样本，不改变训练采样范围。
 
+2026-11-01 起，SGS+EKF 与 SGS+EKF+TSIL 的总体成功率 `SuccessRate / sugar_box` 只统计最近 **1000 个已完成的 `full_task` 回合**，以便和 EKF baseline 的同名、同窗口长度曲线比较。其他配置类别的成功或失败都不进入主窗口，且不挤占窗口位置；`SuccessWindow / completed`、`SuccessWindow / successes` 使用相同范围。失败和超时计入分母，主动取消或未完成回合不计入；无完整任务完成时不生成该成功率。各类 `SuccessRate / <family>` 仍使用各自最近 100 回合，仅作分类诊断；SGS 更新和 TSIL 归档仍接收所有类别的有效回合。训练结束和中断均刷新主曲线及分类曲线。该口径对重新启动的训练生效，旧日志不回写。
+
 ## 已执行验证
+
+**GPU 迁移验证（2026-11-01）：**
+
+- 最终完整仓库测试运行 417 项：415 项通过、2 项跳过；报告为 `/tmp/tsil_gpu_migration_20261101/tests_final.log`。
+- [GPU 归档对照测试](../DQ_high-level/tests/test_tsil_replay_gpu.py)：31 项通过，包含 CPU 参考与实际 CUDA 运行。覆盖双榜并集、严格平分准入、同配置同时结束、异步回合、缓冲所有权、原始 EKF 观测、行政重置、完整 MC 回报、正 gap 加权无放回采样及 GPU 驻留。另验证时间目标状态与回放位于不同设备时的数据归属。
+- [PPO 测试](../DQ_high-level/tests/test_tsil_ppo.py)：22 项通过。CUDA 微批大小 2／100、混合／全零正 gap、非平凡价值坐标及已有在线梯度均与原完整 SI 损失的梯度和指标一致；确认每微批只调用一次 Critic。
+- 真实 Isaac Gym 检查：64 环境 × 144 步，通过 106 项断言；6 次联合更新、180 次 optimizer step，132 个真实完整回合，最长 100 步。每轮回放集合固定，所有样本每 epoch 恰好使用一次，归档保持收到的 EKF 与时间通道，checkpoint 保存通过。Critic 参数最大变化为 `0.0166186`；优化前价值坐标最大误差为 `2.98e-7`。归档和采样张量确认为 `cuda:0`，PyTorch 峰值分配为 6.51 GiB。该短跑未产生成功回合，不能据此推断学习效果。
+
+同一台机器、同一张 GPU 0、相同 4096 环境／seed 43／144 步／正式 100 步回合预算，分别运行修改前 CPU 回放与 GPU 版，无 W&B：
+
+| 计时范围 | 修改前 | GPU 版 |
+|---|---:|---:|
+| 144 步训练，不含初始化 | 63.50 s | 58.50 s |
+| 其中 6 次联合优化累计 | 10.19 s | 5.39 s |
+| 其中仿真 `env.step` 累计 | 50.28 s | 50.55 s |
+| 同一归档与冻结 Critic 的单次回放准备，预热后 3 次均值 | 1.211 s | 0.114 s |
+
+最后一行是严格固定输入的独立比较：8865 条轨迹、417711 个候选 transition，两端均筛得 187293 个正 gap，采样 104113 条。它衡量完整重标记、Critic 筛选与采样，约加速 10.65 倍。前三行是两个独立训练短跑；随机数流改变后训练轨迹与回放样本数会不同，不能把联合优化约 47% 的耗时下降当作固定计算量的精确加速比，也不能外推为 120000 步整体提速。短跑总训练耗时下降约 7.9%，仿真仍占主要时间。
+
+4096 环境验证进程的 PyTorch 峰值分配为 10.77 GiB，包含训练后的固定归档基准；不等于 `nvidia-smi` 的完整进程占用。GPU 归档按完整容量预留，显存成本高于旧 CPU 回放。验证报告位于 `/tmp/tsil_gpu_migration_20261101/`：`smoke_result.json`、`baseline_cpu/tsil.json`、`profile/tsil.json`；计时复现脚本为同目录 `profile_cpu.py`／`profile_gpu.py`，原实现快照保存在 `original/`。
 
 **本次两项 P1 修复的回归验证（2026-10-30）：**
 

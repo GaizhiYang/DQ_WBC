@@ -351,8 +351,15 @@ class ReplaySelection:
     def __len__(self):
         return self.actions.shape[0]
 
-    def get_batch(self, indices, device="cpu"):
-        indices = torch.as_tensor(indices, dtype=torch.long, device="cpu")
+    @property
+    def device(self):
+        return self.observations.device
+
+    def get_batch(self, indices, device=None):
+        # Keep GPU replay indices and payload on the accelerator. The CPU
+        # reference archive remains supported, including explicit transfers.
+        device = self.device if device is None else device
+        indices = torch.as_tensor(indices, dtype=torch.long, device=self.device)
         suffix = self.observations[indices].to(device)
         states = (suffix if self.prefix is None else
                   torch.cat((self.prefix.to(device).expand(len(indices), -1), suffix), -1))

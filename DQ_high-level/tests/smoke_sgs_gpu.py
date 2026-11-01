@@ -15,6 +15,7 @@ build a bank, fabricate episode outcomes, or manually update PPO.
 """
 
 import argparse
+from collections import deque
 import json
 import os
 from pathlib import Path
@@ -177,11 +178,17 @@ def main():
         # the final training iteration.
         original_step = env.step
         checked_steps = [0]
+        full_task_id = env.sgs_family_names.index("full_task")
+        full_task_outcomes = deque(maxlen=1000)
 
         def checked_step(actions):
             result = original_step(actions)
             check("pending_resets_consumed_by_physics_step",
                   not env._sgs_has_pending_reset and not bool(env._sgs_pending_reset.any()))
+            done_ids = env.reset_buf.nonzero(as_tuple=False).flatten()
+            families = env.sgs_bank.tensors["family_id"][env.active_config_id[done_ids]]
+            full_ids = done_ids[families == full_task_id]
+            full_task_outcomes.extend(env.pick_success_recorded[full_ids].cpu().tolist())
             checked_steps[0] += 1
             return result
 
@@ -234,8 +241,27 @@ def main():
                       and abs(rows[-1].value - rate) < 1e-6)
             else:
                 check("family_log/unknown_" + family, tag not in events.Tags()["scalars"])
-        for tag in ("SuccessRate / overall", "SuccessRate / family_mean",
-                    "SuccessRate / " + env.obj_list[0], "SGS / episodes_overall",
+        # The baseline comparison curve uses the last 1000 full_task episodes,
+        # independently of the shorter family diagnostic windows above.
+        main_metrics = {
+            "SuccessWindow / completed": len(full_task_outcomes),
+            "SuccessWindow / successes": sum(full_task_outcomes),
+        }
+        main_tag = "SuccessRate / " + env.obj_list[0]
+        if full_task_outcomes:
+            main_metrics[main_tag] = sum(full_task_outcomes) / len(full_task_outcomes)
+        else:
+            check("full_task_main_rate_undefined", main_tag not in events.Tags()["scalars"])
+        check("full_task_main_window", env.success_window.window_size == 1000
+              and len(full_task_outcomes) == min(1000, int(env.sgs_family_episodes[full_task_id])))
+        check("full_task_main_metrics", env.success_window.metrics(env.obj_list) == main_metrics)
+        for tag, expected in main_metrics.items():
+            rows = events.Scalars(tag)
+            check("full_task_main_log/" + tag, rows[-1].step == env.global_step_counter
+                  and abs(rows[-1].value - expected) < 1e-6)
+            check("full_task_main_no_stale_snapshot/" + tag,
+                  tag not in env.extras["scalar_snapshots"])
+        for tag in ("SuccessRate / overall", "SuccessRate / family_mean", "SGS / episodes_overall",
                     "SGS / successes_overall", "SGS / success_overall"):
             check("family_only_log/no_" + tag, tag not in events.Tags()["scalars"]
                   and tag not in env.extras["scalar_snapshots"])
@@ -260,6 +286,9 @@ def main():
             "family_recent_completed": recent.family_count.cpu().tolist(),
             "family_recent_successes": recent.family_successes.cpu().tolist(),
             "family_window_size": recent.family_window,
+            "main_success_scope": "full_task",
+            "main_success_window_size": 1000,
+            "main_success_metrics": main_metrics,
             "recent_statistics_device": str(recent.family_count.device),
             "tensorboard_dir": str(Path(agent.experiment_dir).resolve()),
             "cancelled_episodes": int(env.sgs_aborted.item()),

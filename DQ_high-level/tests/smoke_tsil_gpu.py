@@ -45,6 +45,7 @@ def main():
     import torch
     from utils.config import get_params
     from utils.tsil_checkpoint import read_temporal_checkpoint
+    from utils.tsil_replay_gpu import GPUTemporalReplay
     from train_multistate_DQ_teacher import get_trainer, finalize_teacher_logging
 
     args = get_params()
@@ -85,6 +86,8 @@ def main():
         env, agent = trainer.env._env, trainer.agents
         check("full_method_enabled", env.sgs_enabled and env.tsil_enabled
               and env.object_pose_predictor is not None and agent.replay is not None)
+        check("replay_backend_on_rl_gpu", isinstance(agent.replay, GPUTemporalReplay)
+              and agent.replay.device == agent.device and agent.device.type == "cuda")
         check("training_task_unchanged", env.max_episode_length == 100 and env.hold_steps == 10
               and env.total_timesteps == args.timesteps and env.num_envs >= 2)
         check("production_ppo_update_shape", agent._rollouts == 24
@@ -177,6 +180,18 @@ def main():
                 check("critic_coordinate_invariant_before_optimization", True)
             expected = list(agent.replay.iter_selected())
             selection = originals["prepare"](*prepare_args, **prepare_kwargs)
+            check("replay_selection_stays_on_gpu", all(
+                tensor.device == agent.device for tensor in
+                (selection.observations, selection.actions, selection.returns,
+                 selection.efficiency, selection.config_id, selection.success,
+                 selection.elapsed, selection.uids)))
+            if selection.prefix is not None:
+                check("shared_object_feature_stays_on_gpu", selection.prefix.device == agent.device)
+            if len(selection):
+                probe = selection.get_batch(torch.arange(min(3, len(selection)), device=agent.device),
+                                            device=agent.device)
+                check("replay_training_batch_stays_on_gpu", all(
+                    value.device == agent.device for value in probe.values()))
             counts["prepare"] += 1
             check("screen_all_selected_trajectories", selection.stats["replay_trajectories"] == len(expected))
             check("screen_all_selected_trajectory_steps", selection.stats["replay_dataset_steps"] ==
@@ -288,6 +303,7 @@ def main():
                     "TSIL Selection / replay_trajectories", "Loss / Policy loss", "Loss / Value loss"):
             check("logged/" + tag, tag in logged_tags and bool(events.Scalars(tag)))
         report.update(passed=True, num_envs=env.num_envs, executed_steps=counts["steps"],
+                      replay_backend=type(agent.replay).__name__, replay_device=str(agent.replay.device),
                       counts=counts, archive=agent.replay.stats, selections=selection_reports,
                       archive_successes=sum(t.success for t in archive.values()),
                       archive_failures=sum(not t.success for t in archive.values()),

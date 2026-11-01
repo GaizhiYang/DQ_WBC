@@ -495,7 +495,11 @@ def finalize_teacher_logging(trainer):
     env._print_sgs_success_rates(force=True)
     agent = trainer.agents
     if agent.write_interval > 0:
-        for key, value in env.extras["scalar_snapshots"].items():
+        # The main full_task window is recorded at termination; family
+        # diagnostics settle at reset. Flush both latest snapshots together.
+        snapshots = dict(env.extras.get("success_rate", {}))
+        snapshots.update(env.extras.get("scalar_snapshots", {}))
+        for key, value in snapshots.items():
             agent.track_data_latest(key, value)
         agent.write_tracking_data(env.global_step_counter, trainer.timesteps)
         agent.writer.flush()

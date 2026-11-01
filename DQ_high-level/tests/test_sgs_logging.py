@@ -103,7 +103,58 @@ def four_family_environment(num_envs=4):
     return env
 
 
+def finish_with_terminal_metrics(env, env_ids, successes, next_ids):
+    """Publish real terminal outcomes before the mocked trainer reset."""
+    env.reset_buf.zero_()
+    env.reset_buf[env_ids] = 1
+    env.progress_buf[env_ids] = 1
+    env.pick_success_recorded[env_ids] = torch.tensor(successes, dtype=torch.bool)
+    env._record_episode_outcomes()
+    env.finish(env_ids, successes, next_ids)
+
+
 class SGSFamilyLoggingTests(unittest.TestCase):
+    def test_main_rate_tracks_full_task_completions_with_family_snapshots(self):
+        env = four_family_environment()
+        logger = TrackingAgent()
+        ids = list(range(4))
+        with redirect_stdout(io.StringIO()):
+            finish_with_terminal_metrics(env, ids, [True] * 4, ids)
+            logger.record(env.extras)
+            finish_with_terminal_metrics(env, ids, [False, True, True, True], ids)
+            logger.record(env.extras)
+            # Finishing only easy families leaves the full-task window intact.
+            finish_with_terminal_metrics(env, [1, 2, 3], [True] * 3, [1, 2, 3])
+            logger.record(env.extras)
+        logger.write_tracking_data(24, 120000)
+        self.assertEqual(logger.writer.values["SuccessRate / sugar_box"], (.5, 24))
+        self.assertEqual(logger.writer.values["SuccessWindow / completed"], (2., 24))
+        self.assertEqual(logger.writer.values["SuccessWindow / successes"], (1., 24))
+        self.assertEqual(logger.writer.values["SuccessRate / near_goal"], (1., 24))
+        self.assertNotIn("SuccessRate / sugar_box", env.extras["scalar_snapshots"])
+
+    def test_final_flush_keeps_main_1000_full_task_window_and_family_100_window(self):
+        # 1002 full-task episodes: evict the first two successes from the main
+        # window; the last 100 full-task episodes are all failures.
+        env = four_family_environment(num_envs=4008)
+        logger = TrackingAgent()
+        logger.record(env.extras)
+        logger.write_tracking_data(96, 120000)
+        env.global_step_counter = 96
+        ids = list(range(env.num_envs))
+        next_ids = [index % 8 for index in ids]
+        successes = [index % 4 != 0 or index < 408 for index in ids]
+        with redirect_stdout(io.StringIO()):
+            finish_with_terminal_metrics(env, ids, successes, next_ids)
+            finalize_logging(SimpleNamespace(env=env, agents=logger, timesteps=120000))
+        self.assertEqual(logger.writer.values["SuccessRate / sugar_box"], (.1, 96))
+        self.assertEqual(logger.writer.values["SuccessWindow / completed"], (1000., 96))
+        self.assertEqual(logger.writer.values["SuccessWindow / successes"], (100., 96))
+        self.assertEqual(logger.writer.values["SuccessRate / full_task"], (0., 96))
+        self.assertEqual(logger.writer.values["SGS / episodes_full_task"], (100., 96))
+        self.assertEqual(logger.writer.values["SuccessRate / near_goal"], (1., 96))
+        self.assertEqual(logger.writer.flush_count, 1)
+
     def test_active_three_families_keep_recent_windows_in_terminal_and_writer(self):
         env = TestEnvironment(num_envs=303, bank=make_active_near_goal_bank())
         env.eval = False
@@ -386,7 +437,8 @@ class SGSFamilyLoggingTests(unittest.TestCase):
                         if step == interrupted_step:
                             # Final reset outcomes appear after the last agent
                             # recording, and the PPO update is then interrupted.
-                            env.finish([0, 1, 2, 3], [True, False, True, False], [0, 1, 2, 3])
+                            finish_with_terminal_metrics(
+                                env, [0, 1, 2, 3], [True, False, True, False], [0, 1, 2, 3])
                             raise interruption
                         agent.post_interaction(step - 1, 120000)
 
@@ -406,6 +458,9 @@ class SGSFamilyLoggingTests(unittest.TestCase):
                                  [(-1., step) for _, step in expected])
                 self.assertEqual(agent.writer.values("SuccessRate / near_goal"), [(0., interrupted_step)])
                 self.assertEqual(agent.writer.values("SGS / episodes_near_goal")[-1], (1., interrupted_step))
+                self.assertEqual(agent.writer.values("SuccessRate / sugar_box"), [(1., interrupted_step)])
+                self.assertEqual(agent.writer.values("SuccessWindow / completed"), [(1., interrupted_step)])
+                self.assertEqual(agent.writer.values("SuccessWindow / successes"), [(1., interrupted_step)])
                 self.assertEqual(agent.writer.flush_count, 1)
                 self.assertFalse(agent.tracking_data)
                 self.assertEqual(agent.write_interval, 240)

@@ -665,7 +665,15 @@ class SGSEnvironmentTests(unittest.TestCase):
         self.assertEqual(env.grasp_step([True, False, True, False]).tolist(), [1., 0., 1., 0.])
         self.assertTrue(env.reset_buf.bool().all().item())
         self.assertEqual(env.success_counter.tolist(), [1, 0, 1, 0])
-        self.assertEqual(env.success_window.metrics(env.obj_list)["SuccessWindow / completed"], 4)
+        # Configurations 0 and 3 are full_task. The easier successful config 2
+        # remains in SGS diagnostics and sampler history, not the main rate.
+        rates = dict(env.extras["success_rate"])
+        self.assertEqual(rates["SuccessWindow / completed"], 2)
+        self.assertEqual(rates["SuccessWindow / successes"], 1)
+        self.assertEqual(rates["SuccessRate / sugar_box"], .5)
+        self.assertTrue(env.episode_outcome_recorded.all().item())
+        env._record_episode_outcomes()
+        self.assertEqual(env.extras["success_rate"], rates)
         # The real task step copies terminal flags before trainer.reset().
         env._sgs_pending_done.copy_(env.reset_buf.bool())
         with patch.object(env.sgs_sampler, "sample", return_value=torch.tensor([4, 5, 4, 5])):
@@ -673,13 +681,17 @@ class SGSEnvironmentTests(unittest.TestCase):
         self.assertEqual(env.active_config_id.tolist(), [4, 5, 4, 5])
         self.assertEqual(env.sgs_sampler.visits_total.tolist(), [1, 1, 1, 1, 0, 0])
         self.assertEqual(env.sgs_sampler.success_sum.tolist(), [1, 0, 1, 0, 0, 0])
+        self.assertEqual(env.sgs_family_episodes.tolist(), [2, 1, 1])
+        self.assertEqual(env.sgs_family_successes.tolist(), [1, 0, 1])
+        self.assertEqual(env.recent_episode_stats.family_count.tolist(), [2, 1, 1])
         self.assertEqual(env.success_counter.tolist(), [1, 0, 1, 0])
         self.assertEqual(env.pick_counter.tolist(), [0] * 4)
         self.assertEqual(env.best_pick_counter.tolist(), [0] * 4)
         self.assertFalse(env.pick_success_recorded.any().item())
         self.assertFalse(env.episode_outcome_recorded.any().item())
         self.assertEqual(env.episode_success.data_ptr(), env.pick_success_recorded.data_ptr())
-        self.assertEqual(env.success_window.metrics(env.obj_list)["SuccessWindow / completed"], 4)
+        self.assertEqual(env.success_window.metrics(env.obj_list)["SuccessWindow / completed"], 2)
+        self.assertEqual({key: env.extras["success_rate"][key] for key in rates}, rates)
         self.assertTrue(env._sgs_pending_reset.all().item())
         self.assertEqual(env.gym.robot_ids, [])  # Deferred upload; no reset-time physics.
         env.reset()
