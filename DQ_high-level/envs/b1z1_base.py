@@ -259,6 +259,13 @@ class B1Z1Base(RewardVecTask):
         # rand_com_z = np.linspace(rng_com_z[0], rng_com_z[1], self.num_envs)[i]
         # rand_com = np.array([rand_com_x, rand_com_y, rand_com_z])
         props[1].com += gymapi.Vec3(*rand_com)
+        # Immutable simulator conditions for the optional high-level world
+        # model. Cache creation-time randomization once; training reads a GPU
+        # lookup table and never queries simulator properties in its loop.
+        if not hasattr(self, "wm_body_context"):
+            self.wm_body_context = []
+        self.wm_body_context.append((float(props[1].mass), float(props[1].com.x),
+                                     float(props[1].com.y), float(props[1].com.z)))
         
         return props
     
@@ -876,6 +883,7 @@ class B1Z1Base(RewardVecTask):
         friction_range = [0.5, 3.0] 
         num_buckets = 128
         friction_buckets = torch_rand_float(friction_range[0], friction_range[1], (num_buckets,1), device='cpu')
+        self.wm_shape_context = []
         
         # arm_kp_range = np.linspace(300,400, self.num_envs)
         # gripper_kp_range = np.linspace(1.5,3, self.num_envs)
@@ -912,6 +920,9 @@ class B1Z1Base(RewardVecTask):
 
             for k in range(len(rigid_shape_props_asset)):
                 rigid_shape_props_asset[k].friction = friction_buckets[np.random.randint(0, num_buckets)]
+            self.wm_shape_context.append(
+                (float(arm_kp), float(arm_kd), float(gripper_kp), float(gripper_kd))
+                + tuple(float(prop.friction) for prop in rigid_shape_props_asset))
 
             self.gym.set_asset_rigid_shape_properties(robot_asset, rigid_shape_props_asset)
             robot_start_pose = gymapi.Transform()

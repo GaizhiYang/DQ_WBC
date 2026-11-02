@@ -1,0 +1,359 @@
+{
+  "kind": "implementation_validation_not_training_gate",
+  "date_local": "2026-11-02",
+  "timezone": "Asia/Shanghai",
+  "scope": "Functional regression and real CUDA mechanics; no long-run learning result",
+  "runtime": {
+    "python": "3.8.20",
+    "torch": "2.4.1+cu121",
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "environment": "/home/hehui/miniconda3/envs/dqwbc"
+  },
+  "regression": {
+    "total": 501,
+    "passed": 499,
+    "skipped": 2,
+    "failed": 0,
+    "log": "/tmp/dq_world_model_final_regression.log",
+    "import_order": "isaacgym before torch"
+  },
+  "training_entry": {
+    "num_envs": 32,
+    "vector_steps": 48,
+    "ppo_updates": 2,
+    "model_updates": 2,
+    "training_device": "cuda:0",
+    "status": {
+      "status": "waiting_for_probe",
+      "device": "cuda:0",
+      "state_dim": 914,
+      "replay_steps": 48,
+      "model_updates": 2,
+      "validated_snapshot": false,
+      "nonfinite_metrics": [],
+      "metrics": {
+        "candidate/state_loss": 4.734864234924316,
+        "candidate/termination_bce": 0.6279642581939697,
+        "candidate/auxiliary_loss": 20.357555389404297,
+        "candidate/nse_1step": 2.894711494445801,
+        "candidate/nse_kstep": 6.510430335998535,
+        "candidate/loss": 25.155216217041016,
+        "candidate/termination_accuracy": 1.0,
+        "candidate/grad_norm": 9.055973052978516,
+        "candidate/updates": 2.0,
+        "candidate/skipped_nonfinite": 0.0,
+        "candidate/validation_state_loss": 5.237090110778809,
+        "candidate/validation_termination_bce": 0.6267768144607544,
+        "candidate/validation_auxiliary_loss": 5.244036674499512,
+        "candidate/validation_nse_1step": 4.0869855880737305,
+        "candidate/validation_nse_kstep": 6.445329666137695,
+        "candidate/validation_loss": 10.543804168701172,
+        "candidate/validation_termination_accuracy": 0.9895833730697632,
+        "candidate/validation_available": 1.0,
+        "replay_steps": 48.0,
+        "replay_memory_mib": 7.313720703125,
+        "on_gpu": 1.0,
+        "waiting_for_probe": 1.0,
+        "validated_snapshot_available": 0.0
+      }
+    },
+    "log": "/tmp/dq_wm_auto_probe_smoke.log"
+  },
+  "isolated_probe": {
+    "passed": false,
+    "reasons": [
+      "action_effect_correlation"
+    ],
+    "model_sha256": "97e0a7055c1950b212a3f151f1b18d71d393003eee7dac81da7981119225fbf0",
+    "configuration_sha256": "8643c7a21b58398ecd046dd6df4e31717b95bd3b480059c8181031b6f6f0ec7a",
+    "metadata": {
+      "simulator": "IsaacGym",
+      "device": "cuda:1",
+      "seed": 43,
+      "prefix_length": 2,
+      "protocol": "independent_simulator_prefix_replay",
+      "process_isolation": true,
+      "directions_cover": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        7,
+        8
+      ],
+      "gripper_perturbed": false,
+      "candidate": "/tmp/dq_wm_entry_smoke/auto_probe/world_model/candidate_00000048.pt",
+      "candidate_bundle_sha256": "2586a18228faa1ccb1d1629ea1447f58f4cb3fa93da925d3feae2756c04388b6",
+      "family_names": [
+        "full_task",
+        "pregrasp",
+        "near_goal"
+      ],
+      "family_sampling": "balanced",
+      "sgs_bank_fingerprint": "a69a38929a65e2d0ba1fba50317a19b3e3963f6b7670e64c5da53dbf88b577fe",
+      "evidence_directory": "/tmp/dq_wm_entry_smoke/auto_probe/world_model/probe_00000048.json.artifacts",
+      "elapsed_seconds": 49.53169322013855
+    },
+    "metrics": {
+      "pairs": 96,
+      "valid_pairs": 96,
+      "informative_pairs": 72,
+      "sign_agreement": 0.7222222089767456,
+      "correlation": 0.24162831902503967,
+      "selected_gain_mean": 0.000478718284284696,
+      "selected_gain_lcb95": 5.8940844028256847e-05,
+      "real_base_reward_mean": 0.01630323939025402,
+      "real_plus_reward_mean": 0.01664038933813572,
+      "real_minus_reward_mean": 0.016192318871617317,
+      "model_plus_reward_mean": 0.016717400401830673,
+      "model_minus_reward_mean": 0.01671513356268406,
+      "real_action_effect_abs_mean": 0.0007612727349624038,
+      "model_action_effect_abs_mean": 1.2248656275914982e-05,
+      "start_error_max": 0.0,
+      "context_error_max": 0.0,
+      "duration_error_max": 0.0,
+      "repeat_reward_error_max": 0.0,
+      "reset_families": {
+        "full_task": {
+          "assigned_pairs": 32,
+          "valid_pairs": 32,
+          "informative_pairs": 28
+        },
+        "pregrasp": {
+          "assigned_pairs": 32,
+          "valid_pairs": 32,
+          "informative_pairs": 27
+        },
+        "near_goal": {
+          "assigned_pairs": 32,
+          "valid_pairs": 32,
+          "informative_pairs": 17
+        }
+      },
+      "rejected_start_or_context": 0,
+      "rejected_duration": 0,
+      "rejected_repeatability": 0,
+      "rejected_terminal_prefix": 0
+    },
+    "thresholds": {
+      "min_pairs": 64,
+      "min_informative_pairs": 32,
+      "min_effect": 1e-05,
+      "min_model_effect": 1e-06,
+      "min_sign_agreement": 0.7,
+      "min_correlation": 0.25,
+      "min_selected_gain_lcb95": 0.0,
+      "max_start_error": 1e-05,
+      "max_context_error": 1e-06,
+      "max_dt_error": 1e-07,
+      "max_repeat_reward_error": 0.0001,
+      "noise_multiplier": 5.0
+    },
+    "scope": "finite_one_step_reward_effects_on_replayed_real_states",
+    "limitations": [
+      "Does not validate long-term success gains",
+      "Does not validate Critic input gradients",
+      "Does not establish a classical derivative at contact transitions",
+      "Reset families label initial-state categories, not measured contact modes",
+      "Valid only for the exact model snapshot and recorded task contract"
+    ]
+  },
+  "bptt_mechanics_and_real_timeout": {
+    "diagnostic_only": true,
+    "model_untrained": true,
+    "training_gate_bypassed": false,
+    "gate_file_generated": false,
+    "device": "cuda:0",
+    "num_envs": 12,
+    "adapter_schema": 2,
+    "configuration_fingerprint": "8643c7a21b58398ecd046dd6df4e31717b95bd3b480059c8181031b6f6f0ec7a",
+    "cuda_assertions": {
+      "actor": true,
+      "critic": true,
+      "world_model": true,
+      "state_scaler": true,
+      "value_scaler": true,
+      "inputs": true,
+      "adapter_tables": true
+    },
+    "accepted_update": {
+      "metrics": {
+        "accepted": 1.0,
+        "rollback": 0.0,
+        "skipped": 0.0,
+        "kl": 1.4770455436519114e-07,
+        "objective": 0.008835003711283207,
+        "actor_grad_norm": 0.0019547988194972277,
+        "reward_mean": 0.004634740296751261,
+        "survival_H": 0.14872735738754272,
+        "tail_value": 0.011252626776695251,
+        "timeout_fraction": 0.0,
+        "trust_mean": 1.0,
+        "dt_mean": 0.148333340883255,
+        "horizon_seconds_mean": 0.445000022649765,
+        "effective_lr": 5.000000000000001e-07
+      },
+      "actor_changed": true,
+      "actor_gradients_finite": true,
+      "actor_gradients_cuda": true,
+      "actor_gradient_tensor_count": 21,
+      "world_model_unchanged": true,
+      "critic_unchanged": true,
+      "state_scaler_unchanged": true,
+      "value_scaler_unchanged": true,
+      "existing_model_gradient_preserved": true,
+      "existing_critic_gradient_preserved": true,
+      "frozen_parameter_flags_restored": true
+    },
+    "kl_rollback": {
+      "metrics": {
+        "accepted": 0.0,
+        "rollback": 1.0,
+        "skipped": 0.0,
+        "kl": 26.496719360351562,
+        "objective": 0.008835654705762863,
+        "actor_grad_norm": 0.0019548116251826286,
+        "reward_mean": 0.0046347868628799915,
+        "survival_H": 0.14872737228870392,
+        "tail_value": 0.011256761848926544,
+        "timeout_fraction": 0.0,
+        "trust_mean": 1.0,
+        "dt_mean": 0.148333340883255,
+        "horizon_seconds_mean": 0.445000022649765,
+        "effective_lr": 0.05
+      },
+      "actor_restored": true,
+      "adam_state_restored": true,
+      "all_frozen_modules_unchanged": true
+    },
+    "real_timeout": {
+      "steps": 110,
+      "max_episode_length": 100,
+      "counter_modified": false,
+      "timeout_count": 11,
+      "other_failures": 1,
+      "records": [
+        {
+          "step": 100,
+          "count": 11,
+          "true_progress": [
+            100,
+            100,
+            100,
+            100,
+            100,
+            100,
+            100,
+            100,
+            100,
+            100,
+            100
+          ],
+          "timeout_mask_equal": true,
+          "reward_max_error": 1.862645149230957e-09,
+          "obs_max_error": 1.049041748046875e-05,
+          "success_on_timeout": 0,
+          "failure_on_timeout": 0
+        }
+      ]
+    },
+    "resources": {
+      "max_cuda_memory_allocated_bytes": 110518272,
+      "max_cuda_memory_allocated_mib": 105.3984375,
+      "memory_scope": "PyTorch allocator only; excludes Isaac Gym/PhysX external allocations"
+    }
+  },
+  "real_adapter_parity": [
+    {
+      "device": "cuda:0",
+      "state_dim": 914,
+      "observation_dim": 1284,
+      "steps": 40,
+      "envs": 24,
+      "max_observation_error": 3.808736801147461e-05,
+      "max_reward_error": 5.736947059631348e-07,
+      "block_errors": {
+        "task": 2.2530555725097656e-05,
+        "ekf": 2.0265579223632812e-06,
+        "grasp_pos": 1.430511474609375e-06,
+        "grasp_angles": 3.808736801147461e-05,
+        "actions": 0.0
+      },
+      "natural_resets": 5,
+      "successes": 0,
+      "failures": 5,
+      "timeouts": 0,
+      "ready_samples": 844,
+      "real_state_two_step_gradient": {
+        "state_finite": true,
+        "action_finite": true,
+        "state_grad_norm": 0.6320590376853943,
+        "action_grad_norm": 0.006385264452546835
+      },
+      "family_samples": {
+        "full_task": 379,
+        "pregrasp": 327,
+        "near_goal": 254
+      },
+      "source": "/tmp/dq_wm_env_audit_result.json"
+    },
+    {
+      "device": "cuda:0",
+      "state_dim": 914,
+      "observation_dim": 1284,
+      "steps": 40,
+      "envs": 24,
+      "max_observation_error": 9.584426879882812e-05,
+      "max_reward_error": 2.9802322387695312e-08,
+      "block_errors": {
+        "task": 2.86102294921875e-06,
+        "ekf": 2.6226043701171875e-06,
+        "grasp_pos": 1.430511474609375e-06,
+        "grasp_angles": 9.584426879882812e-05,
+        "actions": 0.0
+      },
+      "natural_resets": 9,
+      "successes": 9,
+      "failures": 0,
+      "timeouts": 0,
+      "ready_samples": 828,
+      "real_state_two_step_gradient": {
+        "state_finite": true,
+        "action_finite": true,
+        "state_grad_norm": 0.549091637134552,
+        "action_grad_norm": 0.005865179933607578
+      },
+      "family_samples": {
+        "full_task": 482,
+        "pregrasp": 328,
+        "near_goal": 150
+      },
+      "source": "/tmp/dq_wm_env_lift_audit_result.json"
+    }
+  ],
+  "source_sha256": {
+    "DQ_high-level/probe_teacher_world_model.py": "ce84320f6b3dd2fda03aae0310303734d49a147b74f4a5f28435170b83c750c1",
+    "DQ_high-level/tests/smoke_world_model_gpu.py": "2126d51cae1b1730ccde567976d6b36b1933c52b7b8f5a952c051187bbd89bbc",
+    "DQ_high-level/train_multistate_DQ_teacher.py": "34d4a57ade5db6c77383f938d23878a9b0e219e101c22d7569579cade446b430",
+    "DQ_high-level/utils/wm_entry.py": "046232eb94ea3161a1d4693f7d764f899cc06740455ceb7c4da00f0bd638e7eb",
+    "DQ_high-level/utils/wm_env.py": "0e227f93c3a3a65ca22500874f096c278dcd9b30846ed78bcacf310847db0c75",
+    "DQ_high-level/utils/wm_ppo.py": "9df24c2c9d2024068c5b140657119f94ca92aa6faf3c834447ba58533dbcfe35",
+    "DQ_high-level/utils/world_model/__init__.py": "f2d3720ffc81edcc9612669d285322bac2b75a639c58a5d526d4f09f9d97de92",
+    "DQ_high-level/utils/world_model/dynamics.py": "3acc666e164f27e369ff949eec4aeed66cafe860d9a68c236ae232051d92a68d",
+    "DQ_high-level/utils/world_model/gradients.py": "844d56eeee041418e6eff087448d0a6f59ce81769e4f41807598424dca508ea8",
+    "DQ_high-level/utils/world_model/imagination.py": "ec8d9a85d60e2983e176068d256fe72576f22c6fcd2d6dfc9a284f1667251f01",
+    "DQ_high-level/utils/world_model/probes.py": "f4c7ebf77f3ee3586c5a214c0b2ba9a93aef13ddb69b8ae5f645fc5f1c696ffb",
+    "DQ_high-level/utils/world_model/replay.py": "390c218a7514f4d050e5246127078902b5fe1825db8f3a7a4f1c65423cd79adc",
+    "DQ_high-level/utils/world_model/trainer.py": "927ca07ad30cbdb9d4f7fcd74d5cea6b7bdeccc3cc571669875196e695532594",
+    "DQ_high-level/utils/wrapper.py": "3a3f3c28253d1cfe1dc3e5b368efd9d4d53477bed93b479c24f3c64328fb149f"
+  },
+  "interpretation": [
+    "Real training integration and all CUDA mechanics checks completed successfully.",
+    "The twice-updated candidate failed the real action-effect correlation threshold (0.241628 < 0.25).",
+    "Production training correctly did not activate an unqualified snapshot.",
+    "The independent untrained-model BPTT diagnostic verifies gradients and rollback only.",
+    "Training success-rate gains require full off/fit/hybrid experiments."
+  ]
+}

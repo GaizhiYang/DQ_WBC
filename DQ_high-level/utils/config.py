@@ -114,6 +114,8 @@ def configure_teacher_experiment(cfg, args, is_eval=False, strict_eval=False):
             raise ValueError("SGS training requires an existing validated bank via --sgs_bank or env.sgs.bank_path")
         # The bank loader validates the schema, source task, and physical validation.
     apply_tsil_config(cfg, args, is_eval=is_eval)
+    from utils.wm_entry import configure_world_model
+    configure_world_model(cfg, args, is_eval=is_eval)
     return cfg
 
 
@@ -162,6 +164,8 @@ def get_parser():
     parser = argparse.ArgumentParser(
         prog="Z1 training",
     )
+    from utils.wm_entry import add_world_model_arguments
+    add_world_model_arguments(parser)
     parser.add_argument("--task", type=str, default="")
     parser.add_argument("--timesteps", type=int, default=24000)
     parser.add_argument("--stop_after", type=int, default=None,

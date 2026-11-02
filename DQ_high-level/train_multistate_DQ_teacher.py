@@ -423,12 +423,24 @@ def get_trainer(is_eval=False, strict_eval=False):
     if cfg["env"]["tsil"]["enabled"]:
         from utils.tsil_ppo import TSILPPO
         agent_class, agent_kwargs = TSILPPO, {"tsil_env": env._env}
+    elif not is_eval and cfg["env"]["world_model"]["mode"] != "off":
+        from utils.wm_ppo import WorldModelPPO
+        agent_class, agent_kwargs = WorldModelPPO, {
+            "wm_env": env._env, "wm_config": cfg["env"]["world_model"]}
     agent = agent_class(models=models_ppo,
             memory=memory,
             cfg=cfg_ppo,
             observation_space=env.observation_space,
             action_space=env.action_space,
             device=device, **agent_kwargs)
+    if hasattr(agent, "wm_candidate"):
+        from utils.wm_entry import install_probe_callback
+        agent.wm_teacher_config = deepcopy(experiment_cfg)
+        agent.wm_teacher_arguments = dict(vars(args))
+        install_probe_callback(agent, Path(args.experiment_dir) / args.wandb_name, args.seed)
+        cprint("World model: {} on {}, state={}, replay={:.1f} MiB".format(
+            agent.wm_config["mode"], agent.device, agent.wm_adapter.state_dim,
+            agent.wm_replay.memory_bytes / 2**20), "yellow")
     if cfg["env"]["tsil"]["enabled"]:
         agent.checkpoint_modules["tsil_metadata"] = TemporalCheckpointMetadata(
             experiment_cfg, args, env.observation_space.shape[0], env.tsil_time_reference)
@@ -513,8 +525,12 @@ if __name__ == "__main__":
         # Preserve the partial logging window when training is interrupted,
         # then propagate the interrupt instead of saving a completed run.
         finalize_teacher_logging(trainer)
+        from utils.wm_entry import save_world_model_artifacts
+        save_world_model_artifacts(trainer)
         raise
     finalize_teacher_logging(trainer)
+    from utils.wm_entry import save_world_model_artifacts
+    save_world_model_artifacts(trainer)
     run_dir = Path(trainer.teacher_args.experiment_dir) / trainer.teacher_args.wandb_name
     if trainer.teacher_config["env"]["sgs"]["mode"] != "disabled":
         # Diagnostic history is not a checkpoint for resuming training.

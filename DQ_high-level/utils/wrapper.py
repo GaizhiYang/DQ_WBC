@@ -123,6 +123,7 @@ class IsaacGymPreview3Wrapper(Wrapper):
 
         self._reset_once = True
         self._obs_dict = None
+        self._world_model_episodes = None
 
     def step(self, actions: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Any]:
         """Perform a step in the environment
@@ -133,7 +134,31 @@ class IsaacGymPreview3Wrapper(Wrapper):
         :return: Observation, reward, terminated, truncated, info
         :rtype: tuple of torch.Tensor and any other info
         """
+        adapter = getattr(self._env, "world_model_adapter", None)
+        if adapter is not None:
+            ids = self._env.world_model_env_ids
+            state, context = adapter.capture(ids)
+            if self._world_model_episodes is None:
+                self._world_model_episodes = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
+            bank = getattr(self._env, "sgs_bank", None)
+            family = (bank.tensors["family_id"][self._env.active_config_id[ids]].clone()
+                      if bank is not None else torch.zeros_like(ids))
+            episode = self._world_model_episodes[ids].clone()
         self._obs_dict, reward, terminated, info = self._env.step(actions)
+        if adapter is not None:
+            next_state, _ = adapter.capture(ids)
+            executed = self._env.actions[ids].detach().clone()
+            outcome = adapter.task_outcome(state, next_state, executed, context)
+            timeout = outcome["timeout"]
+            done = terminated[ids].bool()
+            info = dict(info)
+            info["world_model"] = dict(
+                state=state, context=context, next_state=next_state, actions=executed,
+                dt=state.new_full((len(ids), 1), self._env.control_freq_low * self._env.dt),
+                reward=reward[ids].detach().clone(),
+                terminated=done & ~timeout, truncated=done & timeout,
+                success=self._env.pick_success[ids].detach().clone(),
+                family=family, episode_id=episode)
         truncated = torch.zeros_like(terminated)
         if self.num_states:
             return self._obs_dict, reward.view(-1, 1), terminated.view(-1, 1), truncated.view(-1, 1), info
@@ -149,6 +174,10 @@ class IsaacGymPreview3Wrapper(Wrapper):
         #     self._obs_dict = self._env.reset()
         #     self._reset_once = False
         # return self._obs_dict["obs"], {}
+        if getattr(self._env, "world_model_adapter", None) is not None:
+            if self._world_model_episodes is None:
+                self._world_model_episodes = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
+            self._world_model_episodes.add_(self._env.reset_buf.bool().long())
         self._obs_dict = self._env.reset()
         if self.num_states:
             return self._obs_dict, {}
