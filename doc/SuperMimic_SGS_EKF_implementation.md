@@ -1,6 +1,8 @@
 # SuperMimic＋SGS＋EKF 教师训练：实现与运行
 
-实现日期：2026-11-02。对应[方法方案](SuperMimic_SGS_EKF_teacher_method_proposal.md)和[网络数据流图](SuperMimic_SGS_EKF_training_flow.html)。
+> 2026-11-05 更新：当前入口已切换到[固定 8 次低层闭环实现](SuperMimic_fixed8_implementation.md)。下文保留旧宏步模型的历史说明；其中 914 维状态、844 维预测残差、学习低层历史／桌面／独立末端及混合终止头，不再描述当前启用的世界模型路径。当前物理预测为 64 维、残差 62 维，另有 4 个足接触输出。
+
+实现日期：2026-11-02；动作路径于2026-11-05更新。对应[方法方案](SuperMimic_SGS_EKF_teacher_method_proposal.md)和[网络数据流图](sgs_ekf_world_model_training_flow.html)。
 
 已实现 **Isaac Gym 真实 PPO＋共享高层世界模型＋短期闭环 BPTT**。继续使用当前四足机械臂环境和冻结低层控制器。世界模型用于训练期辅助 Actor；Critic 始终用真实 PPO 数据学习。新增模块在 CUDA 上运行，不需要 MuJoCo Warp。
 
@@ -38,7 +40,7 @@ bash DQ_high-level/train_teacher_sgs_ekf.sh --no-wandb \
 
 | 参数 | 行为 |
 |---|---|
-| --world_model off | 原 SGS＋EKF＋PPO |
+| --world_model off | SGS＋EKF＋PPO，使用当前连续开度夹爪接口 |
 | --world_model fit | 真实 PPO＋世界模型拟合，不做辅助 Actor 更新、不自动验证 |
 | --world_model hybrid | 真实 PPO＋拟合；通过验证后增加短期 BPTT |
 
@@ -77,7 +79,11 @@ bash DQ_high-level/train_teacher_sgs_ekf.sh --no-wandb \
 
 末端状态、关节状态、低层记忆分别预测，当前没有以 FK 强制它们完全一致。台面也作为受条件约束的状态预测，尚未把全部台面运动解析替换掉。累积控制目标、EKF历史、任务计数与奖励历史按已知规则推进。
 
-高层动作包含8个连续分量和夹爪命令。输入模型前显式处理真实执行中的增量限幅、工作空间约束、命令死区和夹爪符号，避免网络对饱和命令给出虚假的物理导数。上次原始动作仍保留在观测和动作变化奖励中；该历史不作为物理 MLP 的输入。
+高层动作共9个连续分量：末端位置／姿态6维、夹爪开度1维、底盘2维。teacher 配置 `gripperActionMode: continuous_opening_v1`，环境第6号索引直接表示 `[0,1]` 开度，执行 `q=q_closed+opening*(q_open-q_closed)`；当前资产对应 `q_closed=0`、`q_open=−π/2` rad。其余8维仍处理增量限幅、工作空间约束和命令死区，避免对饱和命令制造物理导数。
+
+`ContinuousGripperGaussianMixin` 保持 `compute()` 返回9维 latent μ/logσ；真实 `act()` 随机采样后仅把第6维通过 sigmoid 转为开度，PPO 的概率含逆 logit 与 Jacobian 修正。BPTT 用相同的 `mean_to_action()` 处理 latent 均值。`sigmoid(μ6)` 是确定性均值命令／中位数，不是随机开度期望。
+
+世界模型物理输入不再取夹爪符号；回放、上一动作观测和动作变化惩罚都记录真实开度。上一动作历史不直接作为物理 MLP 的输入。成功／保持及可选 `stop_pick` 中的闭爪意图改为 `opening<0.5`，仍是代理判据而非接触力检测；不会把连续开度执行重新阈值化。非 teacher 环境的默认 legacy 分支保留，不是当前入口使用的控制模式。
 
 ## 4. 模型拟合与短期 BPTT
 
@@ -93,20 +99,24 @@ BPTT 的完整可微路径为：
 
 ~~~text
 真实起点（固定）
-  → 因果观测／EKF → Actor → 连续动作
+  → 因果观测／EKF → Actor latent 均值9维 → 第6维 sigmoid 开度
   → 世界模型 → 预测状态
-  → 下一次因果观测／EKF → 同一个 Actor → …
+  → 下一次因果观测／EKF → 同一个 Actor 的均值 → …
   → 短期累计奖励 ＋ 末端 Critic 价值
   → 沿全部预测步反向传播 → Actor
 ~~~
 
+真实 PPO 继续从可学习的 latent Gaussian 随机采样，经夹爪 sigmoid 变换后执行，并更新均值网络和9维 `log_std_parameter`。BPTT 每步使用全部9维 latent 均值，通过相同变换后保留9维动作梯度，不叠加采样噪声；标准差仅由 PPO 更新。辅助目标是确定性均值动作轨迹回报，并不等于随机 PPO 策略期望回报的无偏梯度。
+
 世界模型、Critic 和归一化器的参数／统计在此期间冻结，但保留它们对输入的导数。特别处理了 skrl RunningStandardScaler 默认关闭输入梯度的行为，并把 Critic 输出反归一化为真实奖励单位。
 
-夹爪开闭采用事先固定的参考原始命令序列，不对符号切换使用直通梯度。PPO 继续学习夹爪；共享 Actor 参数的辅助更新可能间接改变夹爪分布，因此 KL 检查覆盖全部9维动作。
+夹爪参考展开、固定序列和 `gripper_modes` 参数已移除。每步根据预测状态重新计算夹爪开度，可沿世界模型后续状态、奖励和尾值直接更新夹爪均值网络。KL 检查完整9维 latent Gaussian；相同可逆变换在精确实数下保留 KL，但不能将此视为包含执行饱和后的精确动作分布距离。
 
-默认 H=3，每一步独立采样真实控制周期0.14／0.16秒，对应约0.42～0.48秒。每个终止步仍计入该步奖励，之后停止累计；有限任务超时不追加尾值，与当前真实 PPO 的目标一致。
+默认 H=3，每一步仍独立采样真实控制周期0.14／0.16秒，对应约0.42～0.48秒；真实起点和物理条件也可随机。因此均值动作不代表整个训练或全部想象条件无随机性。每个终止步仍计入该步奖励，自然终止概率衰减后续收益；有限任务超时则硬屏蔽后续收益、不追加尾值，与当前真实 PPO 的目标一致。
 
 辅助更新采用独立 Adam，实际步长为 actor_learning_rate × auxiliary_strength。默认是 1e-5 × 0.05 = 5e-7；只缩放 loss 会被 Adam 的归一化大幅抵消，因此这里直接缩放学习率。辅助步之后在真实观测锚点上检查全动作高斯 KL，超过0.005或出现非有限结果时，完整恢复 Actor 和 Adam 状态。
+
+为兼容已有辅助优化器检查点，Adam 保留原参数组。标准差不进入均值动作的计算图，并在辅助优化时保持 `grad=None`，因此旧 Adam 动量也不会推动它；没有把标准差永久设为 `requires_grad=False`，真实 PPO 仍能学习探索尺度。KL 使用当前标准差比较辅助步前后分布，标准差在该步中不变。本次动作路径修改不覆盖第8节的历史验证记录，也不据此声称抓取性能已经改善。
 
 ## 5. 何时允许 BPTT
 
@@ -124,7 +134,7 @@ hybrid 不意味着第一步就通过未训练模型更新 Actor。需要同时�
 
 独立动作效果验证使用5个新进程：生成动作前缀，以及基准、正扰动、负扰动、重复基准四条真实分支。所有分支重建相同随机种子／前缀，不恢复训练环境的 PhysX 内部状态。验证场景在三类 SGS 初态之间均衡抽样，不修改主训练 SGS。
 
-默认至少64条可复现配对和32条有效动作效果；检查符号一致率≥0.70、相关系数≥0.25、模型选优动作的真实一步奖励收益95%下界≥0，并检查重复仿真的噪声。报告约束模型权重、任务配置、文件内容和模拟器类型。
+探针扰动覆盖全部9维，包括连续夹爪开度，且开度扰动遵守 `[0,1]` 范围。旧的夹爪固定、仅8维扰动报告不能用于当前训练。默认至少64条可复现配对和32条有效动作效果；检查符号一致率≥0.70、相关系数≥0.25、模型选优动作的真实一步奖励收益95%下界≥0，并检查重复仿真的噪声。报告约束模型权重、任务配置、文件内容和模拟器类型。
 
 **这验证的是一步有限动作扰动效果，不是长期成功率，也不保证 Critic 输入梯度完全可信。** 长期收益仍需多种子、完整任务成功率及 off／fit／hybrid 对照验证。门限是本实现的保守起始设置，并非论文已为 DQ 标定的超参数。
 
@@ -175,6 +185,12 @@ world_model:
 
 TensorBoard/W&B 中新增 World model / 前缀的模型误差、GPU replay、验证和 BPTT 指标。候选拟合误差与固定验证快照误差分别记录。常见状态 waiting_for_probe 表示继续 PPO＋拟合，heldout_error_rejected 表示暂不信任当前快照，hybrid_updated 表示完成了被接受的 BPTT 辅助步。
 
+2026-11-04 修复了第一次自动验证后 W&B 停在90 iteration的问题：验证子进程现在使用 get_trainer(is_eval=False, enable_logging=False)，同时关闭 W&B、TensorBoard writer 和周期检查点。只关闭 args.wandb 仍会生成空 event 文件，而 W&B 0.24.2 会将嵌套的验证 event 文件当作后续日志，停止跟踪主训练文件。关闭日志独立于任务模式，验证继续使用原训练物理和奖励配置。
+
+以后使用原训练命令即可生效。验证的 JSON、文本日志和轨迹证据仍会保存。已有旧运行中漏同步的指标需要从主 TensorBoard event 文件恢复，修改代码本身不会自动补传旧 W&B 历史。
+
+此次修复验证：回归测试503项通过、2项跳过；W&B 0.24.2 离线同步加5个真实 GPU 验证子进程的测试通过，验证目录没有 event 文件，主曲线在验证前后完整保留 iteration 1、2、3、4。[手工验证脚本](../DQ_high-level/tests/smoke_probe_logging.py)可用 --checkpoint 指定候选文件重复运行，不上传日志。
+
 手动验证：
 
 ~~~bash
@@ -188,9 +204,23 @@ python probe_teacher_world_model.py \
 
 完整 Teacher checkpoint 同时保存模型优化器、辅助 Actor 优化器和已验证快照／报告；评估仍使用原 Actor 接口。当前入口沿用原 SGS 不支持精确续训的限制，拒绝 --resume；replay、模拟器状态和 SGS 完整进度不在新增续训协议中。不能把候选初始化称为断点续训。
 
+### 连续开度接口的兼容性
+
+SGS bank 中保存的关节位置和目标已使用同一物理开度定义，无须重建。旧二值 Actor checkpoint 虽有相同9维输出形状，但控制含义不同；策略通过版本标记拒绝隐式加载。世界模型适配契约已升级为 schema 3，旧世界模型候选／验证快照以及旧8维 probe 报告不应沿用。当前入口应重新训练策略和模型，并取得匹配新动作语义的9维动作效果报告；本次没有提供旧模型自动迁移。
+
 ## 8. 已进行的 GPU 验证
 
 测试机器：RTX4090，dqwbc 环境 Python3.8.20、PyTorch2.4.1+cu121。
+
+**2026-11-05 连续夹爪与9维 BPTT 验证**：相关机制回归共205项通过（组合套件186项＋任务判据19项，含CPU／CUDA路径）；另在真实 Isaac Gym `cuda:1`、12环境完成GPU诊断。开度 `0 / 0.25 / 0.5 / 1` 对应关节目标与插值公式逐项一致，误差均为0。诊断模型先使用72条真实转移做16次短拟合，再检查物理状态对夹爪开度的独立梯度：CUDA上有限且非零，绝对值最大约0.048376；实际教师夹爪均值输出头也获得非零辅助梯度。这样检查的是动作对预测物理状态的路径，而不只依赖动作惩罚。
+
+真实策略仍随机采样；给定起点／context／dt的均值想象一致且不消耗动作随机数。辅助更新中标准差和旧Adam标准差动量均保持不变；放大步长得到KL约13.6328时，Actor与Adam完整回滚。真实推进产生11个原100步时限超时和1个倾倒失败，超时转移的奖励误差最大约1.40e−9、观测误差最大约1.82e−5。见[连续夹爪 GPU 诊断报告](SuperMimic_continuous_gripper_gpu_validation.json)。
+
+该诊断只核对连续控制与梯度链路；模型没有通过训练放行验证，也未生成用于启用BPTT的probe报告，不说明接触预测已准确或抓取成功率提高。短拟合是因为零初始化残差输出层的初始动作Jacobian为0，不能把初始化的零梯度误判为计算图断开。
+
+**2026-11-05 历史均值 BPTT 更新验证（连续开度修改之前，不能作为新接口验证）**：BPTT／PPO 的 CPU＋CUDA 共38项测试通过，入口8项测试通过；另在真实 Isaac Gym `cuda:1`、12环境完成机制诊断。真实 Gaussian 两次采样不同；固定起点、context及dt的均值想象完全一致，且不消耗 CPU／CUDA 动作随机数。均值网络20组梯度张量位于CUDA且有限，标准差逐位不变、`requires_grad`仍为True、辅助梯度为None，旧Adam标准差动量状态不变；全动作KL触发后的Actor和Adam完整回滚也通过。新记录见[均值BPTT GPU诊断](SuperMimic_mean_action_BPTT_gpu_validation.json)。该诊断使用未训练模型，不生成探针放行报告，不证明抓取收益提升。
+
+**以下保留2026-11-02的原始实现验证记录**，不把这些测试数或结果归到本次动作路径修改：
 
 - 全部回归测试共501项：499通过、2跳过、无失败，包含新增 CPU／CUDA 测试。
 - 真实入口：32环境×48步，GPU0 完成两轮 PPO 和两轮候选拟合，保存 checkpoint。
@@ -231,6 +261,7 @@ PYTHONPATH=DQ_high-level python -c 'import isaacgym; import unittest; result=uni
 
 | 文件 | 职责 |
 |---|---|
+| [gripper_policy.py](../DQ_high-level/utils/gripper_policy.py) | 连续开度动作变换、PPO 概率与旧策略兼容性检查 |
 | [wm_env.py](../DQ_high-level/utils/wm_env.py) | 完整状态、物理条件、可微 EKF／观测／控制／奖励／终止 |
 | [world_model/](../DQ_high-level/utils/world_model/) | 残差动力学、GPU replay、多步拟合、BPTT、动作效果验证 |
 | [wm_ppo.py](../DQ_high-level/utils/wm_ppo.py) | 真实 PPO 后的拟合、快照升级和可信 BPTT |

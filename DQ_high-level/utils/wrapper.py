@@ -125,6 +125,14 @@ class IsaacGymPreview3Wrapper(Wrapper):
         self._obs_dict = None
         self._world_model_episodes = None
 
+    def _policy_observations(self):
+        # Noise is sampled at collection, not when PPO reevaluates its stored
+        # observations. Raw simulator buffers and replay labels remain clean.
+        noise = getattr(self._env, "world_model_observation_noise", None)
+        if noise is None:
+            return self._obs_dict
+        return dict(self._obs_dict, obs=noise(self._obs_dict["obs"]))
+
     def step(self, actions: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Any]:
         """Perform a step in the environment
 
@@ -159,10 +167,24 @@ class IsaacGymPreview3Wrapper(Wrapper):
                 terminated=done & ~timeout, truncated=done & timeout,
                 success=self._env.pick_success[ids].detach().clone(),
                 family=family, episode_id=episode)
+            if hasattr(adapter, "capture_low_action"):
+                low_steps = self._env.world_model_low_steps
+                if len(low_steps) != 8:
+                    raise RuntimeError("Fixed-eight collector requires eight real 20 ms transitions")
+                for index, low in enumerate(low_steps):
+                    last = index == 7
+                    low.update(
+                        reward=reward[ids].detach().clone() if last else torch.zeros_like(reward[ids]),
+                        terminated=(done & ~timeout) if last else torch.zeros_like(done),
+                        truncated=(done & timeout) if last else torch.zeros_like(done),
+                        success=self._env.pick_success[ids].detach().clone() if last else torch.zeros_like(done),
+                        family=family, episode_id=episode)
+                info["world_model"]["low_steps"] = low_steps
         truncated = torch.zeros_like(terminated)
+        observations = self._policy_observations()
         if self.num_states:
-            return self._obs_dict, reward.view(-1, 1), terminated.view(-1, 1), truncated.view(-1, 1), info
-        return self._obs_dict["obs"], reward.view(-1, 1), terminated.view(-1, 1), truncated.view(-1, 1), info
+            return observations, reward.view(-1, 1), terminated.view(-1, 1), truncated.view(-1, 1), info
+        return observations["obs"], reward.view(-1, 1), terminated.view(-1, 1), truncated.view(-1, 1), info
 
     def reset(self) -> Tuple[torch.Tensor, Any]:
         """Reset the environment
@@ -179,9 +201,10 @@ class IsaacGymPreview3Wrapper(Wrapper):
                 self._world_model_episodes = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
             self._world_model_episodes.add_(self._env.reset_buf.bool().long())
         self._obs_dict = self._env.reset()
+        observations = self._policy_observations()
         if self.num_states:
-            return self._obs_dict, {}
-        return self._obs_dict["obs"], {}
+            return observations, {}
+        return observations["obs"], {}
 
     def render(self, *args, **kwargs) -> None:
         """Render the environment

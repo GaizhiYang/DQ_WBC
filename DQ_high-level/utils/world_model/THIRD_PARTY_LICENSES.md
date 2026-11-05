@@ -13,6 +13,9 @@ commit `ba6105349069bf040f1fdad60873d13138d505a2`:
 - `src/supermimic/imagination/policy_trainer.py`
 - `src/supermimic/imagination/objective.py`
 - `src/supermimic/imagination/rollout.py`
+- `src/supermimic/policy/nets.py` (imagined critic)
+- `src/supermimic/kinematics/rotations.py` (rot6d and rotation log error)
+- `src/supermimic/kinematics/g1_fk.py` (forward position/velocity recursion)
 
 The DQ adapter, physical state layout, episode-held-out replay, PPO integration,
 and task-specific gradient restrictions are new adaptations. This is not a copy

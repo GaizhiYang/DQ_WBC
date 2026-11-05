@@ -31,7 +31,7 @@ def make_environment(heights, yaw_degrees=None):
     env = RewardEnvironment(num_envs=n)
     env.initialize(tuple(range(n)))
     env.cfg["reward"] = {"base_height_target": .55, "only_positive_rewards": False}
-    env.actions[:, 6] = -1.
+    env.actions[:, 6] = 0.
     env._robot_root_states[:, 2] = .55
     yaw = torch.deg2rad(torch.tensor(yaw_degrees or [0.] * n))
     env._robot_root_states[:, 3:7] = quat_from_euler_xyz(
@@ -194,7 +194,7 @@ class TeacherRewardTests(unittest.TestCase):
             for step in range(10):
                 env.progress_buf += 1
                 # Opening one gripper on step six restarts just that hold.
-                env.actions[1, 6] = 1. if step == 5 else -1.
+                env.actions[1, 6] = 1. if step == 5 else 0.
                 env.check_termination()
                 before = (env.pick_counter.clone(), env.success_counter.clone(),
                           env.pick_success_recorded.clone(), env.reset_buf.clone())

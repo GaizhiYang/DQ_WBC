@@ -5,6 +5,7 @@ the production IsaacGym gate. Actual IsaacGym evidence needs an independent
 simulator run; these tests verify replay/control/hash and statistics logic.
 """
 
+from copy import deepcopy
 from pathlib import Path
 import random
 import sys
@@ -16,8 +17,10 @@ import torch
 from torch import nn
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from utils.world_model.probes import (ActionEffectProbeConfig, ProbeStep,
+from utils.world_model.probes import (ACTION_SEMANTICS, CONTINUOUS_INDICES, REPORT_SCHEMA,
+                                      ActionEffectProbeConfig, ProbeStep,
                                       analyze_action_effects, balanced_family_config_ids,
+                                      bounded_probe_action, configuration_fingerprint,
                                       load_verified_report, model_fingerprint,
                                       random_continuous_directions,
                                       run_action_effect_probe, write_report)
@@ -33,9 +36,11 @@ class ToyProbeModel(nn.Module):
         super().__init__()
         self.spec = adapter
         self.gain = nn.Parameter(torch.tensor(float(gain)))
-        self.register_buffer("weights", torch.tensor([1., .7, -.3, .4, -.5, .6, 0., .8, -.2]))
+        self.register_buffer("weights", torch.tensor([1., .7, -.3, .4, -.5, .6, .3, .8, -.2]))
 
     def step(self, state, action, context, dt):
+        if hasattr(self, "probe_actions"):
+            self.probe_actions.append(action.detach().clone())
         movement = (action*self.weights).sum(-1, keepdim=True)*dt*self.gain
         return torch.cat((state[:, :1]+movement, state[:, 1:]+1), -1)
 
@@ -56,6 +61,7 @@ class ToySession:
         return self.state.clone(), self.context.clone()
 
     def step(self, action):
+        self.factory.real_actions.append(action.detach().clone())
         dt = torch.full((self.factory.batch, 1), random.choice([.14, .16]), device=action.device)
         previous = self.state
         self.state = self.model.step(previous, action, self.context, dt)
@@ -72,7 +78,7 @@ class Factory:
     def __init__(self, device, batch=128, drift=False):
         self.device, self.batch = device, batch
         self.calls, self.closed = 0, 0
-        self.devices = []
+        self.devices, self.real_actions, self.predicted_actions = [], [], []
         self.drift = drift
 
     def __call__(self, seed):
@@ -83,15 +89,22 @@ class Factory:
 class ProbeChecks:
     device = "cpu"
 
-    def execute(self, gain=1., directions=None, drift=False):
-        base = torch.zeros(128, 9, device=self.device)
+    def execute(self, gain=1., directions=None, drift=False, base=None):
+        if base is None:
+            base = torch.zeros(128, 9, device=self.device)
+            base[:, 6] = .5
         prefix = torch.zeros(3, 128, 9, device=self.device)
+        prefix[:, :, 6] = .5
         factory = Factory(self.device, drift=drift)
         if directions is None:
             generator = torch.Generator(device=self.device).manual_seed(99)
             directions = random_continuous_directions(base, generator,
-                amplitudes=[.02, .02, .02, .03, .03, .03, 0., .04, .04])
-        report = run_action_effect_probe(factory, lambda adapter: ToyProbeModel(adapter, gain=gain).to(self.device),
+                amplitudes=[.02, .02, .02, .03, .03, .03, .05, .04, .04])
+        def model_factory(adapter):
+            model = ToyProbeModel(adapter, gain=gain).to(self.device)
+            model.probe_actions = factory.predicted_actions
+            return model
+        report = run_action_effect_probe(factory, model_factory,
                                          prefix, base, directions, seed=123,
                                          configuration={"task": "toy", "duration": "7_or_8_cycles"})
         return report, factory
@@ -105,6 +118,10 @@ class ProbeChecks:
         self.assertEqual(factory.calls, 4)
         self.assertEqual(factory.closed, 4)
         self.assertEqual(set(factory.devices), {torch.device(self.device).type})
+        self.assertEqual(report["schema"], REPORT_SCHEMA)
+        self.assertEqual(report["metadata"]["directions_cover"], list(range(9)))
+        self.assertTrue(report["metadata"]["gripper_perturbed"])
+        self.assertEqual(report["metadata"]["action_semantics"], ACTION_SEMANTICS)
 
     def test_low_prediction_error_is_not_enough_when_action_effect_sign_is_wrong(self):
         report, _ = self.execute(gain=-1.)
@@ -166,7 +183,7 @@ class ProbeChecks:
             self.assertFalse(accepted)
             self.assertIn("report_checksum_mismatch", reasons)
 
-    def test_model_hash_changes_with_weights_and_gripper_probe_is_rejected(self):
+    def test_model_hash_changes_and_gripper_only_probe_is_measured_but_not_full_coverage(self):
         model = ToyProbeModel(ToyAdapter()).to(self.device)
         before = model_fingerprint(model)
         with torch.no_grad():
@@ -174,8 +191,67 @@ class ProbeChecks:
         self.assertNotEqual(before, model_fingerprint(model))
         directions = torch.zeros(128, 9, device=self.device)
         directions[:, 6] = .01
-        with self.assertRaisesRegex(ValueError, "binary gripper"):
-            self.execute(directions=directions)
+        report, _ = self.execute(directions=directions)
+        self.assertGreater(report["metrics"]["informative_pairs"], 0)
+        self.assertAlmostEqual(report["metrics"]["sign_agreement"], 1.)
+        self.assertEqual(report["metadata"]["directions_cover"], [6])
+        self.assertTrue(report["metadata"]["gripper_perturbed"])
+        self.assertFalse(report["passed"])
+        self.assertIn("incomplete_continuous_action_coverage", report["reasons"])
+
+    def test_default_direction_includes_finite_gripper_opening_perturbations(self):
+        base = torch.zeros(128, 9, device=self.device)
+        direction = random_continuous_directions(base, torch.Generator(device=self.device).manual_seed(7))
+        self.assertTrue(bool((direction[:, 6] != 0).all()))
+        self.assertGreater(float(direction[:, 6].abs().max()), .01)
+        self.assertLessEqual(float(direction[:, 6].abs().max()), .05)
+
+    def test_boundary_openings_are_bounded_identically_for_real_and_model_branches(self):
+        base = torch.zeros(128, 9, device=self.device)
+        base[1::2, 6] = 1.
+        directions = random_continuous_directions(base, torch.Generator(device=self.device).manual_seed(7))
+        directions[:, 6] = .05
+        report, factory = self.execute(base=base, directions=directions)
+        self.assertEqual(report["metadata"]["directions_cover"], list(range(9)))
+        self.assertTrue(report["metadata"]["gripper_perturbed"])
+        for i, multiplier in enumerate((0., 1., -1., 0.)):
+            real = factory.real_actions[i * 4 + 3]
+            predicted = factory.predicted_actions[i]
+            torch.testing.assert_close(real, predicted, rtol=0, atol=0)
+            torch.testing.assert_close(real, bounded_probe_action(base, directions, multiplier), rtol=0, atol=0)
+            self.assertTrue(bool(((real[:, 6] >= 0) & (real[:, 6] <= 1)).all()))
+        self.assertAlmostEqual(float(factory.real_actions[7][0, 6]), .05)
+        self.assertAlmostEqual(float(factory.real_actions[11][1, 6]), .95)
+
+    def test_correctly_signed_legacy_or_eight_coordinate_reports_cannot_enable_bptt(self):
+        report, _ = self.execute()
+        configuration = report["configuration"]
+        cases = []
+        legacy = deepcopy(report)
+        legacy["schema"] = "dq-action-effect-probe-v1"
+        legacy["metadata"]["directions_cover"] = [0, 1, 2, 3, 4, 5, 7, 8]
+        legacy["metadata"]["gripper_perturbed"] = False
+        cases.append((legacy, "report_schema_mismatch"))
+        incomplete = deepcopy(report)
+        incomplete["metadata"]["directions_cover"] = [0, 1, 2, 3, 4, 5, 7, 8]
+        cases.append((incomplete, "incomplete_continuous_action_coverage"))
+        no_gripper = deepcopy(report)
+        no_gripper["metadata"]["gripper_perturbed"] = False
+        cases.append((no_gripper, "continuous_gripper_not_probed"))
+        old_semantics = deepcopy(report)
+        old_semantics["metadata"].pop("action_semantics")
+        cases.append((old_semantics, "gripper_action_semantics_mismatch"))
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "probe.json"
+            for changed, expected_reason in cases:
+                changed.pop("report_sha256")
+                changed["report_sha256"] = configuration_fingerprint(changed)
+                write_report(path, changed)
+                accepted, reasons, _ = load_verified_report(
+                    path, report["model_sha256"], configuration, required_simulator="Toy")
+                self.assertFalse(accepted)
+                self.assertIn(expected_reason, reasons)
+                self.assertNotIn("report_checksum_mismatch", reasons)
 
     def test_probe_balances_existing_families_without_dropping_small_contact_pools(self):
         bank = torch.cat((torch.zeros(900, device=self.device, dtype=torch.long),
@@ -193,7 +269,9 @@ class ProbeChecks:
         real[families == 2] = 0.  # A valid but locally flat near-goal reward.
         zero = torch.zeros_like(real)
         alive = torch.ones_like(real, dtype=torch.bool)
-        metadata = {"family_names": ["full_task", "pregrasp", "near_goal"]}
+        metadata = {"family_names": ["full_task", "pregrasp", "near_goal"],
+                    "directions_cover": list(CONTINUOUS_INDICES), "gripper_perturbed": True,
+                    "action_semantics": ACTION_SEMANTICS}
         arguments = (real, -real, zero, zero, real, -real, zero, zero, zero,
                      alive, "weights", {"task": "toy"})
         report = analyze_action_effects(*arguments, metadata=metadata, families=families)

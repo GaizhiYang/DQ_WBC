@@ -3,6 +3,7 @@
 from collections import deque
 
 import torch
+from utils.gripper_control import closing_command
 
 
 class RollingEpisodeSuccess:
@@ -51,16 +52,17 @@ class RollingEpisodeSuccess:
 
 
 def lifted_grasp_mask(object_height, table_height, rest_height, ee_distance,
-                      gripper_command, lift_threshold):
+                      gripper_opening, lift_threshold):
     """Measure lift above the object's resting height on the current table.
 
-    A close command plus proximity is a grasp proxy, not a contact-force test.
+    A closing-side opening (< 0.5) plus proximity is a grasp proxy, not a
+    contact-force test. Opening is normalized: 0 closed, 1 open.
     Compare absolute heights to avoid subtractive rounding at the threshold.
     """
     target_height = table_height + rest_height + lift_threshold
     return ((object_height >= target_height)
             & (ee_distance < 0.2)
-            & (gripper_command < 0))
+            & closing_command(gripper_opening))
 
 
 def advance_pick_hold(lifted, interrupted, count, best_count, completed, hold_steps):

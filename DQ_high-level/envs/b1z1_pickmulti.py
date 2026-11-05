@@ -927,7 +927,8 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         d1 = torch.norm(box_pos - self.ee_pos, dim=-1)
         self.lifted_now[:] = lifted_grasp_mask(
             cube_height, self.table_heights, self.init_height, d1,
-            self.actions[:, 6], self.lifted_success_threshold)
+            (self.actions[:, 6] if self.continuous_gripper else
+             (self.actions[:, 6] >= 0).to(self.actions.dtype)), self.lifted_success_threshold)
         self.lifted_object[:] = self.lifted_now
 
         z_cube = self._cube_root_states[:, 2]

@@ -9,6 +9,7 @@ from termcolor import cprint
 
 from .reward_vec_task import RewardVecTask
 from utils.low_level_model import ActorCritic
+from utils.gripper_control import GRIPPER_ACTION_MODE, opening_to_joint, closing_command
 
 from isaacgym import gymapi
 from isaacgym import gymtorch
@@ -72,6 +73,7 @@ class B1Z1Base(RewardVecTask):
         self.rand_control = rand_control
         self.arm_delay = arm_delay
         self.num_gripper_dof = num_gripper_dof
+        self.continuous_gripper = self.cfg["env"].get("gripperActionMode") == GRIPPER_ACTION_MODE
         self.rand_cmd_scale = rand_cmd_scale
         self.rand_depth_clip = rand_depth_clip
         self.stop_pick = stop_pick
@@ -118,6 +120,12 @@ class B1Z1Base(RewardVecTask):
         self.plane_restitution = self.cfg["env"]["plane"]["restitution"]
         self.max_episode_length = self.cfg["env"]["maxEpisodeLength"]
         self.control_freq_low_init = self.cfg["env"].get("controlFrequencyLow", 7)
+        world_model_cfg = self.cfg["env"].get("world_model", {})
+        self.world_model_fixed8 = (world_model_cfg.get("fixed8", False)
+                                  or world_model_cfg.get("mode", "off") != "off")
+        if self.world_model_fixed8:
+            self.control_freq_low_init = 8
+            self.rand_control = False
         self.control_freq_low = self.control_freq_low_init
         self.hold_steps = self.cfg["env"].get("holdSteps", 10)
         if isinstance(self.hold_steps, bool) or not isinstance(self.hold_steps, int) or self.hold_steps < 1:
@@ -164,6 +172,8 @@ class B1Z1Base(RewardVecTask):
         self._prepare_reward_function()
         
         self.dt = self.control_freq_inv * self.sim_params.dt
+        if self.world_model_fixed8 and (self.control_freq_inv != 4 or abs(self.dt - .02) > 1e-8):
+            raise ValueError("Fixed-eight world model requires four 5 ms physics steps per low-level step")
         
         self._init_tensors()
         self.global_step_counter = cfg["env"].get("globalStepCounter", 0)
@@ -2002,7 +2012,13 @@ class B1Z1Base(RewardVecTask):
         # -------------------------query low level and simulate--------------------------
         # Within a single high-level cycle, the physical simulation is executed a total of 8 * 4 = 32 times, or 7 * 4 = 28 steps.
         time1 = time.time()
+        wm_adapter = getattr(self, "world_model_adapter", None)
+        wm_collect_low = wm_adapter is not None and hasattr(wm_adapter, "capture_low_action")
+        self.world_model_low_steps = []
         for low_step in range(self.control_freq_low):
+            if wm_collect_low:
+                wm_ids = self.world_model_env_ids
+                wm_before, wm_context = wm_adapter.capture(wm_ids)
             if not self.floating_base:
                 self._compute_low_level_observations()
                 with torch.no_grad():
@@ -2010,6 +2026,9 @@ class B1Z1Base(RewardVecTask):
                 low_actions = reindex_all(low_actions)
             
                 self.last_low_actions[:] = low_actions[:]
+
+            if wm_collect_low:
+                wm_action = wm_adapter.capture_low_action(wm_ids)
             
             if self.floating_base:
                 all_pos_targets = self.get_all_pos_targets(ee_goal_cart, ee_goal_orn_quat)
@@ -2033,6 +2052,13 @@ class B1Z1Base(RewardVecTask):
                     
                 self.gym.simulate(self.sim)
                 self._refresh_sim_tensors()
+
+            if wm_collect_low:
+                wm_after, _ = wm_adapter.capture(wm_ids)
+                self.world_model_low_steps.append(dict(
+                    state=wm_before, next_state=wm_after, context=wm_context,
+                    actions=wm_action, dt=wm_before.new_full((len(wm_ids), 1), self.dt),
+                    low_observation=self.low_obs_buf[wm_ids].detach().clone()))
 
             if not self.headless:
                 self.render()
@@ -2069,6 +2095,11 @@ class B1Z1Base(RewardVecTask):
         return self.obs_dict, self.rew_buf.to(self.rl_device), self.reset_buf.to(self.rl_device), self.extras
     
     def pre_physics_step(self, action_tensor):
+        if self.continuous_gripper:
+            # Normalize external/probe inputs too; history and replay store the
+            # same opening that is executed. PPO already returns bounded values.
+            action_tensor = torch.cat((action_tensor[:, :6], action_tensor[:, 6:7].clamp(0., 1.),
+                                       action_tensor[:, 7:]), dim=-1)
         if (not self.stu_distill) and self.global_step_counter <= (self.total_timesteps/5):
             action_delay = 0
         else:
@@ -2162,8 +2193,10 @@ class B1Z1Base(RewardVecTask):
             self.clipped_actions[:, 8] = self.commands[:,2].clone()
         self.command_history_buf = torch.cat([self.command_history_buf[:, 1:], self.clipped_actions[:, None, :]], dim=1)
         
-        if self.stop_pick: 
-            self.commands = torch.where(self.actions[:, 6].unsqueeze(-1) < 0, torch.zeros_like(self.commands), self.commands) # Start to close then we should stop
+        if self.stop_pick:
+            closing = (closing_command(self.actions[:, 6]) if self.continuous_gripper
+                       else self.actions[:, 6] < 0)
+            self.commands = torch.where(closing.unsqueeze(-1), torch.zeros_like(self.commands), self.commands)
         
         if self.rand_depth_clip:
             self.depth_clip_lower = torch_rand_float(self.depth_clip_rand_range[0], self.depth_clip_rand_range[1], (self.num_envs,1), device=self.device).unsqueeze(-1)
@@ -2172,6 +2205,13 @@ class B1Z1Base(RewardVecTask):
     
     def set_gripper(self):
         u_gripper = self.actions[:, 6].unsqueeze(-1)
+        if self.continuous_gripper:
+            if self.num_gripper_dof not in (1, 2):
+                raise NotImplementedError
+            self.gripper_dof_pos[:] = opening_to_joint(
+                u_gripper, self.dof_limits_upper[-self.num_gripper_dof:],
+                self.dof_limits_lower[-self.num_gripper_dof:])
+            return
         if self.num_gripper_dof == 1:
             self.gripper_dof_pos[:] = torch.where(u_gripper >= 0, self.dof_limits_lower[-1].item(), self.dof_limits_upper[-1].item()) # >= 0 open    
         elif self.num_gripper_dof == 2:

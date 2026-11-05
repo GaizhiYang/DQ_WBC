@@ -20,6 +20,7 @@ from modules.pose_prediction import (
     rotation_and_jacobian, se3_exp_batch,
 )
 from utils.pick_success import advance_pick_hold, lifted_grasp_mask
+from utils.gripper_control import GRIPPER_ACTION_MODE, CLOSING_OPENING_THRESHOLD, closing_command
 
 
 def quat_normalize(q):
@@ -197,6 +198,8 @@ class TeacherWorldModelAdapter:
             unsupported.append("lastCommands")
         if not env.use_roboinfo or env.num_gripper_dof != 1 or env.num_actions != 9:
             unsupported.append("teacher requires roboinfo, one gripper DOF and nine actions")
+        if env.cfg["env"].get("gripperActionMode") != GRIPPER_ACTION_MODE:
+            unsupported.append("teacher requires continuous_opening_v1 gripper actions")
         if env.table_level not in ("Level00", "Level01", "Level02"):
             unsupported.append("table levels other than Level00/01/02")
         if getattr(env, "dr_randomizations", {}).get("observations") or getattr(env, "dr_randomizations", {}).get("actions"):
@@ -363,14 +366,12 @@ class TeacherWorldModelAdapter:
     def dynamics_action(self, state, action):
         """Encode the command actually applied to the closed-loop controller.
 
-        The recorded clipped magnitude is retained by integrate/reward/history;
-        only the learned physical dynamics sees the sign-normalized gripper.
+        Gripper opening is continuous and differentiable, matching the real
+        joint-target interpolation; history/reward retain that same opening.
         """
         clipped, goal, orientation, command = self._control(state, action)
-        mode = torch.where(clipped[:, 6:7] < 0, -torch.ones_like(clipped[:, 6:7]),
-                           torch.ones_like(clipped[:, 6:7]))
         return torch.cat((goal-self.get(state, "goal_pos"),
-                          orientation-self.get(state, "goal_rpy"), mode,
+                          orientation-self.get(state, "goal_rpy"), clipped[:, 6:7],
                           command[:, 0:1], command[:, 2:3]), -1)
 
     def metadata(self):
@@ -428,8 +429,8 @@ class TeacherWorldModelAdapter:
         low_policy = task_cfg.get("low_policy_path")
         finite = lambda value: value if math.isfinite(float(value)) else ("Infinity" if value > 0 else "-Infinity")
         metadata = {
-            "version": 2,
-            "schema": "dq-sgs-ekf-full-state-v2",
+            "version": 3,
+            "schema": "dq-sgs-ekf-full-state-v3-continuous-gripper",
             "state_dim": self.state_dim,
             "feature_dim": self.feature_dim,
             "physical_dim": self.physical_dim,
@@ -472,6 +473,9 @@ class TeacherWorldModelAdapter:
             "clip_actions": finite(self.clip_actions),
             "clip_observations": finite(self.clip_obs),
             "control": {
+                "gripper_action_mode": GRIPPER_ACTION_MODE,
+                "gripper_target": "q_closed + opening * (q_open - q_closed)",
+                "gripper_closing_threshold": CLOSING_OPENING_THRESHOLD,
                 "low_dt": self.low_dt,
                 "control_cycles": int(env.control_freq_low_init),
                 "rand_control": bool(env.rand_control),
@@ -583,6 +587,7 @@ class TeacherWorldModelAdapter:
 
     def _control(self, state, action):
         action = action.clamp(-self.clip_actions, self.clip_actions)
+        action = torch.cat((action[:, :6], action[:, 6:7].clamp(0., 1.), action[:, 7:]), -1)
         dp = action[:, :3] * .02 if self.use_tanh else action[:, :3].clamp(-.02, .02)
         dr = action[:, 3:6] * .06 if self.use_tanh else action[:, 3:6].clamp(-.06, .06)
         goal = self.get(state, "goal_pos") + dp
@@ -594,7 +599,7 @@ class TeacherWorldModelAdapter:
         if self.small_commands:
             command = command * ((forward.abs() > .15) | (yaw.abs() > .35))[:, None]
         if self.stop_pick:
-            command = torch.where(action[:, 6:7] < 0, torch.zeros_like(command), command)
+            command = torch.where(closing_command(action[:, 6:7]), torch.zeros_like(command), command)
         return action, goal, rpy, command
 
     def task_outcome(self, previous, state, action, context):
@@ -773,10 +778,6 @@ class TeacherWorldModelAdapter:
 
     def timeouts(self, state, context=None):
         return self.get(state, "progress")[:, 0] >= self.max_steps
-
-    def gripper_mode(self, state, context=None):
-        command = self.get(state, "prev_action")[:, 6]
-        return torch.where(command < 0, -torch.ones_like(command), torch.ones_like(command))
 
     def sample_dt(self, batch_size):
         maximum = self.env.control_freq_low_init

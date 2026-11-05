@@ -26,6 +26,7 @@ def make_task(eval_mode=False, reward_scales=None, num_envs=1, wandb_enabled=Fal
     task.eval = eval_mode
     task.pred_success = False
     task.enable_camera = False
+    task.continuous_gripper = True
     task.cfg = {"env": {"wandb": wandb_enabled}, "reward": {
         "only_positive_rewards": False, "base_height_target": .55,
     }}
@@ -46,7 +47,7 @@ def make_task(eval_mode=False, reward_scales=None, num_envs=1, wandb_enabled=Fal
     task.ee_pos[:, 0] += .05
     task.curr_ee_goal_cart = task.ee_pos - task.arm_base
     task.actions = torch.zeros((num_envs, 9))
-    task.actions[:, 6] = -1.
+    task.actions[:, 6] = 0.
     for name in ("progress_buf", "reset_buf", "_terminate_buf", "pick_counter",
                  "best_pick_counter", "success_counter", "success_onetime_counter"):
         setattr(task, name, torch.zeros(num_envs, dtype=torch.long))

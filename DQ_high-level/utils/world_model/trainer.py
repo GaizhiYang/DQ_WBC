@@ -6,7 +6,7 @@ Critic is part of this optimizer. Predicted states are never teacher-forced
 between steps, while true future states are used only as supervised targets.
 """
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 
 import torch
 from torch.nn import functional as F
@@ -21,10 +21,13 @@ class WMTrainerConfig:
     grad_clip: float = 1.0
     weight_decay: float = 0.0
     termination_weight: float = 0.1
+    contact_weight: float = 0.1
     auxiliary_weight: float = 1.0
     recent_fraction: float = 0.5
     recent_steps: int = 32
     validation_batch_size: int = 256
+    balance_families: bool = True
+    microbatch_size: int = 0
 
 
 class WorldModelTrainer:
@@ -36,6 +39,8 @@ class WorldModelTrainer:
             raise ValueError("World-model training dimensions must be positive")
         if self.cfg.learning_rate <= 0 or self.cfg.grad_clip <= 0:
             raise ValueError("World-model learning rate and grad clip must be positive")
+        if self.cfg.microbatch_size < 0:
+            raise ValueError("World-model microbatch size must be nonnegative")
         self.optimizer = torch.optim.Adam(model.parameters(),
                                           lr=self.cfg.learning_rate,
                                           weight_decay=self.cfg.weight_decay)
@@ -45,10 +50,23 @@ class WorldModelTrainer:
         steps = batch.actions.shape[0]
         predicted = batch.states[0]
         errors, term_losses, auxiliary, term_accuracy = [], [], [], []
+        contact_losses, contact_accuracy = [], []
         extra_loss = getattr(self.model.spec, "auxiliary_loss", None)
+        low_step = getattr(self.model, "low_step", None)
         for index in range(steps):
-            predicted = self.model(predicted, batch.actions[index],
-                                   batch.context[index], batch.dt[index])
+            if low_step is not None:
+                # Only initial context is available in an imagined trajectory.
+                # Future measured table poses must not leak into this rollout.
+                predicted, contact_logits = low_step(
+                    predicted, batch.actions[index], batch.context[0],
+                    batch.dt[index], return_logits=True)
+                labels = self.model.spec.get(batch.states[index + 1], "foot_contacts")
+                contact_losses.append(F.binary_cross_entropy_with_logits(
+                    contact_logits, labels.to(contact_logits.dtype), reduction="none").mean(-1))
+                contact_accuracy.append(((contact_logits > 0) == labels.bool()).float().detach())
+            else:
+                predicted = self.model(predicted, batch.actions[index],
+                                       batch.context[index], batch.dt[index])
             # No detach and no ground-truth replacement here: model fitting
             # differentiates the whole open-loop multi-step prediction error.
             errors.append(self.model.normalized_sq_error(predicted,
@@ -66,12 +84,18 @@ class WorldModelTrainer:
         term_loss = (torch.stack(term_losses).mean() if term_losses else
                      state_loss.new_zeros(()))
         extra = (torch.stack(auxiliary).mean() if auxiliary else state_loss.new_zeros(()))
-        loss = state_loss + self.cfg.termination_weight * term_loss + self.cfg.auxiliary_weight * extra
+        contact_loss = (torch.stack(contact_losses).mean() if contact_losses else
+                        state_loss.new_zeros(()))
+        loss = (state_loss + self.cfg.termination_weight * term_loss
+                + self.cfg.auxiliary_weight * extra + self.cfg.contact_weight * contact_loss)
         metrics = {"state_loss": state_loss.detach(), "termination_bce": term_loss.detach(),
                    "auxiliary_loss": extra.detach(), "nse_1step": error[0].mean().detach(),
                    "nse_kstep": error[-1].mean().detach(), "loss": loss.detach()}
         if term_accuracy:
             metrics["termination_accuracy"] = torch.stack(term_accuracy).mean()
+        if contact_accuracy:
+            metrics["contact_bce"] = contact_loss.detach()
+            metrics["contact_accuracy"] = torch.stack(contact_accuracy).mean()
         return loss, metrics
 
     def update(self, replay):
@@ -83,15 +107,34 @@ class WorldModelTrainer:
         rejected = 0
         for _ in range(self.cfg.batches_per_update):
             batch = replay.sample_windows(self.cfg.batch_size, self.cfg.window,
-                                          split="train", balance_families=True,
+                                          split="train", balance_families=self.cfg.balance_families,
                                           recent_fraction=self.cfg.recent_fraction,
                                           recent_steps=self.cfg.recent_steps)
             self.optimizer.zero_grad(set_to_none=True)
-            loss, metrics = self.loss_on(batch)
-            if not bool(torch.isfinite(loss)):
+            width = batch.states.shape[1]
+            chunk = self.cfg.microbatch_size or width
+            metrics, finite = {}, True
+            for begin in range(0, width, chunk):
+                end = min(width, begin + chunk)
+                values = {}
+                for field in fields(batch):
+                    value = getattr(batch, field.name)
+                    # Temporal payloads have [K,B,...]; IDs have [B].
+                    values[field.name] = (value[:, begin:end] if field.name in (
+                        "states", "actions", "context", "dt", "rewards", "terminated",
+                        "truncated", "success") else value[begin:end])
+                loss, chunk_metrics = self.loss_on(type(batch)(**values))
+                if not bool(torch.isfinite(loss)):
+                    finite = False
+                    break
+                weight = (end - begin) / width
+                (loss * weight).backward()
+                for key, value in chunk_metrics.items():
+                    metrics[key] = metrics.get(key, 0.) + value * weight
+            if not finite:
+                self.optimizer.zero_grad(set_to_none=True)
                 rejected += 1
                 continue
-            loss.backward()
             norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.cfg.grad_clip)
             if not bool(torch.isfinite(norm)):
                 self.optimizer.zero_grad(set_to_none=True)
@@ -118,7 +161,7 @@ class WorldModelTrainer:
         self.model.eval()
         try:
             batch = replay.sample_windows(self.cfg.validation_batch_size, self.cfg.window,
-                                          split="validation", balance_families=True)
+                                          split="validation", balance_families=self.cfg.balance_families)
             _, metrics = self.loss_on(batch)
             result = {"validation_" + key: float(value) for key, value in metrics.items()}
             result["validation_available"] = 1.0
@@ -129,7 +172,12 @@ class WorldModelTrainer:
     @torch.no_grad()
     def start_error(self, starts):
         """Real one-step prediction error for conservative imagination filtering."""
-        predicted = self.model(starts.state, starts.action, starts.context, starts.dt)
+        if (hasattr(self.model, "low_step")
+                and starts.action.shape[-1] == self.model.spec.low_action_dim):
+            predicted = self.model.low_step(starts.state, starts.action,
+                                            starts.context, starts.dt)
+        else:
+            predicted = self.model(starts.state, starts.action, starts.context, starts.dt)
         return self.model.normalized_sq_error(predicted, starts.next_state)
 
     def state_dict(self):
@@ -140,4 +188,3 @@ class WorldModelTrainer:
         self.model.load_state_dict(state["model"])
         self.optimizer.load_state_dict(state["optimizer"])
         self.updates = int(state.get("updates", 0))
-

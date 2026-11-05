@@ -115,6 +115,8 @@ class Env(ABC):
         self.control_freq_inv = config["env"].get("controlFrequencyInv", 1)
 
         self.act_space = spaces.Box(np.ones(self.num_actions) * -1., np.ones(self.num_actions) * 1.)
+        if config["env"].get("gripperActionMode") == "continuous_opening_v1":
+            self.act_space.low[6] = 0.
 
         self.clip_obs = config["env"].get("clipObservations", np.Inf)
         self.clip_actions = config["env"].get("clipActions", np.Inf)

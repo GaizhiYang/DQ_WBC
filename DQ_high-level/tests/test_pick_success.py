@@ -72,7 +72,7 @@ class LiftedGraspTests(unittest.TestCase):
             torch.full((4,), .5),
             torch.full((4,), .045),
             torch.full((4,), .05),
-            torch.full((4,), -1.),
+            torch.zeros(4),
             .20,
         )
         self.assertEqual(mask.tolist(), [False, False, False, True])
@@ -86,7 +86,7 @@ class LiftedGraspTests(unittest.TestCase):
         object_height[0] = torch.nextafter(target[0], torch.tensor(-torch.inf))
         mask = lifted_grasp_mask(
             object_height, table_height, rest_height,
-            torch.tensor([.05, .05]), torch.tensor([-1., -1.]), .20,
+            torch.tensor([.05, .05]), torch.zeros(2), .20,
         )
         self.assertEqual(mask.tolist(), [False, True])
 
@@ -97,7 +97,7 @@ class LiftedGraspTests(unittest.TestCase):
             torch.tensor([.755, 1.11, 1.]),
             torch.tensor([.5, .8, .8]),
             torch.tensor([.045, .1, .1]),
-            torch.full((3,), .05), torch.full((3,), -1.), .20,
+            torch.full((3,), .05), torch.zeros(3), .20,
         )
         self.assertEqual(mask.tolist(), [True, True, False])
 
@@ -106,7 +106,7 @@ class LiftedGraspTests(unittest.TestCase):
             torch.full((5,), .8), torch.full((5,), .5),
             torch.full((5,), .045),
             torch.tensor([.05, .05, .05, .2, .21]),
-            torch.tensor([-1., 0., 1., -1., -1.]), .20,
+            torch.tensor([0., .5, 1., 0., 0.]), .20,
         )
         self.assertEqual(mask.tolist(), [True, False, False, False, False])
 

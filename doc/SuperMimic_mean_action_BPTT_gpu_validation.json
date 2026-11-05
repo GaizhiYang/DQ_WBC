@@ -1,0 +1,128 @@
+{
+  "diagnostic_only": true,
+  "model_untrained": true,
+  "training_gate_bypassed": false,
+  "gate_file_generated": false,
+  "logging_enabled": false,
+  "imagined_action_mode": "policy_mean",
+  "device": "cuda:1",
+  "num_envs": 12,
+  "adapter_schema": 2,
+  "configuration_fingerprint": "8643c7a21b58398ecd046dd6df4e31717b95bd3b480059c8181031b6f6f0ec7a",
+  "cuda_assertions": {
+    "actor": true,
+    "critic": true,
+    "world_model": true,
+    "state_scaler": true,
+    "value_scaler": true,
+    "inputs": true,
+    "adapter_tables": true
+  },
+  "real_policy_sampling": {
+    "two_samples_differ": true,
+    "log_std_trainable": true,
+    "log_std_unchanged": true
+  },
+  "deterministic_imagination": {
+    "same_start_context_dt": true,
+    "all_rollout_tensors_equal": true,
+    "cpu_rng_unchanged": true,
+    "cuda_rng_unchanged": true,
+    "log_std_unchanged": true,
+    "log_std_trainable": true
+  },
+  "accepted_update": {
+    "metrics": {
+      "accepted": 1.0,
+      "rollback": 0.0,
+      "skipped": 0.0,
+      "kl": 0.0,
+      "objective": 0.010778343304991722,
+      "actor_grad_norm": 0.0035564512945711613,
+      "reward_mean": 0.006195635534822941,
+      "survival_H": 0.14866304397583008,
+      "tail_value": 0.0058502210304141045,
+      "timeout_fraction": 0.0,
+      "trust_mean": 1.0,
+      "dt_mean": 0.14777778089046478,
+      "horizon_seconds_mean": 0.44333334267139435,
+      "effective_lr": 5.000000000000001e-07
+    },
+    "actor_changed": true,
+    "actor_gradients_finite": true,
+    "actor_gradients_cuda": true,
+    "actor_gradient_tensor_count": 20,
+    "world_model_unchanged": true,
+    "critic_unchanged": true,
+    "state_scaler_unchanged": true,
+    "value_scaler_unchanged": true,
+    "existing_model_gradient_preserved": true,
+    "existing_critic_gradient_preserved": true,
+    "frozen_parameter_flags_restored": true,
+    "log_std_unchanged": true,
+    "log_std_trainable": true,
+    "log_std_gradient_none": true,
+    "legacy_std_adam_state_unchanged": true
+  },
+  "kl_rollback": {
+    "metrics": {
+      "accepted": 0.0,
+      "rollback": 1.0,
+      "skipped": 0.0,
+      "kl": 2.342176675796509,
+      "objective": 0.01077934168279171,
+      "actor_grad_norm": 0.003556594019755721,
+      "reward_mean": 0.0061956229619681835,
+      "survival_H": 0.14866305887699127,
+      "tail_value": 0.005857269279658794,
+      "timeout_fraction": 0.0,
+      "trust_mean": 1.0,
+      "dt_mean": 0.14777778089046478,
+      "horizon_seconds_mean": 0.44333334267139435,
+      "effective_lr": 0.05
+    },
+    "actor_restored": true,
+    "adam_state_restored": true,
+    "all_frozen_modules_unchanged": true,
+    "log_std_unchanged": true,
+    "log_std_trainable": true,
+    "log_std_gradient_none": true,
+    "legacy_std_adam_state_unchanged": true
+  },
+  "real_timeout": {
+    "steps": 110,
+    "max_episode_length": 100,
+    "counter_modified": false,
+    "timeout_count": 11,
+    "other_failures": 1,
+    "records": [
+      {
+        "step": 100,
+        "count": 11,
+        "true_progress": [
+          100,
+          100,
+          100,
+          100,
+          100,
+          100,
+          100,
+          100,
+          100,
+          100,
+          100
+        ],
+        "timeout_mask_equal": true,
+        "reward_max_error": 1.862645149230957e-09,
+        "obs_max_error": 1.049041748046875e-05,
+        "success_on_timeout": 0,
+        "failure_on_timeout": 0
+      }
+    ]
+  },
+  "resources": {
+    "max_cuda_memory_allocated_bytes": 110581248,
+    "max_cuda_memory_allocated_mib": 105.45849609375,
+    "memory_scope": "PyTorch allocator only; excludes Isaac Gym/PhysX external allocations"
+  }
+}

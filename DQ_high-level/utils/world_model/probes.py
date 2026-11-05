@@ -28,8 +28,9 @@ import numpy as np
 import torch
 
 
-REPORT_SCHEMA = "dq-action-effect-probe-v1"
-CONTINUOUS_INDICES = (0, 1, 2, 3, 4, 5, 7, 8)
+REPORT_SCHEMA = "dq-action-effect-probe-v2"
+CONTINUOUS_INDICES = tuple(range(9))
+ACTION_SEMANTICS = "continuous_opening_v1"
 
 
 @dataclass
@@ -126,24 +127,54 @@ def seed_probe(seed):
 
 
 def random_continuous_directions(base_actions, generator=None, amplitudes=None):
-    """Finite perturbations in the eight continuous coordinates; grip unchanged.
+    """Finite perturbations in all nine continuous action coordinates.
 
     Defaults are action units: 2 mm position increments, 0.01 rad orientation,
-    and 0.025 base command. The task's action clipping still applies in both
+    0.05 gripper opening, and 0.025 base command. These scale a unit random
+    direction; they are maximum coordinate amplitudes, not fixed step sizes.
+    The task's action clipping still applies in both
     real and model execution; saturated/no-effect samples fail the evidence
     count instead of being mistaken for correct gradients.
     """
     if base_actions.ndim != 2 or base_actions.shape[-1] != 9:
         raise ValueError("Expected teacher actions with shape [batch, 9]")
     scales = base_actions.new_tensor(amplitudes if amplitudes is not None else
-                                    (.002, .002, .002, .01, .01, .01, 0., .025, .025))
-    if scales.shape != (9,) or float(scales[6]) != 0 or bool((scales < 0).any()):
-        raise ValueError("Probe amplitudes must be nine nonnegative values with zero gripper amplitude")
+                                    (.002, .002, .002, .01, .01, .01, .05, .025, .025))
+    if scales.shape != (9,) or not bool(torch.isfinite(scales).all()) or bool((scales < 0).any()):
+        raise ValueError("Probe amplitudes must be nine finite nonnegative values")
     direction = torch.randn(base_actions.shape, device=base_actions.device,
                             dtype=base_actions.dtype, generator=generator)
-    direction[:, 6] = 0
     direction = direction / direction.norm(dim=-1, keepdim=True).clamp_min(1e-12)
     return direction * scales
+
+
+def bounded_probe_action(base_actions, directions=None, multiplier=0.):
+    """Perturb executable actions, with gripper opening kept in [0, 1].
+
+    The unperturbed baseline is bounded first, so a saturated opening still
+    permits a finite inward perturbation. Real and model branches use this
+    same action; any additional environment clipping is read back afterward.
+    """
+    action = base_actions.clone()
+    action[..., 6] = action[..., 6].clamp(0., 1.)
+    if directions is not None:
+        action = action + multiplier * directions
+        action[..., 6] = action[..., 6].clamp(0., 1.)
+    return action
+
+
+def _coverage_rejection_reasons(metadata):
+    reasons = []
+    coverage = metadata.get("directions_cover")
+    if (not isinstance(coverage, list) or len(coverage) != len(CONTINUOUS_INDICES)
+            or any(type(index) is not int for index in coverage)
+            or set(coverage) != set(CONTINUOUS_INDICES)):
+        reasons.append("incomplete_continuous_action_coverage")
+    if metadata.get("gripper_perturbed") is not True:
+        reasons.append("continuous_gripper_not_probed")
+    if metadata.get("action_semantics") != ACTION_SEMANTICS:
+        reasons.append("gripper_action_semantics_mismatch")
+    return reasons
 
 
 class IsaacGymProbeSession:
@@ -217,12 +248,9 @@ def run_action_effect_probe(session_factory, model_factory, prefix_actions,
         raise ValueError("Base actions and directions must both have shape [batch, 9]")
     if prefix_actions.ndim != 3 or prefix_actions.shape[1:] != base_actions.shape:
         raise ValueError("Prefix actions must have shape [length, batch, 9]")
-    if bool((directions[:, 6] != 0).any()):
-        raise ValueError("Action-effect probes cannot perturb the binary gripper coordinate")
     if not bool(torch.isfinite(base_actions).all() & torch.isfinite(directions).all() & torch.isfinite(prefix_actions).all()):
         raise ValueError("Probe actions must be finite")
     base_actions, directions = base_actions.detach(), directions.detach()
-    active_directions = [index for index in CONTINUOUS_INDICES if bool((directions[:, index] != 0).any())]
     batch = base_actions.shape[0]
     branches = {}
     reference_hash, simulator = None, None
@@ -240,7 +268,7 @@ def run_action_effect_probe(session_factory, model_factory, prefix_actions,
                 prefix_alive = torch.ones(batch, device=base_actions.device, dtype=torch.bool)
                 prefix_durations = []
                 for action in prefix_actions:
-                    transition = session.step(action)
+                    transition = session.step(bounded_probe_action(action))
                     prefix_alive &= ~transition.terminated
                     prefix_durations.append(transition.dt)
                 state, context = session.capture()
@@ -248,7 +276,7 @@ def run_action_effect_probe(session_factory, model_factory, prefix_actions,
                     raise ValueError("Probe state, actions, context and model must use the same device")
                 if state.shape[0] != batch:
                     raise ValueError("Probe factory batch size differs from the provided actions")
-                action = base_actions + multiplier * directions
+                action = bounded_probe_action(base_actions, directions, multiplier)
                 normalize_context = getattr(session.adapter, "normalize_context", None)
                 physical_context = normalize_context(context) if normalize_context is not None else context
                 # Build/evaluate the learned model after the real transition:
@@ -270,6 +298,7 @@ def run_action_effect_probe(session_factory, model_factory, prefix_actions,
                     "physical_context": physical_context.detach().clone(),
                     "reward": transition.reward.detach().clone(), "dt": transition.dt.detach().clone(),
                     "model_reward": predicted_reward.detach().clone(), "alive": prefix_alive.clone(),
+                    "actions": executed_action.detach().clone(),
                     "prefix_dt": (torch.stack(prefix_durations) if prefix_durations else
                                   torch.empty(0, batch, 1, device=base_actions.device)),
                 }
@@ -278,14 +307,14 @@ def run_action_effect_probe(session_factory, model_factory, prefix_actions,
                 session.close()
     return summarize_replayed_branches(branches, reference_hash, configuration, cfg,
         metadata={"simulator": simulator, "device": str(base_actions.device), "seed": int(seed),
-                  "prefix_length": len(prefix_actions), "protocol": "independent_simulator_prefix_replay",
-                  "directions_cover": active_directions, "gripper_perturbed": False})
+                  "prefix_length": len(prefix_actions), "protocol": "independent_simulator_prefix_replay"})
 
 
 @torch.no_grad()
 def summarize_replayed_branches(branches, model_sha256, configuration, config=None, metadata=None):
     """Aggregate either in-process isolated sessions or separately launched workers."""
     cfg = config or ActionEffectProbeConfig()
+    metadata = dict(metadata or {})
     baseline = branches["base"]
     batch = len(baseline["reward"])
     start_error = torch.zeros(batch, device=baseline["reward"].device)
@@ -303,6 +332,20 @@ def summarize_replayed_branches(branches, model_sha256, configuration, config=No
         if "families" in baseline:
             if "families" not in branch or not torch.equal(baseline["families"], branch["families"]):
                 raise ValueError("Reset-family assignments changed between probe branches")
+    # Coverage comes from actions actually executed after clipping, never
+    # merely from the nominal perturbation or a hardcoded coordinate list.
+    if all("actions" in branches[name] for name in ("base", "plus", "minus", "repeat")):
+        for branch in branches.values():
+            action = branch["actions"]
+            if action.shape != (batch, 9) or not bool(torch.isfinite(action).all()):
+                raise ValueError("Probe executed actions must be finite with shape [batch, 9]")
+            if bool(((action[:, 6] < 0) | (action[:, 6] > 1)).any()):
+                raise ValueError("Probe executed gripper opening must be in [0, 1]")
+        effect = (branches["plus"]["actions"] - branches["minus"]["actions"]).abs().amax(0)
+        covered = [index for index in CONTINUOUS_INDICES if float(effect[index]) > 0.]
+        metadata.update(directions_cover=covered, gripper_perturbed=6 in covered,
+                        action_semantics=ACTION_SEMANTICS,
+                        executed_action_delta_abs_max=effect.cpu().tolist())
     return analyze_action_effects(
         branches["plus"]["reward"], branches["minus"]["reward"], baseline["reward"], branches["repeat"]["reward"],
         branches["plus"]["model_reward"], branches["minus"]["model_reward"], start_error, context_error, dt_error, alive,
@@ -344,7 +387,7 @@ def analyze_action_effects(real_plus, real_minus, real_base, real_repeat, predic
     else:
         agreement = correlation = mean_gain = 0.
         lcb = float("-inf")
-    reasons = []
+    reasons = _coverage_rejection_reasons(metadata or {})
     if valid_count < cfg.min_pairs:
         reasons.append("insufficient_reproducible_pairs")
     if count < cfg.min_informative_pairs:
@@ -404,6 +447,7 @@ def analyze_action_effects(real_plus, real_minus, real_base, real_repeat, predic
                     "rejected_terminal_prefix": int((~prefix_alive.bool()).sum())},
         "scope": "finite_one_step_reward_effects_on_replayed_real_states",
         "limitations": ["Does not validate long-term success gains", "Does not validate Critic input gradients",
+                        "Mixed-direction coverage does not isolate each coordinate's reward contribution",
                         "Does not establish a classical derivative at contact transitions",
                         "Reset families label initial-state categories, not measured contact modes",
                         "Valid only for the exact model snapshot and recorded task contract"],
@@ -454,6 +498,7 @@ def load_verified_report(path, model_sha256, configuration, max_age_seconds=None
         reasons.append("wrong_validation_simulator")
     if report.get("metadata", {}).get("protocol") != "independent_simulator_prefix_replay":
         reasons.append("unsupported_validation_protocol")
+    reasons.extend(_coverage_rejection_reasons(report.get("metadata", {})))
     current_time = time.time() if now is None else float(now)
     age = current_time-float(report.get("created_unix", 0))
     if age < -60 or (max_age_seconds is not None and age > max_age_seconds):

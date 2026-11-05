@@ -59,7 +59,7 @@ def make_env(device="cpu", n=6, velocity_obs=False, count=5):
         num_velocity_obs=5 if velocity_obs else 0, num_future_pose_obs=13,
         pose_prediction_horizons=(.6,.9), obj_list=["sugar_box"], rand_cmd_scale=False,
         global_step_counter=100, train_reward_strict=50, control_freq_low_init=8, rand_control=True)
-    env.cfg = {"env": {"smallValueSetZero": True, "posePrediction": {"qScale":1., "rScale":.01}},
+    env.cfg = {"env": {"gripperActionMode": "continuous_opening_v1", "smallValueSetZero": True, "posePrediction": {"qScale":1., "rScale":.01}},
                "reward": {"base_height_target":.55, "only_positive_rewards": False}}
     env.reward_scales = {"approaching":.5, "lifting":.8, "pick_up":50., "acc_penalty":-.001,
                         "command_reward":.05, "action_rate":-.001, "ee_orn":.01, "base_dir":.05,
@@ -94,7 +94,7 @@ def make_env(device="cpu", n=6, velocity_obs=False, count=5):
     env.curr_ee_goal_orn_rpy = zero(n,3)
     env.commands = zero(n,3)
     env.action_history_buf = zero(n,3,9)
-    env.action_history_buf[:, -1, 6] = -1.
+    env.action_history_buf[:, -1, 6] = 0.
     env.closest_dist, env.highest_object = torch.full((n,),.06,device=device), zero(n)
     env.pick_counter, env.best_pick_counter = zero(n), zero(n)
     env.pick_success_recorded = torch.zeros(n, device=device, dtype=torch.bool)
@@ -304,9 +304,12 @@ class AdapterTests(unittest.TestCase):
             physical = adapter.dynamics_action(state,action)
             physical.sum().backward()
             self.assertTrue(torch.isfinite(action.grad).all().item())
-            self.assertEqual(action.grad.abs().sum().item(),0.)
+            # Arm/base are saturated, but opening remains a physical continuous input.
+            expected_grad = torch.zeros_like(action)
+            expected_grad[:, 6] = 1.
+            torch.testing.assert_close(action.grad, expected_grad)
             torch.testing.assert_close(physical[:,:3],torch.full((3,3),.02,device=device),atol=1e-7,rtol=0.)
-            self.assertEqual(physical[:,6].tolist(),[1.,1.,1.])
+            torch.testing.assert_close(physical[:,6], action[:,6])
 
     def test_dynamics_inputs_exclude_nonphysical_high_level_history(self):
         for device in self.devices():

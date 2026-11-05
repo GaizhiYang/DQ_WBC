@@ -74,9 +74,9 @@ class TeacherSuccessAuditTests(unittest.TestCase):
         torch.testing.assert_close(env._cube_root_states, current_pose)
         torch.testing.assert_close(env.object_pose_predictor.future_poses, predicted)
 
-    def test_final_hold_requires_a_negative_close_command(self):
+    def test_final_hold_requires_a_closing_side_opening(self):
         env = make_environment([.21, .21, .21])
-        env.actions[:, 6] = torch.tensor([-1., 0., 1.])
+        env.actions[:, 6] = torch.tensor([0., .5, 1.])
         env.pick_counter.fill_(env.hold_steps - 1)
         env.check_termination()
         reward, _ = env._reward_pick_up()

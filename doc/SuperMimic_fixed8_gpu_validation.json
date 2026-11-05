@@ -1,0 +1,216 @@
+{
+  "diagnostic_only": true,
+  "production_gate_activated": false,
+  "model_prediction_quality_certified": false,
+  "training_success_claimed": false,
+  "device": "cuda:1",
+  "num_envs": 12,
+  "passed": true,
+  "contract": {
+    "state_dim_including_memory": 922,
+    "predicted_physical_dim": 64,
+    "residual_dim": 62,
+    "dynamics_context_feature_dim": 60,
+    "low_dt_seconds": 0.019999999552965164,
+    "high_dt_seconds": 0.16,
+    "low_steps_per_high": 8,
+    "schema": "dq-sgs-ekf-fixed8-physical64-v4",
+    "root_body_com": [
+      0.30000001192092896,
+      0.0,
+      0.11550001055002213
+    ]
+  },
+  "real_collection": {
+    "high_vector_steps": 12,
+    "low_vector_steps": 96,
+    "observed_low_policy_calls": 96,
+    "records": [
+      {
+        "microsteps": 8,
+        "high_dt": 0.1599999964237213,
+        "micro_dt": 0.019999999552965164
+      },
+      {
+        "microsteps": 8,
+        "high_dt": 0.1599999964237213,
+        "micro_dt": 0.019999999552965164
+      },
+      {
+        "microsteps": 8,
+        "high_dt": 0.1599999964237213,
+        "micro_dt": 0.019999999552965164
+      },
+      {
+        "microsteps": 8,
+        "high_dt": 0.1599999964237213,
+        "micro_dt": 0.019999999552965164
+      },
+      {
+        "microsteps": 8,
+        "high_dt": 0.1599999964237213,
+        "micro_dt": 0.019999999552965164
+      },
+      {
+        "microsteps": 8,
+        "high_dt": 0.1599999964237213,
+        "micro_dt": 0.019999999552965164
+      },
+      {
+        "microsteps": 8,
+        "high_dt": 0.1599999964237213,
+        "micro_dt": 0.019999999552965164
+      },
+      {
+        "microsteps": 8,
+        "high_dt": 0.1599999964237213,
+        "micro_dt": 0.019999999552965164
+      },
+      {
+        "microsteps": 8,
+        "high_dt": 0.1599999964237213,
+        "micro_dt": 0.019999999552965164
+      },
+      {
+        "microsteps": 8,
+        "high_dt": 0.1599999964237213,
+        "micro_dt": 0.019999999552965164
+      },
+      {
+        "microsteps": 8,
+        "high_dt": 0.1599999964237213,
+        "micro_dt": 0.019999999552965164
+      },
+      {
+        "microsteps": 8,
+        "high_dt": 0.1599999964237213,
+        "micro_dt": 0.019999999552965164
+      }
+    ]
+  },
+  "observation_and_fk_max_abs_errors": {
+    "high_observation": 0.0001865476369857788,
+    "low_observation": 5.960464477539062e-07,
+    "low_history": 5.960464477539062e-07,
+    "gait": 0.0,
+    "clock": 0.0,
+    "ee_pos": 4.6193599700927734e-06,
+    "ee_quat": 6.854534149169922e-07,
+    "ee_vel": 2.130866050720215e-06,
+    "ee_omega": 4.76837158203125e-06,
+    "collector_low_observation": 5.960464477539062e-07,
+    "executed_low_action": 1.430511474609375e-06,
+    "high_target_cache": 2.384185791015625e-07
+  },
+  "nominal_table_approximation": {
+    "diagnostic_only": true,
+    "learned_table_outputs": 0,
+    "future_real_table_used_as_input": false,
+    "position_l2_max_m": 0.00024705438409000635,
+    "linear_velocity_l2_max_m_per_s": 0.049097537994384766,
+    "orientation_quat_max_abs_sign_invariant": 9.724125266075134e-05
+  },
+  "supervised_fit": {
+    "metrics": [
+      {
+        "state_loss": 0.5174618363380432,
+        "termination_bce": 0.0,
+        "auxiliary_loss": 0.6680262088775635,
+        "nse_1step": 0.07000242173671722,
+        "nse_kstep": 1.1348543167114258,
+        "loss": 1.2538540363311768,
+        "contact_bce": 0.6836601495742798,
+        "contact_accuracy": 0.52099609375,
+        "grad_norm": 3.6246142387390137,
+        "updates": 2.0,
+        "skipped_nonfinite": 0.0,
+        "validation_available": 0.0
+      },
+      {
+        "state_loss": 0.5112574100494385,
+        "termination_bce": 0.0,
+        "auxiliary_loss": 0.6872791647911072,
+        "nse_1step": 0.054658953100442886,
+        "nse_kstep": 1.1202521324157715,
+        "loss": 1.2657734155654907,
+        "contact_bce": 0.6723688244819641,
+        "contact_accuracy": 0.58642578125,
+        "grad_norm": 2.9490952491760254,
+        "updates": 4.0,
+        "skipped_nonfinite": 0.0,
+        "validation_available": 0.0
+      },
+      {
+        "state_loss": 0.5549283623695374,
+        "termination_bce": 0.0,
+        "auxiliary_loss": 0.5448154211044312,
+        "nse_1step": 0.09205009788274765,
+        "nse_kstep": 1.200901746749878,
+        "loss": 1.1664905548095703,
+        "contact_bce": 0.6674686670303345,
+        "contact_accuracy": 0.642578125,
+        "grad_norm": 2.2140936851501465,
+        "updates": 6.0,
+        "skipped_nonfinite": 0.0,
+        "validation_available": 0.0
+      },
+      {
+        "state_loss": 0.5174756050109863,
+        "termination_bce": 0.0,
+        "auxiliary_loss": 0.5976812243461609,
+        "nse_1step": 0.06942123174667358,
+        "nse_kstep": 1.1339116096496582,
+        "loss": 1.1808485984802246,
+        "contact_bce": 0.6569167971611023,
+        "contact_accuracy": 0.72021484375,
+        "grad_norm": 2.6656253337860107,
+        "updates": 8.0,
+        "skipped_nonfinite": 0.0,
+        "validation_available": 0.0
+      }
+    ],
+    "model_changed": true,
+    "actor_unchanged": true,
+    "low_policy_unchanged": true
+  },
+  "imagined_bptt": {
+    "high_decisions": 4,
+    "model_steps": 32,
+    "imagined_seconds": 0.64,
+    "metrics": {
+      "accepted": 1.0,
+      "rollback": 0.0,
+      "skipped": 0.0,
+      "kl": 0.0,
+      "objective": -0.004624076187610626,
+      "actor_grad_norm": 0.0053666033782064915,
+      "reward_mean": -0.0041557252407073975,
+      "survival_H": 0.9166666865348816,
+      "tail_value": 0.014298589900135994,
+      "timeout_fraction": 0.0,
+      "trust_mean": 1.0,
+      "dt_mean": 0.1599999964237213,
+      "horizon_seconds_mean": 0.6399999856948853,
+      "effective_lr": 5.000000000000001e-07
+    },
+    "actor_changed": true,
+    "actor_gradients_finite_on_cuda": true,
+    "gripper_physical_gradient_abs_max": 0.02360602654516697,
+    "frozen_low_policy_joint_input_gradient_abs_max": 18.106754302978516,
+    "low_policy_unchanged": true,
+    "world_model_critic_scalers_unchanged": true,
+    "log_std_unchanged": true,
+    "log_std_gradient_none": true,
+    "real_policy_still_stochastic": true
+  },
+  "cuda_residency": {
+    "actor": true,
+    "critic": true,
+    "model": true,
+    "low_policy": true,
+    "fk": true,
+    "high_replay": true,
+    "low_replay": true
+  },
+  "max_torch_cuda_memory_mib": 139.46728515625
+}

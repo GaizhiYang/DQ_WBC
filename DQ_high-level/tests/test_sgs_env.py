@@ -373,7 +373,8 @@ class TestEnvironment(ProductionEnvironment):
         self.pred_success = False
         self.near_goal_stop = False
         self.obj_move_prob = 0.0
-        self.cfg = {"env": {"cameraVisibilityReset": False}}
+        self.cfg = {"env": {"cameraVisibilityReset": False, "gripperActionMode": "continuous_opening_v1"}}
+        self.continuous_gripper = True
         self._root_states = torch.zeros(num_envs * 3, 13)
         roots = self._root_states.view(num_envs, 3, 13)
         roots[..., 6] = 1
@@ -451,7 +452,7 @@ class TestEnvironment(ProductionEnvironment):
     def grasp_step(self, lifted=True):
         """Run real terminal predicates on a closed grasp with tracked IK."""
         lifted = torch.as_tensor(lifted, dtype=torch.bool).expand(self.num_envs)
-        self.actions[:, 6] = -1
+        self.actions[:, 6] = 0
         self._cube_root_states[:, 2] = (
             self.table_heights + self.init_height + torch.where(lifted, .21, .05))
         self._rigid_body_state[:, 1, :3] = self._cube_root_states[:, :3]
@@ -775,7 +776,7 @@ class SGSEnvironmentTests(unittest.TestCase):
         # Both objects are high enough and close to the gripper. Env 0 has an
         # IK failure coincident with timeout; Env 1 has only a timeout.
         env._cube_root_states[:, 2] = 0.9
-        env.actions[:, 6] = -1
+        env.actions[:, 6] = 0
         env._rigid_body_state[:, 1, :3] = env._cube_root_states[:, :3]
         env.update_roboinfo()
         local = quat_rotate_inverse(

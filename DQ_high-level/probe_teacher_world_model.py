@@ -71,6 +71,7 @@ def _new_session(cli, bundle, torch):
     import train_multistate_DQ_teacher as teacher
     from utils.config import get_parser
     from utils.wm_env import TeacherWorldModelAdapter
+    from utils.wm_fixed8 import Fixed8TeacherWorldModelAdapter
     from utils.world_model.probes import (IsaacGymProbeSession, configuration_fingerprint,
                                          balanced_family_config_ids)
 
@@ -98,6 +99,7 @@ def _new_session(cli, bundle, torch):
     cfg["env"]["wandb"] = False
     cfg["env"].setdefault("tsil", {})["enabled"] = False
     cfg["env"].setdefault("world_model", {})["mode"] = "off"
+    cfg["env"]["world_model"]["fixed8"] = bool(bundle.get("config", {}).get("fixed8", False))
     # Keep reward/curriculum time aligned with the exported training policy.
     cfg["env"]["globalStepCounter"] = int(bundle.get("global_step", bundle.get("collected_steps", 0)))
     cfg_path = Path(cli.workdir)/(cli.worker+"_teacher.yaml")
@@ -110,7 +112,10 @@ def _new_session(cli, bundle, torch):
         # B1Z1PickMulti separately reads --timesteps during construction.
         # Do not leak the probe CLI into that legacy parser.
         sys.argv = [str(ROOT/"train_multistate_DQ_teacher.py"), "--timesteps", str(args.timesteps)]
-        trainer = teacher.get_trainer(is_eval=False)
+        # Keep training physics/rewards while suppressing all agent loggers.
+        # Disabling W&B alone still creates a SummaryWriter, whose nested
+        # event file can divert the parent run's TensorBoard synchronization.
+        trainer = teacher.get_trainer(is_eval=False, enable_logging=False)
     finally:
         teacher.get_params = original_get_params
         sys.argv = original_argv
@@ -123,7 +128,9 @@ def _new_session(cli, bundle, torch):
         if weights.get(name) is not None:
             getattr(agent, attribute).load_state_dict(weights[name])
     agent.set_running_mode("eval")
-    adapter = TeacherWorldModelAdapter(trainer.env._env)
+    adapter_class = (Fixed8TeacherWorldModelAdapter if bundle.get("config", {}).get("fixed8", False)
+                     else TeacherWorldModelAdapter)
+    adapter = adapter_class(trainer.env._env)
     if hasattr(adapter, "metadata"):
         actual_metadata = adapter.metadata()
         if configuration_fingerprint(actual_metadata) != configuration_fingerprint(bundle["metadata"]):
@@ -156,8 +163,9 @@ def _worker(cli):
     # Import order is required by the installed Isaac Gym extension.
     from isaacgym import gymapi  # noqa: F401
     import torch
-    from utils.world_model import ResidualDynamics
-    from utils.world_model.probes import model_fingerprint, random_continuous_directions, seed_probe
+    from utils.world_model import HierarchicalDynamics, ResidualDynamics
+    from utils.world_model.probes import (bounded_probe_action, model_fingerprint,
+                                         random_continuous_directions, seed_probe)
 
     if not cli.device.startswith("cuda") or not torch.cuda.is_available():
         raise RuntimeError("Real teacher probes require CUDA simulation and CUDA model execution")
@@ -175,14 +183,15 @@ def _worker(cli):
                     raw_obs = session.env.obs_buf.clamp(-session.env.clip_obs, session.env.clip_obs)
                     obs = session.trainer.agents._state_preprocessor(raw_obs, train=False)
                     action, _, _ = session.trainer.agents.policy.compute({"states": obs}, role="policy")
+                    action = session.trainer.agents.policy.mean_to_action(action)
                     prefix.append(action.detach().clone())
                     session.step(action)
                 raw_obs = session.env.obs_buf.clamp(-session.env.clip_obs, session.env.clip_obs)
                 obs = session.trainer.agents._state_preprocessor(raw_obs, train=False)
                 base, _, _ = session.trainer.agents.policy.compute({"states": obs}, role="policy")
-                # Freeze the real sampled mode and its magnitude across both
-                # perturbations. No gripper coordinate is differentiated here.
-                base = base.detach().clone()
+                # compute returns a latent Gaussian mean; the environment
+                # consumes sigmoid-transformed continuous gripper opening.
+                base = session.trainer.agents.policy.mean_to_action(base).detach().clone()
                 generator = torch.Generator(device=cli.device).manual_seed(cli.seed+1943)
                 directions = random_continuous_directions(base, generator=generator)
                 state, context = session.capture()
@@ -197,19 +206,26 @@ def _worker(cli):
             alive = torch.ones(cli.num_envs, device=cli.device, dtype=torch.bool)
             prefix_dt = []
             for action in plan["prefix"]:
-                transition = session.step(action)
+                transition = session.step(bounded_probe_action(action))
                 alive &= ~transition.terminated
                 prefix_dt.append(transition.dt)
             state, context = session.capture()
             multiplier = {"base": 0., "plus": 1., "minus": -1., "repeat": 0.}[cli.worker]
-            action = plan["base"] + multiplier*plan["directions"]
+            action = bounded_probe_action(plan["base"], plan["directions"], multiplier)
             physical_context = session.adapter.normalize_context(context)
             transition = session.step(action)
             action = transition.executed_action
             config = bundle["config"]
-            model = ResidualDynamics(session.adapter, hidden=tuple(config.get("hidden", (512, 512, 512))),
-                                     term_hidden=tuple(config.get("term_hidden", (64, 64))),
-                                     nominal_dt=float(config.get("nominal_dt", .15)), device=cli.device)
+            if config.get("fixed8", False):
+                model = HierarchicalDynamics(
+                    session.adapter, hidden=tuple(config.get("hidden", (512, 512, 512))),
+                    contact_hidden=tuple(config.get("contact_hidden", (128, 128))),
+                    nominal_dt=.16, device=cli.device)
+            else:
+                model = ResidualDynamics(
+                    session.adapter, hidden=tuple(config.get("hidden", (512, 512, 512))),
+                    term_hidden=tuple(config.get("term_hidden", (64, 64))),
+                    nominal_dt=float(config.get("nominal_dt", .15)), device=cli.device)
             model.load_state_dict(bundle["model"])
             model.eval()
             predicted = model.step(state, action, context, transition.dt)
@@ -240,7 +256,7 @@ def _run(cli):
     # Parent never creates a simulator. Independent processes also isolate
     # PhysX lifetime, CUDA extension global state, loggers and SGS statistics.
     import torch
-    from utils.world_model.probes import (ActionEffectProbeConfig, CONTINUOUS_INDICES,
+    from utils.world_model.probes import (ActionEffectProbeConfig,
         configuration_fingerprint, summarize_replayed_branches, write_report)
 
     bundle = _load_bundle(torch, cli.checkpoint)
@@ -249,7 +265,9 @@ def _run(cli):
     directory.mkdir(parents=True, exist_ok=True)
     start = time.time()
     for worker in ("plan", "base", "plus", "minus", "repeat"):
-        command = [sys.executable, str(Path(__file__).resolve()), "--checkpoint", cli.checkpoint,
+        # ROOT was resolved before main() changes cwd. Python 3.8 may retain a
+        # relative __file__, whose later resolve() would duplicate DQ_high-level.
+        command = [sys.executable, str(ROOT / "probe_teacher_world_model.py"), "--checkpoint", cli.checkpoint,
                    "--output", cli.output, "--num_envs", str(cli.num_envs),
                    "--prefix_steps", str(cli.prefix_steps), "--seed", str(cli.seed),
                    "--device", cli.device, "--workdir", cli.workdir, "--worker", worker,
@@ -285,8 +303,7 @@ def _run(cli):
     report = summarize_replayed_branches(branches, next(iter(hashes)), bundle["metadata"], config,
         metadata={"simulator": "IsaacGym", "device": cli.device, "seed": cli.seed,
                   "prefix_length": cli.prefix_steps, "protocol": "independent_simulator_prefix_replay",
-                  "process_isolation": True, "directions_cover": list(CONTINUOUS_INDICES),
-                  "gripper_perturbed": False, "candidate": cli.checkpoint,
+                  "process_isolation": True, "candidate": cli.checkpoint,
                   "candidate_bundle_sha256": bundle_hash,
                   "family_names": family_names, "family_sampling": cli.family_sampling,
                   "sgs_bank_fingerprint": bank_fingerprint,

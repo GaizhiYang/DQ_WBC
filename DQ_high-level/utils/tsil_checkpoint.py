@@ -70,6 +70,8 @@ def read_temporal_checkpoint(path):
     """Read a local trusted checkpoint before constructing observation spaces."""
     import torch
     payload = torch.load(path, map_location="cpu", weights_only=False)
+    from utils.wm_entry import reject_candidate_checkpoint
+    reject_candidate_checkpoint(payload=payload)
     if not isinstance(payload, dict):
         raise ValueError("Teacher checkpoint must contain named model states")
     temporal = "tsil_state" in payload or "tsil_metadata" in payload

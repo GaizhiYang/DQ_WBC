@@ -1,0 +1,122 @@
+{
+  "date": "2026-11-05",
+  "purpose": "fixed8 implementation verification; not training-performance certification",
+  "regression": {
+    "tests_run": 574,
+    "passed": 572,
+    "failed": 0,
+    "skipped": 2,
+    "skip_reason": "Two optional local Paparazzo benchmark tests: dataset not installed",
+    "isaacgym_imported_before_torch": true
+  },
+  "launcher_smoke": {
+    "entry": "DQ_high-level/train_teacher_sgs_ekf_world_model.sh",
+    "device": "cuda:1",
+    "num_envs": 12,
+    "high_vector_steps": 48,
+    "low_vector_steps": 384,
+    "ppo_updates": 2,
+    "candidate_optimizer_updates": 4,
+    "process_exit_code": 0,
+    "status": {
+      "status": "fit_only",
+      "device": "cuda:1",
+      "state_dim": 922,
+      "replay_steps": 48,
+      "model_updates": 4,
+      "validated_snapshot": false,
+      "nonfinite_metrics": [],
+      "metrics": {
+        "candidate/state_loss": 0.5711198449134827,
+        "candidate/termination_bce": 0.0,
+        "candidate/auxiliary_loss": 1.8523554801940918,
+        "candidate/nse_1step": 0.10113213211297989,
+        "candidate/nse_kstep": 1.2187970876693726,
+        "candidate/loss": 2.490849733352661,
+        "candidate/contact_bce": 0.6737430095672607,
+        "candidate/contact_accuracy": 0.60009765625,
+        "candidate/grad_norm": 8.958698272705078,
+        "candidate/updates": 4.0,
+        "candidate/skipped_nonfinite": 0.0,
+        "candidate/validation_state_loss": 0.5539501309394836,
+        "candidate/validation_termination_bce": 0.0,
+        "candidate/validation_auxiliary_loss": 0.2847909927368164,
+        "candidate/validation_nse_1step": 0.05141812562942505,
+        "candidate/validation_nse_kstep": 1.2476248741149902,
+        "candidate/validation_loss": 0.9061905741691589,
+        "candidate/validation_contact_bce": 0.6744943261146545,
+        "candidate/validation_contact_accuracy": 0.57373046875,
+        "candidate/validation_available": 1.0,
+        "replay_steps": 48.0,
+        "replay_memory_mib": 44.3851318359375,
+        "on_gpu": 1.0,
+        "low_replay_steps": 384.0,
+        "waiting_for_probe": 0.0,
+        "validated_snapshot_available": 0.0
+      }
+    }
+  },
+  "isolated_action_probe": {
+    "process_exit_code": 0,
+    "workers": [
+      "plan",
+      "base",
+      "plus",
+      "minus",
+      "repeat"
+    ],
+    "num_envs": 12,
+    "prefix_high_steps": 1,
+    "passed": false,
+    "reasons": [
+      "insufficient_reproducible_pairs",
+      "insufficient_nonzero_action_effects",
+      "action_effect_sign_agreement",
+      "action_effect_correlation",
+      "no_positive_real_gain_lower_bound"
+    ],
+    "metrics": {
+      "pairs": 12,
+      "valid_pairs": 12,
+      "informative_pairs": 9,
+      "sign_agreement": 0.6666666865348816,
+      "correlation": -0.31129637360572815,
+      "selected_gain_mean": -1.0059535270556808e-05,
+      "selected_gain_lcb95": -3.501962797599844e-05,
+      "real_base_reward_mean": 0.01229368057101965,
+      "real_plus_reward_mean": 0.012296049855649471,
+      "real_minus_reward_mean": 0.012292838655412197,
+      "model_plus_reward_mean": 0.011242094449698925,
+      "model_minus_reward_mean": 0.011233946308493614,
+      "real_action_effect_abs_mean": 4.274642560631037e-05,
+      "model_action_effect_abs_mean": 1.5616786186001264e-05,
+      "start_error_max": 0.0,
+      "context_error_max": 0.0,
+      "duration_error_max": 0.0,
+      "repeat_reward_error_max": 0.0,
+      "reset_families": {
+        "full_task": {
+          "assigned_pairs": 4,
+          "valid_pairs": 4,
+          "informative_pairs": 3
+        },
+        "pregrasp": {
+          "assigned_pairs": 4,
+          "valid_pairs": 4,
+          "informative_pairs": 4
+        },
+        "near_goal": {
+          "assigned_pairs": 4,
+          "valid_pairs": 4,
+          "informative_pairs": 2
+        }
+      },
+      "rejected_start_or_context": 0,
+      "rejected_duration": 0,
+      "rejected_repeatability": 0,
+      "rejected_terminal_prefix": 0
+    },
+    "production_bptt_activated": false
+  },
+  "cuda_mechanism_report": "SuperMimic_fixed8_gpu_validation.json"
+}

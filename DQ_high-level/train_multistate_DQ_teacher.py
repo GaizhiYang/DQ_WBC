@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 from termcolor import cprint
 import torch.nn as nn
-from skrl.models.torch import Model, GaussianMixin, DeterministicMixin
+from skrl.models.torch import Model, DeterministicMixin
 from skrl.memories.torch import RandomMemory
 from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
 from skrl.resources.preprocessors.torch import RunningStandardScaler
@@ -29,6 +29,8 @@ from legged_gym.envs.manip_loco.b1z1_config import B1Z1RoughCfg
 from modules.predictattention import PredictAttentionSelector
 from utils.tsil_checkpoint import (TemporalCheckpointMetadata, read_temporal_checkpoint,
                                    restore_temporal_arguments)
+from utils.gripper_policy import ContinuousGripperGaussianMixin
+from utils.gripper_control import GRIPPER_ACTION_MODE
 
 
 def checkpoint_step(path, required=False):
@@ -77,6 +79,7 @@ def teacher_config_path(args, is_eval=False, strict_eval=False):
 
 def create_env(cfg, args, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor ):
     apply_pose_prediction_config(cfg, args)
+    cfg["env"]["gripperActionMode"] = GRIPPER_ACTION_MODE
     cfg_terrain = B1Z1RoughCfg()
 
     cfg["env"]["enableDebugVis"] = args.debugvis
@@ -104,14 +107,16 @@ def create_env(cfg, args, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor ):
     return wrapped_env
 
 # define models (stochastic and deterministic models) using mixins
-class Policy(GaussianMixin, Model, PredictAttentionSelector):
+class Policy(ContinuousGripperGaussianMixin, Model, PredictAttentionSelector):
     def __init__(self, observation_space, action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor,
                   use_tanh=False, clip_actions=False,
                  clip_log_std=True, min_log_std=-20, max_log_std=2, reduction="sum", deterministic=False):
         Model.__init__(self, observation_space, action_space, device)
-        transform_func = torch.distributions.transforms.TanhTransform() if use_tanh else None
-        GaussianMixin.__init__(self, clip_actions, clip_log_std, min_log_std, max_log_std, reduction, transform_func=transform_func, deterministic=deterministic)
+        # The selector initializes nn.Module again. Construct it before the
+        # policy mixin registers checkpoint/entropy buffers, or they are lost.
         PredictAttentionSelector.__init__(self, d_model=64)
+        transform_func = torch.distributions.transforms.TanhTransform() if use_tanh else None
+        ContinuousGripperGaussianMixin.__init__(self, clip_actions, clip_log_std, min_log_std, max_log_std, reduction, transform_func=transform_func, deterministic=deterministic)
 
         self.to(device)
         self.num_features = num_features # 1024
@@ -270,7 +275,13 @@ def get_predict_point(camera_6p_info=None, cube_predict_info_path=None, cube_roo
     cube_init_tensor = torch.stack([torch.stack(cube_init, dim=0) for cube_init in cube_init_list], dim=0)  # [num_env, n, 6]
     return camera_tensor, grasp_cv_tensor, cube_init_tensor
 
-def get_trainer(is_eval=False, strict_eval=False):
+def get_trainer(is_eval=False, strict_eval=False, *, enable_logging=True):
+    """Build the teacher; probes can disable logging without changing task mode.
+
+    A probe may live inside a training run's directory. It must not create
+    TensorBoard event files there: W&B can treat them as a continuation of
+    the main event stream and stop following the still-active training file.
+    """
     args = get_params()
     args.eval = is_eval
     if strict_eval:
@@ -283,7 +294,7 @@ def get_trainer(is_eval=False, strict_eval=False):
         if temporal_metadata is not None:
             restore_temporal_arguments(args, temporal_metadata)
     set_seed(args.seed)
-    args.wandb = args.wandb and (not args.eval) and (not args.debug)
+    args.wandb = args.wandb and (not args.eval) and (not args.debug) and enable_logging
     if not is_eval and args.sgs_mode in ("uniform", "sgs") and (args.resume or args.checkpoint):
         raise ValueError("SGS/uniform-bank training starts from scratch; sampler resume is not implemented")
     embedded_config = temporal_metadata is not None and args.cfg_file is None
@@ -403,13 +414,30 @@ def get_trainer(is_eval=False, strict_eval=False):
     cfg_ppo["state_preprocessor_kwargs"] = {"size": env.observation_space, "device": device}
     cfg_ppo["value_preprocessor"] = RunningStandardScaler
     cfg_ppo["value_preprocessor_kwargs"] = {"size": 1, "device": device}
+    wm_settings = cfg["env"]["world_model"]
+    if wm_settings.get("fixed_preprocessing", False):
+        from utils.world_model.policy_inputs import (FixedScale, HighLevelObservationNoise,
+                                                      teacher_observation_vectors)
+        scale, noise = teacher_observation_vectors(
+            feature_dim=num_features, ndof=env._env._dof_pos.shape[-1],
+            horizon_count=len(env._env.pose_prediction_horizons) if env._env.num_future_pose_obs else 0,
+            candidates=env._env.T_grasp_in_obj.shape[1],
+            velocity_obs=bool(env._env.num_velocity_obs), device=device)
+        cfg_ppo["state_preprocessor"] = FixedScale
+        cfg_ppo["state_preprocessor_kwargs"] = {"size": env.observation_space, "device": device, "scale": scale}
+        # Both critics now use the task's original reward units.
+        cfg_ppo["value_preprocessor"] = None
+        cfg_ppo["value_preprocessor_kwargs"] = {}
+        env._env.world_model_observation_noise = HighLevelObservationNoise(
+            size=env.observation_space, device=device, noise_half_width=noise,
+            noise_scale=wm_settings.get("observation_noise_scale", 0.)).train(not is_eval)
     cfg_ppo["tsil"] = deepcopy(cfg["env"]["tsil"])
     # Log to TensorBoard/W&B every 10 PPO iterations (one rollout per iteration).
     cfg_ppo["experiment"]["write_interval"] = 10 * cfg_ppo["rollouts"]
     cfg_ppo["experiment"]["steps_per_iteration"] = cfg_ppo["rollouts"]
     env._env.sgs_log_interval = cfg_ppo["experiment"]["write_interval"]
     cfg_ppo["experiment"]["checkpoint_interval"] = 5000 ## my change
-    if is_eval:
+    if is_eval or not enable_logging:
         cfg_ppo["experiment"]["write_interval"] = 0
         cfg_ppo["experiment"]["checkpoint_interval"] = 0
     cfg_ppo["experiment"]["directory"] = args.experiment_dir
@@ -438,9 +466,14 @@ def get_trainer(is_eval=False, strict_eval=False):
         agent.wm_teacher_config = deepcopy(experiment_cfg)
         agent.wm_teacher_arguments = dict(vars(args))
         install_probe_callback(agent, Path(args.experiment_dir) / args.wandb_name, args.seed)
-        cprint("World model: {} on {}, state={}, replay={:.1f} MiB".format(
-            agent.wm_config["mode"], agent.device, agent.wm_adapter.state_dim,
-            agent.wm_replay.memory_bytes / 2**20), "yellow")
+        replay_bytes = agent.wm_replay.memory_bytes
+        if getattr(agent, "wm_low_replay", None) is not None:
+            replay_bytes += agent.wm_low_replay.memory_bytes
+        cprint("World model: {}/{} on {}, learned physical={}, rollout state incl. memory={}, "
+               "replay={:.1f} MiB{}".format(
+            agent.wm_config["recipe"], agent.wm_config["mode"], agent.device, agent.wm_adapter.physical_dim,
+            agent.wm_adapter.state_dim, replay_bytes / 2**20,
+            ", fixed 8 x 20 ms" if agent.wm_config.get("fixed8") else ""), "yellow")
     if cfg["env"]["tsil"]["enabled"]:
         agent.checkpoint_modules["tsil_metadata"] = TemporalCheckpointMetadata(
             experiment_cfg, args, env.observation_space.shape[0], env.tsil_time_reference)

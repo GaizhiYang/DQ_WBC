@@ -33,6 +33,29 @@ def configuration(**settings):
 
 
 class ConfigurationTests(unittest.TestCase):
+    def test_default_recipe_and_explicit_legacy_recipe(self):
+        current = configure_world_model(configuration(mode="hybrid"), arguments())
+        self.assertEqual(current["recipe"], "supermimic")
+        self.assertEqual(current["hidden"], [2048, 2048, 2048])
+        self.assertEqual((current["batch_size"], current["batches_per_update"], current["imagination_batch"]),
+                         (2048, 10, 4096))
+        self.assertEqual((current["replay_envs"], current["low_replay_capacity"]), (4096, 1000))
+        self.assertEqual(current["value_source"], "imagined")
+        self.assertEqual(current["warmup_steps"] * 8, 40)
+        self.assertEqual(current["updates_per_low_step"], .4)
+        self.assertTrue(current["fixed_preprocessing"] and current["compact_low_replay"])
+        self.assertFalse(current["kl_rollback"] or current["balance_families"])
+        old = configure_world_model(configuration(mode="hybrid"), arguments(wm_recipe="gated"))
+        self.assertEqual(old["recipe"], "gated")
+        self.assertEqual(old["value_source"], "ppo")
+        self.assertEqual(old["hidden"], [512, 512, 512])
+        self.assertTrue(old["kl_rollback"])
+        # Saved resolved configs keep their preprocessing even when evaluation
+        # turns model training off; no model buffers are needed to run Actor.
+        evaluated = configure_world_model(configuration(**current), arguments(), is_eval=True)
+        self.assertEqual(evaluated["mode"], "off")
+        self.assertTrue(evaluated["fixed_preprocessing"])
+
     def test_off_and_evaluation_preserve_baseline_without_gpu_or_training_dependencies(self):
         cfg = configuration()
         before = deepcopy(cfg)
@@ -60,6 +83,9 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(settings["warmup_steps"], 0)
         self.assertIsInstance(settings["learning_rate"], float)
         self.assertEqual(settings["learning_rate"], 2e-4)
+        self.assertTrue(settings["fixed8"])
+        self.assertEqual(settings["window"], 8)
+        self.assertEqual(settings["horizon"], 4)
 
     def test_gpu_and_mainline_boundaries_fail_before_environment_creation(self):
         for overrides, text in (({"rl_device": "cpu"}, "GPU"),
@@ -80,7 +106,11 @@ class ConfigurationTests(unittest.TestCase):
         bad = ({"wrong_option": 1}, {"window": True}, {"learning_rate": "nan"},
                {"holdout_fraction": 1.}, {"recent_fraction": -0.1},
                {"hidden": [32, 0]}, {"probe_timeout_seconds": 0},
-               {"window": 9, "replay_capacity": 8}, {"use_tail_value": "false"})
+               {"window": 9, "low_replay_capacity": 8}, {"use_tail_value": "false"},
+               {"recipe": "unknown"}, {"actor_betas": [.9, 1.]},
+               {"lr_schedule": "bad"}, {"model_microbatch_size": -1},
+               {"updates_per_low_step": 0}, {"critic_gae_lambda": 2},
+               {"fixed_preprocessing": "false"}, {"observation_noise_scale": -.1})
         for invalid in bad:
             with self.subTest(settings=invalid), self.assertRaises(ValueError):
                 configure_world_model(configuration(mode="fit", **invalid), arguments())

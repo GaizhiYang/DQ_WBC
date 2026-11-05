@@ -16,17 +16,21 @@ import torch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from skrl.memories.torch import RandomMemory
+from skrl.models.torch import Model
 from skrl.resources.preprocessors.torch import RunningStandardScaler
 from test_world_model_env import make_env
+from utils.gripper_policy import ContinuousGripperGaussianMixin
 from utils.wm_ppo import WorldModelPPO
-from utils.world_model.probes import (ActionEffectProbeConfig, analyze_action_effects,
+from utils.world_model.probes import (ACTION_SEMANTICS, CONTINUOUS_INDICES,
+                                     ActionEffectProbeConfig, analyze_action_effects,
                                      model_fingerprint)
 
 
-class TinyPolicy(torch.nn.Module):
+class TinyPolicy(ContinuousGripperGaussianMixin, Model):
     def __init__(self, observation_dim, device):
-        super().__init__()
-        self.device, self.num_actions = torch.device(device), 9
+        Model.__init__(self, observation_space=observation_dim, action_space=9, device=device)
+        ContinuousGripperGaussianMixin.__init__(self, clip_actions=False, clip_log_std=True,
+                               min_log_std=-20, max_log_std=2, reduction="sum")
         self.linear = torch.nn.Linear(observation_dim, 9)
         torch.nn.init.normal_(self.linear.weight, std=0.001)
         torch.nn.init.zeros_(self.linear.bias)
@@ -35,20 +39,6 @@ class TinyPolicy(torch.nn.Module):
 
     def compute(self, inputs, role="policy"):
         return self.linear(inputs["states"]), self.log_std, {}
-
-    def act(self, inputs, role="policy"):
-        mean, log_std, _ = self.compute(inputs, role)
-        self.distribution = torch.distributions.Normal(mean, log_std.exp())
-        action = self.distribution.sample()
-        log_probability = self.distribution.log_prob(inputs.get("taken_actions", action)).sum(-1, keepdim=True)
-        return action, log_probability, {"mean_actions": mean}
-
-    def get_entropy(self, role="policy"):
-        return self.distribution.entropy().sum(-1)
-
-    def set_mode(self, mode):
-        self.train(mode == "train")
-
 
 class TinyValue(torch.nn.Module):
     def __init__(self, observation_dim, device):
@@ -132,7 +122,8 @@ def synthetic_report(agent):
         model_fingerprint(agent.wm_candidate), agent.wm_metadata,
         ActionEffectProbeConfig(),
         metadata={"simulator": "IsaacGym", "protocol": "independent_simulator_prefix_replay",
-                  "directions_cover": [0, 1, 2, 3, 4, 5, 7, 8], "gripper_perturbed": False})
+                  "directions_cover": list(CONTINUOUS_INDICES), "gripper_perturbed": True,
+                  "action_semantics": ACTION_SEMANTICS})
 
 
 class IntegrationChecks:
@@ -160,6 +151,48 @@ class IntegrationChecks:
                             for name, value in agent.value.state_dict().items()))
         self.assertEqual(agent.last_world_model_metrics["on_gpu"], float(self.device.startswith("cuda")))
 
+    def test_real_gaussian_ppo_updates_std_but_subsequent_mean_bptt_does_not(self):
+        # The production continuous-gripper mixin and PPO optimizer are used here; only the
+        # simulator is a tensor fixture, so no GPU PhysX session is required.
+        agent = make_agent(self.device)
+        state, context = agent.wm_adapter.capture()
+        observation = agent.wm_adapter.observation(state, context)
+        with torch.no_grad():
+            first, first_logp, _ = agent.act(observation, 0, 100)
+            second, second_logp, _ = agent.act(observation, 0, 100)
+        self.assertFalse(torch.equal(first, second))
+        self.assertFalse(torch.equal(first[:, 6], second[:, 6]))
+        self.assertTrue(bool(((first[:, 6] > 0) & (first[:, 6] < 1)).all()))
+        with torch.no_grad():
+            processed = agent._state_preprocessor(observation, train=False)
+            _, replay_logp, _ = agent.policy.act({"states": processed, "taken_actions": first}, role="policy")
+        torch.testing.assert_close(first_logp, replay_logp, rtol=1e-5, atol=1e-5)
+        self.assertTrue(bool(torch.isfinite(first_logp).all() & torch.isfinite(second_logp).all()))
+        self.assertEqual(agent._entropy_loss_scale, 0.)
+        before_ppo_std = agent.policy.log_std.detach().clone()
+        collect(agent)
+        self.assertFalse(torch.equal(before_ppo_std, agent.policy.log_std))
+        self.assertTrue(agent.policy.log_std.requires_grad)
+
+        # A synthetic report exercises the integration gate; it is explicitly
+        # not evidence that a candidate passed a real physical action probe.
+        self.assertTrue(agent.activate_validated(agent.candidate_payload(), synthetic_report(agent)))
+        before_bptt_std = agent.policy.log_std.detach().clone()
+        before_bptt_mean = deepcopy(agent.policy.linear.state_dict())
+        metrics = agent._update_world_model()
+        self.assertEqual(metrics["bptt/accepted"], 1.)
+        self.assertGreater(metrics["bptt/actor_grad_norm"], 0.)
+        torch.testing.assert_close(before_bptt_std, agent.policy.log_std, rtol=0, atol=0)
+        self.assertTrue(agent.policy.log_std.requires_grad)
+        self.assertIsNone(agent.policy.log_std.grad)
+        self.assertTrue(any(not torch.equal(before_bptt_mean[name], value)
+                            for name, value in agent.policy.linear.state_dict().items()))
+        # BPTT must not permanently freeze sigma: another real PPO update must
+        # still be able to change it, even after an auxiliary optimizer ran.
+        collect(agent)
+        self.assertFalse(torch.equal(before_bptt_std, agent.policy.log_std))
+        self.assertTrue(agent.policy.log_std.requires_grad)
+
     def test_probe_binds_snapshot_and_extra_update_preserves_critic_and_scalers(self):
         agent = make_agent(self.device)
         collect(agent)
@@ -170,6 +203,7 @@ class IntegrationChecks:
         critic = deepcopy(agent.value.state_dict())
         observation_scaler = deepcopy(agent._state_preprocessor.state_dict())
         value_scaler = deepcopy(agent._value_preprocessor.state_dict())
+        std = agent.policy.log_std.detach().clone()
         metrics = agent._update_world_model()
         self.assertEqual(agent.wm_trainer.updates, 2)
         self.assertEqual(agent.wm_imagination.accepted_updates, 1)
@@ -179,6 +213,9 @@ class IntegrationChecks:
         self.assert_state_equal(critic, agent.value.state_dict())
         self.assert_state_equal(observation_scaler, agent._state_preprocessor.state_dict())
         self.assert_state_equal(value_scaler, agent._value_preprocessor.state_dict())
+        torch.testing.assert_close(std, agent.policy.log_std, rtol=0, atol=0)
+        self.assertIsNone(agent.policy.log_std.grad)
+        self.assertTrue(agent.policy.log_std.requires_grad)
         # Fitted candidate weights have changed; an old report cannot approve
         # them, and a failed promotion must retain the previous good snapshot.
         self.assertFalse(agent.activate_validated(agent.candidate_payload(), report))

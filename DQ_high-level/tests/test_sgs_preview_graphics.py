@@ -194,5 +194,46 @@ class BuilderGraphicsRequestTests(unittest.TestCase):
                     self.assertNotIn("at_grasp", bindings.values())
 
 
+class PreviewGripperCommandTests(unittest.TestCase):
+    def test_preview_command_matches_saved_or_selected_continuous_target(self):
+        namespace = {}
+        compile_nodes([source_node("visualize_sgs_bank.py", name, "BankPreview")
+                       for name in ("step", "_apply_preview_gripper")], namespace)
+        devices = ["cpu"] + (["cuda:0"] if torch.cuda.is_available() else [])
+        for device in devices:
+            for continuous in (True, False):
+                for mode in ("saved", "open", "closed"):
+                    for saved_opening in (0., .25, .75, 1.):
+                        with self.subTest(device=device, continuous=continuous,
+                                          mode=mode, saved_opening=saved_opening):
+                            env = SimpleNamespace(device=device, continuous_gripper=continuous,
+                                num_actions=9, num_gripper_dof=1, control_freq_low=7,
+                                control_freq_inv=4, sim_params=SimpleNamespace(dt=.005),
+                                reset_buf=torch.zeros(1, dtype=torch.bool, device=device),
+                                dof_limits_upper=torch.tensor([0.], device=device),
+                                dof_limits_lower=torch.tensor([-2.], device=device),
+                                gripper_dof_pos=torch.zeros(1, 1, device=device),
+                                sim=object(), gym=SimpleNamespace(fetch_results=lambda *args: None))
+                            preview = SimpleNamespace(env=env, torch=torch, gripper_mode=mode,
+                                saved_gripper_target=torch.tensor([[-2. * saved_opening]], device=device),
+                                ended=False, elapsed=0., measurements=lambda: {})
+                            recorded = []
+
+                            def step(actions):
+                                recorded.append(actions.clone())
+                                namespace["_apply_preview_gripper"](preview)
+
+                            env.step = step
+                            namespace["step"](preview)
+                            expected_opening = {"saved": saved_opening, "open": 1., "closed": 0.}[mode]
+                            expected_command = (expected_opening if continuous else
+                                                {"saved": 0., "open": 1., "closed": -1.}[mode])
+                            torch.testing.assert_close(recorded[0][:, 6],
+                                                       torch.tensor([expected_command], device=device))
+                            torch.testing.assert_close(env.gripper_dof_pos,
+                                                       torch.tensor([[-2. * expected_opening]], device=device))
+                            self.assertAlmostEqual(preview.elapsed, .14)
+
+
 if __name__ == "__main__":
     unittest.main()

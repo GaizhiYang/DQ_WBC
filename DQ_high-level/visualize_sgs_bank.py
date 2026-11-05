@@ -88,9 +88,9 @@ class BankPreview:
         self.env = create_builder_environment(
             num_envs=1, device=args.device, seed=args.seed, enable_graphics=True)
         self.env.rand_control = True
-        # The real policy interprets action 0 as fully open, not "hold".
-        # Override only this preview instance so playback preserves the saved
-        # randomized aperture until the user explicitly presses O.
+        # A zero action is an endpoint command, not "hold" (closed for the
+        # continuous teacher). Override this preview instance so playback
+        # preserves the saved aperture until the user explicitly presses O.
         self.env.set_gripper = self._apply_preview_gripper
         self.viewer = None
         self.output = Path(args.output)
@@ -294,7 +294,15 @@ class BankPreview:
         torch, env = self.torch, self.env
         with torch.no_grad():
             actions = torch.zeros((1, env.num_actions), device=env.device)
-            actions[:, 6] = {"closed": -1, "open": 1, "saved": 0}[self.gripper_mode]
+            if getattr(env, "continuous_gripper", False):
+                if self.gripper_mode == "saved":
+                    closed, opened = env.dof_limits_upper[-1], env.dof_limits_lower[-1]
+                    actions[:, 6] = ((self.saved_gripper_target[:, -1] - closed)
+                                     / (opened - closed)).clamp(0., 1.)
+                else:
+                    actions[:, 6] = {"closed": 0., "open": 1.}[self.gripper_mode]
+            else:
+                actions[:, 6] = {"closed": -1, "open": 1, "saved": 0}[self.gripper_mode]
             env.step(actions)
             env.gym.fetch_results(env.sim, True)
         self.elapsed += env.control_freq_low * env.control_freq_inv * env.sim_params.dt

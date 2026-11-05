@@ -41,6 +41,58 @@ class StartBatch:
     env_ids: torch.Tensor
 
 
+class SliceStateCodec:
+    """Lossless storage for selected fields of a larger rollout-state layout.
+
+    ``encode`` retains the specified slices, in ``names`` order. ``decode``
+    restores their original positions and fills every omitted field with zero.
+    Both operations preserve dtype, device and arbitrary leading dimensions;
+    they use only Torch operations and also preserve gradients when called
+    outside replay's no-grad collection/sampling methods.
+
+    Use this for physical-model fitting only when omitted controller/task
+    memory is not consumed. Decoded zeros are not a valid imagined-policy
+    starting history; high-level replay must continue storing full states.
+    """
+
+    def __init__(self, state_dim, slices, names):
+        self.state_dim = int(state_dim)
+        self.names = tuple(names)
+        if self.state_dim < 1 or not self.names or len(set(self.names)) != len(self.names):
+            raise ValueError("State codec requires a positive state_dim and distinct field names")
+        fields, occupied, cursor = [], set(), 0
+        for name in self.names:
+            if name not in slices:
+                raise ValueError("Unknown state codec field: " + str(name))
+            field = slices[name]
+            if (not isinstance(field, slice) or field.start is None or field.stop is None
+                    or field.step not in (None, 1)
+                    or not 0 <= field.start < field.stop <= self.state_dim):
+                raise ValueError("State codec fields require bounded, contiguous slices: " + str(name))
+            coordinates = set(range(field.start, field.stop))
+            if occupied.intersection(coordinates):
+                raise ValueError("State codec fields cannot overlap: " + str(name))
+            occupied.update(coordinates)
+            width = field.stop - field.start
+            fields.append((field, slice(cursor, cursor + width)))
+            cursor += width
+        self.fields = tuple(fields)
+        self.storage_dim = cursor
+
+    def encode(self, states):
+        if states.ndim < 1 or states.shape[-1] != self.state_dim:
+            raise ValueError("State codec encode expected final dimension {}".format(self.state_dim))
+        return torch.cat([states[..., source] for source, _ in self.fields], dim=-1)
+
+    def decode(self, stored):
+        if stored.ndim < 1 or stored.shape[-1] != self.storage_dim:
+            raise ValueError("State codec decode expected final dimension {}".format(self.storage_dim))
+        states = stored.new_zeros(*stored.shape[:-1], self.state_dim)
+        for target, source in self.fields:
+            states[..., target] = stored[..., source]
+        return states
+
+
 class TransitionReplay:
     """Synchronous GPU ring, laid out [time, environment, feature].
 
@@ -52,7 +104,7 @@ class TransitionReplay:
     """
 
     def __init__(self, num_envs, capacity, state_dim, action_dim, context_dim,
-                 device, holdout_fraction=0.1, num_families=3):
+                 device, holdout_fraction=0.1, num_families=3, state_codec=None):
         self.num_envs, self.capacity = int(num_envs), int(capacity)
         self.state_dim, self.action_dim = int(state_dim), int(action_dim)
         self.context_dim, self.num_families = int(context_dim), int(num_families)
@@ -63,8 +115,21 @@ class TransitionReplay:
             raise ValueError("Invalid world-model replay dimensions")
         if not 0 <= self.holdout_fraction < 1:
             raise ValueError("holdout_fraction must be in [0, 1)")
+        self.state_codec = state_codec
+        self.storage_state_dim = self.state_dim
+        if state_codec is not None:
+            if (not callable(getattr(state_codec, "encode", None))
+                    or not callable(getattr(state_codec, "decode", None))):
+                raise ValueError("state_codec must provide encode/decode methods")
+            if getattr(state_codec, "state_dim", self.state_dim) != self.state_dim:
+                raise ValueError("state_codec state_dim does not match replay state_dim")
+            self.storage_state_dim = int(getattr(state_codec, "storage_dim", 0))
+            if self.storage_state_dim < 1:
+                raise ValueError("state_codec storage_dim must be positive")
         shape = (self.capacity, self.num_envs)
-        self.states = torch.empty(*shape, self.state_dim, device=self.device)
+        # state_dim is the external contract. Only the resident state payload
+        # changes width; sampled batches always contain decoded full states.
+        self.states = torch.empty(*shape, self.storage_state_dim, device=self.device)
         self.next_states = torch.empty_like(self.states)
         self.actions = torch.empty(*shape, self.action_dim, device=self.device)
         self.context = torch.empty(*shape, self.context_dim, device=self.device)
@@ -95,6 +160,12 @@ class TransitionReplay:
     def _tensor(self, value, dtype=torch.float32):
         return torch.as_tensor(value, device=self.device, dtype=dtype).detach()
 
+    def _encode_states(self, states):
+        return states if self.state_codec is None else self.state_codec.encode(states)
+
+    def _decode_states(self, states):
+        return states if self.state_codec is None else self.state_codec.decode(states)
+
     @torch.no_grad()
     def add(self, states, actions, next_states, context, dt, rewards,
             terminated, truncated, family, episode_ids=None, valid=None,
@@ -124,8 +195,8 @@ class TransitionReplay:
                   & (family < self.num_families) & (episodes >= 0))
         if valid is not None:
             finite &= self._tensor(valid, torch.bool).reshape(self.num_envs)
-        self.states[row].copy_(states)
-        self.next_states[row].copy_(next_states)
+        self.states[row].copy_(self._encode_states(states))
+        self.next_states[row].copy_(self._encode_states(next_states))
         self.actions[row].copy_(actions)
         self.context[row].copy_(context)
         self.dt[row].copy_(durations)
@@ -214,6 +285,7 @@ class TransitionReplay:
         # Explicit next states retain the final physical state when k ends at a
         # termination. No reset observation can become a supervised target.
         states = torch.cat((self.states[row, env][None], self.next_states[rr, ee]), 0)
+        states = self._decode_states(states)
         return WindowBatch(states, self.actions[rr, ee], self.context[rr, ee],
                            self.dt[rr, ee], self.rewards[rr, ee],
                            self.terminated[rr, ee], self.truncated[rr, ee],
@@ -225,8 +297,8 @@ class TransitionReplay:
                       recent_fraction=0.0, recent_steps=32):
         row, env = self._sample_indices(self._split_mask(split), n,
                                        balance_families, recent_fraction, recent_steps)
-        return StartBatch(self.states[row, env], self.actions[row, env],
-                          self.next_states[row, env], self.context[row, env],
+        return StartBatch(self._decode_states(self.states[row, env]), self.actions[row, env],
+                          self._decode_states(self.next_states[row, env]), self.context[row, env],
                           self.dt[row, env], self.rewards[row, env],
                           self.terminated[row, env], self.truncated[row, env],
                           self.success[row, env], self.family[row, env],
