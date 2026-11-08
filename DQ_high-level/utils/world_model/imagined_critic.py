@@ -14,22 +14,38 @@ import torch
 from torch import nn
 
 from .dynamics import MLP
+from .normalization import RunningNorm, run_mlp
 
 
 class ImaginedCritic(nn.Module):
     """Value in raw task-reward units; feature construction belongs to the adapter."""
 
-    def __init__(self, feature_dim, hidden=(256, 128)):
+    def __init__(self, feature_dim, hidden=(256, 128), *, running_norm=False,
+                 activation="silu", amp="none"):
         super().__init__()
         self.feature_dim = int(feature_dim)
         if self.feature_dim < 1 or any(int(width) < 1 for width in hidden):
             raise ValueError("Imagined Critic dimensions must be positive")
-        self.mlp = MLP(self.feature_dim, hidden, 1)
+        if activation not in ("silu", "elu") or amp not in ("none", "bf16"):
+            raise ValueError("Invalid imagined Critic activation or precision")
+        self.amp = amp
+        self.norm = RunningNorm(self.feature_dim) if running_norm else None
+        if activation == "silu":
+            self.mlp = MLP(self.feature_dim, hidden, 1)
+        else:
+            layers, width = [], self.feature_dim
+            for output in hidden:
+                layers.extend((nn.Linear(width, output), nn.ELU()))
+                width = output
+            layers.append(nn.Linear(width, 1))
+            self.mlp = nn.Sequential(*layers)
 
     def forward(self, features):
         if features.shape[-1] != self.feature_dim:
             raise ValueError("Privileged Critic feature width does not match its adapter")
-        return self.mlp(features).squeeze(-1)
+        if self.norm is not None:
+            features = self.norm(features)
+        return run_mlp(self.mlp, features, self.amp).squeeze(-1)
 
 
 @torch.no_grad()
@@ -69,11 +85,23 @@ class CriticBatch:
     old_values: torch.Tensor
 
 
+@dataclass
+class CriticTrajectory:
+    """Detached raw features; reference normalization/targets follow Actor step."""
+
+    features: torch.Tensor
+    rewards: torch.Tensor
+    terminated: torch.Tensor
+    timeouts: torch.Tensor
+    survival: torch.Tensor
+
+
 class ImaginedCriticTrainer:
     """Compute targets once, then fit five epochs over four shuffled minibatches."""
 
     def __init__(self, critic, adapter, *, lr=2e-4, gamma=.99, lam=.95,
-                 epochs=5, minibatches=4, max_grad_norm=1., bootstrap_timeouts=False):
+                 epochs=5, minibatches=4, max_grad_norm=1., bootstrap_timeouts=False,
+                 defer_targets=False):
         if (not math.isfinite(float(lr)) or not math.isfinite(float(max_grad_norm))
                 or lr <= 0 or epochs < 1 or minibatches < 1 or max_grad_norm <= 0):
             raise ValueError("Invalid imagined Critic optimization settings")
@@ -84,6 +112,7 @@ class ImaginedCriticTrainer:
         self.epochs, self.minibatches = int(epochs), int(minibatches)
         self.max_grad_norm = float(max_grad_norm)
         self.bootstrap_timeouts = bool(bootstrap_timeouts)
+        self.defer_targets = bool(defer_targets)
         self.optimizer = torch.optim.Adam(critic.parameters(), lr=lr)
         self.updates = 0
 
@@ -96,22 +125,44 @@ class ImaginedCriticTrainer:
         features = self.adapter.critic_features(
             states.reshape(-1, states.shape[-1]), conditions.reshape(-1, context.shape[-1]))
         features = features.reshape(horizon_plus_one, batch_size, -1).detach()
+        if self.defer_targets:
+            return CriticTrajectory(features, rollout.rewards.detach(), rollout.termination.detach(),
+                                    rollout.timeouts.detach(), rollout.survival.detach())
+        return self._targets(features, rollout.rewards.detach(), rollout.termination.detach(),
+                             rollout.timeouts.detach(), rollout.survival.detach())
+
+    @torch.no_grad()
+    def _targets(self, features, rewards, terminated, timeouts, survival):
         values = self.critic(features)
-        targets = lambda_returns(rollout.rewards.detach(), rollout.termination.detach(),
-                                 rollout.timeouts.detach(), values, self.gamma, self.lam,
+        targets = lambda_returns(rewards, terminated, timeouts, values, self.gamma, self.lam,
                                  self.bootstrap_timeouts)
         # Hard absorbing rows are memory padding, not subsequent transitions
         # of an episode. Keep the endpoint transition but exclude its padding.
-        valid = rollout.survival[:-1].detach() > 0
+        valid = survival[:-1] > 0
         return CriticBatch(features[:-1][valid], targets[valid], values[:-1][valid])
 
     @torch.enable_grad()
     def fit(self, batches):
         """Fit the detached, fixed dataset after the Actor update has finished."""
-        if isinstance(batches, CriticBatch):
+        if isinstance(batches, (CriticBatch, CriticTrajectory)):
             batches = [batches]
         if not batches:
             return {"critic_updates": 0., "critic_samples": 0.}
+        if isinstance(batches[0], CriticTrajectory):
+            # Source order: Actor step -> observed imagined input moments ->
+            # one fixed set of TD(lambda) targets -> shuffled Critic epochs.
+            with torch.no_grad():
+                observed = torch.cat([batch.features[:-1][batch.survival[:-1] > 0]
+                                      for batch in batches], 0)
+                if not len(observed):
+                    return {"critic_updates": 0., "critic_samples": 0.}
+                if not bool(torch.isfinite(observed).all()):
+                    return {"critic_updates": 0., "critic_samples": float(len(observed)),
+                            "critic_skipped_nonfinite": 1.}
+                if self.critic.norm is not None:
+                    self.critic.norm.update(observed)
+                batches = [self._targets(batch.features, batch.rewards, batch.terminated,
+                                          batch.timeouts, batch.survival) for batch in batches]
         features = torch.cat([batch.features.detach() for batch in batches], 0)
         targets = torch.cat([batch.targets.detach() for batch in batches], 0)
         old_values = torch.cat([batch.old_values.detach() for batch in batches], 0)

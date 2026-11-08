@@ -33,6 +33,34 @@ def configuration(**settings):
 
 
 class ConfigurationTests(unittest.TestCase):
+    def test_supermimic_does_not_add_or_rewrite_execution_clip(self):
+        for mode in ("fit", "hybrid"):
+            for supplied in (None, float("inf"), .25, 1., 2.5):
+                with self.subTest(mode=mode, clip=supplied):
+                    cfg = configuration(mode=mode)
+                    if supplied is not None:
+                        cfg["env"]["clipActions"] = supplied
+                    configure_world_model(cfg, arguments())
+                    if supplied is None:
+                        self.assertNotIn("clipActions", cfg["env"])
+                    else:
+                        self.assertEqual(cfg["env"]["clipActions"], supplied)
+
+    def test_off_legacy_and_evaluation_do_not_rewrite_execution_bounds(self):
+        for mode, recipe, evaluation in (("off", "supermimic", False),
+                                         ("hybrid", "supermimic", True),
+                                         ("hybrid", "gated", False)):
+            for supplied in (None, float("inf"), .3, 1.):
+                with self.subTest(mode=mode, recipe=recipe, evaluation=evaluation, clip=supplied):
+                    cfg = configuration(mode=mode, recipe=recipe)
+                    if supplied is not None:
+                        cfg["env"]["clipActions"] = supplied
+                    configure_world_model(cfg, arguments(), is_eval=evaluation)
+                    if supplied is None:
+                        self.assertNotIn("clipActions", cfg["env"])
+                    else:
+                        self.assertEqual(cfg["env"]["clipActions"], supplied)
+
     def test_default_recipe_and_explicit_legacy_recipe(self):
         current = configure_world_model(configuration(mode="hybrid"), arguments())
         self.assertEqual(current["recipe"], "supermimic")
@@ -45,11 +73,25 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(current["updates_per_low_step"], .4)
         self.assertTrue(current["fixed_preprocessing"] and current["compact_low_replay"])
         self.assertFalse(current["kl_rollback"] or current["balance_families"])
+        self.assertEqual(current["state_loss_reduction"], "sum")
+        self.assertEqual(current["auxiliary_weight"], 0.)
+        self.assertEqual(current["action_coordinates"], "normalized_commands")
+        self.assertEqual(current["initial_action_std"], .1)
+        self.assertEqual(current["actor_last_gain"], .01)
+        self.assertEqual(current["action_rate_mode"], "squared_all")
+        self.assertEqual(current["action_rate_weight"], -.002)
         old = configure_world_model(configuration(mode="hybrid"), arguments(wm_recipe="gated"))
         self.assertEqual(old["recipe"], "gated")
         self.assertEqual(old["value_source"], "ppo")
         self.assertEqual(old["hidden"], [512, 512, 512])
         self.assertTrue(old["kl_rollback"])
+        self.assertEqual(old["state_loss_reduction"], "mean")
+        self.assertEqual(old["auxiliary_weight"], 1.)
+        self.assertEqual(old["action_coordinates"], "physical")
+        self.assertIsNone(old["initial_action_std"])
+        self.assertIsNone(old["actor_last_gain"])
+        self.assertEqual(old["action_rate_mode"], "base_l2")
+        self.assertIsNone(old["action_rate_weight"])
         # Saved resolved configs keep their preprocessing even when evaluation
         # turns model training off; no model buffers are needed to run Actor.
         evaluated = configure_world_model(configuration(**current), arguments(), is_eval=True)
@@ -73,9 +115,11 @@ class ConfigurationTests(unittest.TestCase):
         add_world_model_arguments(parser)
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "model.yaml"
-            path.write_text("world_model:\n  mode: fit\n  learning_rate: 2e-4\n  batch_size: 64\n")
+            path.write_text("world_model:\n  mode: fit\n  learning_rate: 2e-4\n  batch_size: 64\n"
+                            "  state_loss_reduction: mean\n  auxiliary_weight: 2e-1\n")
             parsed = parser.parse_args(["--wm_config", str(path), "--world_model", "hybrid",
-                                        "--wm_batch_size", "12", "--wm_warmup_steps", "0"])
+                                        "--wm_batch_size", "12", "--wm_warmup_steps", "0",
+                                        "--wm_state_loss_reduction", "sum", "--wm_auxiliary_weight", "0.3"])
             args = arguments(**vars(parsed))
             settings = configure_world_model(configuration(mode="off", batch_size=32), args)
         self.assertEqual(settings["mode"], "hybrid")
@@ -86,6 +130,48 @@ class ConfigurationTests(unittest.TestCase):
         self.assertTrue(settings["fixed8"])
         self.assertEqual(settings["window"], 8)
         self.assertEqual(settings["horizon"], 4)
+        self.assertEqual(settings["state_loss_reduction"], "sum")
+        self.assertEqual(settings["auxiliary_weight"], .3)
+
+    def test_explicit_model_loss_overrides_recipe_defaults(self):
+        settings = configure_world_model(configuration(mode="fit", state_loss_reduction="mean",
+                                                        auxiliary_weight="2e-1"), arguments())
+        self.assertEqual(settings["state_loss_reduction"], "mean")
+        self.assertEqual(settings["auxiliary_weight"], .2)
+        settings = configure_world_model(configuration(mode="fit", recipe="gated",
+            state_loss_reduction="sum", auxiliary_weight=0), arguments())
+        self.assertEqual(settings["state_loss_reduction"], "sum")
+        self.assertEqual(settings["auxiliary_weight"], 0.)
+
+    def test_normalized_action_settings_and_reward_override_survive_evaluation(self):
+        cfg = configuration(mode="hybrid")
+        cfg["reward"]["scales"] = {"action_rate": -.001, "pick_up": 50.}
+        settings = configure_world_model(cfg, arguments())
+        self.assertEqual(cfg["reward"]["scales"], {"action_rate": -.002, "pick_up": 50.})
+        saved = deepcopy(settings)
+        settings = configure_world_model(cfg, arguments(), is_eval=True)
+        self.assertEqual(settings["mode"], "off")
+        for field in ("action_coordinates", "initial_action_std", "actor_last_gain",
+                      "action_rate_mode", "action_rate_weight"):
+            self.assertEqual(settings[field], saved[field])
+        self.assertEqual(cfg["reward"]["scales"]["action_rate"], -.002)
+
+        parser = argparse.ArgumentParser()
+        add_world_model_arguments(parser)
+        parsed = parser.parse_args(["--wm_action_rate_weight", "-0.004",
+                                    "--wm_initial_action_std", "0.2", "--wm_actor_last_gain", "0.03"])
+        cfg = configuration(mode="fit")
+        settings = configure_world_model(cfg, arguments(**vars(parsed)))
+        self.assertEqual(settings["initial_action_std"], .2)
+        self.assertEqual(settings["actor_last_gain"], .03)
+        self.assertEqual(cfg["reward"]["scales"]["action_rate"], -.004)
+
+    def test_legacy_and_explicit_base_action_rate_preserve_existing_reward(self):
+        for options in ({"recipe": "gated"}, {"action_rate_mode": "base_l2"}):
+            cfg = configuration(mode="fit", **options)
+            cfg["reward"]["scales"] = {"action_rate": -.007}
+            configure_world_model(cfg, arguments())
+            self.assertEqual(cfg["reward"]["scales"]["action_rate"], -.007)
 
     def test_gpu_and_mainline_boundaries_fail_before_environment_creation(self):
         for overrides, text in (({"rl_device": "cpu"}, "GPU"),
@@ -110,7 +196,14 @@ class ConfigurationTests(unittest.TestCase):
                {"recipe": "unknown"}, {"actor_betas": [.9, 1.]},
                {"lr_schedule": "bad"}, {"model_microbatch_size": -1},
                {"updates_per_low_step": 0}, {"critic_gae_lambda": 2},
-               {"fixed_preprocessing": "false"}, {"observation_noise_scale": -.1})
+               {"fixed_preprocessing": "false"}, {"observation_noise_scale": -.1},
+               {"state_loss_reduction": "invalid"}, {"state_loss_reduction": None},
+               {"auxiliary_weight": -1.}, {"auxiliary_weight": True},
+               {"auxiliary_weight": "nan"}, {"auxiliary_weight": float("inf")},
+               {"action_coordinates": "bad"}, {"action_rate_mode": "bad"},
+               {"initial_action_std": 0}, {"initial_action_std": "nan"},
+               {"actor_last_gain": -1}, {"actor_last_gain": True},
+               {"action_rate_weight": .01}, {"action_rate_weight": float("-inf")})
         for invalid in bad:
             with self.subTest(settings=invalid), self.assertRaises(ValueError):
                 configure_world_model(configuration(mode="fit", **invalid), arguments())

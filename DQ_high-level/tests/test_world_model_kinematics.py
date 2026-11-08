@@ -8,6 +8,7 @@ these checks do not import Isaac Gym or substitute for live-simulator parity.
 from pathlib import Path
 import sys
 import unittest
+from unittest import mock
 import xml.etree.ElementTree as ET
 
 import numpy as np
@@ -15,6 +16,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from utils.world_model.kinematics import B1Z1Kinematics, DEFAULT_DOF_NAMES, DEFAULT_URDF
+from utils.world_model import kinematics as kinematics_module
 
 
 def matrix_oracle(q):
@@ -185,6 +187,67 @@ class KinematicsChecks:
             self.assertGreater(float(tensor.grad.abs().sum()), 0)
         # EE is defined on the stator; no false opening->EE kinematics gradient.
         self.assertEqual(float(q.grad[..., -1].abs().sum()), 0)
+
+    def test_end_effector_matches_full_path_for_batches_and_com_override(self):
+        for dtype in (torch.float32, torch.float64):
+            fk = self.fk().to(dtype=dtype)
+            for batch in ((), (1,), (2, 3)):
+                with self.subTest(dtype=dtype, batch=batch):
+                    base, q, dq = (value.to(dtype=dtype) for value in self.inputs(batch=batch))
+                    com = torch.randn(*batch, 3, dtype=dtype, device=self.device) * .1
+                    for override in (None, com):
+                        full = fk(base, q, dq, base_com=override)
+                        ee = fk.end_effector(base, q, dq, base_com=override)
+                        self.assertEqual(set(ee), {"ee_pos", "ee_quat", "ee_vel", "ee_omega"})
+                        for key, value in ee.items():
+                            torch.testing.assert_close(value, full[key], atol=0, rtol=0)
+
+    def test_end_effector_input_gradients_match_full_path(self):
+        fk = self.fk()
+        for batch in ((1,), (2, 3)):
+            base, q, dq = (value.requires_grad_() for value in self.inputs(batch=batch))
+            com = torch.randn(*batch, 3, dtype=base.dtype, device=self.device, requires_grad=True)
+            inputs = (base, q, dq, com)
+            full, ee = fk(base, q, dq, base_com=com), fk.end_effector(base, q, dq, base_com=com)
+            weights = {key: torch.randn_like(value) for key, value in ee.items()}
+            full_loss = sum((full[key] * weight).sum() for key, weight in weights.items())
+            ee_loss = sum((ee[key] * weight).sum() for key, weight in weights.items())
+            full_gradients = torch.autograd.grad(full_loss, inputs)
+            ee_gradients = torch.autograd.grad(ee_loss, inputs)
+            for actual, expected in zip(ee_gradients, full_gradients):
+                self.assertTrue(bool(torch.isfinite(actual).all()))
+                torch.testing.assert_close(actual, expected, atol=0, rtol=0)
+            # Dropping the unused leg branches must not invent dependencies on
+            # leg or moving-jaw DOFs in the EE-only objective.
+            self.assertEqual(float(ee_gradients[1][..., :12].abs().sum()), 0.)
+            self.assertEqual(float(ee_gradients[1][..., -1].abs().sum()), 0.)
+
+    def test_end_effector_ignores_non_ancestor_urdf_buffers(self):
+        # Perturb every leg-only transform to NaN. A path that computes all
+        # feet and merely drops the outputs would still traverse these links;
+        # the EE recursion must be independent of their buffers and DOFs.
+        fk = self.fk()
+        base, q, dq = self.inputs()
+        expected = fk.end_effector(base, q, dq)
+        ee_indices = {index for index, _ in fk._ee_joints}
+        self.assertLess(len(ee_indices), len(fk.joints))
+        with torch.no_grad():
+            for index, _ in fk._all_joints:
+                if index not in ee_indices:
+                    fk.offsets[index].fill_(float("nan"))
+        original_apply = kinematics_module._quat_apply
+
+        def reject_unused_transforms(quaternion, vector):
+            if not bool(torch.isfinite(vector).all()):
+                raise AssertionError("Evaluated an unused leg transform")
+            return original_apply(quaternion, vector)
+
+        with mock.patch.object(kinematics_module, "_quat_apply", side_effect=reject_unused_transforms):
+            actual = fk.end_effector(base, q, dq)
+            with self.assertRaisesRegex(AssertionError, "unused leg transform"):
+                fk(base, q, dq)
+        for key, value in actual.items():
+            torch.testing.assert_close(value, expected[key], atol=0, rtol=0)
 
 
 class TestKinematicsCPU(KinematicsChecks, unittest.TestCase):

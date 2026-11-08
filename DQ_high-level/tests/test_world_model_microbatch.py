@@ -80,11 +80,18 @@ class MicrobatchChecks:
         return model
 
     def test_unequal_microbatches_match_full_batch_gradients_optimizer_and_metrics(self):
+        self.compare_microbatches("mean")
+
+    def test_sum_loss_unequal_microbatches_match_full_batch_update(self):
+        self.compare_microbatches("sum")
+
+    def compare_microbatches(self, reduction):
         torch.manual_seed(731)
         model = self.model()
         second = copy.deepcopy(model)
         common = dict(window=5, batch_size=37, batches_per_update=1, validation_batch_size=7,
-                      grad_clip=.2, contact_weight=.3, auxiliary_weight=.7)
+                      grad_clip=.2, contact_weight=.3, auxiliary_weight=.7,
+                      state_loss_reduction=reduction)
         full = WorldModelTrainer(model, WMTrainerConfig(**common, microbatch_size=0))
         chunked = WorldModelTrainer(second, WMTrainerConfig(**common, microbatch_size=8))
         replay = FixedReplay(self.batch())

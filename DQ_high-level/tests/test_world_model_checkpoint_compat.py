@@ -26,6 +26,16 @@ from test_world_model_ppo import TinyPolicy, TinyValue
 from utils.wm_entry import configure_world_model, reject_candidate_checkpoint
 from utils.tsil_checkpoint import read_temporal_checkpoint
 from utils.world_model.policy_inputs import FixedScale, teacher_observation_vectors
+from utils.world_model.recipe import SUPERMIMIC_CONFIG
+
+
+def make_checkpoint_agent():
+    # Production resolves the recipe before constructing the environment and
+    # adapter. The lightweight fixture must also establish its action contract
+    # before metadata is captured, rather than changing it only during export.
+    return make_aligned("cpu", **{
+        name: SUPERMIMIC_CONFIG[name]
+        for name in ("action_coordinates", "action_rate_mode")})
 
 
 def add_saved_preprocessing(agent):
@@ -64,7 +74,7 @@ class CheckpointCompatibilityTests(unittest.TestCase):
             reject_candidate_checkpoint(payload={"tsil_metadata": {"version": 2}})
 
     def test_full_teacher_checkpoint_contains_independent_critic_and_rejects_old_dynamics_schema(self):
-        agent = make_aligned("cpu")
+        agent = make_checkpoint_agent()
         add_saved_preprocessing(agent)
         collect_fixed8(agent, high_steps=1)
         agent._update_world_model()
@@ -84,9 +94,12 @@ class CheckpointCompatibilityTests(unittest.TestCase):
             self.assertIn("_fixed_scale_version", bundle["teacher"]["state_preprocessor"])
             self.assertIsNone(bundle["teacher"]["value_preprocessor"])
             self.assertTrue(bundle["teacher_config"]["env"]["world_model"]["fixed_preprocessing"])
-            # Probe/initialization bundles intentionally contain no independent
-            # value optimizer; full teacher checkpoints are the training backup.
-            self.assertNotIn("imagined_critic", bundle)
+            # Diagnostic bundles carry the exact independent value weights,
+            # but no value optimizer; only full checkpoints back up training.
+            self.assertNotIn("optimizer", bundle["imagined_critic"])
+            self.assertEqual(bundle["imagined_critic_updates"], 2)
+            for name, value in agent.wm_imagination.imagined_critic.state_dict().items():
+                torch.testing.assert_close(value, bundle["imagined_critic"][name], rtol=0, atol=0)
             old = deepcopy(bundle)
             old["metadata"]["version"] = 4
             old["metadata"]["schema"] = "dq-sgs-ekf-fixed8-physical64-v4"
@@ -95,7 +108,7 @@ class CheckpointCompatibilityTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "schema/task contract"):
                 agent.load_candidate(old_path)
 
-            restored = make_aligned("cpu")
+            restored = make_checkpoint_agent()
             add_saved_preprocessing(restored)
             restored.load(str(teacher_path))
             for name, value in agent.wm_imagination.imagined_critic.state_dict().items():
@@ -120,9 +133,13 @@ class CheckpointCompatibilityTests(unittest.TestCase):
             torch.testing.assert_close(evaluation._value_preprocessor(torch.tensor([7.])), torch.tensor([7.]))
 
     def test_probe_factory_preserves_fixed_scale_and_absent_value_scaler_when_mode_is_off(self):
-        source = make_aligned("cpu")
+        source = make_checkpoint_agent()
         add_saved_preprocessing(source)
         bundle = source.candidate_payload()
+        for name in ("action_coordinates", "action_rate_mode"):
+            self.assertEqual(bundle["metadata"][name], SUPERMIMIC_CONFIG[name])
+            self.assertEqual(bundle["teacher_config"]["env"]["world_model"][name],
+                             bundle["metadata"][name])
         raw_env = make_fixed8_agent("cpu").wm_env
         built = {}
         teacher = SimpleNamespace(get_params=lambda: None)
@@ -159,6 +176,15 @@ class CheckpointCompatibilityTests(unittest.TestCase):
             cli = SimpleNamespace(num_envs=12, seed=43, device="cpu", workdir=directory,
                                   worker="plan", family_sampling="balanced")
             session = probe._new_session(cli, bundle, torch)
+            # Mode=off must retain the saved action contract, and changing it
+            # must still fail the real factory's strict metadata validation.
+            for name, incompatible in (("action_coordinates", "physical"),
+                                       ("action_rate_mode", "base_l2")):
+                with self.subTest(incompatible_field=name):
+                    mismatched = deepcopy(bundle)
+                    mismatched["teacher_config"]["env"]["world_model"][name] = incompatible
+                    with self.assertRaisesRegex(ValueError, "schema does not match candidate metadata"):
+                        probe._new_session(cli, mismatched, torch)
         self.assertIsInstance(session.trainer.agents._state_preprocessor, FixedScale)
         self.assertFalse(hasattr(session.trainer.agents._value_preprocessor, "load_state_dict"))
         for name, value in source.policy.state_dict().items():

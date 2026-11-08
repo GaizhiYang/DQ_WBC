@@ -47,6 +47,11 @@ class RewardVecTask(VecTask):
     
     def _reward_acc_penalty(self):
         arm_vel = self._dof_vel[:, -(6 + self.num_gripper_joints):-self.num_gripper_joints]
+        if getattr(self, "task_contract", "legacy") == "manipulation_v2":
+            from utils.world_model.action_contract import arm_acceleration_penalty
+            entry = self._low_entry_dof_vel[:, -(6 + self.num_gripper_joints):-self.num_gripper_joints]
+            reward = arm_acceleration_penalty(arm_vel, entry, self.dt)
+            return reward, reward
         last_arm_vel = self._last_dof_vel[:, -(6 + self.num_gripper_joints):-self.num_gripper_joints]
         penalty = torch.norm(arm_vel - last_arm_vel, dim=-1) / self.dt
         reward = 1 - torch.exp(-penalty)
@@ -105,7 +110,11 @@ class RewardVecTask(VecTask):
         return rew, diff
     
     def _reward_action_rate(self):
-        diff = torch.norm(self.actions[:, 7:9] - self.last_actions[:, 7:9], dim=-1)
+        if getattr(self, "action_rate_mode", "base_l2") == "squared_all":
+            from utils.world_model.action_contract import action_rate_cost
+            diff = action_rate_cost(self.actions, self.last_actions, "squared_all")
+        else:
+            diff = torch.norm(self.actions[:, 7:9] - self.last_actions[:, 7:9], dim=-1)
         rew = diff # 1 - torch.exp(-10.*diff)
 
         return rew, diff
@@ -135,6 +144,11 @@ class RewardVecTask(VecTask):
     def _reward_base_dir(self, obj_pos): # cube's pos
         base_x_dir = torch.tensor([1., 0., 0.], device=self.device).repeat(self.num_envs, 1)
         base_x_dir_world = quat_apply(self.base_yaw_quat, base_x_dir) 
+        if getattr(self, "task_contract", "legacy") == "manipulation_v2":
+            from utils.world_model.action_contract import horizontal_base_alignment
+            rew = horizontal_base_alignment(self._robot_root_states[:, :3], obj_pos,
+                                            base_x_dir_world)
+            return rew, rew
         obj_dir = obj_pos - self._robot_root_states[:, :3]
         obj_dir[:,:2] = 0.
         obj_dist = torch.norm(obj_dir, dim=-1)

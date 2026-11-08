@@ -1,8 +1,10 @@
 """Real Isaac Gym entry + full-width SuperMimic recipe on a disposable CUDA scene.
 
 Uses fewer environments/batches/update rounds for a bounded mechanism check.
-Optional --full-batch runs one 2048-window fit and one 4096-start Actor/Critic
-update with the production chunks. This is not a convergence benchmark.
+Optional --full-batch runs ten 2048-window fits and one 4096-start Actor/Critic
+update with the production chunks. --production runs one complete 24-step
+PPO rollout and its update block with 4096 environments and production replay
+capacities/settings. This is not a convergence benchmark.
 """
 
 import argparse
@@ -19,8 +21,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--device", default="cuda:1")
+    parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--full-batch", action="store_true")
+    parser.add_argument("--production", action="store_true",
+                        help="Use the full recipe, 4096 environments and one 24-high-step update block")
     parser.add_argument("--output", type=Path, default=ROOT.parent / "doc/SuperMimic_aligned_gpu_validation.json")
     args = parser.parse_args()
     from smoke_fixed8_world_model_gpu import _runtime_environment
@@ -33,8 +37,11 @@ def main():
     torch.cuda.set_device(device)
     torch.cuda.reset_peak_memory_stats(device)
     output = args.output.resolve()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    num_envs, high_steps = (4096, 24) if args.production else (12, 48)
     report = dict(passed=False, device=str(device), training_success_claimed=False,
-                  num_envs=12, high_steps=48, full_batch_requested=args.full_batch)
+                  num_envs=num_envs, high_steps=high_steps, full_batch_requested=args.full_batch,
+                  production_recipe_requested=args.production)
     env = agent = None
     previous_cwd, previous_argv = Path.cwd(), sys.argv
     started = time.monotonic()
@@ -50,20 +57,22 @@ def main():
         sys.path.insert(0, str(ROOT))
         import train_multistate_DQ_teacher as teacher
         from utils.world_model.policy_inputs import FixedScale
+        from utils.world_model.recipe import SUPERMIMIC_CONFIG
         with tempfile.TemporaryDirectory(prefix="dq_aligned_gpu_") as temporary:
-            settings = dict(replay_envs=12, replay_capacity=16, low_replay_capacity=128,
-                            batch_size=16, batches_per_update=1, model_microbatch_size=8,
-                            imagination_batch=12, imagination_chunk_size=6,
-                            updates_per_low_step=.01, validation_batch_size=16)
+            settings = {} if args.production else dict(
+                replay_envs=12, replay_capacity=16, low_replay_capacity=128,
+                batch_size=16, batches_per_update=1, model_microbatch_size=8,
+                imagination_batch=12, imagination_chunk_size=6,
+                updates_per_low_step=.01, validation_batch_size=16)
             config_path = Path(temporary) / "wm.yaml"
             config_path.write_text(yaml.safe_dump(settings))
             sys.argv = ["aligned_gpu_smoke", "--task", "B1Z1PickMulti", "--object_name", "sugar_box",
                         "--roboinfo", "--observe_gait_commands", "--small_value_set_zero", "--no_velocity_obs",
                         "--sgs_mode", "sgs", "--sgs_bank", str(ROOT / "data/sgs/sugar_box_v10.pt"),
                         "--future_pose_obs", "--future_pose_horizons", ".60", ".90", "--headless",
-                        "--num_envs", "12", "--rl_device", str(device), "--sim_device", str(device),
+                        "--num_envs", str(num_envs), "--rl_device", str(device), "--sim_device", str(device),
                         "--world_model", "hybrid", "--wm_recipe", "supermimic", "--wm_config", str(config_path),
-                        "--experiment_dir", temporary, "--wandb_name", "aligned", "--seed", "43", "--timesteps", "48"]
+                        "--experiment_dir", temporary, "--wandb_name", "aligned", "--seed", "43", "--timesteps", str(high_steps)]
             trainer = teacher.get_trainer(is_eval=False, enable_logging=False)
             sys.argv = previous_argv
             wrapper, agent = trainer.env, trainer.agents
@@ -85,6 +94,18 @@ def main():
             real_value_before = snapshot(agent.value)
             initial_std = agent.policy.log_std_parameter.detach().clone()
             checks = []
+            timings = dict(model_fit=[], imagination=[])
+            fit_update = agent.wm_trainer.update
+
+            def timed_fit(*positional, **keywords):
+                torch.cuda.synchronize(device)
+                phase_started = time.monotonic()
+                result = fit_update(*positional, **keywords)
+                torch.cuda.synchronize(device)
+                timings["model_fit"].append(time.monotonic() - phase_started)
+                return result
+
+            agent.wm_trainer.update = timed_fit
             update = agent.wm_imagination.update
 
             def checked_update(*positional, **keywords):
@@ -93,7 +114,11 @@ def main():
                 model = snapshot(agent.wm_candidate)
                 imagined = snapshot(agent.wm_imagination.imagined_critic)
                 std = agent.policy.log_std_parameter.detach().clone()
+                torch.cuda.synchronize(device)
+                phase_started = time.monotonic()
                 result = update(*positional, **keywords)
+                torch.cuda.synchronize(device)
+                timings["imagination"].append(time.monotonic() - phase_started)
                 checks.append(dict(metrics=result, actor_changed=not same(actor, agent.policy),
                                    imagined_critic_changed=not same(imagined, agent.wm_imagination.imagined_critic),
                                    real_critic_unchanged=same(real_value, agent.value),
@@ -103,7 +128,11 @@ def main():
                 return result
 
             agent.wm_imagination.update = checked_update
+            train_started = time.monotonic()
             trainer.train()
+            torch.cuda.synchronize(device)
+            report["training_seconds"] = time.monotonic() - train_started
+            report["stage_seconds"] = timings
             report["entry"] = dict(high_steps=agent.wm_replay.steps, low_steps=agent.wm_low_replay.steps,
                                    update_rounds=agent.wm_update_rounds, model_updates=agent.wm_trainer.updates,
                                    status=agent.wm_status, probe_required=False,
@@ -111,8 +140,9 @@ def main():
                                    real_critic_changed_by_ppo=not same(real_value_before, agent.value),
                                    std_changed_by_ppo=not torch.equal(initial_std, agent.policy.log_std_parameter),
                                    low_policy_unchanged=same(low_before, adapter.low_actor))
-            assert report["entry"]["high_steps"] == 48 and report["entry"]["low_steps"] == 384
-            assert report["entry"]["update_rounds"] == 3
+            assert report["entry"]["high_steps"] == high_steps and report["entry"]["low_steps"] == high_steps * 8
+            expected_rounds = 60 if args.production else 3
+            assert report["entry"]["update_rounds"] == expected_rounds
             assert all(report["entry"][k] for k in ("model_changed", "real_critic_changed_by_ppo",
                                                     "std_changed_by_ppo", "low_policy_unchanged"))
             current, context = adapter.capture()
@@ -125,16 +155,17 @@ def main():
             if args.full_batch:
                 full_started = time.monotonic()
                 agent.wm_trainer.cfg.batch_size = 2048
-                agent.wm_trainer.cfg.microbatch_size = 256
+                agent.wm_trainer.cfg.microbatch_size = SUPERMIMIC_CONFIG["model_microbatch_size"]
+                agent.wm_trainer.cfg.batches_per_update = SUPERMIMIC_CONFIG["batches_per_update"]
                 fit = agent.wm_trainer.update(agent.wm_low_replay)
                 starts = agent.wm_replay.sample_starts(4096, split="train", balance_families=False, recent_fraction=0.)
-                agent.wm_imagination.cfg.chunk_size = 128
+                agent.wm_imagination.cfg.chunk_size = SUPERMIMIC_CONFIG["imagination_chunk_size"]
                 bptt = agent.wm_imagination.update(starts.state, starts.context, dt=.16)
                 report["full_batch"] = dict(fit=fit, bptt=bptt, seconds=time.monotonic() - full_started,
-                                            note="One model minibatch; production uses ten per round.")
+                                            note="Ten model minibatches and one Actor/imagined Critic update, production chunk sizes.")
                 assert fit["updates"] > 0 and bptt["accepted"] == 1
             report["auxiliary_update_checks"] = checks
-            assert len(checks) >= 3 and all(c["metrics"]["accepted"] == 1 for c in checks), checks
+            assert len(checks) >= expected_rounds and all(c["metrics"]["accepted"] == 1 for c in checks), checks
             assert all(all(c[k] for k in ("actor_changed", "imagined_critic_changed", "real_critic_unchanged",
                                          "model_unchanged", "std_unchanged", "std_grad_none")) for c in checks), checks
             modules = dict(actor=agent.policy, real_critic=agent.value, imagined_critic=agent.wm_imagination.imagined_critic,
@@ -147,6 +178,9 @@ def main():
             assert all(report["cuda_residency"].values())
             torch.cuda.synchronize(device)
             report["peak_torch_memory_mib"] = torch.cuda.max_memory_allocated(device) / 2**20
+            free, total = torch.cuda.mem_get_info(device)
+            report["device_memory_mib"] = dict(free=free / 2**20, total=total / 2**20)
+            report["replay_memory_mib"] = (agent.wm_replay.memory_bytes + agent.wm_low_replay.memory_bytes) / 2**20
             report["passed"] = True
             print("SUPERMIMIC_ALIGNED_GPU_PASSED", flush=True)
     except Exception:

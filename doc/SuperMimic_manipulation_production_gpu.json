@@ -1,0 +1,4943 @@
+{
+  "passed": true,
+  "completed": true,
+  "training_success_claimed": false,
+  "device": "cuda:0",
+  "num_envs": 4096,
+  "production": true,
+  "experimental": false,
+  "seed": 43,
+  "planned_timesteps": 40000,
+  "requested_high_steps": 192,
+  "completed_high_steps": 192,
+  "completed_low_steps": 1536,
+  "blocks": [
+    {
+      "index": 1,
+      "high_steps": 24,
+      "low_steps": 192,
+      "completed": true,
+      "bptt_calls": 0,
+      "bptt_accepted": 0,
+      "value_only_calls": 0,
+      "protected_rejections": [],
+      "stage": "W",
+      "actor_before_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          0.0002723914512898773,
+          -0.001151548232883215,
+          3.2004441891331226e-05,
+          -0.0007855445146560669,
+          -0.0003314648347441107,
+          -0.0006366058951243758,
+          -0.0008405277039855719,
+          -0.0013147237477824092,
+          -0.0008023277623578906
+        ],
+        "mean_max": [
+          0.001915695029310882,
+          0.00048067449824884534,
+          0.001095963642001152,
+          0.0007233822252601385,
+          0.0009694111067801714,
+          0.000757733010686934,
+          0.00034629090805538,
+          0.0008855329360812902,
+          7.447029929608107e-06
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824
+        ],
+        "log_std_max": [
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824
+        ],
+        "log_std_parameter": [
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824
+        ],
+        "opening_min": 0.49978986382484436,
+        "opening_max": 0.5000865459442139,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_ppo_numerics": {
+        "timestep": 23,
+        "attempted_minibatches": 30,
+        "accepted_minibatches": 30,
+        "rejected_minibatches": 0,
+        "rejected_rollouts": 0,
+        "rolled_back_steps": 0,
+        "reason_counts": {},
+        "last_rejection": null,
+        "nonfinite_kl_diagnostics": 0,
+        "log_ratio_abs_max": 0.6641384363174438,
+        "max_finite_grad_norm": 2.19950270652771
+      },
+      "actor_after_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.0017519068205729127,
+          -0.010443507693707943,
+          -0.007304070983082056,
+          -0.007112100254744291,
+          -0.0016100234352052212,
+          -0.007578079588711262,
+          -0.004813465289771557,
+          -0.004122920800000429,
+          -0.01164665725082159
+        ],
+        "mean_max": [
+          0.005700575187802315,
+          0.012082267552614212,
+          0.00581367639824748,
+          0.012546319514513016,
+          0.005128484219312668,
+          0.005045440047979355,
+          0.014702851884067059,
+          0.0062404293566942215,
+          0.011323484592139721
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.313018798828125,
+          -2.3025667667388916,
+          -2.2985501289367676,
+          -2.3046600818634033,
+          -2.3121774196624756,
+          -2.312614679336548,
+          -2.3082611560821533,
+          -2.308499336242676,
+          -2.307673454284668
+        ],
+        "log_std_max": [
+          -2.313018798828125,
+          -2.3025667667388916,
+          -2.2985501289367676,
+          -2.3046600818634033,
+          -2.3121774196624756,
+          -2.312614679336548,
+          -2.3082611560821533,
+          -2.308499336242676,
+          -2.307673454284668
+        ],
+        "log_std_parameter": [
+          -2.313018798828125,
+          -2.3025667667388916,
+          -2.2985501289367676,
+          -2.3046600818634033,
+          -2.3121774196624756,
+          -2.312614679336548,
+          -2.3082611560821533,
+          -2.308499336242676,
+          -2.307673454284668
+        ],
+        "opening_min": 0.49879661202430725,
+        "opening_max": 0.503675639629364,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "seconds": 46.47789964597905,
+      "last_world_model_metrics": {
+        "candidate/state_loss": 3.035557508468628,
+        "candidate/termination_bce": 0.0,
+        "candidate/auxiliary_loss": 0.0,
+        "candidate/loss": 3.061234474182129,
+        "candidate/valid_count": 16327.1923828125,
+        "candidate/valid_1step_count": 2048.0,
+        "candidate/valid_kstep_count": 2033.769287109375,
+        "candidate/nse_1step": 0.01494346372783184,
+        "candidate/nse_kstep": 0.09154804050922394,
+        "candidate/contact_bce": 0.25678762793540955,
+        "candidate/contact_accuracy": 0.9350259304046631,
+        "candidate/grad_norm": 13.523627281188965,
+        "candidate/updates": 364.0,
+        "candidate/skipped_nonfinite": 0.0,
+        "candidate/skipped_no_valid_steps": 0.0,
+        "candidate/validation_state_loss": 1.7833387851715088,
+        "candidate/validation_termination_bce": 0.0,
+        "candidate/validation_auxiliary_loss": 0.0,
+        "candidate/validation_loss": 1.7995587587356567,
+        "candidate/validation_valid_count": 2041.0,
+        "candidate/validation_valid_1step_count": 256.0,
+        "candidate/validation_valid_kstep_count": 255.0,
+        "candidate/validation_nse_1step": 0.013410711660981178,
+        "candidate/validation_nse_kstep": 0.05085265636444092,
+        "candidate/validation_contact_bce": 0.1622001677751541,
+        "candidate/validation_contact_accuracy": 0.9442675113677979,
+        "candidate/validation_available": 1.0,
+        "schedule/phase": 0.0,
+        "schedule/next_phase": 0.0,
+        "schedule/boundary_completed": 1.0,
+        "schedule/new_valid_train_transitions": 747072.0,
+        "schedule/wm_budget": 364.0,
+        "schedule/wm_updates": 364.0,
+        "schedule/discarded_wm_batches": 0.0,
+        "schedule/wm_fraction": 0.78125,
+        "schedule/effective_epochs": 0.9978583054913047,
+        "schedule/actor_budget": 0.0,
+        "schedule/actor_accepted": 0.0,
+        "schedule/value_batches_completed": 0.0,
+        "schedule/critic_updates": 0.0,
+        "replay_steps": 24.0,
+        "low_replay_steps": 192.0,
+        "total_low_steps": 192.0,
+        "lr_ratio": 0.9999985883282699,
+        "fit_seconds": 45.45628535700962,
+        "imagination_seconds": 9.854498784989119e-05,
+        "on_gpu": 1.0,
+        "diagnostic/closed_loop_available": 1.0,
+        "diagnostic/low_controller_closed_loop_nse": 0.35942158102989197,
+        "diagnostic/low_controller_closed_loop_last_nse": 0.7946054935455322,
+        "diagnostic/low_controller_closed_loop_confidence_error": 0.9058794975280762,
+        "diagnostic/low_controller_closed_loop_last_confidence_error": 2.153658151626587,
+        "diagnostic/low_controller_closed_loop_relative_error": 0.8712388277053833,
+        "diagnostic/low_controller_closed_loop_last_relative_error": 2.1003458499908447,
+        "diagnostic/low_controller_closed_loop_foot_contact_accuracy": 0.93798828125,
+        "diagnostic/low_controller_closed_loop_last_foot_contact_accuracy": 0.947265625,
+        "diagnostic/real_state_aux": 0.0009456028346903622,
+        "diagnostic/real_state_weighted_aux": 9.456030238652602e-05,
+        "diagnostic/real_state_raw_action_bound": 0.0,
+        "diagnostic/real_state_quality": 0.06715206801891327,
+        "diagnostic/real_state_approach": 0.2033156454563141,
+        "diagnostic/real_state_orientation": 0.26488766074180603,
+        "diagnostic/real_state_grasp": 8.623347866887343e-07,
+        "diagnostic/real_state_grasp_geometry": 5.714885446650442e-06,
+        "diagnostic/real_state_lift": 0.006921072956174612,
+        "diagnostic/real_state_hold": 0.0948602482676506,
+        "diagnostic/real_state_grasp_lift": 7.700803550392266e-09,
+        "diagnostic/real_state_grasp_lift_hold": 8.073290924670573e-10,
+        "diagnostic/real_state_slip_cost": 4.852550432588032e-07,
+        "diagnostic/real_state_unsafe_cost": 0.06124156340956688,
+        "diagnostic/real_state_slip_speed": 0.27586594223976135,
+        "diagnostic/reward_available": 1.0,
+        "diagnostic/native_reward": 0.054248958826065063,
+        "diagnostic/reconstructed_task_reward": 0.05424799770116806,
+        "diagnostic/task_reward_abs_error": 3.787368768826127e-06,
+        "diagnostic/real_state_imagined_reward": 0.05434256047010422,
+        "diagnostic/imagined_native_reward_gap": 9.359877731185406e-05,
+        "diagnostic/done_disagreement": 0.0,
+        "diagnostic/stage_lifted_fraction": 0.0,
+        "diagnostic/stage_success_fraction": 0.0,
+        "diagnostic/stage_completed_fraction": 0.0,
+        "diagnostic/stage_failed_fraction": 0.0,
+        "diagnostic/stage_timeout_fraction": 0.0,
+        "diagnostic/stage_hold_progress": 0.0,
+        "diagnostic/stage_hold_fraction": 0.0,
+        "diagnostic/stage_held_not_complete_fraction": 0.0,
+        "diagnostic/action_0_saturation": 0.0,
+        "diagnostic/action_1_saturation": 0.0,
+        "diagnostic/action_2_saturation": 0.0,
+        "diagnostic/action_3_saturation": 0.0,
+        "diagnostic/action_4_saturation": 0.0,
+        "diagnostic/action_5_saturation": 0.0,
+        "diagnostic/action_7_saturation": 0.0,
+        "diagnostic/action_8_saturation": 0.0,
+        "diagnostic/gripper_mean_sigmoid_derivative": 0.24999913573265076,
+        "diagnostic/gripper_executed_endpoint_fraction": 0.0,
+        "diagnostic/real_state_raw_latent_cost_available": 0.0,
+        "update_seconds": 45.677786017011385
+      },
+      "training_status": {
+        "actor": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "real_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 21
+          },
+          "tensor_count": 21,
+          "cpu_step_counters_allowed": false
+        },
+        "dynamics": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 14
+          },
+          "tensor_count": 14,
+          "cpu_step_counters_allowed": false
+        },
+        "imagined_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 6
+          },
+          "tensor_count": 6,
+          "cpu_step_counters_allowed": false
+        },
+        "low_policy": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 26
+          },
+          "tensor_count": 26,
+          "cpu_step_counters_allowed": false
+        },
+        "fixed_scaler": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 2
+          },
+          "tensor_count": 2,
+          "cpu_step_counters_allowed": false
+        },
+        "fk": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 4
+          },
+          "tensor_count": 4,
+          "cpu_step_counters_allowed": false
+        },
+        "observation_noise": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 3
+          },
+          "tensor_count": 3,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 41,
+            "cuda:0": 82
+          },
+          "tensor_count": 123,
+          "cpu_step_counters_allowed": true
+        },
+        "dynamics_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 14,
+            "cuda:0": 28
+          },
+          "tensor_count": 42,
+          "cpu_step_counters_allowed": true
+        },
+        "high_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 25
+          },
+          "tensor_count": 25,
+          "cpu_step_counters_allowed": false
+        },
+        "low_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 23
+          },
+          "tensor_count": 23,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_memory": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 9
+          },
+          "tensor_count": 9,
+          "cpu_step_counters_allowed": false
+        }
+      },
+      "actor_after_bptt": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.0017519068205729127,
+          -0.010443507693707943,
+          -0.007304070983082056,
+          -0.007112100254744291,
+          -0.0016100234352052212,
+          -0.007578079588711262,
+          -0.004813465289771557,
+          -0.004122920800000429,
+          -0.01164665725082159
+        ],
+        "mean_max": [
+          0.005700575187802315,
+          0.012082267552614212,
+          0.00581367639824748,
+          0.012546319514513016,
+          0.005128484219312668,
+          0.005045440047979355,
+          0.014702851884067059,
+          0.0062404293566942215,
+          0.011323484592139721
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.313018798828125,
+          -2.3025667667388916,
+          -2.2985501289367676,
+          -2.3046600818634033,
+          -2.3121774196624756,
+          -2.312614679336548,
+          -2.3082611560821533,
+          -2.308499336242676,
+          -2.307673454284668
+        ],
+        "log_std_max": [
+          -2.313018798828125,
+          -2.3025667667388916,
+          -2.2985501289367676,
+          -2.3046600818634033,
+          -2.3121774196624756,
+          -2.312614679336548,
+          -2.3082611560821533,
+          -2.308499336242676,
+          -2.307673454284668
+        ],
+        "log_std_parameter": [
+          -2.313018798828125,
+          -2.3025667667388916,
+          -2.2985501289367676,
+          -2.3046600818634033,
+          -2.3121774196624756,
+          -2.312614679336548,
+          -2.3082611560821533,
+          -2.308499336242676,
+          -2.307673454284668
+        ],
+        "opening_min": 0.49879661202430725,
+        "opening_max": 0.503675639629364,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "low_policy_unchanged": true,
+      "low_policy_frozen": true,
+      "schedule": {
+        "config": {
+          "batch_size": 2048,
+          "wm_epochs": 1.0,
+          "wm_max_batches": 512,
+          "wm_prepare_boundaries": 4,
+          "value_prepare_boundaries": 2,
+          "value_prepare_batches": 8,
+          "actor_stage1_boundaries": 4,
+          "actor_stage2_boundaries": 4,
+          "actor_stage1_updates": 1,
+          "actor_stage2_updates": 2,
+          "actor_max_updates": 4
+        },
+        "seen_transitions": 747072,
+        "credit": 0.78125,
+        "completed": {
+          "W": 1,
+          "V": 0,
+          "B1": 0,
+          "B2": 0,
+          "B3": 0
+        },
+        "boundaries": 1,
+        "discarded_batches": 0
+      },
+      "update_rounds": 0
+    },
+    {
+      "index": 2,
+      "high_steps": 48,
+      "low_steps": 384,
+      "completed": true,
+      "bptt_calls": 0,
+      "bptt_accepted": 0,
+      "value_only_calls": 0,
+      "protected_rejections": [],
+      "stage": "W",
+      "actor_before_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.0031698537059128284,
+          -0.009889188222587109,
+          -0.01002863235771656,
+          -0.007570482790470123,
+          -0.0019009672105312347,
+          -0.008856250904500484,
+          -0.004432226996868849,
+          -0.004442235454916954,
+          -0.013575536198914051
+        ],
+        "mean_max": [
+          0.007605892606079578,
+          0.013945252634584904,
+          0.009566986933350563,
+          0.013431640341877937,
+          0.005186575464904308,
+          0.006132354959845543,
+          0.012118220329284668,
+          0.008893296122550964,
+          0.013507254421710968
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.313018798828125,
+          -2.3025667667388916,
+          -2.2985501289367676,
+          -2.3046600818634033,
+          -2.3121774196624756,
+          -2.312614679336548,
+          -2.3082611560821533,
+          -2.308499336242676,
+          -2.307673454284668
+        ],
+        "log_std_max": [
+          -2.313018798828125,
+          -2.3025667667388916,
+          -2.2985501289367676,
+          -2.3046600818634033,
+          -2.3121774196624756,
+          -2.312614679336548,
+          -2.3082611560821533,
+          -2.308499336242676,
+          -2.307673454284668
+        ],
+        "log_std_parameter": [
+          -2.313018798828125,
+          -2.3025667667388916,
+          -2.2985501289367676,
+          -2.3046600818634033,
+          -2.3121774196624756,
+          -2.312614679336548,
+          -2.3082611560821533,
+          -2.308499336242676,
+          -2.307673454284668
+        ],
+        "opening_min": 0.4988919198513031,
+        "opening_max": 0.5030295252799988,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_ppo_numerics": {
+        "timestep": 47,
+        "attempted_minibatches": 30,
+        "accepted_minibatches": 30,
+        "rejected_minibatches": 0,
+        "rejected_rollouts": 0,
+        "rolled_back_steps": 0,
+        "reason_counts": {},
+        "last_rejection": null,
+        "nonfinite_kl_diagnostics": 0,
+        "log_ratio_abs_max": 0.7182435989379883,
+        "max_finite_grad_norm": 2.37162184715271
+      },
+      "actor_after_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.004363530315458775,
+          -0.010324562899768353,
+          -0.011269066482782364,
+          -0.010453765280544758,
+          -0.003440935630351305,
+          -0.01270680408924818,
+          -0.005347062833607197,
+          -0.012161594815552235,
+          -0.028359606862068176
+        ],
+        "mean_max": [
+          0.008097542449831963,
+          0.01552499271929264,
+          0.014416604302823544,
+          0.015408349223434925,
+          0.008324195630848408,
+          0.010556080378592014,
+          0.01101564522832632,
+          0.01153551135212183,
+          0.02709146961569786
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.322986364364624,
+          -2.3042514324188232,
+          -2.301767587661743,
+          -2.3067965507507324,
+          -2.307389974594116,
+          -2.322614908218384,
+          -2.3142588138580322,
+          -2.307886838912964,
+          -2.3068647384643555
+        ],
+        "log_std_max": [
+          -2.322986364364624,
+          -2.3042514324188232,
+          -2.301767587661743,
+          -2.3067965507507324,
+          -2.307389974594116,
+          -2.322614908218384,
+          -2.3142588138580322,
+          -2.307886838912964,
+          -2.3068647384643555
+        ],
+        "log_std_parameter": [
+          -2.322986364364624,
+          -2.3042514324188232,
+          -2.301767587661743,
+          -2.3067965507507324,
+          -2.307389974594116,
+          -2.322614908218384,
+          -2.3142588138580322,
+          -2.307886838912964,
+          -2.3068647384643555
+        ],
+        "opening_min": 0.49866318702697754,
+        "opening_max": 0.5027539134025574,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "seconds": 46.769384565996006,
+      "last_world_model_metrics": {
+        "candidate/state_loss": 1.4436914920806885,
+        "candidate/termination_bce": 0.0,
+        "candidate/auxiliary_loss": 0.0,
+        "candidate/loss": 1.45466148853302,
+        "candidate/valid_count": 16355.5810546875,
+        "candidate/valid_1step_count": 2048.0,
+        "candidate/valid_kstep_count": 2040.9013671875,
+        "candidate/nse_1step": 0.009119560942053795,
+        "candidate/nse_kstep": 0.03985203430056572,
+        "candidate/contact_bce": 0.10969573259353638,
+        "candidate/contact_accuracy": 0.9614049792289734,
+        "candidate/grad_norm": 10.851758003234863,
+        "candidate/updates": 729.0,
+        "candidate/skipped_nonfinite": 0.0,
+        "candidate/skipped_no_valid_steps": 0.0,
+        "candidate/validation_state_loss": 0.8710618019104004,
+        "candidate/validation_termination_bce": 0.0,
+        "candidate/validation_auxiliary_loss": 0.0,
+        "candidate/validation_loss": 0.8782660365104675,
+        "candidate/validation_valid_count": 2048.0,
+        "candidate/validation_valid_1step_count": 256.0,
+        "candidate/validation_valid_kstep_count": 256.0,
+        "candidate/validation_nse_1step": 0.005887033883482218,
+        "candidate/validation_nse_kstep": 0.024621527642011642,
+        "candidate/validation_contact_bce": 0.07204249501228333,
+        "candidate/validation_contact_accuracy": 0.9725341796875,
+        "candidate/validation_available": 1.0,
+        "schedule/phase": 0.0,
+        "schedule/next_phase": 0.0,
+        "schedule/boundary_completed": 1.0,
+        "schedule/new_valid_train_transitions": 747072.0,
+        "schedule/wm_budget": 365.0,
+        "schedule/wm_updates": 365.0,
+        "schedule/discarded_wm_batches": 0.0,
+        "schedule/wm_fraction": 0.5625,
+        "schedule/effective_epochs": 1.0005996744624346,
+        "schedule/actor_budget": 0.0,
+        "schedule/actor_accepted": 0.0,
+        "schedule/value_batches_completed": 0.0,
+        "schedule/critic_updates": 0.0,
+        "replay_steps": 48.0,
+        "low_replay_steps": 384.0,
+        "total_low_steps": 384.0,
+        "lr_ratio": 0.9999943533212972,
+        "fit_seconds": 45.807681095961016,
+        "imagination_seconds": 0.00011882302351295948,
+        "on_gpu": 1.0,
+        "diagnostic/closed_loop_available": 1.0,
+        "diagnostic/low_controller_closed_loop_nse": 0.07601755112409592,
+        "diagnostic/low_controller_closed_loop_last_nse": 0.13352680206298828,
+        "diagnostic/low_controller_closed_loop_confidence_error": 0.266670286655426,
+        "diagnostic/low_controller_closed_loop_last_confidence_error": 0.572303056716919,
+        "diagnostic/low_controller_closed_loop_relative_error": 0.2611164450645447,
+        "diagnostic/low_controller_closed_loop_last_relative_error": 0.566887617111206,
+        "diagnostic/low_controller_closed_loop_foot_contact_accuracy": 0.9580078125,
+        "diagnostic/low_controller_closed_loop_last_foot_contact_accuracy": 0.9609375,
+        "diagnostic/real_state_aux": -0.003483909647911787,
+        "diagnostic/real_state_weighted_aux": -0.000348390982253477,
+        "diagnostic/real_state_raw_action_bound": 0.0,
+        "diagnostic/real_state_quality": 0.04875202849507332,
+        "diagnostic/real_state_approach": 0.10999085009098053,
+        "diagnostic/real_state_orientation": 0.26753729581832886,
+        "diagnostic/real_state_grasp": 6.313583753581042e-07,
+        "diagnostic/real_state_grasp_geometry": 4.4207199607626535e-06,
+        "diagnostic/real_state_lift": 0.005817150231450796,
+        "diagnostic/real_state_hold": 0.08824171125888824,
+        "diagnostic/real_state_grasp_lift": 4.3395402826718055e-09,
+        "diagnostic/real_state_grasp_lift_hold": 3.575847118408859e-10,
+        "diagnostic/real_state_slip_cost": 3.789361642247968e-07,
+        "diagnostic/real_state_unsafe_cost": 0.07052608579397202,
+        "diagnostic/real_state_slip_speed": 0.30164915323257446,
+        "diagnostic/reward_available": 1.0,
+        "diagnostic/native_reward": 0.04190186783671379,
+        "diagnostic/reconstructed_task_reward": 0.04190217703580856,
+        "diagnostic/task_reward_abs_error": 1.3208045857027173e-06,
+        "diagnostic/real_state_imagined_reward": 0.04155378416180611,
+        "diagnostic/imagined_native_reward_gap": -0.0003480839659459889,
+        "diagnostic/done_disagreement": 0.0,
+        "diagnostic/stage_lifted_fraction": 0.0,
+        "diagnostic/stage_success_fraction": 0.0,
+        "diagnostic/stage_completed_fraction": 0.0,
+        "diagnostic/stage_failed_fraction": 0.0,
+        "diagnostic/stage_timeout_fraction": 0.0,
+        "diagnostic/stage_hold_progress": 0.0,
+        "diagnostic/stage_hold_fraction": 0.0,
+        "diagnostic/stage_held_not_complete_fraction": 0.0,
+        "diagnostic/action_0_saturation": 0.0,
+        "diagnostic/action_1_saturation": 0.0,
+        "diagnostic/action_2_saturation": 0.0,
+        "diagnostic/action_3_saturation": 0.0,
+        "diagnostic/action_4_saturation": 0.0,
+        "diagnostic/action_5_saturation": 0.0,
+        "diagnostic/action_7_saturation": 0.0,
+        "diagnostic/action_8_saturation": 0.0,
+        "diagnostic/gripper_mean_sigmoid_derivative": 0.24999868869781494,
+        "diagnostic/gripper_executed_endpoint_fraction": 0.0,
+        "diagnostic/real_state_raw_latent_cost_available": 0.0,
+        "update_seconds": 46.002101905993186
+      },
+      "training_status": {
+        "actor": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "real_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 21
+          },
+          "tensor_count": 21,
+          "cpu_step_counters_allowed": false
+        },
+        "dynamics": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 14
+          },
+          "tensor_count": 14,
+          "cpu_step_counters_allowed": false
+        },
+        "imagined_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 6
+          },
+          "tensor_count": 6,
+          "cpu_step_counters_allowed": false
+        },
+        "low_policy": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 26
+          },
+          "tensor_count": 26,
+          "cpu_step_counters_allowed": false
+        },
+        "fixed_scaler": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 2
+          },
+          "tensor_count": 2,
+          "cpu_step_counters_allowed": false
+        },
+        "fk": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 4
+          },
+          "tensor_count": 4,
+          "cpu_step_counters_allowed": false
+        },
+        "observation_noise": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 3
+          },
+          "tensor_count": 3,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 41,
+            "cuda:0": 82
+          },
+          "tensor_count": 123,
+          "cpu_step_counters_allowed": true
+        },
+        "dynamics_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 14,
+            "cuda:0": 28
+          },
+          "tensor_count": 42,
+          "cpu_step_counters_allowed": true
+        },
+        "high_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 25
+          },
+          "tensor_count": 25,
+          "cpu_step_counters_allowed": false
+        },
+        "low_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 23
+          },
+          "tensor_count": 23,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_memory": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 9
+          },
+          "tensor_count": 9,
+          "cpu_step_counters_allowed": false
+        }
+      },
+      "actor_after_bptt": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.004363530315458775,
+          -0.010324562899768353,
+          -0.011269066482782364,
+          -0.010453765280544758,
+          -0.003440935630351305,
+          -0.01270680408924818,
+          -0.005347062833607197,
+          -0.012161594815552235,
+          -0.028359606862068176
+        ],
+        "mean_max": [
+          0.008097542449831963,
+          0.01552499271929264,
+          0.014416604302823544,
+          0.015408349223434925,
+          0.008324195630848408,
+          0.010556080378592014,
+          0.01101564522832632,
+          0.01153551135212183,
+          0.02709146961569786
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.322986364364624,
+          -2.3042514324188232,
+          -2.301767587661743,
+          -2.3067965507507324,
+          -2.307389974594116,
+          -2.322614908218384,
+          -2.3142588138580322,
+          -2.307886838912964,
+          -2.3068647384643555
+        ],
+        "log_std_max": [
+          -2.322986364364624,
+          -2.3042514324188232,
+          -2.301767587661743,
+          -2.3067965507507324,
+          -2.307389974594116,
+          -2.322614908218384,
+          -2.3142588138580322,
+          -2.307886838912964,
+          -2.3068647384643555
+        ],
+        "log_std_parameter": [
+          -2.322986364364624,
+          -2.3042514324188232,
+          -2.301767587661743,
+          -2.3067965507507324,
+          -2.307389974594116,
+          -2.322614908218384,
+          -2.3142588138580322,
+          -2.307886838912964,
+          -2.3068647384643555
+        ],
+        "opening_min": 0.49866318702697754,
+        "opening_max": 0.5027539134025574,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "low_policy_unchanged": true,
+      "low_policy_frozen": true,
+      "schedule": {
+        "config": {
+          "batch_size": 2048,
+          "wm_epochs": 1.0,
+          "wm_max_batches": 512,
+          "wm_prepare_boundaries": 4,
+          "value_prepare_boundaries": 2,
+          "value_prepare_batches": 8,
+          "actor_stage1_boundaries": 4,
+          "actor_stage2_boundaries": 4,
+          "actor_stage1_updates": 1,
+          "actor_stage2_updates": 2,
+          "actor_max_updates": 4
+        },
+        "seen_transitions": 1494144,
+        "credit": 0.5625,
+        "completed": {
+          "W": 2,
+          "V": 0,
+          "B1": 0,
+          "B2": 0,
+          "B3": 0
+        },
+        "boundaries": 2,
+        "discarded_batches": 0
+      },
+      "update_rounds": 0
+    },
+    {
+      "index": 3,
+      "high_steps": 72,
+      "low_steps": 576,
+      "completed": true,
+      "bptt_calls": 0,
+      "bptt_accepted": 0,
+      "value_only_calls": 0,
+      "protected_rejections": [],
+      "stage": "W",
+      "actor_before_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.005089099053293467,
+          -0.013002507388591766,
+          -0.013201429508626461,
+          -0.013021121732890606,
+          -0.003692219965159893,
+          -0.015238361433148384,
+          -0.006009221076965332,
+          -0.013029045425355434,
+          -0.031081708148121834
+        ],
+        "mean_max": [
+          0.008852703496813774,
+          0.019583111628890038,
+          0.016693059355020523,
+          0.018847409635782242,
+          0.008813085034489632,
+          0.013242264278233051,
+          0.013112831860780716,
+          0.011321605183184147,
+          0.03375159576535225
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.322986364364624,
+          -2.3042514324188232,
+          -2.301767587661743,
+          -2.3067965507507324,
+          -2.307389974594116,
+          -2.322614908218384,
+          -2.3142588138580322,
+          -2.307886838912964,
+          -2.3068647384643555
+        ],
+        "log_std_max": [
+          -2.322986364364624,
+          -2.3042514324188232,
+          -2.301767587661743,
+          -2.3067965507507324,
+          -2.307389974594116,
+          -2.322614908218384,
+          -2.3142588138580322,
+          -2.307886838912964,
+          -2.3068647384643555
+        ],
+        "log_std_parameter": [
+          -2.322986364364624,
+          -2.3042514324188232,
+          -2.301767587661743,
+          -2.3067965507507324,
+          -2.307389974594116,
+          -2.322614908218384,
+          -2.3142588138580322,
+          -2.307886838912964,
+          -2.3068647384643555
+        ],
+        "opening_min": 0.49849772453308105,
+        "opening_max": 0.5032781362533569,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_ppo_numerics": {
+        "timestep": 71,
+        "attempted_minibatches": 30,
+        "accepted_minibatches": 30,
+        "rejected_minibatches": 0,
+        "rejected_rollouts": 0,
+        "rolled_back_steps": 0,
+        "reason_counts": {},
+        "last_rejection": null,
+        "nonfinite_kl_diagnostics": 0,
+        "log_ratio_abs_max": 1.242750644683838,
+        "max_finite_grad_norm": 224.43894958496094
+      },
+      "actor_after_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.004780226852744818,
+          -0.01738501340150833,
+          -0.013495754450559616,
+          -0.010907630436122417,
+          -0.004558739718049765,
+          -0.019414382055401802,
+          -0.0065294718369841576,
+          -0.017230432480573654,
+          -0.03741568326950073
+        ],
+        "mean_max": [
+          0.01473916880786419,
+          0.023946071043610573,
+          0.016709208488464355,
+          0.023251108825206757,
+          0.016246691346168518,
+          0.016565971076488495,
+          0.012324752286076546,
+          0.011335550807416439,
+          0.03777943551540375
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.324500799179077,
+          -2.307184934616089,
+          -2.303358554840088,
+          -2.3069958686828613,
+          -2.315502643585205,
+          -2.3270039558410645,
+          -2.320240020751953,
+          -2.310061454772949,
+          -2.3103959560394287
+        ],
+        "log_std_max": [
+          -2.324500799179077,
+          -2.307184934616089,
+          -2.303358554840088,
+          -2.3069958686828613,
+          -2.315502643585205,
+          -2.3270039558410645,
+          -2.320240020751953,
+          -2.310061454772949,
+          -2.3103959560394287
+        ],
+        "log_std_parameter": [
+          -2.324500799179077,
+          -2.307184934616089,
+          -2.303358554840088,
+          -2.3069958686828613,
+          -2.315502643585205,
+          -2.3270039558410645,
+          -2.320240020751953,
+          -2.310061454772949,
+          -2.3103959560394287
+        ],
+        "opening_min": 0.49836763739585876,
+        "opening_max": 0.5030811429023743,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "seconds": 47.43339309497969,
+      "last_world_model_metrics": {
+        "candidate/state_loss": 1.0468530654907227,
+        "candidate/termination_bce": 0.0,
+        "candidate/auxiliary_loss": 0.0,
+        "candidate/loss": 1.0521066188812256,
+        "candidate/valid_count": 16365.1044921875,
+        "candidate/valid_1step_count": 2048.0,
+        "candidate/valid_kstep_count": 2043.2685546875,
+        "candidate/nse_1step": 0.007264415733516216,
+        "candidate/nse_kstep": 0.027900397777557373,
+        "candidate/contact_bce": 0.052536047995090485,
+        "candidate/contact_accuracy": 0.9810789823532104,
+        "candidate/grad_norm": 8.221738815307617,
+        "candidate/updates": 1094.0,
+        "candidate/skipped_nonfinite": 0.0,
+        "candidate/skipped_no_valid_steps": 0.0,
+        "candidate/validation_state_loss": 0.9463581442832947,
+        "candidate/validation_termination_bce": 0.0,
+        "candidate/validation_auxiliary_loss": 0.0,
+        "candidate/validation_loss": 0.9512890577316284,
+        "candidate/validation_valid_count": 2042.0,
+        "candidate/validation_valid_1step_count": 256.0,
+        "candidate/validation_valid_kstep_count": 255.0,
+        "candidate/validation_nse_1step": 0.005853511393070221,
+        "candidate/validation_nse_kstep": 0.02719247154891491,
+        "candidate/validation_contact_bce": 0.04930943250656128,
+        "candidate/validation_contact_accuracy": 0.9800440669059753,
+        "candidate/validation_available": 1.0,
+        "schedule/phase": 0.0,
+        "schedule/next_phase": 0.0,
+        "schedule/boundary_completed": 1.0,
+        "schedule/new_valid_train_transitions": 747072.0,
+        "schedule/wm_budget": 365.0,
+        "schedule/wm_updates": 365.0,
+        "schedule/discarded_wm_batches": 0.0,
+        "schedule/wm_fraction": 0.34375,
+        "schedule/effective_epochs": 1.0005996744624346,
+        "schedule/actor_budget": 0.0,
+        "schedule/actor_accepted": 0.0,
+        "schedule/value_batches_completed": 0.0,
+        "schedule/critic_updates": 0.0,
+        "replay_steps": 72.0,
+        "low_replay_steps": 576.0,
+        "total_low_steps": 576.0,
+        "lr_ratio": 0.9999872950037354,
+        "fit_seconds": 46.45918519597035,
+        "imagination_seconds": 0.00013222201960161328,
+        "on_gpu": 1.0,
+        "diagnostic/closed_loop_available": 1.0,
+        "diagnostic/low_controller_closed_loop_nse": 0.09474119544029236,
+        "diagnostic/low_controller_closed_loop_last_nse": 0.20645882189273834,
+        "diagnostic/low_controller_closed_loop_confidence_error": 0.3107125163078308,
+        "diagnostic/low_controller_closed_loop_last_confidence_error": 0.7253276109695435,
+        "diagnostic/low_controller_closed_loop_relative_error": 0.30284857749938965,
+        "diagnostic/low_controller_closed_loop_last_relative_error": 0.7159951329231262,
+        "diagnostic/low_controller_closed_loop_foot_contact_accuracy": 0.95263671875,
+        "diagnostic/low_controller_closed_loop_last_foot_contact_accuracy": 0.9375,
+        "diagnostic/real_state_aux": -0.005163480993360281,
+        "diagnostic/real_state_weighted_aux": -0.0005163481109775603,
+        "diagnostic/real_state_raw_action_bound": 0.0,
+        "diagnostic/real_state_quality": 0.045769836753606796,
+        "diagnostic/real_state_approach": 0.0830460637807846,
+        "diagnostic/real_state_orientation": 0.29160618782043457,
+        "diagnostic/real_state_grasp": 2.6498041094669134e-08,
+        "diagnostic/real_state_grasp_geometry": 1.767727155765897e-07,
+        "diagnostic/real_state_lift": 0.0049057528376579285,
+        "diagnostic/real_state_hold": 0.08768266439437866,
+        "diagnostic/real_state_grasp_lift": 1.373898633749704e-10,
+        "diagnostic/real_state_grasp_lift_hold": 1.9822261887458836e-11,
+        "diagnostic/real_state_slip_cost": 1.5027465494199532e-08,
+        "diagnostic/real_state_unsafe_cost": 0.07804157584905624,
+        "diagnostic/real_state_slip_speed": 0.2920874059200287,
+        "diagnostic/reward_available": 1.0,
+        "diagnostic/native_reward": 0.036825843155384064,
+        "diagnostic/reconstructed_task_reward": 0.036825504153966904,
+        "diagnostic/task_reward_abs_error": 3.6699025258712936e-06,
+        "diagnostic/real_state_imagined_reward": 0.03630915284156799,
+        "diagnostic/imagined_native_reward_gap": -0.0005166842602193356,
+        "diagnostic/done_disagreement": 0.0,
+        "diagnostic/stage_lifted_fraction": 0.0,
+        "diagnostic/stage_success_fraction": 0.0,
+        "diagnostic/stage_completed_fraction": 0.0,
+        "diagnostic/stage_failed_fraction": 0.0,
+        "diagnostic/stage_timeout_fraction": 0.0,
+        "diagnostic/stage_hold_progress": 0.0,
+        "diagnostic/stage_hold_fraction": 0.0,
+        "diagnostic/stage_held_not_complete_fraction": 0.0,
+        "diagnostic/action_0_saturation": 0.0,
+        "diagnostic/action_1_saturation": 0.0,
+        "diagnostic/action_2_saturation": 0.0,
+        "diagnostic/action_3_saturation": 0.0,
+        "diagnostic/action_4_saturation": 0.0,
+        "diagnostic/action_5_saturation": 0.0,
+        "diagnostic/action_7_saturation": 0.0,
+        "diagnostic/action_8_saturation": 0.0,
+        "diagnostic/gripper_mean_sigmoid_derivative": 0.24999958276748657,
+        "diagnostic/gripper_executed_endpoint_fraction": 0.0,
+        "diagnostic/real_state_raw_latent_cost_available": 0.0,
+        "update_seconds": 46.663942447979935
+      },
+      "training_status": {
+        "actor": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "real_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 21
+          },
+          "tensor_count": 21,
+          "cpu_step_counters_allowed": false
+        },
+        "dynamics": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 14
+          },
+          "tensor_count": 14,
+          "cpu_step_counters_allowed": false
+        },
+        "imagined_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 6
+          },
+          "tensor_count": 6,
+          "cpu_step_counters_allowed": false
+        },
+        "low_policy": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 26
+          },
+          "tensor_count": 26,
+          "cpu_step_counters_allowed": false
+        },
+        "fixed_scaler": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 2
+          },
+          "tensor_count": 2,
+          "cpu_step_counters_allowed": false
+        },
+        "fk": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 4
+          },
+          "tensor_count": 4,
+          "cpu_step_counters_allowed": false
+        },
+        "observation_noise": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 3
+          },
+          "tensor_count": 3,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 41,
+            "cuda:0": 82
+          },
+          "tensor_count": 123,
+          "cpu_step_counters_allowed": true
+        },
+        "dynamics_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 14,
+            "cuda:0": 28
+          },
+          "tensor_count": 42,
+          "cpu_step_counters_allowed": true
+        },
+        "high_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 25
+          },
+          "tensor_count": 25,
+          "cpu_step_counters_allowed": false
+        },
+        "low_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 23
+          },
+          "tensor_count": 23,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_memory": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 9
+          },
+          "tensor_count": 9,
+          "cpu_step_counters_allowed": false
+        }
+      },
+      "actor_after_bptt": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.004780226852744818,
+          -0.01738501340150833,
+          -0.013495754450559616,
+          -0.010907630436122417,
+          -0.004558739718049765,
+          -0.019414382055401802,
+          -0.0065294718369841576,
+          -0.017230432480573654,
+          -0.03741568326950073
+        ],
+        "mean_max": [
+          0.01473916880786419,
+          0.023946071043610573,
+          0.016709208488464355,
+          0.023251108825206757,
+          0.016246691346168518,
+          0.016565971076488495,
+          0.012324752286076546,
+          0.011335550807416439,
+          0.03777943551540375
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.324500799179077,
+          -2.307184934616089,
+          -2.303358554840088,
+          -2.3069958686828613,
+          -2.315502643585205,
+          -2.3270039558410645,
+          -2.320240020751953,
+          -2.310061454772949,
+          -2.3103959560394287
+        ],
+        "log_std_max": [
+          -2.324500799179077,
+          -2.307184934616089,
+          -2.303358554840088,
+          -2.3069958686828613,
+          -2.315502643585205,
+          -2.3270039558410645,
+          -2.320240020751953,
+          -2.310061454772949,
+          -2.3103959560394287
+        ],
+        "log_std_parameter": [
+          -2.324500799179077,
+          -2.307184934616089,
+          -2.303358554840088,
+          -2.3069958686828613,
+          -2.315502643585205,
+          -2.3270039558410645,
+          -2.320240020751953,
+          -2.310061454772949,
+          -2.3103959560394287
+        ],
+        "opening_min": 0.49836763739585876,
+        "opening_max": 0.5030811429023743,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "low_policy_unchanged": true,
+      "low_policy_frozen": true,
+      "schedule": {
+        "config": {
+          "batch_size": 2048,
+          "wm_epochs": 1.0,
+          "wm_max_batches": 512,
+          "wm_prepare_boundaries": 4,
+          "value_prepare_boundaries": 2,
+          "value_prepare_batches": 8,
+          "actor_stage1_boundaries": 4,
+          "actor_stage2_boundaries": 4,
+          "actor_stage1_updates": 1,
+          "actor_stage2_updates": 2,
+          "actor_max_updates": 4
+        },
+        "seen_transitions": 2241216,
+        "credit": 0.34375,
+        "completed": {
+          "W": 3,
+          "V": 0,
+          "B1": 0,
+          "B2": 0,
+          "B3": 0
+        },
+        "boundaries": 3,
+        "discarded_batches": 0
+      },
+      "update_rounds": 0
+    },
+    {
+      "index": 4,
+      "high_steps": 96,
+      "low_steps": 768,
+      "completed": true,
+      "bptt_calls": 0,
+      "bptt_accepted": 0,
+      "value_only_calls": 0,
+      "protected_rejections": [],
+      "stage": "W",
+      "actor_before_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.005731052253395319,
+          -0.02436618134379387,
+          -0.015476635657250881,
+          -0.015102623961865902,
+          -0.004166437778621912,
+          -0.021121995523571968,
+          -0.00759886484593153,
+          -0.018749509006738663,
+          -0.040210697799921036
+        ],
+        "mean_max": [
+          0.016254009678959846,
+          0.02766888588666916,
+          0.02010660246014595,
+          0.026838522404432297,
+          0.014565031975507736,
+          0.021163346245884895,
+          0.013246404938399792,
+          0.013615363277494907,
+          0.04419371858239174
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.324500799179077,
+          -2.307184934616089,
+          -2.303358554840088,
+          -2.3069958686828613,
+          -2.315502643585205,
+          -2.3270039558410645,
+          -2.320240020751953,
+          -2.310061454772949,
+          -2.3103959560394287
+        ],
+        "log_std_max": [
+          -2.324500799179077,
+          -2.307184934616089,
+          -2.303358554840088,
+          -2.3069958686828613,
+          -2.315502643585205,
+          -2.3270039558410645,
+          -2.320240020751953,
+          -2.310061454772949,
+          -2.3103959560394287
+        ],
+        "log_std_parameter": [
+          -2.324500799179077,
+          -2.307184934616089,
+          -2.303358554840088,
+          -2.3069958686828613,
+          -2.315502643585205,
+          -2.3270039558410645,
+          -2.320240020751953,
+          -2.310061454772949,
+          -2.3103959560394287
+        ],
+        "opening_min": 0.49810025095939636,
+        "opening_max": 0.5033115744590759,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_ppo_numerics": {
+        "timestep": 95,
+        "attempted_minibatches": 30,
+        "accepted_minibatches": 30,
+        "rejected_minibatches": 0,
+        "rejected_rollouts": 0,
+        "rolled_back_steps": 0,
+        "reason_counts": {},
+        "last_rejection": null,
+        "nonfinite_kl_diagnostics": 0,
+        "log_ratio_abs_max": 1.0958548784255981,
+        "max_finite_grad_norm": 6.438510417938232
+      },
+      "actor_after_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.007756252773106098,
+          -0.023914238438010216,
+          -0.012572167441248894,
+          -0.015767376869916916,
+          -0.016779446974396706,
+          -0.022313043475151062,
+          -0.008414201438426971,
+          -0.025550490245223045,
+          -0.05292738974094391
+        ],
+        "mean_max": [
+          0.02102939784526825,
+          0.02357158064842224,
+          0.0138116255402565,
+          0.026888668537139893,
+          0.01937553845345974,
+          0.02476232312619686,
+          0.019248483702540398,
+          0.016229471191763878,
+          0.04200613871216774
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.328817129135132,
+          -2.309361457824707,
+          -2.306936740875244,
+          -2.304758071899414,
+          -2.3189938068389893,
+          -2.32015323638916,
+          -2.3218648433685303,
+          -2.3137240409851074,
+          -2.3106348514556885
+        ],
+        "log_std_max": [
+          -2.328817129135132,
+          -2.309361457824707,
+          -2.306936740875244,
+          -2.304758071899414,
+          -2.3189938068389893,
+          -2.32015323638916,
+          -2.3218648433685303,
+          -2.3137240409851074,
+          -2.3106348514556885
+        ],
+        "log_std_parameter": [
+          -2.328817129135132,
+          -2.309361457824707,
+          -2.306936740875244,
+          -2.304758071899414,
+          -2.3189938068389893,
+          -2.32015323638916,
+          -2.3218648433685303,
+          -2.3137240409851074,
+          -2.3106348514556885
+        ],
+        "opening_min": 0.4978964328765869,
+        "opening_max": 0.5048120021820068,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "seconds": 47.12943304597866,
+      "last_world_model_metrics": {
+        "candidate/state_loss": 0.8703521490097046,
+        "candidate/termination_bce": 0.0,
+        "candidate/auxiliary_loss": 0.0,
+        "candidate/loss": 0.8739497065544128,
+        "candidate/valid_count": 16369.0634765625,
+        "candidate/valid_1step_count": 2048.0,
+        "candidate/valid_kstep_count": 2044.2520751953125,
+        "candidate/nse_1step": 0.006375341676175594,
+        "candidate/nse_kstep": 0.022991035133600235,
+        "candidate/contact_bce": 0.03597003594040871,
+        "candidate/contact_accuracy": 0.9866589307785034,
+        "candidate/grad_norm": 6.751128673553467,
+        "candidate/updates": 1459.0,
+        "candidate/skipped_nonfinite": 0.0,
+        "candidate/skipped_no_valid_steps": 0.0,
+        "candidate/validation_state_loss": 0.6916883587837219,
+        "candidate/validation_termination_bce": 0.0,
+        "candidate/validation_auxiliary_loss": 0.0,
+        "candidate/validation_loss": 0.6951239705085754,
+        "candidate/validation_valid_count": 2048.0,
+        "candidate/validation_valid_1step_count": 256.0,
+        "candidate/validation_valid_kstep_count": 256.0,
+        "candidate/validation_nse_1step": 0.004644941538572311,
+        "candidate/validation_nse_kstep": 0.019955001771450043,
+        "candidate/validation_contact_bce": 0.03435584157705307,
+        "candidate/validation_contact_accuracy": 0.9874267578125,
+        "candidate/validation_available": 1.0,
+        "schedule/phase": 0.0,
+        "schedule/next_phase": 1.0,
+        "schedule/boundary_completed": 1.0,
+        "schedule/new_valid_train_transitions": 747072.0,
+        "schedule/wm_budget": 365.0,
+        "schedule/wm_updates": 365.0,
+        "schedule/discarded_wm_batches": 0.0,
+        "schedule/wm_fraction": 0.125,
+        "schedule/effective_epochs": 1.0005996744624346,
+        "schedule/actor_budget": 0.0,
+        "schedule/actor_accepted": 0.0,
+        "schedule/value_batches_completed": 0.0,
+        "schedule/critic_updates": 0.0,
+        "replay_steps": 96.0,
+        "low_replay_steps": 768.0,
+        "total_low_steps": 768.0,
+        "lr_ratio": 0.9999774134166732,
+        "fit_seconds": 46.16209133301163,
+        "imagination_seconds": 0.00010710401693359017,
+        "on_gpu": 1.0,
+        "diagnostic/closed_loop_available": 1.0,
+        "diagnostic/low_controller_closed_loop_nse": 0.15194347500801086,
+        "diagnostic/low_controller_closed_loop_last_nse": 0.3072447180747986,
+        "diagnostic/low_controller_closed_loop_confidence_error": 0.5153149366378784,
+        "diagnostic/low_controller_closed_loop_last_confidence_error": 1.1164851188659668,
+        "diagnostic/low_controller_closed_loop_relative_error": 0.5035176277160645,
+        "diagnostic/low_controller_closed_loop_last_relative_error": 1.1060155630111694,
+        "diagnostic/low_controller_closed_loop_foot_contact_accuracy": 0.9365234375,
+        "diagnostic/low_controller_closed_loop_last_foot_contact_accuracy": 0.919921875,
+        "diagnostic/real_state_aux": -0.006227165926247835,
+        "diagnostic/real_state_weighted_aux": -0.000622716557700187,
+        "diagnostic/real_state_raw_action_bound": 0.0,
+        "diagnostic/real_state_quality": 0.03498116508126259,
+        "diagnostic/real_state_approach": 0.07206995785236359,
+        "diagnostic/real_state_orientation": 0.20567172765731812,
+        "diagnostic/real_state_grasp": 1.3470321746922309e-08,
+        "diagnostic/real_state_grasp_geometry": 1.402033973363359e-07,
+        "diagnostic/real_state_lift": 0.0050294771790504456,
+        "diagnostic/real_state_hold": 0.08396854996681213,
+        "diagnostic/real_state_grasp_lift": 3.3329708437612737e-10,
+        "diagnostic/real_state_grasp_lift_hold": 1.9396727279907822e-11,
+        "diagnostic/real_state_slip_cost": 1.2673306848398624e-08,
+        "diagnostic/real_state_unsafe_cost": 0.07390093803405762,
+        "diagnostic/real_state_slip_speed": 0.3257402181625366,
+        "diagnostic/reward_available": 1.0,
+        "diagnostic/native_reward": 0.03625103086233139,
+        "diagnostic/reconstructed_task_reward": 0.03624766692519188,
+        "diagnostic/task_reward_abs_error": 4.810363861906808e-06,
+        "diagnostic/real_state_imagined_reward": 0.035624947398900986,
+        "diagnostic/imagined_native_reward_gap": -0.0006260819500312209,
+        "diagnostic/done_disagreement": 0.0,
+        "diagnostic/stage_lifted_fraction": 0.0,
+        "diagnostic/stage_success_fraction": 0.0,
+        "diagnostic/stage_completed_fraction": 0.0,
+        "diagnostic/stage_failed_fraction": 0.0078125,
+        "diagnostic/stage_timeout_fraction": 0.0,
+        "diagnostic/stage_hold_progress": 0.0,
+        "diagnostic/stage_hold_fraction": 0.0,
+        "diagnostic/stage_held_not_complete_fraction": 0.0,
+        "diagnostic/action_0_saturation": 0.0,
+        "diagnostic/action_1_saturation": 0.0,
+        "diagnostic/action_2_saturation": 0.0,
+        "diagnostic/action_3_saturation": 0.0,
+        "diagnostic/action_4_saturation": 0.0,
+        "diagnostic/action_5_saturation": 0.0,
+        "diagnostic/action_7_saturation": 0.0,
+        "diagnostic/action_8_saturation": 0.0,
+        "diagnostic/gripper_mean_sigmoid_derivative": 0.24999916553497314,
+        "diagnostic/gripper_executed_endpoint_fraction": 0.0,
+        "diagnostic/real_state_raw_latent_cost_available": 0.0,
+        "update_seconds": 46.3620160369901
+      },
+      "training_status": {
+        "actor": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "real_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 21
+          },
+          "tensor_count": 21,
+          "cpu_step_counters_allowed": false
+        },
+        "dynamics": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 14
+          },
+          "tensor_count": 14,
+          "cpu_step_counters_allowed": false
+        },
+        "imagined_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 6
+          },
+          "tensor_count": 6,
+          "cpu_step_counters_allowed": false
+        },
+        "low_policy": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 26
+          },
+          "tensor_count": 26,
+          "cpu_step_counters_allowed": false
+        },
+        "fixed_scaler": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 2
+          },
+          "tensor_count": 2,
+          "cpu_step_counters_allowed": false
+        },
+        "fk": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 4
+          },
+          "tensor_count": 4,
+          "cpu_step_counters_allowed": false
+        },
+        "observation_noise": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 3
+          },
+          "tensor_count": 3,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 41,
+            "cuda:0": 82
+          },
+          "tensor_count": 123,
+          "cpu_step_counters_allowed": true
+        },
+        "dynamics_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 14,
+            "cuda:0": 28
+          },
+          "tensor_count": 42,
+          "cpu_step_counters_allowed": true
+        },
+        "high_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 25
+          },
+          "tensor_count": 25,
+          "cpu_step_counters_allowed": false
+        },
+        "low_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 23
+          },
+          "tensor_count": 23,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_memory": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 9
+          },
+          "tensor_count": 9,
+          "cpu_step_counters_allowed": false
+        }
+      },
+      "actor_after_bptt": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.007756252773106098,
+          -0.023914238438010216,
+          -0.012572167441248894,
+          -0.015767376869916916,
+          -0.016779446974396706,
+          -0.022313043475151062,
+          -0.008414201438426971,
+          -0.025550490245223045,
+          -0.05292738974094391
+        ],
+        "mean_max": [
+          0.02102939784526825,
+          0.02357158064842224,
+          0.0138116255402565,
+          0.026888668537139893,
+          0.01937553845345974,
+          0.02476232312619686,
+          0.019248483702540398,
+          0.016229471191763878,
+          0.04200613871216774
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.328817129135132,
+          -2.309361457824707,
+          -2.306936740875244,
+          -2.304758071899414,
+          -2.3189938068389893,
+          -2.32015323638916,
+          -2.3218648433685303,
+          -2.3137240409851074,
+          -2.3106348514556885
+        ],
+        "log_std_max": [
+          -2.328817129135132,
+          -2.309361457824707,
+          -2.306936740875244,
+          -2.304758071899414,
+          -2.3189938068389893,
+          -2.32015323638916,
+          -2.3218648433685303,
+          -2.3137240409851074,
+          -2.3106348514556885
+        ],
+        "log_std_parameter": [
+          -2.328817129135132,
+          -2.309361457824707,
+          -2.306936740875244,
+          -2.304758071899414,
+          -2.3189938068389893,
+          -2.32015323638916,
+          -2.3218648433685303,
+          -2.3137240409851074,
+          -2.3106348514556885
+        ],
+        "opening_min": 0.4978964328765869,
+        "opening_max": 0.5048120021820068,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "low_policy_unchanged": true,
+      "low_policy_frozen": true,
+      "schedule": {
+        "config": {
+          "batch_size": 2048,
+          "wm_epochs": 1.0,
+          "wm_max_batches": 512,
+          "wm_prepare_boundaries": 4,
+          "value_prepare_boundaries": 2,
+          "value_prepare_batches": 8,
+          "actor_stage1_boundaries": 4,
+          "actor_stage2_boundaries": 4,
+          "actor_stage1_updates": 1,
+          "actor_stage2_updates": 2,
+          "actor_max_updates": 4
+        },
+        "seen_transitions": 2988288,
+        "credit": 0.125,
+        "completed": {
+          "W": 4,
+          "V": 0,
+          "B1": 0,
+          "B2": 0,
+          "B3": 0
+        },
+        "boundaries": 4,
+        "discarded_batches": 0
+      },
+      "update_rounds": 0
+    },
+    {
+      "index": 5,
+      "high_steps": 120,
+      "low_steps": 960,
+      "completed": true,
+      "bptt_calls": 0,
+      "bptt_accepted": 0,
+      "value_only_calls": 8,
+      "protected_rejections": [],
+      "stage": "V",
+      "actor_before_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.00519187655299902,
+          -0.011833802796900272,
+          -0.009289324283599854,
+          -0.009514265693724155,
+          -0.007643264718353748,
+          -0.015387900173664093,
+          -0.006815934553742409,
+          -0.019427578896284103,
+          -0.045157238841056824
+        ],
+        "mean_max": [
+          0.01841806434094906,
+          0.018043072894215584,
+          0.008583445101976395,
+          0.016982000321149826,
+          0.014274071902036667,
+          0.01797555200755596,
+          0.01922142691910267,
+          0.009073587134480476,
+          0.02113843336701393
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.328817129135132,
+          -2.309361457824707,
+          -2.306936740875244,
+          -2.304758071899414,
+          -2.3189938068389893,
+          -2.32015323638916,
+          -2.3218648433685303,
+          -2.3137240409851074,
+          -2.3106348514556885
+        ],
+        "log_std_max": [
+          -2.328817129135132,
+          -2.309361457824707,
+          -2.306936740875244,
+          -2.304758071899414,
+          -2.3189938068389893,
+          -2.32015323638916,
+          -2.3218648433685303,
+          -2.3137240409851074,
+          -2.3106348514556885
+        ],
+        "log_std_parameter": [
+          -2.328817129135132,
+          -2.309361457824707,
+          -2.306936740875244,
+          -2.304758071899414,
+          -2.3189938068389893,
+          -2.32015323638916,
+          -2.3218648433685303,
+          -2.3137240409851074,
+          -2.3106348514556885
+        ],
+        "opening_min": 0.49829602241516113,
+        "opening_max": 0.5048052072525024,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_ppo_numerics": {
+        "timestep": 119,
+        "attempted_minibatches": 30,
+        "accepted_minibatches": 30,
+        "rejected_minibatches": 0,
+        "rejected_rollouts": 0,
+        "rolled_back_steps": 0,
+        "reason_counts": {},
+        "last_rejection": null,
+        "nonfinite_kl_diagnostics": 0,
+        "log_ratio_abs_max": 2.127969980239868,
+        "max_finite_grad_norm": 650.6644897460938
+      },
+      "actor_after_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.0027463999576866627,
+          -0.008728941902518272,
+          -0.01496145874261856,
+          -0.008734755218029022,
+          0.00013854075223207474,
+          -0.009393440559506416,
+          -0.00513144675642252,
+          -0.01913367211818695,
+          -0.04352404922246933
+        ],
+        "mean_max": [
+          0.0367753840982914,
+          0.012019512243568897,
+          0.0018147841328755021,
+          0.02714674547314644,
+          0.02241051197052002,
+          0.010797789320349693,
+          0.021114381030201912,
+          0.005202278960496187,
+          0.0029976842924952507
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.3202126026153564,
+          -2.301732301712036,
+          -2.3074536323547363,
+          -2.3089940547943115,
+          -2.3091986179351807,
+          -2.3081130981445312,
+          -2.3182740211486816,
+          -2.3125624656677246,
+          -2.301467180252075
+        ],
+        "log_std_max": [
+          -2.3202126026153564,
+          -2.301732301712036,
+          -2.3074536323547363,
+          -2.3089940547943115,
+          -2.3091986179351807,
+          -2.3081130981445312,
+          -2.3182740211486816,
+          -2.3125624656677246,
+          -2.301467180252075
+        ],
+        "log_std_parameter": [
+          -2.3202126026153564,
+          -2.301732301712036,
+          -2.3074536323547363,
+          -2.3089940547943115,
+          -2.3091986179351807,
+          -2.3081130981445312,
+          -2.3182740211486816,
+          -2.3125624656677246,
+          -2.301467180252075
+        ],
+        "opening_min": 0.49871715903282166,
+        "opening_max": 0.5052784085273743,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_value_only_metrics": {
+        "critic_loss": 0.016731256619095802,
+        "critic_grad_norm": 0.13469767570495605,
+        "critic_value_mean": 0.5331999063491821,
+        "critic_target_mean": 0.5792062878608704,
+        "critic_updates": 20.0,
+        "critic_samples": 16058.0,
+        "critic_skipped_nonfinite": 0.0,
+        "critic_effective_lr": 0.00019999294172352695,
+        "value_prepared": 1.0,
+        "actor_updates": 0.0
+      },
+      "seconds": 50.79800274100853,
+      "last_world_model_metrics": {
+        "candidate/state_loss": 0.9227005839347839,
+        "candidate/termination_bce": 0.0,
+        "candidate/auxiliary_loss": 0.0,
+        "candidate/loss": 0.9258904457092285,
+        "candidate/valid_count": 16303.5556640625,
+        "candidate/valid_1step_count": 2048.0,
+        "candidate/valid_kstep_count": 2027.9285888671875,
+        "candidate/nse_1step": 0.00659367348998785,
+        "candidate/nse_kstep": 0.024901019409298897,
+        "candidate/contact_bce": 0.031892769038677216,
+        "candidate/contact_accuracy": 0.988204836845398,
+        "candidate/grad_norm": 5.64409065246582,
+        "candidate/updates": 1823.0,
+        "candidate/skipped_nonfinite": 0.0,
+        "candidate/skipped_no_valid_steps": 0.0,
+        "candidate/validation_state_loss": 1.1095794439315796,
+        "candidate/validation_termination_bce": 0.0,
+        "candidate/validation_auxiliary_loss": 0.0,
+        "candidate/validation_loss": 1.112734079360962,
+        "candidate/validation_valid_count": 2038.0,
+        "candidate/validation_valid_1step_count": 256.0,
+        "candidate/validation_valid_kstep_count": 254.0,
+        "candidate/validation_nse_1step": 0.004826174583286047,
+        "candidate/validation_nse_kstep": 0.0317205972969532,
+        "candidate/validation_contact_bce": 0.03154637664556503,
+        "candidate/validation_contact_accuracy": 0.986629068851471,
+        "candidate/validation_available": 1.0,
+        "imagination/critic_loss": 0.013100972166284919,
+        "imagination/critic_grad_norm": 0.12756619695574045,
+        "imagination/critic_value_mean": 0.30542407208122313,
+        "imagination/critic_target_mean": 0.3699573678895831,
+        "imagination/critic_updates": 20.0,
+        "imagination/critic_samples": 16116.25,
+        "imagination/critic_skipped_nonfinite": 0.0,
+        "imagination/critic_effective_lr": 0.00019999294172352698,
+        "imagination/value_prepared": 1.0,
+        "imagination/actor_updates": 0.0,
+        "schedule/phase": 1.0,
+        "schedule/next_phase": 1.0,
+        "schedule/boundary_completed": 1.0,
+        "schedule/new_valid_train_transitions": 747072.0,
+        "schedule/wm_budget": 364.0,
+        "schedule/wm_updates": 364.0,
+        "schedule/discarded_wm_batches": 0.0,
+        "schedule/wm_fraction": 0.90625,
+        "schedule/effective_epochs": 0.9978583054913047,
+        "schedule/actor_budget": 0.0,
+        "schedule/actor_accepted": 0.0,
+        "schedule/value_batches_completed": 8.0,
+        "schedule/critic_updates": 160.0,
+        "replay_steps": 120.0,
+        "low_replay_steps": 960.0,
+        "total_low_steps": 960.0,
+        "lr_ratio": 0.9999647086176346,
+        "fit_seconds": 47.76194023201242,
+        "imagination_seconds": 2.068103737954516,
+        "on_gpu": 1.0,
+        "diagnostic/closed_loop_available": 1.0,
+        "diagnostic/low_controller_closed_loop_nse": 0.16585037112236023,
+        "diagnostic/low_controller_closed_loop_last_nse": 0.3515956699848175,
+        "diagnostic/low_controller_closed_loop_confidence_error": 0.5504336953163147,
+        "diagnostic/low_controller_closed_loop_last_confidence_error": 1.187302589416504,
+        "diagnostic/low_controller_closed_loop_relative_error": 0.5464544892311096,
+        "diagnostic/low_controller_closed_loop_last_relative_error": 1.182291030883789,
+        "diagnostic/low_controller_closed_loop_foot_contact_accuracy": 0.9580078125,
+        "diagnostic/low_controller_closed_loop_last_foot_contact_accuracy": 0.951171875,
+        "diagnostic/real_state_aux": -0.005555859766900539,
+        "diagnostic/real_state_weighted_aux": -0.0005555860116146505,
+        "diagnostic/real_state_raw_action_bound": 0.0,
+        "diagnostic/real_state_quality": 0.04814533889293671,
+        "diagnostic/real_state_approach": 0.11908566206693649,
+        "diagnostic/real_state_orientation": 0.24328197538852692,
+        "diagnostic/real_state_grasp": 4.439846179593587e-08,
+        "diagnostic/real_state_grasp_geometry": 6.33400361493841e-07,
+        "diagnostic/real_state_lift": 0.004985407926142216,
+        "diagnostic/real_state_hold": 0.08928373456001282,
+        "diagnostic/real_state_grasp_lift": 2.7442267902522133e-10,
+        "diagnostic/real_state_grasp_lift_hold": 1.4655762714532727e-11,
+        "diagnostic/real_state_slip_cost": 5.8900198496303346e-08,
+        "diagnostic/real_state_unsafe_cost": 0.08286941051483154,
+        "diagnostic/real_state_slip_speed": 0.30996447801589966,
+        "diagnostic/reward_available": 1.0,
+        "diagnostic/native_reward": 0.032176997512578964,
+        "diagnostic/reconstructed_task_reward": 0.032176706939935684,
+        "diagnostic/task_reward_abs_error": 1.635355147300288e-06,
+        "diagnostic/real_state_imagined_reward": 0.03162112087011337,
+        "diagnostic/imagined_native_reward_gap": -0.0005558767588809133,
+        "diagnostic/done_disagreement": 0.0,
+        "diagnostic/stage_lifted_fraction": 0.0,
+        "diagnostic/stage_success_fraction": 0.0,
+        "diagnostic/stage_completed_fraction": 0.0,
+        "diagnostic/stage_failed_fraction": 0.0234375,
+        "diagnostic/stage_timeout_fraction": 0.015625,
+        "diagnostic/stage_hold_progress": 0.0,
+        "diagnostic/stage_hold_fraction": 0.0,
+        "diagnostic/stage_held_not_complete_fraction": 0.0,
+        "diagnostic/action_0_saturation": 0.0,
+        "diagnostic/action_1_saturation": 0.0,
+        "diagnostic/action_2_saturation": 0.0,
+        "diagnostic/action_3_saturation": 0.0,
+        "diagnostic/action_4_saturation": 0.0,
+        "diagnostic/action_5_saturation": 0.0,
+        "diagnostic/action_7_saturation": 0.0,
+        "diagnostic/action_8_saturation": 0.0,
+        "diagnostic/gripper_mean_sigmoid_derivative": 0.24999725818634033,
+        "diagnostic/gripper_executed_endpoint_fraction": 0.0,
+        "diagnostic/real_state_raw_latent_cost_available": 0.0,
+        "update_seconds": 50.02565869601676
+      },
+      "training_status": {
+        "actor": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "real_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 21
+          },
+          "tensor_count": 21,
+          "cpu_step_counters_allowed": false
+        },
+        "dynamics": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 14
+          },
+          "tensor_count": 14,
+          "cpu_step_counters_allowed": false
+        },
+        "imagined_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 6
+          },
+          "tensor_count": 6,
+          "cpu_step_counters_allowed": false
+        },
+        "low_policy": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 26
+          },
+          "tensor_count": 26,
+          "cpu_step_counters_allowed": false
+        },
+        "fixed_scaler": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 2
+          },
+          "tensor_count": 2,
+          "cpu_step_counters_allowed": false
+        },
+        "fk": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 4
+          },
+          "tensor_count": 4,
+          "cpu_step_counters_allowed": false
+        },
+        "observation_noise": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 3
+          },
+          "tensor_count": 3,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 41,
+            "cuda:0": 82
+          },
+          "tensor_count": 123,
+          "cpu_step_counters_allowed": true
+        },
+        "dynamics_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 14,
+            "cuda:0": 28
+          },
+          "tensor_count": 42,
+          "cpu_step_counters_allowed": true
+        },
+        "imagined_critic_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 6,
+            "cuda:0": 12
+          },
+          "tensor_count": 18,
+          "cpu_step_counters_allowed": true
+        },
+        "high_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 26
+          },
+          "tensor_count": 26,
+          "cpu_step_counters_allowed": false
+        },
+        "low_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 23
+          },
+          "tensor_count": 23,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_memory": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 9
+          },
+          "tensor_count": 9,
+          "cpu_step_counters_allowed": false
+        }
+      },
+      "actor_after_bptt": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.0027463999576866627,
+          -0.008728941902518272,
+          -0.01496145874261856,
+          -0.008734755218029022,
+          0.00013854075223207474,
+          -0.009393440559506416,
+          -0.00513144675642252,
+          -0.01913367211818695,
+          -0.04352404922246933
+        ],
+        "mean_max": [
+          0.0367753840982914,
+          0.012019512243568897,
+          0.0018147841328755021,
+          0.02714674547314644,
+          0.02241051197052002,
+          0.010797789320349693,
+          0.021114381030201912,
+          0.005202278960496187,
+          0.0029976842924952507
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.3202126026153564,
+          -2.301732301712036,
+          -2.3074536323547363,
+          -2.3089940547943115,
+          -2.3091986179351807,
+          -2.3081130981445312,
+          -2.3182740211486816,
+          -2.3125624656677246,
+          -2.301467180252075
+        ],
+        "log_std_max": [
+          -2.3202126026153564,
+          -2.301732301712036,
+          -2.3074536323547363,
+          -2.3089940547943115,
+          -2.3091986179351807,
+          -2.3081130981445312,
+          -2.3182740211486816,
+          -2.3125624656677246,
+          -2.301467180252075
+        ],
+        "log_std_parameter": [
+          -2.3202126026153564,
+          -2.301732301712036,
+          -2.3074536323547363,
+          -2.3089940547943115,
+          -2.3091986179351807,
+          -2.3081130981445312,
+          -2.3182740211486816,
+          -2.3125624656677246,
+          -2.301467180252075
+        ],
+        "opening_min": 0.49871715903282166,
+        "opening_max": 0.5052784085273743,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "low_policy_unchanged": true,
+      "low_policy_frozen": true,
+      "schedule": {
+        "config": {
+          "batch_size": 2048,
+          "wm_epochs": 1.0,
+          "wm_max_batches": 512,
+          "wm_prepare_boundaries": 4,
+          "value_prepare_boundaries": 2,
+          "value_prepare_batches": 8,
+          "actor_stage1_boundaries": 4,
+          "actor_stage2_boundaries": 4,
+          "actor_stage1_updates": 1,
+          "actor_stage2_updates": 2,
+          "actor_max_updates": 4
+        },
+        "seen_transitions": 3735360,
+        "credit": 0.90625,
+        "completed": {
+          "W": 4,
+          "V": 1,
+          "B1": 0,
+          "B2": 0,
+          "B3": 0
+        },
+        "boundaries": 5,
+        "discarded_batches": 0
+      },
+      "update_rounds": 0
+    },
+    {
+      "index": 6,
+      "high_steps": 144,
+      "low_steps": 1152,
+      "completed": true,
+      "bptt_calls": 0,
+      "bptt_accepted": 0,
+      "value_only_calls": 8,
+      "protected_rejections": [],
+      "stage": "V",
+      "actor_before_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.00543552590534091,
+          -0.009658679366111755,
+          -0.01566378027200699,
+          -0.010736227966845036,
+          -8.780229836702347e-05,
+          -0.010828699916601181,
+          -0.006158601958304644,
+          -0.023928284645080566,
+          -0.04212013632059097
+        ],
+        "mean_max": [
+          0.0350402295589447,
+          0.010420802980661392,
+          0.0026345569640398026,
+          0.02520742639899254,
+          0.022553954273462296,
+          0.011939920485019684,
+          0.023172304034233093,
+          0.007988600060343742,
+          0.005117524415254593
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.3202126026153564,
+          -2.301732301712036,
+          -2.3074536323547363,
+          -2.3089940547943115,
+          -2.3091986179351807,
+          -2.3081130981445312,
+          -2.3182740211486816,
+          -2.3125624656677246,
+          -2.301467180252075
+        ],
+        "log_std_max": [
+          -2.3202126026153564,
+          -2.301732301712036,
+          -2.3074536323547363,
+          -2.3089940547943115,
+          -2.3091986179351807,
+          -2.3081130981445312,
+          -2.3182740211486816,
+          -2.3125624656677246,
+          -2.301467180252075
+        ],
+        "log_std_parameter": [
+          -2.3202126026153564,
+          -2.301732301712036,
+          -2.3074536323547363,
+          -2.3089940547943115,
+          -2.3091986179351807,
+          -2.3081130981445312,
+          -2.3182740211486816,
+          -2.3125624656677246,
+          -2.301467180252075
+        ],
+        "opening_min": 0.4984603524208069,
+        "opening_max": 0.5057927966117859,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_ppo_numerics": {
+        "timestep": 143,
+        "attempted_minibatches": 30,
+        "accepted_minibatches": 30,
+        "rejected_minibatches": 0,
+        "rejected_rollouts": 0,
+        "rolled_back_steps": 0,
+        "reason_counts": {},
+        "last_rejection": null,
+        "nonfinite_kl_diagnostics": 0,
+        "log_ratio_abs_max": 0.8744516372680664,
+        "max_finite_grad_norm": 49.81307601928711
+      },
+      "actor_after_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.0006988896057009697,
+          -0.019875315949320793,
+          -0.021723533049225807,
+          -0.008468427695333958,
+          -0.0030514122918248177,
+          -0.011919593438506126,
+          -0.007332467008382082,
+          -0.029734225943684578,
+          -0.049100425094366074
+        ],
+        "mean_max": [
+          0.04703766852617264,
+          0.02116401679813862,
+          0.011611772701144218,
+          0.028981434181332588,
+          0.02935149148106575,
+          0.0095059210434556,
+          0.028691422194242477,
+          0.013822639361023903,
+          0.009849485009908676
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.3215630054473877,
+          -2.2988507747650146,
+          -2.3154919147491455,
+          -2.3106272220611572,
+          -2.313107490539551,
+          -2.309203624725342,
+          -2.3324263095855713,
+          -2.3113627433776855,
+          -2.3024449348449707
+        ],
+        "log_std_max": [
+          -2.3215630054473877,
+          -2.2988507747650146,
+          -2.3154919147491455,
+          -2.3106272220611572,
+          -2.313107490539551,
+          -2.309203624725342,
+          -2.3324263095855713,
+          -2.3113627433776855,
+          -2.3024449348449707
+        ],
+        "log_std_parameter": [
+          -2.3215630054473877,
+          -2.2988507747650146,
+          -2.3154919147491455,
+          -2.3106272220611572,
+          -2.313107490539551,
+          -2.309203624725342,
+          -2.3324263095855713,
+          -2.3113627433776855,
+          -2.3024449348449707
+        ],
+        "opening_min": 0.49816685914993286,
+        "opening_max": 0.5071724057197571,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_value_only_metrics": {
+        "critic_loss": 0.02052362635731697,
+        "critic_grad_norm": 0.1583288460969925,
+        "critic_value_mean": 0.9412141442298889,
+        "critic_target_mean": 0.9711397290229797,
+        "critic_updates": 20.0,
+        "critic_samples": 16134.0,
+        "critic_skipped_nonfinite": 0.0,
+        "critic_effective_lr": 0.0001999898361361157,
+        "value_prepared": 1.0,
+        "actor_updates": 0.0
+      },
+      "seconds": 49.21283167402726,
+      "last_world_model_metrics": {
+        "candidate/state_loss": 0.6575973629951477,
+        "candidate/termination_bce": 0.0,
+        "candidate/auxiliary_loss": 0.0,
+        "candidate/loss": 0.6602845191955566,
+        "candidate/valid_count": 16313.0986328125,
+        "candidate/valid_1step_count": 2048.0,
+        "candidate/valid_kstep_count": 2030.3233642578125,
+        "candidate/nse_1step": 0.005044765304774046,
+        "candidate/nse_kstep": 0.017159804701805115,
+        "candidate/contact_bce": 0.026868591085076332,
+        "candidate/contact_accuracy": 0.990067183971405,
+        "candidate/grad_norm": 5.48223876953125,
+        "candidate/updates": 2188.0,
+        "candidate/skipped_nonfinite": 0.0,
+        "candidate/skipped_no_valid_steps": 0.0,
+        "candidate/validation_state_loss": 0.5139451622962952,
+        "candidate/validation_termination_bce": 0.0,
+        "candidate/validation_auxiliary_loss": 0.0,
+        "candidate/validation_loss": 0.5163450241088867,
+        "candidate/validation_valid_count": 2048.0,
+        "candidate/validation_valid_1step_count": 256.0,
+        "candidate/validation_valid_kstep_count": 256.0,
+        "candidate/validation_nse_1step": 0.003325234167277813,
+        "candidate/validation_nse_kstep": 0.012923909351229668,
+        "candidate/validation_contact_bce": 0.02399870567023754,
+        "candidate/validation_contact_accuracy": 0.9910888671875,
+        "candidate/validation_available": 1.0,
+        "imagination/critic_loss": 0.019051584880799055,
+        "imagination/critic_grad_norm": 0.17849409580230713,
+        "imagination/critic_value_mean": 0.7724878191947937,
+        "imagination/critic_target_mean": 0.8112192377448082,
+        "imagination/critic_updates": 20.0,
+        "imagination/critic_samples": 16154.625,
+        "imagination/critic_skipped_nonfinite": 0.0,
+        "imagination/critic_effective_lr": 0.0001999898361361157,
+        "imagination/value_prepared": 1.0,
+        "imagination/actor_updates": 0.0,
+        "schedule/phase": 1.0,
+        "schedule/next_phase": 2.0,
+        "schedule/boundary_completed": 1.0,
+        "schedule/new_valid_train_transitions": 747072.0,
+        "schedule/wm_budget": 365.0,
+        "schedule/wm_updates": 365.0,
+        "schedule/discarded_wm_batches": 0.0,
+        "schedule/wm_fraction": 0.6875,
+        "schedule/effective_epochs": 1.0005996744624346,
+        "schedule/actor_budget": 0.0,
+        "schedule/actor_accepted": 0.0,
+        "schedule/value_batches_completed": 8.0,
+        "schedule/critic_updates": 160.0,
+        "replay_steps": 144.0,
+        "low_replay_steps": 1152.0,
+        "total_low_steps": 1152.0,
+        "lr_ratio": 0.9999491806805784,
+        "fit_seconds": 46.201014673977625,
+        "imagination_seconds": 2.0407545050256886,
+        "on_gpu": 1.0,
+        "diagnostic/closed_loop_available": 1.0,
+        "diagnostic/low_controller_closed_loop_nse": 0.1005975604057312,
+        "diagnostic/low_controller_closed_loop_last_nse": 0.23146754503250122,
+        "diagnostic/low_controller_closed_loop_confidence_error": 0.39315685629844666,
+        "diagnostic/low_controller_closed_loop_last_confidence_error": 0.9424970746040344,
+        "diagnostic/low_controller_closed_loop_relative_error": 0.3900243043899536,
+        "diagnostic/low_controller_closed_loop_last_relative_error": 0.9368138909339905,
+        "diagnostic/low_controller_closed_loop_foot_contact_accuracy": 0.95166015625,
+        "diagnostic/low_controller_closed_loop_last_foot_contact_accuracy": 0.94140625,
+        "diagnostic/real_state_aux": -0.004006090573966503,
+        "diagnostic/real_state_weighted_aux": -0.00040060910396277905,
+        "diagnostic/real_state_raw_action_bound": 0.0,
+        "diagnostic/real_state_quality": 0.045132674276828766,
+        "diagnostic/real_state_approach": 0.0990552306175232,
+        "diagnostic/real_state_orientation": 0.2532161474227905,
+        "diagnostic/real_state_grasp": 5.640206879320431e-08,
+        "diagnostic/real_state_grasp_geometry": 1.4327589497042936e-06,
+        "diagnostic/real_state_lift": 0.005195000674575567,
+        "diagnostic/real_state_hold": 0.08690957725048065,
+        "diagnostic/real_state_grasp_lift": 1.8691856951136288e-09,
+        "diagnostic/real_state_grasp_lift_hold": 6.965270721304151e-11,
+        "diagnostic/real_state_slip_cost": 1.3763569484126492e-07,
+        "diagnostic/real_state_unsafe_cost": 0.07017059624195099,
+        "diagnostic/real_state_slip_speed": 0.3314180076122284,
+        "diagnostic/reward_available": 1.0,
+        "diagnostic/native_reward": 0.03606422245502472,
+        "diagnostic/reconstructed_task_reward": 0.03606663644313812,
+        "diagnostic/task_reward_abs_error": 2.9062771318422165e-06,
+        "diagnostic/real_state_imagined_reward": 0.035666026175022125,
+        "diagnostic/imagined_native_reward_gap": -0.0003981929621659219,
+        "diagnostic/done_disagreement": 0.0,
+        "diagnostic/stage_lifted_fraction": 0.0,
+        "diagnostic/stage_success_fraction": 0.0,
+        "diagnostic/stage_completed_fraction": 0.0,
+        "diagnostic/stage_failed_fraction": 0.0078125,
+        "diagnostic/stage_timeout_fraction": 0.0,
+        "diagnostic/stage_hold_progress": 0.0,
+        "diagnostic/stage_hold_fraction": 0.0,
+        "diagnostic/stage_held_not_complete_fraction": 0.0,
+        "diagnostic/action_0_saturation": 0.0,
+        "diagnostic/action_1_saturation": 0.0,
+        "diagnostic/action_2_saturation": 0.0,
+        "diagnostic/action_3_saturation": 0.0,
+        "diagnostic/action_4_saturation": 0.0,
+        "diagnostic/action_5_saturation": 0.0,
+        "diagnostic/action_7_saturation": 0.0,
+        "diagnostic/action_8_saturation": 0.0,
+        "diagnostic/gripper_mean_sigmoid_derivative": 0.2499944269657135,
+        "diagnostic/gripper_executed_endpoint_fraction": 0.0,
+        "diagnostic/real_state_raw_latent_cost_available": 0.0,
+        "update_seconds": 48.44390433799708
+      },
+      "training_status": {
+        "actor": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "real_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 21
+          },
+          "tensor_count": 21,
+          "cpu_step_counters_allowed": false
+        },
+        "dynamics": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 14
+          },
+          "tensor_count": 14,
+          "cpu_step_counters_allowed": false
+        },
+        "imagined_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 6
+          },
+          "tensor_count": 6,
+          "cpu_step_counters_allowed": false
+        },
+        "low_policy": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 26
+          },
+          "tensor_count": 26,
+          "cpu_step_counters_allowed": false
+        },
+        "fixed_scaler": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 2
+          },
+          "tensor_count": 2,
+          "cpu_step_counters_allowed": false
+        },
+        "fk": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 4
+          },
+          "tensor_count": 4,
+          "cpu_step_counters_allowed": false
+        },
+        "observation_noise": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 3
+          },
+          "tensor_count": 3,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 41,
+            "cuda:0": 82
+          },
+          "tensor_count": 123,
+          "cpu_step_counters_allowed": true
+        },
+        "dynamics_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 14,
+            "cuda:0": 28
+          },
+          "tensor_count": 42,
+          "cpu_step_counters_allowed": true
+        },
+        "imagined_critic_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 6,
+            "cuda:0": 12
+          },
+          "tensor_count": 18,
+          "cpu_step_counters_allowed": true
+        },
+        "high_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 26
+          },
+          "tensor_count": 26,
+          "cpu_step_counters_allowed": false
+        },
+        "low_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 23
+          },
+          "tensor_count": 23,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_memory": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 9
+          },
+          "tensor_count": 9,
+          "cpu_step_counters_allowed": false
+        }
+      },
+      "actor_after_bptt": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.0006988896057009697,
+          -0.019875315949320793,
+          -0.021723533049225807,
+          -0.008468427695333958,
+          -0.0030514122918248177,
+          -0.011919593438506126,
+          -0.007332467008382082,
+          -0.029734225943684578,
+          -0.049100425094366074
+        ],
+        "mean_max": [
+          0.04703766852617264,
+          0.02116401679813862,
+          0.011611772701144218,
+          0.028981434181332588,
+          0.02935149148106575,
+          0.0095059210434556,
+          0.028691422194242477,
+          0.013822639361023903,
+          0.009849485009908676
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.3215630054473877,
+          -2.2988507747650146,
+          -2.3154919147491455,
+          -2.3106272220611572,
+          -2.313107490539551,
+          -2.309203624725342,
+          -2.3324263095855713,
+          -2.3113627433776855,
+          -2.3024449348449707
+        ],
+        "log_std_max": [
+          -2.3215630054473877,
+          -2.2988507747650146,
+          -2.3154919147491455,
+          -2.3106272220611572,
+          -2.313107490539551,
+          -2.309203624725342,
+          -2.3324263095855713,
+          -2.3113627433776855,
+          -2.3024449348449707
+        ],
+        "log_std_parameter": [
+          -2.3215630054473877,
+          -2.2988507747650146,
+          -2.3154919147491455,
+          -2.3106272220611572,
+          -2.313107490539551,
+          -2.309203624725342,
+          -2.3324263095855713,
+          -2.3113627433776855,
+          -2.3024449348449707
+        ],
+        "opening_min": 0.49816685914993286,
+        "opening_max": 0.5071724057197571,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "low_policy_unchanged": true,
+      "low_policy_frozen": true,
+      "schedule": {
+        "config": {
+          "batch_size": 2048,
+          "wm_epochs": 1.0,
+          "wm_max_batches": 512,
+          "wm_prepare_boundaries": 4,
+          "value_prepare_boundaries": 2,
+          "value_prepare_batches": 8,
+          "actor_stage1_boundaries": 4,
+          "actor_stage2_boundaries": 4,
+          "actor_stage1_updates": 1,
+          "actor_stage2_updates": 2,
+          "actor_max_updates": 4
+        },
+        "seen_transitions": 4482432,
+        "credit": 0.6875,
+        "completed": {
+          "W": 4,
+          "V": 2,
+          "B1": 0,
+          "B2": 0,
+          "B3": 0
+        },
+        "boundaries": 6,
+        "discarded_batches": 0
+      },
+      "update_rounds": 0
+    },
+    {
+      "index": 7,
+      "high_steps": 168,
+      "low_steps": 1344,
+      "completed": true,
+      "bptt_calls": 1,
+      "bptt_accepted": 1,
+      "value_only_calls": 0,
+      "protected_rejections": [],
+      "stage": "B1",
+      "actor_before_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.006623574532568455,
+          -0.024968566372990608,
+          -0.02421167492866516,
+          -0.008737759664654732,
+          -0.004396609961986542,
+          -0.013257636688649654,
+          -0.010826902464032173,
+          -0.02767145447432995,
+          -0.05245858430862427
+        ],
+        "mean_max": [
+          0.04882170259952545,
+          0.025101592764258385,
+          0.011214813217520714,
+          0.027524735778570175,
+          0.03163602575659752,
+          0.01050130371004343,
+          0.031065724790096283,
+          0.012720780447125435,
+          0.018363233655691147
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.3215630054473877,
+          -2.2988507747650146,
+          -2.3154919147491455,
+          -2.3106272220611572,
+          -2.313107490539551,
+          -2.309203624725342,
+          -2.3324263095855713,
+          -2.3113627433776855,
+          -2.3024449348449707
+        ],
+        "log_std_max": [
+          -2.3215630054473877,
+          -2.2988507747650146,
+          -2.3154919147491455,
+          -2.3106272220611572,
+          -2.313107490539551,
+          -2.309203624725342,
+          -2.3324263095855713,
+          -2.3113627433776855,
+          -2.3024449348449707
+        ],
+        "log_std_parameter": [
+          -2.3215630054473877,
+          -2.2988507747650146,
+          -2.3154919147491455,
+          -2.3106272220611572,
+          -2.313107490539551,
+          -2.309203624725342,
+          -2.3324263095855713,
+          -2.3113627433776855,
+          -2.3024449348449707
+        ],
+        "opening_min": 0.49729329347610474,
+        "opening_max": 0.5077658295631409,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_ppo_numerics": {
+        "timestep": 167,
+        "attempted_minibatches": 30,
+        "accepted_minibatches": 30,
+        "rejected_minibatches": 0,
+        "rejected_rollouts": 0,
+        "rolled_back_steps": 0,
+        "reason_counts": {},
+        "last_rejection": null,
+        "nonfinite_kl_diagnostics": 0,
+        "log_ratio_abs_max": 1.102254867553711,
+        "max_finite_grad_norm": 11.685765266418457
+      },
+      "actor_after_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.009382771328091621,
+          -0.036525219678878784,
+          -0.02635970525443554,
+          -0.013537357561290264,
+          -0.00912619661539793,
+          -0.023668494075536728,
+          -0.009478572756052017,
+          -0.033516012132167816,
+          -0.056284867227077484
+        ],
+        "mean_max": [
+          0.05430629104375839,
+          0.02525636926293373,
+          0.019483301788568497,
+          0.029543403536081314,
+          0.03771666809916496,
+          0.0189412459731102,
+          0.039644572883844376,
+          0.019512290135025978,
+          0.008195022121071815
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.3318188190460205,
+          -2.3022236824035645,
+          -2.3168141841888428,
+          -2.324125051498413,
+          -2.3133838176727295,
+          -2.3169751167297363,
+          -2.338862419128418,
+          -2.3275630474090576,
+          -2.311605930328369
+        ],
+        "log_std_max": [
+          -2.3318188190460205,
+          -2.3022236824035645,
+          -2.3168141841888428,
+          -2.324125051498413,
+          -2.3133838176727295,
+          -2.3169751167297363,
+          -2.338862419128418,
+          -2.3275630474090576,
+          -2.311605930328369
+        ],
+        "log_std_parameter": [
+          -2.3318188190460205,
+          -2.3022236824035645,
+          -2.3168141841888428,
+          -2.324125051498413,
+          -2.3133838176727295,
+          -2.3169751167297363,
+          -2.338862419128418,
+          -2.3275630474090576,
+          -2.311605930328369
+        ],
+        "opening_min": 0.49763038754463196,
+        "opening_max": 0.5099098682403564,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_bptt_metrics": {
+        "accepted": 1.0,
+        "rollback": 0.0,
+        "skipped": 0.0,
+        "nonfinite_parameter": 0.0,
+        "nonfinite_optimizer": 0.0,
+        "kl_rejected": 0.0,
+        "kl": 0.0011193164391443133,
+        "objective": 0.9901424646377563,
+        "kl_gate_enabled": 0.0,
+        "actor_grad_norm": 0.014583765529096127,
+        "reward_mean": 0.03408566489815712,
+        "survival_H": 0.96044921875,
+        "tail_value": 0.9013872146606445,
+        "timeout_fraction": 0.01507568359375,
+        "raw_action_cost": 0.0,
+        "trust_mean": 1.0,
+        "dt_mean": 0.1599999964237213,
+        "horizon_seconds_mean": 0.6399999856948853,
+        "effective_lr": 0.00019998616593917953,
+        "imagined_value_source": 1.0,
+        "actor_chunks": 1.0,
+        "critic_loss": 0.02238531969487667,
+        "critic_grad_norm": 0.13131634891033173,
+        "critic_value_mean": 0.9470880627632141,
+        "critic_target_mean": 0.9651055932044983,
+        "critic_updates": 20.0,
+        "critic_samples": 16153.0,
+        "critic_skipped_nonfinite": 0.0,
+        "critic_effective_lr": 0.00019998616593917953
+      },
+      "seconds": 48.926842449000105,
+      "last_world_model_metrics": {
+        "candidate/state_loss": 0.6057851314544678,
+        "candidate/termination_bce": 0.0,
+        "candidate/auxiliary_loss": 0.0,
+        "candidate/loss": 0.6082168221473694,
+        "candidate/valid_count": 16316.40625,
+        "candidate/valid_1step_count": 2048.0,
+        "candidate/valid_kstep_count": 2031.172607421875,
+        "candidate/nse_1step": 0.004688384011387825,
+        "candidate/nse_kstep": 0.015869073569774628,
+        "candidate/contact_bce": 0.024315467104315758,
+        "candidate/contact_accuracy": 0.9909742474555969,
+        "candidate/grad_norm": 4.953424453735352,
+        "candidate/updates": 2553.0,
+        "candidate/skipped_nonfinite": 0.0,
+        "candidate/skipped_no_valid_steps": 0.0,
+        "candidate/validation_state_loss": 0.6357435584068298,
+        "candidate/validation_termination_bce": 0.0,
+        "candidate/validation_auxiliary_loss": 0.0,
+        "candidate/validation_loss": 0.6382297277450562,
+        "candidate/validation_valid_count": 2039.0,
+        "candidate/validation_valid_1step_count": 256.0,
+        "candidate/validation_valid_kstep_count": 254.0,
+        "candidate/validation_nse_1step": 0.0030845096334815025,
+        "candidate/validation_nse_kstep": 0.01535771507769823,
+        "candidate/validation_contact_bce": 0.024861972779035568,
+        "candidate/validation_contact_accuracy": 0.9905591011047363,
+        "candidate/validation_available": 1.0,
+        "imagination/accepted": 1.0,
+        "imagination/rollback": 0.0,
+        "imagination/skipped": 0.0,
+        "imagination/nonfinite_parameter": 0.0,
+        "imagination/nonfinite_optimizer": 0.0,
+        "imagination/kl_rejected": 0.0,
+        "imagination/kl": 0.0011193164391443133,
+        "imagination/objective": 0.9901424646377563,
+        "imagination/kl_gate_enabled": 0.0,
+        "imagination/actor_grad_norm": 0.014583765529096127,
+        "imagination/reward_mean": 0.03408566489815712,
+        "imagination/survival_H": 0.96044921875,
+        "imagination/tail_value": 0.9013872146606445,
+        "imagination/timeout_fraction": 0.01507568359375,
+        "imagination/raw_action_cost": 0.0,
+        "imagination/trust_mean": 1.0,
+        "imagination/dt_mean": 0.1599999964237213,
+        "imagination/horizon_seconds_mean": 0.6399999856948853,
+        "imagination/effective_lr": 0.00019998616593917953,
+        "imagination/imagined_value_source": 1.0,
+        "imagination/actor_chunks": 1.0,
+        "imagination/critic_loss": 0.02238531969487667,
+        "imagination/critic_grad_norm": 0.13131634891033173,
+        "imagination/critic_value_mean": 0.9470880627632141,
+        "imagination/critic_target_mean": 0.9651055932044983,
+        "imagination/critic_updates": 20.0,
+        "imagination/critic_samples": 16153.0,
+        "imagination/critic_skipped_nonfinite": 0.0,
+        "imagination/critic_effective_lr": 0.00019998616593917953,
+        "schedule/phase": 2.0,
+        "schedule/next_phase": 2.0,
+        "schedule/boundary_completed": 1.0,
+        "schedule/new_valid_train_transitions": 747072.0,
+        "schedule/wm_budget": 365.0,
+        "schedule/wm_updates": 365.0,
+        "schedule/discarded_wm_batches": 0.0,
+        "schedule/wm_fraction": 0.46875,
+        "schedule/effective_epochs": 1.0005996744624346,
+        "schedule/actor_budget": 1.0,
+        "schedule/actor_accepted": 1.0,
+        "schedule/value_batches_completed": 0.0,
+        "schedule/critic_updates": 20.0,
+        "replay_steps": 168.0,
+        "low_replay_steps": 1344.0,
+        "total_low_steps": 1344.0,
+        "lr_ratio": 0.9999308296958976,
+        "fit_seconds": 46.297467730008066,
+        "imagination_seconds": 1.6375357760116458,
+        "on_gpu": 1.0,
+        "diagnostic/closed_loop_available": 1.0,
+        "diagnostic/low_controller_closed_loop_nse": 0.052919648587703705,
+        "diagnostic/low_controller_closed_loop_last_nse": 0.11069858074188232,
+        "diagnostic/low_controller_closed_loop_confidence_error": 0.24609465897083282,
+        "diagnostic/low_controller_closed_loop_last_confidence_error": 0.5504671335220337,
+        "diagnostic/low_controller_closed_loop_relative_error": 0.24255993962287903,
+        "diagnostic/low_controller_closed_loop_last_relative_error": 0.5440918207168579,
+        "diagnostic/low_controller_closed_loop_foot_contact_accuracy": 0.96533203125,
+        "diagnostic/low_controller_closed_loop_last_foot_contact_accuracy": 0.95703125,
+        "diagnostic/real_state_aux": -0.006828425917774439,
+        "diagnostic/real_state_weighted_aux": -0.0006828426267020404,
+        "diagnostic/real_state_raw_action_bound": 0.0,
+        "diagnostic/real_state_quality": 0.047128092497587204,
+        "diagnostic/real_state_approach": 0.08821576833724976,
+        "diagnostic/real_state_orientation": 0.29484936594963074,
+        "diagnostic/real_state_grasp": 4.96198415689264e-09,
+        "diagnostic/real_state_grasp_geometry": 5.5380809271809994e-08,
+        "diagnostic/real_state_lift": 0.00516433734446764,
+        "diagnostic/real_state_hold": 0.0851062536239624,
+        "diagnostic/real_state_grasp_lift": 8.256344219415013e-11,
+        "diagnostic/real_state_grasp_lift_hold": 5.966343738506019e-12,
+        "diagnostic/real_state_slip_cost": 5.041882467082814e-09,
+        "diagnostic/real_state_unsafe_cost": 0.08980575203895569,
+        "diagnostic/real_state_slip_speed": 0.29868000745773315,
+        "diagnostic/reward_available": 1.0,
+        "diagnostic/native_reward": 0.033537983894348145,
+        "diagnostic/reconstructed_task_reward": 0.03353564813733101,
+        "diagnostic/task_reward_abs_error": 3.251281214033952e-06,
+        "diagnostic/real_state_imagined_reward": 0.03285280615091324,
+        "diagnostic/imagined_native_reward_gap": -0.0006851819343864918,
+        "diagnostic/done_disagreement": 0.0,
+        "diagnostic/stage_lifted_fraction": 0.0,
+        "diagnostic/stage_success_fraction": 0.0,
+        "diagnostic/stage_completed_fraction": 0.0,
+        "diagnostic/stage_failed_fraction": 0.0,
+        "diagnostic/stage_timeout_fraction": 0.0,
+        "diagnostic/stage_hold_progress": 0.0,
+        "diagnostic/stage_hold_fraction": 0.0,
+        "diagnostic/stage_held_not_complete_fraction": 0.0,
+        "diagnostic/action_0_saturation": 0.0,
+        "diagnostic/action_1_saturation": 0.0,
+        "diagnostic/action_2_saturation": 0.0,
+        "diagnostic/action_3_saturation": 0.0,
+        "diagnostic/action_4_saturation": 0.0,
+        "diagnostic/action_5_saturation": 0.0,
+        "diagnostic/action_7_saturation": 0.0,
+        "diagnostic/action_8_saturation": 0.0,
+        "diagnostic/gripper_mean_sigmoid_derivative": 0.24999269843101501,
+        "diagnostic/gripper_executed_endpoint_fraction": 0.0,
+        "diagnostic/real_state_raw_latent_cost_available": 0.0,
+        "update_seconds": 48.13280963298166
+      },
+      "training_status": {
+        "actor": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "real_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 21
+          },
+          "tensor_count": 21,
+          "cpu_step_counters_allowed": false
+        },
+        "dynamics": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 14
+          },
+          "tensor_count": 14,
+          "cpu_step_counters_allowed": false
+        },
+        "imagined_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 6
+          },
+          "tensor_count": 6,
+          "cpu_step_counters_allowed": false
+        },
+        "low_policy": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 26
+          },
+          "tensor_count": 26,
+          "cpu_step_counters_allowed": false
+        },
+        "fixed_scaler": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 2
+          },
+          "tensor_count": 2,
+          "cpu_step_counters_allowed": false
+        },
+        "fk": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 4
+          },
+          "tensor_count": 4,
+          "cpu_step_counters_allowed": false
+        },
+        "observation_noise": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 3
+          },
+          "tensor_count": 3,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 41,
+            "cuda:0": 82
+          },
+          "tensor_count": 123,
+          "cpu_step_counters_allowed": true
+        },
+        "dynamics_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 14,
+            "cuda:0": 28
+          },
+          "tensor_count": 42,
+          "cpu_step_counters_allowed": true
+        },
+        "bptt_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 20,
+            "cuda:0": 40
+          },
+          "tensor_count": 60,
+          "cpu_step_counters_allowed": true
+        },
+        "imagined_critic_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 6,
+            "cuda:0": 12
+          },
+          "tensor_count": 18,
+          "cpu_step_counters_allowed": true
+        },
+        "high_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 26
+          },
+          "tensor_count": 26,
+          "cpu_step_counters_allowed": false
+        },
+        "low_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 23
+          },
+          "tensor_count": 23,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_memory": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 9
+          },
+          "tensor_count": 9,
+          "cpu_step_counters_allowed": false
+        }
+      },
+      "actor_after_bptt": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.009716111235320568,
+          -0.036143433302640915,
+          -0.02646508999168873,
+          -0.014681829139590263,
+          -0.010069796815514565,
+          -0.02553423121571541,
+          -0.01067386381328106,
+          -0.03283322602510452,
+          -0.05870069935917854
+        ],
+        "mean_max": [
+          0.055710647255182266,
+          0.02409549430012703,
+          0.019277865067124367,
+          0.029065102338790894,
+          0.03684971109032631,
+          0.017897410318255424,
+          0.03921014443039894,
+          0.02148035168647766,
+          0.01530759409070015
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.3318188190460205,
+          -2.3022236824035645,
+          -2.3168141841888428,
+          -2.324125051498413,
+          -2.3133838176727295,
+          -2.3169751167297363,
+          -2.338862419128418,
+          -2.3275630474090576,
+          -2.311605930328369
+        ],
+        "log_std_max": [
+          -2.3318188190460205,
+          -2.3022236824035645,
+          -2.3168141841888428,
+          -2.324125051498413,
+          -2.3133838176727295,
+          -2.3169751167297363,
+          -2.338862419128418,
+          -2.3275630474090576,
+          -2.311605930328369
+        ],
+        "log_std_parameter": [
+          -2.3318188190460205,
+          -2.3022236824035645,
+          -2.3168141841888428,
+          -2.324125051498413,
+          -2.3133838176727295,
+          -2.3169751167297363,
+          -2.338862419128418,
+          -2.3275630474090576,
+          -2.311605930328369
+        ],
+        "opening_min": 0.49733150005340576,
+        "opening_max": 0.5098012685775757,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "low_policy_unchanged": true,
+      "low_policy_frozen": true,
+      "schedule": {
+        "config": {
+          "batch_size": 2048,
+          "wm_epochs": 1.0,
+          "wm_max_batches": 512,
+          "wm_prepare_boundaries": 4,
+          "value_prepare_boundaries": 2,
+          "value_prepare_batches": 8,
+          "actor_stage1_boundaries": 4,
+          "actor_stage2_boundaries": 4,
+          "actor_stage1_updates": 1,
+          "actor_stage2_updates": 2,
+          "actor_max_updates": 4
+        },
+        "seen_transitions": 5229504,
+        "credit": 0.46875,
+        "completed": {
+          "W": 4,
+          "V": 2,
+          "B1": 1,
+          "B2": 0,
+          "B3": 0
+        },
+        "boundaries": 7,
+        "discarded_batches": 0
+      },
+      "update_rounds": 0
+    },
+    {
+      "index": 8,
+      "high_steps": 192,
+      "low_steps": 1536,
+      "completed": true,
+      "bptt_calls": 1,
+      "bptt_accepted": 1,
+      "value_only_calls": 0,
+      "protected_rejections": [],
+      "stage": "B1",
+      "actor_before_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.010307285003364086,
+          -0.04272834584116936,
+          -0.02743980474770069,
+          -0.019429827108979225,
+          -0.010354788973927498,
+          -0.02499990724027157,
+          -0.012551780790090561,
+          -0.037349883466959,
+          -0.06126408278942108
+        ],
+        "mean_max": [
+          0.05237514525651932,
+          0.028658214956521988,
+          0.021099772304296494,
+          0.03378337621688843,
+          0.04072731360793114,
+          0.02424941211938858,
+          0.04273606836795807,
+          0.02061961591243744,
+          0.020604506134986877
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.3318188190460205,
+          -2.3022236824035645,
+          -2.3168141841888428,
+          -2.324125051498413,
+          -2.3133838176727295,
+          -2.3169751167297363,
+          -2.338862419128418,
+          -2.3275630474090576,
+          -2.311605930328369
+        ],
+        "log_std_max": [
+          -2.3318188190460205,
+          -2.3022236824035645,
+          -2.3168141841888428,
+          -2.324125051498413,
+          -2.3133838176727295,
+          -2.3169751167297363,
+          -2.338862419128418,
+          -2.3275630474090576,
+          -2.311605930328369
+        ],
+        "log_std_parameter": [
+          -2.3318188190460205,
+          -2.3022236824035645,
+          -2.3168141841888428,
+          -2.324125051498413,
+          -2.3133838176727295,
+          -2.3169751167297363,
+          -2.338862419128418,
+          -2.3275630474090576,
+          -2.311605930328369
+        ],
+        "opening_min": 0.4968620836734772,
+        "opening_max": 0.5106824040412903,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_ppo_numerics": {
+        "timestep": 191,
+        "attempted_minibatches": 30,
+        "accepted_minibatches": 30,
+        "rejected_minibatches": 0,
+        "rejected_rollouts": 0,
+        "rolled_back_steps": 0,
+        "reason_counts": {},
+        "last_rejection": null,
+        "nonfinite_kl_diagnostics": 0,
+        "log_ratio_abs_max": 1.065591812133789,
+        "max_finite_grad_norm": 456.8512878417969
+      },
+      "actor_after_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.005554140545427799,
+          -0.03515677899122238,
+          -0.02724350243806839,
+          -0.02013196423649788,
+          -0.020198162645101547,
+          -0.02565648779273033,
+          -0.014111556112766266,
+          -0.025748785585165024,
+          -0.06041467934846878
+        ],
+        "mean_max": [
+          0.0431908555328846,
+          0.02688480168581009,
+          0.015262320637702942,
+          0.03639266639947891,
+          0.049455851316452026,
+          0.03344915434718132,
+          0.03803975135087967,
+          0.02240309864282608,
+          0.01385655626654625
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.3470654487609863,
+          -2.301459789276123,
+          -2.3212926387786865,
+          -2.3259079456329346,
+          -2.318535804748535,
+          -2.320931911468506,
+          -2.3409316539764404,
+          -2.3303775787353516,
+          -2.310532808303833
+        ],
+        "log_std_max": [
+          -2.3470654487609863,
+          -2.301459789276123,
+          -2.3212926387786865,
+          -2.3259079456329346,
+          -2.318535804748535,
+          -2.320931911468506,
+          -2.3409316539764404,
+          -2.3303775787353516,
+          -2.310532808303833
+        ],
+        "log_std_parameter": [
+          -2.3470654487609863,
+          -2.301459789276123,
+          -2.3212926387786865,
+          -2.3259079456329346,
+          -2.318535804748535,
+          -2.320931911468506,
+          -2.3409316539764404,
+          -2.3303775787353516,
+          -2.310532808303833
+        ],
+        "opening_min": 0.49647215008735657,
+        "opening_max": 0.5095087885856628,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_bptt_metrics": {
+        "accepted": 1.0,
+        "rollback": 0.0,
+        "skipped": 0.0,
+        "nonfinite_parameter": 0.0,
+        "nonfinite_optimizer": 0.0,
+        "kl_rejected": 0.0,
+        "kl": 0.0008980708662420511,
+        "objective": 0.930726945400238,
+        "kl_gate_enabled": 0.0,
+        "actor_grad_norm": 0.016069872304797173,
+        "reward_mean": 0.031151408329606056,
+        "survival_H": 0.966552734375,
+        "tail_value": 0.8537944555282593,
+        "timeout_fraction": 0.01190185546875,
+        "raw_action_cost": 0.0,
+        "trust_mean": 1.0,
+        "dt_mean": 0.1599999964237213,
+        "horizon_seconds_mean": 0.6399999856948853,
+        "effective_lr": 0.00019998193115408394,
+        "imagined_value_source": 1.0,
+        "actor_chunks": 1.0,
+        "critic_loss": 0.02403019368648529,
+        "critic_grad_norm": 0.07761403173208237,
+        "critic_value_mean": 0.9025881886482239,
+        "critic_target_mean": 0.906821072101593,
+        "critic_updates": 20.0,
+        "critic_samples": 16203.0,
+        "critic_skipped_nonfinite": 0.0,
+        "critic_effective_lr": 0.00019998193115408394
+      },
+      "seconds": 48.21425947500393,
+      "last_world_model_metrics": {
+        "candidate/state_loss": 0.5756769776344299,
+        "candidate/termination_bce": 0.0,
+        "candidate/auxiliary_loss": 0.0,
+        "candidate/loss": 0.57796710729599,
+        "candidate/valid_count": 16313.802734375,
+        "candidate/valid_1step_count": 2048.0,
+        "candidate/valid_kstep_count": 2030.5562744140625,
+        "candidate/nse_1step": 0.004510926082730293,
+        "candidate/nse_kstep": 0.015026828274130821,
+        "candidate/contact_bce": 0.02290557324886322,
+        "candidate/contact_accuracy": 0.9915388226509094,
+        "candidate/grad_norm": 4.4988932609558105,
+        "candidate/updates": 2918.0,
+        "candidate/skipped_nonfinite": 0.0,
+        "candidate/skipped_no_valid_steps": 0.0,
+        "candidate/validation_state_loss": 0.8224853873252869,
+        "candidate/validation_termination_bce": 0.0,
+        "candidate/validation_auxiliary_loss": 0.0,
+        "candidate/validation_loss": 0.8245857954025269,
+        "candidate/validation_valid_count": 2032.0,
+        "candidate/validation_valid_1step_count": 256.0,
+        "candidate/validation_valid_kstep_count": 251.0,
+        "candidate/validation_nse_1step": 0.0036032518837600946,
+        "candidate/validation_nse_kstep": 0.020923979580402374,
+        "candidate/validation_contact_bce": 0.021004194393754005,
+        "candidate/validation_contact_accuracy": 0.9933562874794006,
+        "candidate/validation_available": 1.0,
+        "imagination/accepted": 1.0,
+        "imagination/rollback": 0.0,
+        "imagination/skipped": 0.0,
+        "imagination/nonfinite_parameter": 0.0,
+        "imagination/nonfinite_optimizer": 0.0,
+        "imagination/kl_rejected": 0.0,
+        "imagination/kl": 0.0008980708662420511,
+        "imagination/objective": 0.930726945400238,
+        "imagination/kl_gate_enabled": 0.0,
+        "imagination/actor_grad_norm": 0.016069872304797173,
+        "imagination/reward_mean": 0.031151408329606056,
+        "imagination/survival_H": 0.966552734375,
+        "imagination/tail_value": 0.8537944555282593,
+        "imagination/timeout_fraction": 0.01190185546875,
+        "imagination/raw_action_cost": 0.0,
+        "imagination/trust_mean": 1.0,
+        "imagination/dt_mean": 0.1599999964237213,
+        "imagination/horizon_seconds_mean": 0.6399999856948853,
+        "imagination/effective_lr": 0.00019998193115408394,
+        "imagination/imagined_value_source": 1.0,
+        "imagination/actor_chunks": 1.0,
+        "imagination/critic_loss": 0.02403019368648529,
+        "imagination/critic_grad_norm": 0.07761403173208237,
+        "imagination/critic_value_mean": 0.9025881886482239,
+        "imagination/critic_target_mean": 0.906821072101593,
+        "imagination/critic_updates": 20.0,
+        "imagination/critic_samples": 16203.0,
+        "imagination/critic_skipped_nonfinite": 0.0,
+        "imagination/critic_effective_lr": 0.00019998193115408394,
+        "schedule/phase": 2.0,
+        "schedule/next_phase": 2.0,
+        "schedule/boundary_completed": 1.0,
+        "schedule/new_valid_train_transitions": 747072.0,
+        "schedule/wm_budget": 365.0,
+        "schedule/wm_updates": 365.0,
+        "schedule/discarded_wm_batches": 0.0,
+        "schedule/wm_fraction": 0.25,
+        "schedule/effective_epochs": 1.0005996744624346,
+        "schedule/actor_budget": 1.0,
+        "schedule/actor_accepted": 1.0,
+        "schedule/value_batches_completed": 0.0,
+        "schedule/critic_updates": 20.0,
+        "replay_steps": 192.0,
+        "low_replay_steps": 1536.0,
+        "total_low_steps": 1536.0,
+        "lr_ratio": 0.9999096557704197,
+        "fit_seconds": 46.432849826989695,
+        "imagination_seconds": 0.8013331710244529,
+        "on_gpu": 1.0,
+        "diagnostic/closed_loop_available": 1.0,
+        "diagnostic/low_controller_closed_loop_nse": 0.0697164237499237,
+        "diagnostic/low_controller_closed_loop_last_nse": 0.14682677388191223,
+        "diagnostic/low_controller_closed_loop_confidence_error": 0.2820073962211609,
+        "diagnostic/low_controller_closed_loop_last_confidence_error": 0.6497249603271484,
+        "diagnostic/low_controller_closed_loop_relative_error": 0.2747727334499359,
+        "diagnostic/low_controller_closed_loop_last_relative_error": 0.6326547861099243,
+        "diagnostic/low_controller_closed_loop_foot_contact_accuracy": 0.966796875,
+        "diagnostic/low_controller_closed_loop_last_foot_contact_accuracy": 0.95703125,
+        "diagnostic/real_state_aux": -0.006330129224807024,
+        "diagnostic/real_state_weighted_aux": -0.0006330129690468311,
+        "diagnostic/real_state_raw_action_bound": 0.0,
+        "diagnostic/real_state_quality": 0.04294753074645996,
+        "diagnostic/real_state_approach": 0.06502313911914825,
+        "diagnostic/real_state_orientation": 0.2994289994239807,
+        "diagnostic/real_state_grasp": 1.8030187121098606e-08,
+        "diagnostic/real_state_grasp_geometry": 9.645368237443108e-08,
+        "diagnostic/real_state_lift": 0.005131859797984362,
+        "diagnostic/real_state_hold": 0.08356314152479172,
+        "diagnostic/real_state_grasp_lift": 2.6953503318161154e-10,
+        "diagnostic/real_state_grasp_lift_hold": 3.726754668753607e-11,
+        "diagnostic/real_state_slip_cost": 7.842349880604615e-09,
+        "diagnostic/real_state_unsafe_cost": 0.08251083642244339,
+        "diagnostic/real_state_slip_speed": 0.31535205245018005,
+        "diagnostic/reward_available": 1.0,
+        "diagnostic/native_reward": 0.030911652371287346,
+        "diagnostic/reconstructed_task_reward": 0.03091127797961235,
+        "diagnostic/task_reward_abs_error": 4.5846172724850476e-07,
+        "diagnostic/real_state_imagined_reward": 0.030278267338871956,
+        "diagnostic/imagined_native_reward_gap": -0.0006333858473226428,
+        "diagnostic/done_disagreement": 0.0,
+        "diagnostic/stage_lifted_fraction": 0.0,
+        "diagnostic/stage_success_fraction": 0.0,
+        "diagnostic/stage_completed_fraction": 0.0,
+        "diagnostic/stage_failed_fraction": 0.0078125,
+        "diagnostic/stage_timeout_fraction": 0.0,
+        "diagnostic/stage_hold_progress": 0.0,
+        "diagnostic/stage_hold_fraction": 0.0,
+        "diagnostic/stage_held_not_complete_fraction": 0.0,
+        "diagnostic/action_0_saturation": 0.0,
+        "diagnostic/action_1_saturation": 0.0,
+        "diagnostic/action_2_saturation": 0.0,
+        "diagnostic/action_3_saturation": 0.0,
+        "diagnostic/action_4_saturation": 0.0,
+        "diagnostic/action_5_saturation": 0.0,
+        "diagnostic/action_7_saturation": 0.0,
+        "diagnostic/action_8_saturation": 0.0,
+        "diagnostic/gripper_mean_sigmoid_derivative": 0.24999508261680603,
+        "diagnostic/gripper_executed_endpoint_fraction": 0.0,
+        "diagnostic/real_state_raw_latent_cost_available": 0.0,
+        "update_seconds": 47.43265548098134
+      },
+      "training_status": {
+        "actor": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "real_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 21
+          },
+          "tensor_count": 21,
+          "cpu_step_counters_allowed": false
+        },
+        "dynamics": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 14
+          },
+          "tensor_count": 14,
+          "cpu_step_counters_allowed": false
+        },
+        "imagined_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 6
+          },
+          "tensor_count": 6,
+          "cpu_step_counters_allowed": false
+        },
+        "low_policy": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 26
+          },
+          "tensor_count": 26,
+          "cpu_step_counters_allowed": false
+        },
+        "fixed_scaler": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 2
+          },
+          "tensor_count": 2,
+          "cpu_step_counters_allowed": false
+        },
+        "fk": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 4
+          },
+          "tensor_count": 4,
+          "cpu_step_counters_allowed": false
+        },
+        "observation_noise": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 3
+          },
+          "tensor_count": 3,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 41,
+            "cuda:0": 82
+          },
+          "tensor_count": 123,
+          "cpu_step_counters_allowed": true
+        },
+        "dynamics_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 14,
+            "cuda:0": 28
+          },
+          "tensor_count": 42,
+          "cpu_step_counters_allowed": true
+        },
+        "bptt_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 20,
+            "cuda:0": 40
+          },
+          "tensor_count": 60,
+          "cpu_step_counters_allowed": true
+        },
+        "imagined_critic_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 6,
+            "cuda:0": 12
+          },
+          "tensor_count": 18,
+          "cpu_step_counters_allowed": true
+        },
+        "high_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 26
+          },
+          "tensor_count": 26,
+          "cpu_step_counters_allowed": false
+        },
+        "low_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 23
+          },
+          "tensor_count": 23,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_memory": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 9
+          },
+          "tensor_count": 9,
+          "cpu_step_counters_allowed": false
+        }
+      },
+      "actor_after_bptt": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.005574050359427929,
+          -0.03557787090539932,
+          -0.027088122442364693,
+          -0.021329127252101898,
+          -0.02100425399839878,
+          -0.028143994510173798,
+          -0.015542656183242798,
+          -0.026491470634937286,
+          -0.06629186868667603
+        ],
+        "mean_max": [
+          0.04568052291870117,
+          0.027009518817067146,
+          0.01435309648513794,
+          0.03649036958813667,
+          0.0490720197558403,
+          0.033768367022275925,
+          0.0383339524269104,
+          0.024107523262500763,
+          0.019486993551254272
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.3470654487609863,
+          -2.301459789276123,
+          -2.3212926387786865,
+          -2.3259079456329346,
+          -2.318535804748535,
+          -2.320931911468506,
+          -2.3409316539764404,
+          -2.3303775787353516,
+          -2.310532808303833
+        ],
+        "log_std_max": [
+          -2.3470654487609863,
+          -2.301459789276123,
+          -2.3212926387786865,
+          -2.3259079456329346,
+          -2.318535804748535,
+          -2.320931911468506,
+          -2.3409316539764404,
+          -2.3303775787353516,
+          -2.310532808303833
+        ],
+        "log_std_parameter": [
+          -2.3470654487609863,
+          -2.301459789276123,
+          -2.3212926387786865,
+          -2.3259079456329346,
+          -2.318535804748535,
+          -2.320931911468506,
+          -2.3409316539764404,
+          -2.3303775787353516,
+          -2.310532808303833
+        ],
+        "opening_min": 0.4961144030094147,
+        "opening_max": 0.5095823407173157,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "low_policy_unchanged": true,
+      "low_policy_frozen": true,
+      "schedule": {
+        "config": {
+          "batch_size": 2048,
+          "wm_epochs": 1.0,
+          "wm_max_batches": 512,
+          "wm_prepare_boundaries": 4,
+          "value_prepare_boundaries": 2,
+          "value_prepare_batches": 8,
+          "actor_stage1_boundaries": 4,
+          "actor_stage2_boundaries": 4,
+          "actor_stage1_updates": 1,
+          "actor_stage2_updates": 2,
+          "actor_max_updates": 4
+        },
+        "seen_transitions": 5976576,
+        "credit": 0.25,
+        "completed": {
+          "W": 4,
+          "V": 2,
+          "B1": 2,
+          "B2": 0,
+          "B3": 0
+        },
+        "boundaries": 8,
+        "discarded_batches": 0
+      },
+      "update_rounds": 0
+    }
+  ],
+  "first_bptt_ownership": {
+    "dynamics_unchanged": true,
+    "real_critic_unchanged": true,
+    "low_policy_unchanged": true,
+    "std_unchanged": true,
+    "std_grad_none": true
+  },
+  "input_checks": 962,
+  "input_failures": [],
+  "phase": "completed",
+  "seconds": 516.0980192720308,
+  "smoke_overrides": {},
+  "teacher_arguments": [
+    "--task",
+    "B1Z1PickMulti",
+    "--object_name",
+    "sugar_box",
+    "--roboinfo",
+    "--observe_gait_commands",
+    "--small_value_set_zero",
+    "--no_velocity_obs",
+    "--sgs_mode",
+    "sgs",
+    "--sgs_bank",
+    "/home/hehui/DQ_WBC/DQ_high-level/data/sgs/sugar_box_v10.pt",
+    "--future_pose_obs",
+    "--future_pose_horizons",
+    ".60",
+    ".90",
+    "--headless",
+    "--num_envs",
+    "4096",
+    "--rl_device",
+    "cuda:0",
+    "--sim_device",
+    "cuda:0",
+    "--world_model",
+    "hybrid",
+    "--wm_recipe",
+    "manipulation",
+    "--experiment_dir",
+    "/tmp/dq_stability_gpu_cmf2a8e9",
+    "--wandb_name",
+    "stability",
+    "--seed",
+    "43",
+    "--timesteps",
+    "40000",
+    "--stop_after",
+    "192",
+    "--wm_config",
+    "/tmp/dq_stability_gpu_cmf2a8e9/smoke.yaml"
+  ],
+  "resolved_config": {
+    "recipe": "manipulation",
+    "mode": "hybrid",
+    "fixed8": true,
+    "replay_envs": 4096,
+    "replay_capacity": 256,
+    "low_replay_capacity": 1000,
+    "window": 8,
+    "batch_size": 2048,
+    "batches_per_update": 1,
+    "hidden": [
+      2048,
+      2048,
+      2048
+    ],
+    "term_hidden": [
+      64,
+      64
+    ],
+    "contact_hidden": [
+      128,
+      128
+    ],
+    "learning_rate": 0.0002,
+    "model_grad_clip": 1.0,
+    "termination_weight": 0.1,
+    "contact_weight": 0.1,
+    "state_loss_reduction": "sum",
+    "auxiliary_weight": 0.0,
+    "action_coordinates": "normalized_commands",
+    "initial_action_std": 0.1,
+    "actor_last_gain": 0.01,
+    "action_rate_mode": "squared_all",
+    "action_rate_weight": -0.002,
+    "warmup_steps": 5,
+    "horizon": 4,
+    "imagination_batch": 4096,
+    "actor_learning_rate": 0.0002,
+    "auxiliary_strength": 1.0,
+    "max_kl": 0.005,
+    "max_grad_norm": 1.0,
+    "max_validation_error": 0.1,
+    "max_start_error": 0.1,
+    "holdout_fraction": 0.05,
+    "recent_fraction": 0.0,
+    "recent_steps": 32,
+    "validation_batch_size": 256,
+    "use_tail_value": true,
+    "probe_interval": 0,
+    "report_max_age_seconds": null,
+    "candidate_checkpoint": "",
+    "validated_checkpoint": "",
+    "probe_report": "",
+    "compact_low_replay": true,
+    "balance_families": false,
+    "fixed_preprocessing": true,
+    "observation_noise_scale": 1.0,
+    "model_microbatch_size": 2048,
+    "imagination_chunk_size": 4096,
+    "updates_per_low_step": 0.0,
+    "actor_betas": [
+      0.9,
+      0.95
+    ],
+    "grad_clip_value": 0.1,
+    "kl_rollback": false,
+    "value_source": "imagined",
+    "critic_hidden": [
+      256,
+      128
+    ],
+    "critic_learning_rate": 0.0002,
+    "critic_epochs": 5,
+    "critic_minibatches": 4,
+    "critic_gae_lambda": 0.95,
+    "critic_max_grad_norm": 1.0,
+    "lr_schedule": "cosine",
+    "lr_final_ratio": 0.03,
+    "lr_decay_low_steps": 250000,
+    "wm_epochs": 1.0,
+    "wm_max_batches": 512,
+    "wm_prepare_boundaries": 4,
+    "value_prepare_boundaries": 2,
+    "value_prepare_batches": 8,
+    "actor_stage1_boundaries": 4,
+    "actor_stage2_boundaries": 4,
+    "actor_stage1_updates": 1,
+    "actor_stage2_updates": 2,
+    "actor_max_updates": 4,
+    "holdout_mode": "environment",
+    "allow_partial_windows": true,
+    "diagnostics_interval": 1,
+    "diagnostics_batch_size": 128,
+    "critic_memory": false,
+    "layer_norm": false,
+    "running_normalization": false,
+    "amp": "none",
+    "task_contract": "manipulation_v2",
+    "task_aux_alpha": 0.1,
+    "task_aux_config": {
+      "quality_weights": [
+        0.2,
+        0.1,
+        0.2,
+        0.2,
+        0.3
+      ],
+      "object_half_extents_m": {},
+      "object_centers_m": {},
+      "approach_near_scale_m": null,
+      "approach_far_scale_m": null,
+      "grasp_position_scale_m": null,
+      "grasp_width_scale_m": null,
+      "orientation_scale_rad": 0.5,
+      "slip_linear_scale_m_s": 0.1,
+      "slip_angular_scale_rad_s": 1.0,
+      "hold_linear_scale_m_s": 0.15,
+      "hold_angular_scale_rad_s": 1.0,
+      "base_tilt_scale_rad": 0.35,
+      "slip_cost_weight": 0.1,
+      "unsafe_cost_weight": 0.1,
+      "excess_height_margin_m": 0.15,
+      "fixed_pad_ee_m": [
+        0.0,
+        0.0,
+        -0.01
+      ],
+      "moving_pivot_ee_m": [
+        -0.086,
+        0.0,
+        0.0
+      ],
+      "moving_pad_m": [
+        0.085,
+        0.0,
+        -0.009
+      ]
+    },
+    "raw_action_bound_weight": 0.0,
+    "raw_gripper_latent_bound": 3.0,
+    "probe_envs": 128,
+    "probe_prefix_steps": 8,
+    "probe_device": "cuda:0",
+    "probe_timeout_seconds": 900.0
+  },
+  "contract": {
+    "low_steps_per_high": 8,
+    "low_dt": 0.02,
+    "high_dt": 0.16,
+    "action_clip": "Infinity",
+    "action_coordinates": "normalized_commands",
+    "action_rate_mode": "squared_all",
+    "state_loss_reduction": "sum",
+    "auxiliary_weight": 0.0,
+    "critic_feature_dim": 189,
+    "critic_features": "canonical_physics_context_and_compact_task_fixed_scales_v2",
+    "imagined_high_steps": 4,
+    "imagined_low_steps": 32,
+    "compact_low_state": 82
+  },
+  "initial_training_status": {
+    "actor": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 22
+      },
+      "tensor_count": 22,
+      "cpu_step_counters_allowed": false
+    },
+    "real_critic": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 21
+      },
+      "tensor_count": 21,
+      "cpu_step_counters_allowed": false
+    },
+    "dynamics": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 14
+      },
+      "tensor_count": 14,
+      "cpu_step_counters_allowed": false
+    },
+    "imagined_critic": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 6
+      },
+      "tensor_count": 6,
+      "cpu_step_counters_allowed": false
+    },
+    "low_policy": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 26
+      },
+      "tensor_count": 26,
+      "cpu_step_counters_allowed": false
+    },
+    "fixed_scaler": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 2
+      },
+      "tensor_count": 2,
+      "cpu_step_counters_allowed": false
+    },
+    "fk": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 4
+      },
+      "tensor_count": 4,
+      "cpu_step_counters_allowed": false
+    },
+    "observation_noise": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 3
+      },
+      "tensor_count": 3,
+      "cpu_step_counters_allowed": false
+    },
+    "high_replay": {
+      "finite": null,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 17
+      },
+      "tensor_count": 17,
+      "cpu_step_counters_allowed": false
+    },
+    "low_replay": {
+      "finite": null,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 17
+      },
+      "tensor_count": 17,
+      "cpu_step_counters_allowed": false
+    },
+    "ppo_memory": {
+      "finite": null,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 9
+      },
+      "tensor_count": 9,
+      "cpu_step_counters_allowed": false
+    }
+  },
+  "pending_high_step": 192,
+  "last_progress": "update block complete in 48.2s; resuming environment collection",
+  "last_ppo_numerics": {
+    "timestep": 191,
+    "attempted_minibatches": 30,
+    "accepted_minibatches": 30,
+    "rejected_minibatches": 0,
+    "rejected_rollouts": 0,
+    "rolled_back_steps": 0,
+    "reason_counts": {},
+    "last_rejection": null,
+    "nonfinite_kl_diagnostics": 0,
+    "log_ratio_abs_max": 1.065591812133789,
+    "max_finite_grad_norm": 456.8512878417969
+  },
+  "bptt_std_ownership_checks": 2,
+  "final_training_status": {
+    "actor": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 22
+      },
+      "tensor_count": 22,
+      "cpu_step_counters_allowed": false
+    },
+    "real_critic": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 21
+      },
+      "tensor_count": 21,
+      "cpu_step_counters_allowed": false
+    },
+    "dynamics": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 14
+      },
+      "tensor_count": 14,
+      "cpu_step_counters_allowed": false
+    },
+    "imagined_critic": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 6
+      },
+      "tensor_count": 6,
+      "cpu_step_counters_allowed": false
+    },
+    "low_policy": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 26
+      },
+      "tensor_count": 26,
+      "cpu_step_counters_allowed": false
+    },
+    "fixed_scaler": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 2
+      },
+      "tensor_count": 2,
+      "cpu_step_counters_allowed": false
+    },
+    "fk": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 4
+      },
+      "tensor_count": 4,
+      "cpu_step_counters_allowed": false
+    },
+    "observation_noise": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 3
+      },
+      "tensor_count": 3,
+      "cpu_step_counters_allowed": false
+    },
+    "ppo_optimizer": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cpu": 41,
+        "cuda:0": 82
+      },
+      "tensor_count": 123,
+      "cpu_step_counters_allowed": true
+    },
+    "dynamics_optimizer": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cpu": 14,
+        "cuda:0": 28
+      },
+      "tensor_count": 42,
+      "cpu_step_counters_allowed": true
+    },
+    "bptt_optimizer": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cpu": 20,
+        "cuda:0": 40
+      },
+      "tensor_count": 60,
+      "cpu_step_counters_allowed": true
+    },
+    "imagined_critic_optimizer": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cpu": 6,
+        "cuda:0": 12
+      },
+      "tensor_count": 18,
+      "cpu_step_counters_allowed": true
+    },
+    "high_replay": {
+      "finite": null,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 26
+      },
+      "tensor_count": 26,
+      "cpu_step_counters_allowed": false
+    },
+    "low_replay": {
+      "finite": null,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 23
+      },
+      "tensor_count": 23,
+      "cpu_step_counters_allowed": false
+    },
+    "ppo_memory": {
+      "finite": null,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 9
+      },
+      "tensor_count": 9,
+      "cpu_step_counters_allowed": false
+    }
+  },
+  "std_changed_by_ppo": true,
+  "total_bptt_calls": 2,
+  "update_rounds": 0,
+  "peak_torch_memory_mib": 20923.7763671875,
+  "device_memory_mib": {
+    "free": 15019.875,
+    "total": 48508.0625
+  }
+}

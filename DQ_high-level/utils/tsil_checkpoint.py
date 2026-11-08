@@ -66,10 +66,13 @@ def _validate_current_metadata(metadata):
         raise ValueError("TSIL checkpoint configuration descriptor schema is missing or incompatible")
 
 
-def read_temporal_checkpoint(path):
-    """Read a local trusted checkpoint before constructing observation spaces."""
-    import torch
-    payload = torch.load(path, map_location="cpu", weights_only=False)
+def read_temporal_checkpoint(path=None, *, payload=None):
+    """Read trusted inference metadata, reusing an already-loaded CPU payload."""
+    if payload is None:
+        if path is None:
+            raise ValueError("Provide a checkpoint path or its loaded payload")
+        import torch
+        payload = torch.load(path, map_location="cpu", weights_only=False)
     from utils.wm_entry import reject_candidate_checkpoint
     reject_candidate_checkpoint(payload=payload)
     if not isinstance(payload, dict):

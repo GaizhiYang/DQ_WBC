@@ -33,6 +33,17 @@ CONTINUOUS_INDICES = tuple(range(9))
 ACTION_SEMANTICS = "continuous_opening_v1"
 
 
+def predicted_task_reward(adapter, previous, next_state, action, context):
+    """Compare the same native task objective on real and predicted POST states.
+
+    Imagined auxiliary quality and raw-latent costs are different objectives;
+    they cannot be mixed into a model-vs-native physics diagnostic.
+    """
+    reward = getattr(adapter, "task_reward", None)
+    return (reward if callable(reward) else adapter.reward)(
+        previous, next_state, action, context)
+
+
 @dataclass
 class ActionEffectProbeConfig:
     min_pairs: int = 64
@@ -292,7 +303,8 @@ def run_action_effect_probe(session_factory, model_factory, prefix_actions,
                 elif reference_hash != fingerprint:
                     raise ValueError("Model weights changed between probe branches")
                 predicted = model.step(state, executed_action, context, transition.dt)
-                predicted_reward = session.adapter.reward(state, predicted, executed_action, context).reshape(batch)
+                predicted_reward = predicted_task_reward(
+                    session.adapter, state, predicted, executed_action, context).reshape(batch)
                 branches[name] = {
                     "start": state.detach().clone(), "context": context.detach().clone(),
                     "physical_context": physical_context.detach().clone(),
@@ -307,6 +319,7 @@ def run_action_effect_probe(session_factory, model_factory, prefix_actions,
                 session.close()
     return summarize_replayed_branches(branches, reference_hash, configuration, cfg,
         metadata={"simulator": simulator, "device": str(base_actions.device), "seed": int(seed),
+                  "reward_contract": "native_task_without_imagination_auxiliary",
                   "prefix_length": len(prefix_actions), "protocol": "independent_simulator_prefix_replay"})
 
 

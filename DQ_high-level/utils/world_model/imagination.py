@@ -1,4 +1,4 @@
-"""Short closed-loop BPTT as an auxiliary update of the real PPO Actor.
+"""Closed-loop BPTT for both legacy PPO fusion and the independent reference Agent.
 
 The survival-weighted objective and short-horizon rollout follow
 SuperMimic-Reproduced ``imagination/{objective,rollout,policy_trainer}.py``
@@ -9,6 +9,9 @@ Continuous gripper commands and the finite task's hard endpoints are retained.
 Imagined actions use the Actor mean and its differentiable action mapping.
 The real PPO policy keeps
 sampling Gaussian actions and exclusively learns its action standard deviations.
+The explicit reference mode instead uses a deterministic Actor with fixed real
+exploration noise, -J, task-owned differentiable survival and normalized Critic
+targets prepared after the Actor step. There is no PPO Actor/Critic in that mode.
 
 All rollout, gradient and optimizer tensors stay on the input CUDA device.
 Only scalar diagnostics are copied to the host once an update is finished.
@@ -23,7 +26,7 @@ import math
 import torch
 from torch import nn
 
-from .gradients import freeze_parameters
+from .gradients import freeze_parameters, optimizer_finite, tensors_finite
 from .imagined_critic import ImaginedCritic, ImaginedCriticTrainer
 
 
@@ -50,6 +53,11 @@ class ImaginationConfig:
     critic_epochs: int = 5
     critic_minibatches: int = 4
     critic_max_grad_norm: float = 1.0
+    reference_mode: bool = False
+    objective_reduction: str = "mean"
+    critic_running_norm: bool = False
+    critic_activation: str = "silu"
+    critic_amp: str = "none"
 
 
 @dataclass
@@ -62,6 +70,7 @@ class ImaginedRollout:
     timeouts: torch.Tensor     # [H, batch]
     timeout_values: torch.Tensor  # [H, batch], bootstrap at a time limit
     tail_values: torch.Tensor  # [batch]
+    action_costs: torch.Tensor = None  # [H,B], exact raw-latent cost when configured
 
 
 def imagination_objective(rollout, gamma, weights=None):
@@ -147,6 +156,8 @@ class ImaginationTrainer:
             raise ValueError("Invalid BPTT optimizer strength, learning rate or limits")
         if cfg.value_source not in ("ppo", "imagined"):
             raise ValueError("BPTT value_source must be ppo or imagined")
+        if cfg.reference_mode and cfg.value_source != "imagined":
+            raise ValueError("Reference BPTT requires the independent imagined Critic")
         if (len(cfg.actor_betas) != 2 or any(not 0 <= beta < 1 for beta in cfg.actor_betas)
                 or cfg.chunk_size < 0 or int(cfg.chunk_size) != cfg.chunk_size
                 or (cfg.grad_clip_value is not None and cfg.grad_clip_value <= 0)):
@@ -158,11 +169,13 @@ class ImaginationTrainer:
             raise ValueError("The teacher continuous gripper opening action is at index 6")
         if getattr(actor, "transform_func", None) is not None:
             raise ValueError("BPTT requires no global policy transform; use mean_to_action for coordinate transforms")
-        if getattr(actor, "deterministic", False):
+        if cfg.objective_reduction not in ("mean", "sum"):
+            raise ValueError("Imagined objective reduction must be mean or sum")
+        if getattr(actor, "deterministic", False) and not cfg.reference_mode:
             raise ValueError("The real PPO training Actor must remain stochastic; BPTT uses its means directly")
         actor_ids = {id(parameter) for parameter in actor.parameters()}
         for frozen in (model, critic):
-            if actor_ids.intersection(id(parameter) for parameter in frozen.parameters()):
+            if frozen is not None and actor_ids.intersection(id(parameter) for parameter in frozen.parameters()):
                 raise ValueError("BPTT requires separate Actor, Critic and world-model parameters")
         # Scaling a loss by beta alone largely cancels inside Adam's adaptive
         # normalization. Scale its actual parameter step via learning rate.
@@ -178,13 +191,16 @@ class ImaginationTrainer:
             if not callable(getattr(adapter, "critic_features", None)):
                 raise ValueError("Imagined value learning requires adapter.critic_features")
             exemplar = next(actor.parameters())
-            self.imagined_critic = ImaginedCritic(adapter.critic_feature_dim, cfg.critic_hidden).to(
+            self.imagined_critic = ImaginedCritic(adapter.critic_feature_dim, cfg.critic_hidden,
+                running_norm=cfg.critic_running_norm, activation=cfg.critic_activation,
+                amp=cfg.critic_amp).to(
                 device=exemplar.device, dtype=exemplar.dtype)
             self.imagined_critic_trainer = ImaginedCriticTrainer(
                 self.imagined_critic, adapter, lr=cfg.critic_lr, gamma=cfg.gamma,
                 lam=cfg.critic_gae_lambda, epochs=cfg.critic_epochs,
                 minibatches=cfg.critic_minibatches, max_grad_norm=cfg.critic_max_grad_norm,
-                bootstrap_timeouts=cfg.bootstrap_timeouts)
+                bootstrap_timeouts=cfg.bootstrap_timeouts,
+                defer_targets=cfg.reference_mode or cfg.critic_running_norm)
         self.accepted_updates = 0
         self.rejected_updates = 0
 
@@ -284,47 +300,113 @@ class ImaginationTrainer:
         survival = torch.ones(batch_size, device=state.device, dtype=state.dtype)
         states, survivals = [state], [survival]
         actions, rewards, termination, timeouts, timeout_values = [], [], [], [], []
+        action_costs = []
         timeout_fn = getattr(self.adapter, "timeout", getattr(self.adapter, "timeouts", None))
         for step in range(horizon):
             observation = getattr(self.adapter, "policy_observation", self.adapter.observation)
             mean, _ = self._policy(observation(state, context))
             action = self._action(mean)
             duration = self._dt_at(dt, step, horizon, batch_size)
-            next_state = self.model.step(state, action, context, duration)
             hard_absorbing = getattr(self.adapter, "hard_absorbing", False)
-            if hard_absorbing:
+            step_with_task = getattr(self.model, "step_with_task", None)
+            if hard_absorbing and step_with_task is not None:
+                next_state, reward, outcome = step_with_task(
+                    state, action, context, duration,
+                    active=None if self.cfg.reference_mode else survival > 0)
+            else:
+                next_state = self.model.step(state, action, context, duration)
                 # Keep already-ended rows at their endpoint. Do not generate
                 # imaginary post-success/failed episodes or their rewards.
-                next_state = torch.where((survival > 0)[:, None], next_state, state)
-            reward = self.adapter.reward(state, next_state, action, context).reshape(batch_size)
+                if hard_absorbing and not self.cfg.reference_mode:
+                    next_state = torch.where((survival > 0)[:, None], next_state, state)
+                reward_and_outcome = getattr(self.adapter, "reward_and_outcome", None)
+                if hard_absorbing and reward_and_outcome is not None:
+                    reward, outcome = reward_and_outcome(state, next_state, action, context)
+                else:
+                    reward = self.adapter.reward(state, next_state, action, context)
+                    if hard_absorbing:
+                        outcome = self.adapter.task_outcome(state, next_state, action, context)
+            reward = reward.reshape(batch_size)
+            raw_cost = getattr(self.adapter, "raw_action_cost", None)
+            if raw_cost is not None:
+                mapping = getattr(self.actor, "mean_to_action", lambda value: value)
+                cost = raw_cost(mapping(mean), mean).reshape(batch_size)
+                reward = reward - cost
+            else:
+                cost = torch.zeros_like(reward)
             if hard_absorbing:
-                outcome = self.adapter.task_outcome(state, next_state, action, context)
-                done = (outcome["failed"] | outcome["completed"]).to(state.dtype).detach()
-                reward = torch.where(survival > 0, reward, torch.zeros_like(reward))
+                # The reference task owns a forward-hard, backward-smooth done
+                # including timeout. Preserve its input Jacobian in survival.
+                done = (outcome["imagined_done"] if self.cfg.reference_mode and "imagined_done" in outcome
+                        else (outcome["failed"] | outcome["completed"]).to(state.dtype).detach())
+                if not self.cfg.reference_mode:
+                    reward = torch.where(survival > 0, reward, torch.zeros_like(reward))
+                    cost = torch.where(survival > 0, cost, torch.zeros_like(cost))
             elif getattr(self.model, "term_head", True) is None:
                 done = torch.zeros_like(survival)
             else:
                 done = self.model.termination_probability(next_state, context).reshape(batch_size).clamp(0, 1)
-            timeout = (torch.zeros_like(survival) if timeout_fn is None else
-                       timeout_fn(next_state, context).to(dtype=state.dtype).reshape(batch_size).detach())
             if hard_absorbing:
                 timeout = outcome["timeout"].to(state.dtype).detach()
+            else:
+                timeout = (torch.zeros_like(survival) if timeout_fn is None else
+                           timeout_fn(next_state, context).to(dtype=state.dtype).reshape(batch_size).detach())
             # Evaluate the correct endpoint, not the hypothetical post-reset state.
             timeout_value = (self._value(next_state, context)
                              if timeout_fn is not None and self.cfg.bootstrap_timeouts else
                              torch.zeros_like(survival))
-            survival = survival * (1.0 - done) * (1.0 - timeout)
+            combined_done = self.cfg.reference_mode and hard_absorbing and "imagined_done" in outcome
+            survival = survival * (1.0 - done)
+            if not combined_done:
+                survival = survival * (1.0 - timeout)
             states.append(next_state)
             actions.append(action)
             rewards.append(reward)
             termination.append(done)
             timeouts.append(timeout)
             timeout_values.append(timeout_value)
+            action_costs.append(cost)
             survivals.append(survival)
             state = next_state
         return ImaginedRollout(torch.stack(states), torch.stack(actions), torch.stack(rewards),
                                torch.stack(termination), torch.stack(survivals), torch.stack(timeouts),
-                               torch.stack(timeout_values), self._value(state, context))
+                               torch.stack(timeout_values), self._value(state, context), torch.stack(action_costs))
+
+    @torch.enable_grad()
+    def update_value(self, start_state, context, *, dt=None):
+        """Prepare imagined value without touching Actor weights or Adam state.
+
+        Use the same mean policy, reward, endpoints and observation-noise hook
+        as BPTT. Freezing the Actor too avoids constructing its rollout graph;
+        no zero-learning-rate Actor step or real-PPO return target is involved.
+        """
+        if self.imagined_critic_trainer is None or not self.cfg.use_tail_value:
+            raise ValueError("Value preparation requires an independent imagined Critic and tail value")
+        modules = [module for module in (self.actor, self.model, self.critic, self.imagined_critic)
+                   if module is not None]
+        modules.extend(module for module in (self.state_preprocessor, self.value_preprocessor)
+                       if isinstance(module, nn.Module))
+        batches = []
+        count = len(start_state)
+        chunk = int(self.cfg.chunk_size) or count
+        if not count:
+            return {"value_prepared": 0., "critic_updates": 0., "actor_updates": 0.}
+        with freeze_parameters(*modules):
+            for begin in range(0, count, chunk):
+                end = min(begin + chunk, count)
+                duration = self._slice_dt(dt, begin, end, self.cfg.horizon, count)
+                rollout = self.imagine(start_state[begin:end], context[begin:end], dt=duration)
+                if not tensors_finite((rollout.states, rollout.actions, rollout.rewards,
+                                       rollout.tail_values, rollout.survival)):
+                    return {"value_prepared": 0., "critic_updates": 0.,
+                            "actor_updates": 0., "critic_skipped_nonfinite": 1.}
+                batches.append(self.imagined_critic_trainer.prepare(rollout, context[begin:end]))
+                del rollout
+        result = self.imagined_critic_trainer.fit(batches)
+        result["value_prepared"] = float(result.get("critic_updates", 0) > 0
+                                         and not result.get("critic_skipped_nonfinite", 0))
+        result["actor_updates"] = 0.
+        return result
 
     @torch.enable_grad()
     def update(self, start_state, context, weights=None, anchor_observations=None, *, dt=None):
@@ -336,6 +418,10 @@ class ImaginationTrainer:
         """
         if start_state.ndim != 2 or start_state.shape[0] == 0:
             raise ValueError("BPTT needs a nonempty [batch, state_dim] start tensor")
+        if not tensors_finite(self.actor.parameters()) or not optimizer_finite(self.optimizer):
+            raise FloatingPointError(
+                "BPTT received nonfinite Actor parameters or Adam state before its update; "
+                "stop before returning invalid actions to PhysX. Inspect the preceding PPO update/checkpoint.")
         if weights is not None:
             weights = weights.detach().to(device=start_state.device, dtype=start_state.dtype).reshape(-1)
             if weights.shape[0] != start_state.shape[0] or not bool(torch.isfinite(weights).all()) or bool((weights < 0).any()):
@@ -343,24 +429,25 @@ class ImaginationTrainer:
         if self.cfg.strength == 0 or (weights is not None and not bool((weights > 0).any())):
             return {"accepted": 0.0, "rollback": 0.0, "skipped": 1.0, "kl": 0.0,
                     "actor_grad_norm": 0.0}
-        frozen = [self.model, self.critic]
+        frozen = [module for module in (self.model, self.critic) if module is not None]
         if self.imagined_critic is not None:
             frozen.append(self.imagined_critic)
         frozen.extend(preprocessor for preprocessor in (self.state_preprocessor, self.value_preprocessor)
                       if isinstance(preprocessor, nn.Module))
         critic_batches = []
         with freeze_parameters(*frozen), _evaluation(self.actor):
-            if anchor_observations is None:
-                anchor_observations = self.adapter.observation(start_state.detach(), context.detach())
-            anchor_observations = anchor_observations.detach()
-            with torch.no_grad():
-                old_mean, old_log_std = self._policy(anchor_observations)
-                old_mean, old_log_std = old_mean.clone(), old_log_std.clone()
+            if not self.cfg.reference_mode:
+                if anchor_observations is None:
+                    anchor_observations = self.adapter.observation(start_state.detach(), context.detach())
+                anchor_observations = anchor_observations.detach()
+                with torch.no_grad():
+                    old_mean, old_log_std = self._policy(anchor_observations)
+                    old_mean, old_log_std = old_mean.clone(), old_log_std.clone()
             self.optimizer.zero_grad(set_to_none=True)
             batch_size = len(start_state)
             chunk_size = int(self.cfg.chunk_size) or batch_size
             aggregate = {name: start_state.new_zeros(()) for name in
-                         ("objective", "reward_mean", "survival_H", "tail_value", "timeout_fraction")}
+                         ("objective", "reward_mean", "survival_H", "tail_value", "timeout_fraction", "raw_action_cost")}
             has_gradient = False
             for begin in range(0, batch_size, chunk_size):
                 end = min(begin + chunk_size, batch_size)
@@ -369,22 +456,30 @@ class ImaginationTrainer:
                 rollout = self.imagine(start_state[begin:end], context[begin:end], dt=chunk_dt)
                 chunk_weights = None if weights is None else weights[begin:end]
                 objective = imagination_objective(rollout, self.cfg.gamma, chunk_weights)
-                loss = -objective * fraction / self.cfg.horizon
+                divisor = self.cfg.horizon if self.cfg.objective_reduction == "mean" else 1
+                loss = -objective * fraction / divisor
                 if not bool(torch.isfinite(loss)):
                     self.optimizer.zero_grad(set_to_none=True)
                     self.rejected_updates += 1
                     return {"accepted": 0.0, "rollback": 0.0, "skipped": 1.0,
-                            "nonfinite": 1.0, "kl": 0.0, "actor_grad_norm": 0.0}
+                            "nonfinite": 1.0, "nonfinite_loss": 1.0,
+                            "kl": 0.0, "actor_grad_norm": 0.0}
                 if loss.requires_grad:
                     loss.backward()
                     has_gradient = True
                 if self.imagined_critic_trainer is not None and self.cfg.use_tail_value:
                     critic_batches.append(self.imagined_critic_trainer.prepare(rollout, context[begin:end]))
                 aggregate["objective"] += objective.detach() * fraction
-                aggregate["reward_mean"] += rollout.rewards.detach().mean() * fraction
+                if self.cfg.reference_mode:
+                    reachable = rollout.survival[:-1].detach()
+                    aggregate["reward_mean"] += ((reachable*rollout.rewards.detach()).sum()
+                        / reachable.sum().clamp_min(1)) * fraction
+                else:
+                    aggregate["reward_mean"] += rollout.rewards.detach().mean() * fraction
                 aggregate["survival_H"] += rollout.survival[-1].detach().mean() * fraction
                 aggregate["tail_value"] += rollout.tail_values.detach().mean() * fraction
                 aggregate["timeout_fraction"] += rollout.timeouts.detach().mean() * fraction
+                aggregate["raw_action_cost"] += rollout.action_costs.detach().mean() * fraction
                 # Only detached Critic training tensors survive the chunk.
                 del rollout, objective, loss
             if not has_gradient:
@@ -395,23 +490,35 @@ class ImaginationTrainer:
                 self.optimizer.zero_grad(set_to_none=True)
                 self.rejected_updates += 1
                 return {"accepted": 0.0, "rollback": 0.0, "skipped": 1.0,
-                        "nonfinite": 1.0, "kl": 0.0, "actor_grad_norm": float(grad_norm)}
+                        "nonfinite": 1.0, "nonfinite_gradient": 1.0,
+                        "kl": 0.0, "actor_grad_norm": float(grad_norm)}
             if self.cfg.grad_clip_value is not None:
                 torch.nn.utils.clip_grad_value_(self.actor.parameters(), self.cfg.grad_clip_value)
             # Snapshot on the current GPU; rollback must include Adam moments/step.
             # Even without a KL gate, a numerically invalid optimizer step must
             # not leave a corrupted Actor or Adam state in real PPO training.
-            before_actor = {name: value.detach().clone() for name, value in self.actor.state_dict().items()}
-            before_optimizer = deepcopy(self.optimizer.state_dict())
-            self.optimizer.step()
-            with torch.no_grad():
-                new_mean, new_log_std = self._policy(anchor_observations)
-                kl = diagonal_gaussian_kl(old_mean, old_log_std, new_mean, new_log_std).mean()
-                finite = bool(torch.isfinite(new_mean).all()) and all(
-                    bool(torch.isfinite(parameter).all()) for parameter in self.actor.parameters())
-                kl_allowed = (not self.cfg.kl_rollback or
-                              (bool(torch.isfinite(kl)) and float(kl) <= self.cfg.max_kl))
-                accepted = finite and kl_allowed
+            if self.cfg.reference_mode:
+                # Fixed exploration noise does not define a PPO policy/KL gate.
+                # Follow the source single Adam step without legacy deep copies.
+                self.optimizer.step()
+                finite_parameters = tensors_finite(self.actor.parameters())
+                finite_optimizer = optimizer_finite(self.optimizer)
+                if not finite_parameters or not finite_optimizer:
+                    raise FloatingPointError("Reference Actor optimizer produced nonfinite parameters/state")
+                kl = start_state.new_zeros(())
+                kl_allowed = accepted = True
+            else:
+                before_actor = {name: value.detach().clone() for name, value in self.actor.state_dict().items()}
+                before_optimizer = deepcopy(self.optimizer.state_dict())
+                self.optimizer.step()
+                with torch.no_grad():
+                    new_mean, new_log_std = self._policy(anchor_observations)
+                    kl = diagonal_gaussian_kl(old_mean, old_log_std, new_mean, new_log_std).mean()
+                    finite_parameters = tensors_finite([new_mean, *self.actor.parameters()])
+                    finite_optimizer = optimizer_finite(self.optimizer)
+                    kl_allowed = (not self.cfg.kl_rollback or
+                                  (bool(torch.isfinite(kl)) and float(kl) <= self.cfg.max_kl))
+                    accepted = finite_parameters and finite_optimizer and kl_allowed
             if accepted:
                 self.accepted_updates += 1
             else:
@@ -422,6 +529,9 @@ class ImaginationTrainer:
             actual_dt = torch.as_tensor(self.cfg.dt if dt is None else dt, device=start_state.device)
             metrics = {
                 "accepted": float(accepted), "rollback": float(not accepted), "skipped": 0.0,
+                "nonfinite_parameter": float(not finite_parameters),
+                "nonfinite_optimizer": float(not finite_optimizer),
+                "kl_rejected": float(not kl_allowed),
                 "kl": float(kl), "objective": float(aggregate["objective"]),
                 "kl_gate_enabled": float(self.cfg.kl_rollback),
                 "actor_grad_norm": float(grad_norm),
@@ -429,6 +539,7 @@ class ImaginationTrainer:
                 "survival_H": float(aggregate["survival_H"]),
                 "tail_value": float(aggregate["tail_value"]),
                 "timeout_fraction": float(aggregate["timeout_fraction"]),
+                "raw_action_cost": float(aggregate["raw_action_cost"]),
                 "trust_mean": 1.0 if weights is None else float(weights.mean()),
                 "dt_mean": float(actual_dt.float().mean()),
                 "horizon_seconds_mean": float(actual_dt.float().mean()) * self.cfg.horizon,

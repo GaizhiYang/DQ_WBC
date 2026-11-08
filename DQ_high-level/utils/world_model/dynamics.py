@@ -11,12 +11,15 @@ from torch import nn
 
 
 class MLP(nn.Module):
-    def __init__(self, in_dim, hidden, out_dim, zero_last=False):
+    def __init__(self, in_dim, hidden, out_dim, zero_last=False, layer_norm=False, activation=nn.SiLU):
         super().__init__()
         layers = []
         width = int(in_dim)
         for size in hidden:
-            layers.extend((nn.Linear(width, int(size)), nn.SiLU()))
+            layers.append(nn.Linear(width, int(size)))
+            if layer_norm:
+                layers.append(nn.LayerNorm(int(size)))
+            layers.append(activation())
             width = int(size)
         last = nn.Linear(width, int(out_dim))
         if zero_last:

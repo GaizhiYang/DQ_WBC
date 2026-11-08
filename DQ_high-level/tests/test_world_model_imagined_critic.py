@@ -275,6 +275,39 @@ class ImaginedCriticChecks:
         self.assertEqual(replacement.optimizer.param_groups[0]["lr"], 3e-5)
         self.assertEqual(replacement.imagined_critic_trainer.optimizer.param_groups[0]["lr"], 5e-5)
 
+    def test_corrupt_actor_is_detected_before_imagining(self):
+        trainer, state, context = self.make(kl_rollback=False)
+        with torch.no_grad():
+            trainer.actor.weight[0] = float("nan")
+        with self.assertRaisesRegex(FloatingPointError, "before its update"):
+            trainer.update(state, context)
+
+    def test_corrupt_initial_adam_is_detected_before_imagining(self):
+        trainer, state, context = self.make(kl_rollback=False)
+        self.assertEqual(trainer.update(state, context)["accepted"], 1.)
+        next(iter(trainer.optimizer.state.values()))["exp_avg_sq"].fill_(float("inf"))
+        with self.assertRaisesRegex(FloatingPointError, "before its update"):
+            trainer.update(state, context)
+
+    def test_nonfinite_adam_moment_rolls_back_even_when_actor_is_finite(self):
+        trainer, state, context = self.make(kl_rollback=False)
+        self.assertEqual(trainer.update(state, context)["accepted"], 1.)
+        before_actor = deepcopy(trainer.actor.state_dict())
+        before_optimizer = deepcopy(trainer.optimizer.state_dict())
+        old_step = trainer.optimizer.step
+
+        def bad_step(*args, **kwargs):
+            old_step(*args, **kwargs)
+            next(iter(trainer.optimizer.state.values()))["exp_avg"].fill_(float("inf"))
+
+        trainer.optimizer.step = bad_step
+        result = trainer.update(state, context)
+        self.assertEqual(result["nonfinite_optimizer"], 1.)
+        self.assertEqual(result["nonfinite_parameter"], 0.)
+        self.assertEqual(result["accepted"], 0.)
+        tree_equal(self, before_actor, trainer.actor.state_dict())
+        tree_equal(self, before_optimizer, trainer.optimizer.state_dict())
+
     def test_policy_observation_hook_does_not_pollute_privileged_features(self):
         class NoisyAdapter(Adapter):
             def policy_observation(self, state, context):

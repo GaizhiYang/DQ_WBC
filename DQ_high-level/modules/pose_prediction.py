@@ -58,9 +58,14 @@ def rotation_and_jacobian(w: Tensor) -> Tuple[Tensor, Tensor]:
     theta = torch.sqrt(theta2.clamp_min(1e-16))
     small = theta2 < 1e-6
     # Taylor expansions avoid catastrophic cancellation for float32 rotations.
-    a = torch.where(small, 1-theta2/6+theta2*theta2/120, torch.sin(theta)/theta)
-    b = torch.where(small, .5-theta2/24+theta2*theta2/720, (1-torch.cos(theta))/theta2.clamp_min(1e-16))
-    c = torch.where(small, 1/6-theta2/120+theta2*theta2/5040, (theta-torch.sin(theta))/(theta2*theta).clamp_min(1e-24))
+    # Both where branches participate in autograd. Tiny inactive denominators
+    # can square to zero in float32/JIT division backward (0/0), even when the
+    # Taylor branch is selected. Keep the unused regular branch finite too.
+    regular_theta = torch.where(small, torch.ones_like(theta), theta)
+    regular_theta2 = torch.where(small, torch.ones_like(theta2), theta2)
+    a = torch.where(small, 1-theta2/6+theta2*theta2/120, torch.sin(regular_theta)/regular_theta)
+    b = torch.where(small, .5-theta2/24+theta2*theta2/720, (1-torch.cos(regular_theta))/regular_theta2)
+    c = torch.where(small, 1/6-theta2/120+theta2*theta2/5040, (regular_theta-torch.sin(regular_theta))/(regular_theta2*regular_theta))
     hat = skew(w)
     hat2 = hat @ hat
     eye = torch.eye(3, dtype=w.dtype, device=w.device).unsqueeze(0)

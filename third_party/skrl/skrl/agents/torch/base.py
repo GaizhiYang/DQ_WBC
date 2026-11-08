@@ -63,6 +63,7 @@ class Agent:
         self.tracking_data = collections.defaultdict(list)
         self._success_rate_tracking_keys = set()
         self.write_interval = self.cfg.get("experiment", {}).get("write_interval", 1000)
+        self._wandb_run = None
 
         self._track_rewards = collections.deque(maxlen=100)
         self._track_timesteps = collections.deque(maxlen=100)
@@ -135,8 +136,12 @@ class Agent:
         :param trainer_cfg: Trainer configuration
         :type trainer_cfg: dict, optional
         """
+        # Direct logging commits complete scalar rows without waiting for the
+        # TensorBoard watcher to receive the next environment step.
+        experiment = self.cfg.get("experiment", {})
+        direct_logging = experiment.get("wandb_direct_logging", False)
         # setup Weights & Biases
-        if self.cfg.get("experiment", {}).get("wandb", False):
+        if experiment.get("wandb", False) and (self.write_interval > 0 or not direct_logging):
             # save experiment config
             trainer_cfg = trainer_cfg if trainer_cfg is not None else {}
             try:
@@ -148,12 +153,21 @@ class Agent:
             wandb_kwargs = copy.deepcopy(self.cfg.get("experiment", {}).get("wandb_kwargs", {}))
             wandb_kwargs.setdefault("name", os.path.split(self.experiment_dir)[-1])
             wandb_kwargs.setdefault("sync_tensorboard", True)
+            if direct_logging:
+                wandb_kwargs["sync_tensorboard"] = False
             wandb_kwargs.setdefault("config", {})
             wandb_kwargs["config"].update(config)
             # init Weights & Biases
             import wandb
-            wandb.init(**wandb_kwargs)
-            if self.cfg.get("experiment", {}).get("steps_per_iteration", 0) > 0:
+            self._wandb_run = wandb.init(**wandb_kwargs)
+            if direct_logging:
+                wandb.define_metric("global_step")
+                wandb.define_metric("world_model_update")
+                wandb.define_metric("*", step_metric="global_step", step_sync=True)
+                wandb.define_metric("World model live / *", step_metric="world_model_update", step_sync=True)
+                if experiment.get("steps_per_iteration", 0) > 0:
+                    wandb.define_metric("iteration")
+            elif experiment.get("steps_per_iteration", 0) > 0:
                 wandb.define_metric("iteration")
                 # TensorBoard may sync each scalar as a separate history row.
                 # Carry the current iteration into every following metric row.
@@ -190,22 +204,51 @@ class Agent:
         :param timesteps: Number of timesteps
         :type timesteps: int
         """
+        if self.write_interval <= 0 or not hasattr(self, "writer"):
+            return
+        metrics = {}
         steps_per_iteration = self.cfg.get("experiment", {}).get("steps_per_iteration", 0)
         if steps_per_iteration > 0 and self.tracking_data:
             # Write the axis first to avoid assigning metrics to the previous
             # iteration. A partial final rollout retains fractional progress.
-            self.writer.add_scalar("iteration", timestep / steps_per_iteration, timestep)
+            metrics["iteration"] = timestep / steps_per_iteration
         for k, v in self.tracking_data.items():
             if k.endswith("(min)"):
-                self.writer.add_scalar(k, np.min(v), timestep)
+                metrics[k] = float(np.min(v))
             elif k.endswith("(max)"):
-                self.writer.add_scalar(k, np.max(v), timestep)
+                metrics[k] = float(np.max(v))
             else:
-                self.writer.add_scalar(k, np.mean(v), timestep)
+                metrics[k] = float(np.mean(v))
+        if self.cfg.get("experiment", {}).get("wandb_direct_logging", False):
+            self.write_scalar_snapshot(metrics, timestep)
+        else:
+            for tag, value in metrics.items():
+                self.writer.add_scalar(tag, value, timestep)
         # reset data containers for next iteration
         self._track_rewards.clear()
         self._track_timesteps.clear()
         self.tracking_data.clear()
+
+    def write_scalar_snapshot(self, metrics: Mapping[str, float], timestep: int,
+                              *, global_step: Optional[int] = None) -> None:
+        """Write immediate scalars without consuming the tracked reward window.
+
+        ``timestep`` is the TensorBoard event step. ``global_step`` can retain
+        the environment step while a caller advances ``world_model_update``
+        during a long optimization block. W&B's internal history step remains
+        automatic, so snapshots and regular windows cannot drop each other.
+        """
+        if self.write_interval <= 0 or not hasattr(self, "writer") or not metrics:
+            return
+        payload = dict(metrics)
+        payload["global_step"] = timestep if global_step is None else global_step
+        for tag, value in payload.items():
+            self.writer.add_scalar(tag, value, timestep)
+        self.writer.flush()
+        if self.cfg.get("experiment", {}).get("wandb_direct_logging", False):
+            run = getattr(self, "_wandb_run", None)
+            if run is not None:
+                run.log(payload, commit=True)
 
     def write_checkpoint(self, timestep: int, timesteps: int) -> None:
         """Write checkpoint (modules) to disk

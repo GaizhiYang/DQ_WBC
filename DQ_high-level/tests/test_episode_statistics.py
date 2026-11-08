@@ -2,9 +2,13 @@
 
 from collections import deque
 import random
+from pathlib import Path
+import sys
 import unittest
 
 import torch
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from utils.episode_statistics import RecentEpisodeStatistics
 

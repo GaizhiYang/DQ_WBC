@@ -2,6 +2,22 @@
 
 from contextlib import contextmanager
 
+import torch
+
+
+def tensors_finite(tensors):
+    """Reduce on each device before reading a scalar; never copy model tensors."""
+    checks = {}
+    for tensor in tensors:
+        if torch.is_tensor(tensor):
+            checks.setdefault(tensor.device, []).append(torch.isfinite(tensor.detach()).all())
+    return all(bool(torch.stack(group).all()) for group in checks.values())
+
+
+def optimizer_finite(optimizer):
+    """Check Adam moments and tensor step counters without moving them off GPU."""
+    return tensors_finite(value for state in optimizer.state.values() for value in state.values())
+
 
 @contextmanager
 def freeze_parameters(*modules):

@@ -1,0 +1,4093 @@
+{
+  "passed": true,
+  "completed": true,
+  "training_success_claimed": false,
+  "device": "cuda:0",
+  "num_envs": 4096,
+  "seed": 43,
+  "planned_timesteps": 40000,
+  "requested_high_steps": 168,
+  "completed_high_steps": 168,
+  "completed_low_steps": 1344,
+  "blocks": [
+    {
+      "index": 1,
+      "high_steps": 24,
+      "low_steps": 192,
+      "completed": true,
+      "bptt_calls": 60,
+      "bptt_accepted": 60,
+      "protected_rejections": [],
+      "actor_before_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          0.00016888650134205818,
+          -0.0011627695057541132,
+          0.00012794387293979526,
+          -0.000747396785300225,
+          -0.0002994015230797231,
+          -0.0006524589844048023,
+          -0.0007106453413143754,
+          -0.0012826432939618826,
+          -0.0007999676163308322
+        ],
+        "mean_max": [
+          0.001728601986542344,
+          0.00046007250784896314,
+          0.0010866004740819335,
+          0.0006093482952564955,
+          0.0010046693496406078,
+          0.0007902054348960519,
+          0.0003404140588827431,
+          0.0009713037870824337,
+          2.2327512851916254e-05
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824
+        ],
+        "log_std_max": [
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824
+        ],
+        "log_std_parameter": [
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824,
+          -2.3025851249694824
+        ],
+        "opening_min": 0.49982231855392456,
+        "opening_max": 0.5000851154327393,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_ppo_numerics": {
+        "timestep": 23,
+        "attempted_minibatches": 30,
+        "accepted_minibatches": 30,
+        "rejected_minibatches": 0,
+        "rejected_rollouts": 0,
+        "rolled_back_steps": 0,
+        "reason_counts": {},
+        "last_rejection": null,
+        "nonfinite_kl_diagnostics": 0,
+        "log_ratio_abs_max": 0.7363011837005615,
+        "max_finite_grad_norm": 0.8049400448799133
+      },
+      "actor_after_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -0.006468999199569225,
+          -0.005342681426554918,
+          -0.00986802950501442,
+          -0.0035331204999238253,
+          -0.0067336889915168285,
+          -0.01232840120792389,
+          -0.005974477156996727,
+          -0.005017890129238367,
+          -0.006240841932594776
+        ],
+        "mean_max": [
+          0.014612657949328423,
+          0.0029746084474027157,
+          0.008049547672271729,
+          0.0033148829825222492,
+          0.007051970809698105,
+          0.004403773695230484,
+          0.004749539773911238,
+          0.00505603663623333,
+          0.0034805096220225096
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.3077445030212402,
+          -2.310455083847046,
+          -2.307591438293457,
+          -2.2996420860290527,
+          -2.315856695175171,
+          -2.3082005977630615,
+          -2.3181264400482178,
+          -2.303988218307495,
+          -2.3118491172790527
+        ],
+        "log_std_max": [
+          -2.3077445030212402,
+          -2.310455083847046,
+          -2.307591438293457,
+          -2.2996420860290527,
+          -2.315856695175171,
+          -2.3082005977630615,
+          -2.3181264400482178,
+          -2.303988218307495,
+          -2.3118491172790527
+        ],
+        "log_std_parameter": [
+          -2.3077445030212402,
+          -2.310455083847046,
+          -2.307591438293457,
+          -2.2996420860290527,
+          -2.315856695175171,
+          -2.3082005977630615,
+          -2.3181264400482178,
+          -2.303988218307495,
+          -2.3118491172790527
+        ],
+        "opening_min": 0.4985063672065735,
+        "opening_max": 0.5011873841285706,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_bptt_metrics": {
+        "accepted": 1.0,
+        "rollback": 0.0,
+        "skipped": 0.0,
+        "nonfinite_parameter": 0.0,
+        "nonfinite_optimizer": 0.0,
+        "kl_rejected": 0.0,
+        "kl": 4.2065019607543945,
+        "objective": 113.97145080566406,
+        "kl_gate_enabled": 0.0,
+        "actor_grad_norm": 518.6694946289062,
+        "reward_mean": 0.11704845726490021,
+        "survival_H": 0.759033203125,
+        "tail_value": 192.12588500976562,
+        "timeout_fraction": 0.0,
+        "trust_mean": 1.0,
+        "dt_mean": 0.1599999964237213,
+        "horizon_seconds_mean": 0.6399999856948853,
+        "effective_lr": 0.000199999717665654,
+        "imagined_value_source": 1.0,
+        "actor_chunks": 1.0,
+        "critic_loss": 14523.900390625,
+        "critic_grad_norm": 12266.98046875,
+        "critic_value_mean": 151.7055206298828,
+        "critic_target_mean": 119.45367431640625,
+        "critic_updates": 20.0,
+        "critic_samples": 16261.0,
+        "critic_skipped_nonfinite": 0.0,
+        "critic_effective_lr": 0.000199999717665654
+      },
+      "seconds": 127.52680826000869,
+      "last_world_model_metrics": {
+        "candidate/state_loss": 2.406005165974299,
+        "candidate/termination_bce": 0.0,
+        "candidate/auxiliary_loss": 0.0,
+        "candidate/nse_1step": 0.01264681271277368,
+        "candidate/nse_kstep": 0.07184125619630019,
+        "candidate/loss": 2.4260933101177216,
+        "candidate/contact_bce": 0.20088148253659407,
+        "candidate/contact_accuracy": 0.9460253298282624,
+        "candidate/grad_norm": 12.337990085283915,
+        "candidate/updates": 600.0,
+        "candidate/skipped_nonfinite": 0.0,
+        "candidate/validation_state_loss": 2.168105590343475,
+        "candidate/validation_termination_bce": 0.0,
+        "candidate/validation_auxiliary_loss": 0.0,
+        "candidate/validation_nse_1step": 0.011689146010515591,
+        "candidate/validation_nse_kstep": 0.0653767645979921,
+        "candidate/validation_loss": 2.1872426410516104,
+        "candidate/validation_contact_bce": 0.19137052421768505,
+        "candidate/validation_contact_accuracy": 0.9511739095052083,
+        "candidate/validation_available": 1.0,
+        "bptt/accepted": 1.0,
+        "bptt/rollback": 0.0,
+        "bptt/skipped": 0.0,
+        "bptt/nonfinite_parameter": 0.0,
+        "bptt/nonfinite_optimizer": 0.0,
+        "bptt/kl_rejected": 0.0,
+        "bptt/kl": 0.6132259155279219,
+        "bptt/objective": 28.809251579393944,
+        "bptt/kl_gate_enabled": 0.0,
+        "bptt/actor_grad_norm": 122.24075706680937,
+        "bptt/reward_mean": 0.03222431531175971,
+        "bptt/survival_H": 0.9354166666666667,
+        "bptt/tail_value": 33.993488992688555,
+        "bptt/timeout_fraction": 0.0,
+        "bptt/trust_mean": 1.0,
+        "bptt/dt_mean": 0.1599999964237213,
+        "bptt/horizon_seconds_mean": 0.6399999856948853,
+        "bptt/effective_lr": 0.00019999971766565379,
+        "bptt/imagined_value_source": 1.0,
+        "bptt/actor_chunks": 1.0,
+        "bptt/critic_loss": 1052.3834146843874,
+        "bptt/critic_grad_norm": 1064.6286965247243,
+        "bptt/critic_value_mean": 27.73104781190244,
+        "bptt/critic_target_mean": 29.49645403598746,
+        "bptt/critic_updates": 20.0,
+        "bptt/critic_samples": 16127.6,
+        "bptt/critic_skipped_nonfinite": 0.0,
+        "bptt/critic_effective_lr": 0.00019999971766565379,
+        "update_rounds": 60.0,
+        "rounds_this_ppo_update": 60.0,
+        "bptt/accepted_this_ppo_update": 60.0,
+        "bptt/accepted_total": 60.0,
+        "replay_steps": 24.0,
+        "low_replay_steps": 192.0,
+        "replay_memory_mib": 10997.346286773682,
+        "on_gpu": 1.0,
+        "lr_ratio": 0.9999985883282699,
+        "model_learning_rate": 0.000199999717665654,
+        "actor_learning_rate": 0.000199999717665654,
+        "critic_learning_rate": 0.000199999717665654,
+        "update_seconds": 126.72972636297345,
+        "fit_seconds": 78.06520881620236,
+        "imagination_seconds": 47.46533236204414,
+        "waiting_for_probe": 0.0,
+        "validated_snapshot_available": 0.0
+      },
+      "training_status": {
+        "actor": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "real_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 21
+          },
+          "tensor_count": 21,
+          "cpu_step_counters_allowed": false
+        },
+        "dynamics": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 14
+          },
+          "tensor_count": 14,
+          "cpu_step_counters_allowed": false
+        },
+        "imagined_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 6
+          },
+          "tensor_count": 6,
+          "cpu_step_counters_allowed": false
+        },
+        "low_policy": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 26
+          },
+          "tensor_count": 26,
+          "cpu_step_counters_allowed": false
+        },
+        "fixed_scaler": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 2
+          },
+          "tensor_count": 2,
+          "cpu_step_counters_allowed": false
+        },
+        "fk": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 4
+          },
+          "tensor_count": 4,
+          "cpu_step_counters_allowed": false
+        },
+        "observation_noise": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 3
+          },
+          "tensor_count": 3,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 41,
+            "cuda:0": 82
+          },
+          "tensor_count": 123,
+          "cpu_step_counters_allowed": true
+        },
+        "dynamics_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 14,
+            "cuda:0": 28
+          },
+          "tensor_count": 42,
+          "cpu_step_counters_allowed": true
+        },
+        "bptt_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 20,
+            "cuda:0": 40
+          },
+          "tensor_count": 60,
+          "cpu_step_counters_allowed": true
+        },
+        "imagined_critic_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 6,
+            "cuda:0": 12
+          },
+          "tensor_count": 18,
+          "cpu_step_counters_allowed": true
+        },
+        "high_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 19
+          },
+          "tensor_count": 19,
+          "cpu_step_counters_allowed": false
+        },
+        "low_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_memory": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 9
+          },
+          "tensor_count": 9,
+          "cpu_step_counters_allowed": false
+        }
+      },
+      "actor_after_bptt": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          1.8069881200790405,
+          0.3973270654678345,
+          1.2042590379714966,
+          -2.1107802391052246,
+          -2.602566957473755,
+          1.108328104019165,
+          -1.440546989440918,
+          0.8434174060821533,
+          1.5103843212127686
+        ],
+        "mean_max": [
+          2.2526051998138428,
+          0.5040245652198792,
+          1.498534917831421,
+          -1.6973062753677368,
+          -2.0788722038269043,
+          1.3928974866867065,
+          -1.1463193893432617,
+          1.0653437376022339,
+          1.8890563249588013
+        ],
+        "command_mean_saturation_fraction": [
+          1.0,
+          0.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          0.344482421875,
+          1.0
+        ],
+        "log_std_min": [
+          -2.3077445030212402,
+          -2.310455083847046,
+          -2.307591438293457,
+          -2.2996420860290527,
+          -2.315856695175171,
+          -2.3082005977630615,
+          -2.3181264400482178,
+          -2.303988218307495,
+          -2.3118491172790527
+        ],
+        "log_std_max": [
+          -2.3077445030212402,
+          -2.310455083847046,
+          -2.307591438293457,
+          -2.2996420860290527,
+          -2.315856695175171,
+          -2.3082005977630615,
+          -2.3181264400482178,
+          -2.303988218307495,
+          -2.3118491172790527
+        ],
+        "log_std_parameter": [
+          -2.3077445030212402,
+          -2.310455083847046,
+          -2.307591438293457,
+          -2.2996420860290527,
+          -2.315856695175171,
+          -2.3082005977630615,
+          -2.3181264400482178,
+          -2.303988218307495,
+          -2.3118491172790527
+        ],
+        "opening_min": 0.19146065413951874,
+        "opening_max": 0.2411620020866394,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "low_policy_unchanged": true,
+      "low_policy_frozen": true,
+      "update_rounds": 60,
+      "expected_update_rounds": 60,
+      "rounds_this_block": 60,
+      "utd_credit": 0.8000000000000043
+    },
+    {
+      "index": 2,
+      "high_steps": 48,
+      "low_steps": 384,
+      "completed": true,
+      "bptt_calls": 77,
+      "bptt_accepted": 77,
+      "protected_rejections": [],
+      "actor_before_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          1.7209922075271606,
+          0.3780580759048462,
+          1.1494125127792358,
+          -2.0818049907684326,
+          -2.5696945190429688,
+          1.0581879615783691,
+          -1.4264326095581055,
+          0.8137368559837341,
+          1.434679388999939
+        ],
+        "mean_max": [
+          2.2242367267608643,
+          0.4992046356201172,
+          1.480251431465149,
+          -1.6124048233032227,
+          -1.9781934022903442,
+          1.3780200481414795,
+          -1.0966397523880005,
+          1.0594205856323242,
+          1.8634300231933594
+        ],
+        "command_mean_saturation_fraction": [
+          1.0,
+          0.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          0.321533203125,
+          1.0
+        ],
+        "log_std_min": [
+          -2.3077445030212402,
+          -2.310455083847046,
+          -2.307591438293457,
+          -2.2996420860290527,
+          -2.315856695175171,
+          -2.3082005977630615,
+          -2.3181264400482178,
+          -2.303988218307495,
+          -2.3118491172790527
+        ],
+        "log_std_max": [
+          -2.3077445030212402,
+          -2.310455083847046,
+          -2.307591438293457,
+          -2.2996420860290527,
+          -2.315856695175171,
+          -2.3082005977630615,
+          -2.3181264400482178,
+          -2.303988218307495,
+          -2.3118491172790527
+        ],
+        "log_std_parameter": [
+          -2.3077445030212402,
+          -2.310455083847046,
+          -2.307591438293457,
+          -2.2996420860290527,
+          -2.315856695175171,
+          -2.3082005977630615,
+          -2.3181264400482178,
+          -2.303988218307495,
+          -2.3118491172790527
+        ],
+        "opening_min": 0.1936551332473755,
+        "opening_max": 0.2503700256347656,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_ppo_numerics": {
+        "timestep": 47,
+        "attempted_minibatches": 30,
+        "accepted_minibatches": 30,
+        "rejected_minibatches": 0,
+        "rejected_rollouts": 0,
+        "rolled_back_steps": 0,
+        "reason_counts": {},
+        "last_rejection": null,
+        "nonfinite_kl_diagnostics": 0,
+        "log_ratio_abs_max": 9265.248046875,
+        "max_finite_grad_norm": 3.832468271255493
+      },
+      "actor_after_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          5.15921688079834,
+          1.7149434089660645,
+          6.4692511558532715,
+          -6.654361724853516,
+          -10.043622970581055,
+          5.130360126495361,
+          -1.0233681201934814,
+          0.21960997581481934,
+          6.660404682159424
+        ],
+        "mean_max": [
+          5.6960673332214355,
+          1.9043337106704712,
+          7.162272930145264,
+          -6.020053863525391,
+          -9.066950798034668,
+          5.689605712890625,
+          -0.9307059049606323,
+          0.23836968839168549,
+          7.3836350440979
+        ],
+        "command_mean_saturation_fraction": [
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          0.0,
+          1.0
+        ],
+        "log_std_min": [
+          -2.310587167739868,
+          -2.3124144077301025,
+          -2.3079512119293213,
+          -2.2998838424682617,
+          -2.31815242767334,
+          -2.307502269744873,
+          -2.3215582370758057,
+          -2.3028037548065186,
+          -2.313352346420288
+        ],
+        "log_std_max": [
+          -2.310587167739868,
+          -2.3124144077301025,
+          -2.3079512119293213,
+          -2.2998838424682617,
+          -2.31815242767334,
+          -2.307502269744873,
+          -2.3215582370758057,
+          -2.3028037548065186,
+          -2.313352346420288
+        ],
+        "log_std_parameter": [
+          -2.310587167739868,
+          -2.3124144077301025,
+          -2.3079512119293213,
+          -2.2998838424682617,
+          -2.31815242767334,
+          -2.307502269744873,
+          -2.3215582370758057,
+          -2.3028037548065186,
+          -2.313352346420288
+        ],
+        "opening_min": 0.2643718421459198,
+        "opening_max": 0.2827815115451813,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_bptt_metrics": {
+        "accepted": 1.0,
+        "rollback": 0.0,
+        "skipped": 0.0,
+        "nonfinite_parameter": 0.0,
+        "nonfinite_optimizer": 0.0,
+        "kl_rejected": 0.0,
+        "kl": 2.323946237564087,
+        "objective": 8.849889755249023,
+        "kl_gate_enabled": 0.0,
+        "actor_grad_norm": 3.188091278076172,
+        "reward_mean": 0.11098504066467285,
+        "survival_H": 0.918701171875,
+        "tail_value": 9.257616996765137,
+        "timeout_fraction": 0.0,
+        "trust_mean": 1.0,
+        "dt_mean": 0.1599999964237213,
+        "horizon_seconds_mean": 0.6399999856948853,
+        "effective_lr": 0.00019999887066425944,
+        "imagined_value_source": 1.0,
+        "actor_chunks": 1.0,
+        "critic_loss": 13.243254661560059,
+        "critic_grad_norm": 46.4920768737793,
+        "critic_value_mean": 8.440218925476074,
+        "critic_target_mean": 9.119184494018555,
+        "critic_updates": 20.0,
+        "critic_samples": 15915.0,
+        "critic_skipped_nonfinite": 0.0,
+        "critic_effective_lr": 0.00019999887066425944
+      },
+      "seconds": 162.23488740297034,
+      "last_world_model_metrics": {
+        "candidate/state_loss": 5.5897780579405945,
+        "candidate/termination_bce": 0.0,
+        "candidate/auxiliary_loss": 0.0,
+        "candidate/nse_1step": 0.04749850474007718,
+        "candidate/nse_kstep": 0.1354044308136036,
+        "candidate/loss": 5.600488904234651,
+        "candidate/contact_bce": 0.10710835485876381,
+        "candidate/contact_accuracy": 0.9603119004856456,
+        "candidate/grad_norm": 23.529770467188452,
+        "candidate/updates": 1370.0,
+        "candidate/skipped_nonfinite": 0.0,
+        "candidate/validation_state_loss": 5.306726269907766,
+        "candidate/validation_termination_bce": 0.0,
+        "candidate/validation_auxiliary_loss": 0.0,
+        "candidate/validation_nse_1step": 0.047776993993040806,
+        "candidate/validation_nse_kstep": 0.12589295247158447,
+        "candidate/validation_loss": 5.317161439301132,
+        "candidate/validation_contact_bce": 0.10435159117370457,
+        "candidate/validation_contact_accuracy": 0.9608265269886364,
+        "candidate/validation_available": 1.0,
+        "bptt/accepted": 1.0,
+        "bptt/rollback": 0.0,
+        "bptt/skipped": 0.0,
+        "bptt/nonfinite_parameter": 0.0,
+        "bptt/nonfinite_optimizer": 0.0,
+        "bptt/kl_rejected": 0.0,
+        "bptt/kl": 11.360024071359016,
+        "bptt/objective": 7.222834785408401,
+        "bptt/kl_gate_enabled": 0.0,
+        "bptt/actor_grad_norm": 14.112997652261289,
+        "bptt/reward_mean": -0.009010978081632502,
+        "bptt/survival_H": 0.8426497818587663,
+        "bptt/tail_value": 8.388500432302425,
+        "bptt/timeout_fraction": 0.0,
+        "bptt/trust_mean": 1.0,
+        "bptt/dt_mean": 0.1599999964237213,
+        "bptt/horizon_seconds_mean": 0.6399999856948853,
+        "bptt/effective_lr": 0.0001999988706642593,
+        "bptt/imagined_value_source": 1.0,
+        "bptt/actor_chunks": 1.0,
+        "bptt/critic_loss": 98.51842668899275,
+        "bptt/critic_grad_norm": 181.82890814852405,
+        "bptt/critic_value_mean": 9.0722471624129,
+        "bptt/critic_target_mean": 7.887686594038621,
+        "bptt/critic_updates": 20.0,
+        "bptt/critic_samples": 15526.57142857143,
+        "bptt/critic_skipped_nonfinite": 0.0,
+        "bptt/critic_effective_lr": 0.0001999988706642593,
+        "update_rounds": 137.0,
+        "rounds_this_ppo_update": 77.0,
+        "bptt/accepted_this_ppo_update": 77.0,
+        "bptt/accepted_total": 137.0,
+        "replay_steps": 48.0,
+        "low_replay_steps": 384.0,
+        "replay_memory_mib": 11006.8890914917,
+        "on_gpu": 1.0,
+        "lr_ratio": 0.9999943533212972,
+        "model_learning_rate": 0.00019999887066425944,
+        "actor_learning_rate": 0.00019999887066425944,
+        "critic_learning_rate": 0.00019999887066425944,
+        "update_seconds": 161.46877727395622,
+        "fit_seconds": 99.3722485389444,
+        "imagination_seconds": 60.49808951996965,
+        "waiting_for_probe": 0.0,
+        "validated_snapshot_available": 0.0
+      },
+      "training_status": {
+        "actor": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "real_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 21
+          },
+          "tensor_count": 21,
+          "cpu_step_counters_allowed": false
+        },
+        "dynamics": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 14
+          },
+          "tensor_count": 14,
+          "cpu_step_counters_allowed": false
+        },
+        "imagined_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 6
+          },
+          "tensor_count": 6,
+          "cpu_step_counters_allowed": false
+        },
+        "low_policy": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 26
+          },
+          "tensor_count": 26,
+          "cpu_step_counters_allowed": false
+        },
+        "fixed_scaler": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 2
+          },
+          "tensor_count": 2,
+          "cpu_step_counters_allowed": false
+        },
+        "fk": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 4
+          },
+          "tensor_count": 4,
+          "cpu_step_counters_allowed": false
+        },
+        "observation_noise": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 3
+          },
+          "tensor_count": 3,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 41,
+            "cuda:0": 82
+          },
+          "tensor_count": 123,
+          "cpu_step_counters_allowed": true
+        },
+        "dynamics_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 14,
+            "cuda:0": 28
+          },
+          "tensor_count": 42,
+          "cpu_step_counters_allowed": true
+        },
+        "bptt_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 20,
+            "cuda:0": 40
+          },
+          "tensor_count": 60,
+          "cpu_step_counters_allowed": true
+        },
+        "imagined_critic_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 6,
+            "cuda:0": 12
+          },
+          "tensor_count": 18,
+          "cpu_step_counters_allowed": true
+        },
+        "high_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 19
+          },
+          "tensor_count": 19,
+          "cpu_step_counters_allowed": false
+        },
+        "low_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_memory": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 9
+          },
+          "tensor_count": 9,
+          "cpu_step_counters_allowed": false
+        }
+      },
+      "actor_after_bptt": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -1.3840618133544922,
+          -0.7493187785148621,
+          -0.026051519438624382,
+          0.1198662519454956,
+          -0.38162845373153687,
+          -1.8306249380111694,
+          1.730040192604065,
+          1.0175986289978027,
+          -1.8200846910476685
+        ],
+        "mean_max": [
+          -1.1770926713943481,
+          -0.6306484341621399,
+          0.009705157950520515,
+          0.16783016920089722,
+          -0.31826525926589966,
+          -1.581830382347107,
+          2.0105621814727783,
+          1.1782493591308594,
+          -1.5675960779190063
+        ],
+        "command_mean_saturation_fraction": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "log_std_min": [
+          -2.310587167739868,
+          -2.3124144077301025,
+          -2.3079512119293213,
+          -2.2998838424682617,
+          -2.31815242767334,
+          -2.307502269744873,
+          -2.3215582370758057,
+          -2.3028037548065186,
+          -2.313352346420288
+        ],
+        "log_std_max": [
+          -2.310587167739868,
+          -2.3124144077301025,
+          -2.3079512119293213,
+          -2.2998838424682617,
+          -2.31815242767334,
+          -2.307502269744873,
+          -2.3215582370758057,
+          -2.3028037548065186,
+          -2.313352346420288
+        ],
+        "log_std_parameter": [
+          -2.310587167739868,
+          -2.3124144077301025,
+          -2.3079512119293213,
+          -2.2998838424682617,
+          -2.31815242767334,
+          -2.307502269744873,
+          -2.3215582370758057,
+          -2.3028037548065186,
+          -2.313352346420288
+        ],
+        "opening_min": 0.849417507648468,
+        "opening_max": 0.8819015622138977,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "low_policy_unchanged": true,
+      "low_policy_frozen": true,
+      "update_rounds": 137,
+      "expected_update_rounds": 137,
+      "rounds_this_block": 77,
+      "utd_credit": 0.6000000000000227
+    },
+    {
+      "index": 3,
+      "high_steps": 72,
+      "low_steps": 576,
+      "completed": true,
+      "bptt_calls": 77,
+      "bptt_accepted": 77,
+      "protected_rejections": [],
+      "actor_before_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -1.2731690406799316,
+          -0.6847792863845825,
+          -0.029107393696904182,
+          0.0740642249584198,
+          -0.3532291650772095,
+          -1.7032666206359863,
+          1.3519240617752075,
+          0.796536922454834,
+          -1.689963459968567
+        ],
+        "mean_max": [
+          -0.9016048908233643,
+          -0.47564461827278137,
+          0.02336944080889225,
+          0.15168043971061707,
+          -0.2511957883834839,
+          -1.2459375858306885,
+          1.8655028343200684,
+          1.0922679901123047,
+          -1.2394123077392578
+        ],
+        "command_mean_saturation_fraction": [
+          0.9921875,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.708984375,
+          1.0
+        ],
+        "log_std_min": [
+          -2.310587167739868,
+          -2.3124144077301025,
+          -2.3079512119293213,
+          -2.2998838424682617,
+          -2.31815242767334,
+          -2.307502269744873,
+          -2.3215582370758057,
+          -2.3028037548065186,
+          -2.313352346420288
+        ],
+        "log_std_max": [
+          -2.310587167739868,
+          -2.3124144077301025,
+          -2.3079512119293213,
+          -2.2998838424682617,
+          -2.31815242767334,
+          -2.307502269744873,
+          -2.3215582370758057,
+          -2.3028037548065186,
+          -2.313352346420288
+        ],
+        "log_std_parameter": [
+          -2.310587167739868,
+          -2.3124144077301025,
+          -2.3079512119293213,
+          -2.2998838424682617,
+          -2.31815242767334,
+          -2.307502269744873,
+          -2.3215582370758057,
+          -2.3028037548065186,
+          -2.313352346420288
+        ],
+        "opening_min": 0.7944439649581909,
+        "opening_max": 0.8659371137619019,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_ppo_numerics": {
+        "timestep": 71,
+        "attempted_minibatches": 30,
+        "accepted_minibatches": 30,
+        "rejected_minibatches": 0,
+        "rejected_rollouts": 0,
+        "rolled_back_steps": 0,
+        "reason_counts": {},
+        "last_rejection": null,
+        "nonfinite_kl_diagnostics": 0,
+        "log_ratio_abs_max": 2.720125198364258,
+        "max_finite_grad_norm": 132.83392333984375
+      },
+      "actor_after_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -1.273474931716919,
+          -0.6787551045417786,
+          -0.027525179088115692,
+          0.07017406821250916,
+          -0.35219502449035645,
+          -1.705064058303833,
+          1.3457937240600586,
+          0.7972208261489868,
+          -1.684913992881775
+        ],
+        "mean_max": [
+          -0.8999372720718384,
+          -0.4695791006088257,
+          0.02268216758966446,
+          0.14312906563282013,
+          -0.2484273761510849,
+          -1.243442177772522,
+          1.8648128509521484,
+          1.098321795463562,
+          -1.2353272438049316
+        ],
+        "command_mean_saturation_fraction": [
+          0.991455078125,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.752197265625,
+          1.0
+        ],
+        "log_std_min": [
+          -2.310579299926758,
+          -2.3124234676361084,
+          -2.307964324951172,
+          -2.2998735904693604,
+          -2.318174123764038,
+          -2.3074817657470703,
+          -2.3215620517730713,
+          -2.3027915954589844,
+          -2.3133490085601807
+        ],
+        "log_std_max": [
+          -2.310579299926758,
+          -2.3124234676361084,
+          -2.307964324951172,
+          -2.2998735904693604,
+          -2.318174123764038,
+          -2.3074817657470703,
+          -2.3215620517730713,
+          -2.3027915954589844,
+          -2.3133490085601807
+        ],
+        "log_std_parameter": [
+          -2.310579299926758,
+          -2.3124234676361084,
+          -2.307964324951172,
+          -2.2998735904693604,
+          -2.318174123764038,
+          -2.3074817657470703,
+          -2.3215620517730713,
+          -2.3027915954589844,
+          -2.3133490085601807
+        ],
+        "opening_min": 0.7934410572052002,
+        "opening_max": 0.865856945514679,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_bptt_metrics": {
+        "accepted": 1.0,
+        "rollback": 0.0,
+        "skipped": 0.0,
+        "nonfinite_parameter": 0.0,
+        "nonfinite_optimizer": 0.0,
+        "kl_rejected": 0.0,
+        "kl": 0.2842121720314026,
+        "objective": -0.44460827112197876,
+        "kl_gate_enabled": 0.0,
+        "actor_grad_norm": 0.2995011508464813,
+        "reward_mean": 0.05467246100306511,
+        "survival_H": 0.869873046875,
+        "tail_value": -0.882177472114563,
+        "timeout_fraction": 0.0,
+        "trust_mean": 1.0,
+        "dt_mean": 0.1599999964237213,
+        "horizon_seconds_mean": 0.6399999856948853,
+        "effective_lr": 0.0001999974590007471,
+        "imagined_value_source": 1.0,
+        "actor_chunks": 1.0,
+        "critic_loss": 0.35268816351890564,
+        "critic_grad_norm": 1.2347524166107178,
+        "critic_value_mean": -0.4812367856502533,
+        "critic_target_mean": -0.5377193689346313,
+        "critic_updates": 20.0,
+        "critic_samples": 15624.0,
+        "critic_skipped_nonfinite": 0.0,
+        "critic_effective_lr": 0.0001999974590007471
+      },
+      "seconds": 162.53768903698074,
+      "last_world_model_metrics": {
+        "candidate/state_loss": 5.985778783822989,
+        "candidate/termination_bce": 0.0,
+        "candidate/auxiliary_loss": 0.0,
+        "candidate/nse_1step": 0.05163866271833321,
+        "candidate/nse_kstep": 0.14628878080999697,
+        "candidate/loss": 5.994044310086734,
+        "candidate/contact_bce": 0.08265579501529793,
+        "candidate/contact_accuracy": 0.9700162937114765,
+        "candidate/grad_norm": 27.118922072571593,
+        "candidate/updates": 2140.0,
+        "candidate/skipped_nonfinite": 0.0,
+        "candidate/validation_state_loss": 6.185291030190208,
+        "candidate/validation_termination_bce": 0.0,
+        "candidate/validation_auxiliary_loss": 0.0,
+        "candidate/validation_nse_1step": 0.05125491451713946,
+        "candidate/validation_nse_kstep": 0.1522482085924644,
+        "candidate/validation_loss": 6.193501862612638,
+        "candidate/validation_contact_bce": 0.08210816079532945,
+        "candidate/validation_contact_accuracy": 0.9702814275568182,
+        "candidate/validation_available": 1.0,
+        "bptt/accepted": 1.0,
+        "bptt/rollback": 0.0,
+        "bptt/skipped": 0.0,
+        "bptt/nonfinite_parameter": 0.0,
+        "bptt/nonfinite_optimizer": 0.0,
+        "bptt/kl_rejected": 0.0,
+        "bptt/kl": 1.0590590979758796,
+        "bptt/objective": 1.0428859212030597,
+        "bptt/kl_gate_enabled": 0.0,
+        "bptt/actor_grad_norm": 1.0708451822593614,
+        "bptt/reward_mean": 0.028623569130824953,
+        "bptt/survival_H": 0.8572221235795454,
+        "bptt/tail_value": 0.9427471535352917,
+        "bptt/timeout_fraction": 0.0,
+        "bptt/trust_mean": 1.0,
+        "bptt/dt_mean": 0.1599999964237213,
+        "bptt/horizon_seconds_mean": 0.6399999856948853,
+        "bptt/effective_lr": 0.0001999974590007474,
+        "bptt/imagined_value_source": 1.0,
+        "bptt/actor_chunks": 1.0,
+        "bptt/critic_loss": 1.1764413461863221,
+        "bptt/critic_grad_norm": 8.494645436669325,
+        "bptt/critic_value_mean": 1.244714066609982,
+        "bptt/critic_target_mean": 1.1003415435854975,
+        "bptt/critic_updates": 20.0,
+        "bptt/critic_samples": 15651.415584415585,
+        "bptt/critic_skipped_nonfinite": 0.0,
+        "bptt/critic_effective_lr": 0.0001999974590007474,
+        "update_rounds": 214.0,
+        "rounds_this_ppo_update": 77.0,
+        "bptt/accepted_this_ppo_update": 77.0,
+        "bptt/accepted_total": 214.0,
+        "replay_steps": 72.0,
+        "low_replay_steps": 576.0,
+        "replay_memory_mib": 11016.633541107178,
+        "on_gpu": 1.0,
+        "lr_ratio": 0.9999872950037354,
+        "model_learning_rate": 0.0001999974590007471,
+        "actor_learning_rate": 0.0001999974590007471,
+        "critic_learning_rate": 0.0001999974590007471,
+        "update_seconds": 161.76359449297888,
+        "fit_seconds": 100.01297951093875,
+        "imagination_seconds": 60.08773990010377,
+        "waiting_for_probe": 0.0,
+        "validated_snapshot_available": 0.0
+      },
+      "training_status": {
+        "actor": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "real_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 21
+          },
+          "tensor_count": 21,
+          "cpu_step_counters_allowed": false
+        },
+        "dynamics": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 14
+          },
+          "tensor_count": 14,
+          "cpu_step_counters_allowed": false
+        },
+        "imagined_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 6
+          },
+          "tensor_count": 6,
+          "cpu_step_counters_allowed": false
+        },
+        "low_policy": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 26
+          },
+          "tensor_count": 26,
+          "cpu_step_counters_allowed": false
+        },
+        "fixed_scaler": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 2
+          },
+          "tensor_count": 2,
+          "cpu_step_counters_allowed": false
+        },
+        "fk": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 4
+          },
+          "tensor_count": 4,
+          "cpu_step_counters_allowed": false
+        },
+        "observation_noise": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 3
+          },
+          "tensor_count": 3,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 41,
+            "cuda:0": 82
+          },
+          "tensor_count": 123,
+          "cpu_step_counters_allowed": true
+        },
+        "dynamics_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 14,
+            "cuda:0": 28
+          },
+          "tensor_count": 42,
+          "cpu_step_counters_allowed": true
+        },
+        "bptt_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 20,
+            "cuda:0": 40
+          },
+          "tensor_count": 60,
+          "cpu_step_counters_allowed": true
+        },
+        "imagined_critic_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 6,
+            "cuda:0": 12
+          },
+          "tensor_count": 18,
+          "cpu_step_counters_allowed": true
+        },
+        "high_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 19
+          },
+          "tensor_count": 19,
+          "cpu_step_counters_allowed": false
+        },
+        "low_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_memory": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 9
+          },
+          "tensor_count": 9,
+          "cpu_step_counters_allowed": false
+        }
+      },
+      "actor_after_bptt": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          0.20577114820480347,
+          -0.8123828172683716,
+          -1.5328693389892578,
+          -0.4513793885707855,
+          0.9006500244140625,
+          -0.8049067258834839,
+          -2.0451619625091553,
+          0.05859791114926338,
+          -1.5417771339416504
+        ],
+        "mean_max": [
+          0.2953794598579407,
+          -0.6061578989028931,
+          -1.1642165184020996,
+          -0.3633076250553131,
+          1.1745257377624512,
+          -0.6426620483398438,
+          -1.5663459300994873,
+          0.1300743669271469,
+          -1.1950838565826416
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.975830078125,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "log_std_min": [
+          -2.310579299926758,
+          -2.3124234676361084,
+          -2.307964324951172,
+          -2.2998735904693604,
+          -2.318174123764038,
+          -2.3074817657470703,
+          -2.3215620517730713,
+          -2.3027915954589844,
+          -2.3133490085601807
+        ],
+        "log_std_max": [
+          -2.310579299926758,
+          -2.3124234676361084,
+          -2.307964324951172,
+          -2.2998735904693604,
+          -2.318174123764038,
+          -2.3074817657470703,
+          -2.3215620517730713,
+          -2.3027915954589844,
+          -2.3133490085601807
+        ],
+        "log_std_parameter": [
+          -2.310579299926758,
+          -2.3124234676361084,
+          -2.307964324951172,
+          -2.2998735904693604,
+          -2.318174123764038,
+          -2.3074817657470703,
+          -2.3215620517730713,
+          -2.3027915954589844,
+          -2.3133490085601807
+        ],
+        "opening_min": 0.1145421490073204,
+        "opening_max": 0.17273792624473572,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "low_policy_unchanged": true,
+      "low_policy_frozen": true,
+      "update_rounds": 214,
+      "expected_update_rounds": 214,
+      "rounds_this_block": 77,
+      "utd_credit": 0.4000000000000341
+    },
+    {
+      "index": 4,
+      "high_steps": 96,
+      "low_steps": 768,
+      "completed": true,
+      "bptt_calls": 77,
+      "bptt_accepted": 77,
+      "protected_rejections": [],
+      "actor_before_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          0.24663518369197845,
+          -0.8242746591567993,
+          -1.537326693534851,
+          -0.4615831673145294,
+          0.9852116703987122,
+          -0.8304237723350525,
+          -2.073655843734741,
+          0.09446824342012405,
+          -1.5820138454437256
+        ],
+        "mean_max": [
+          0.3084551692008972,
+          -0.676619291305542,
+          -1.2791404724121094,
+          -0.40288764238357544,
+          1.1790854930877686,
+          -0.7157655954360962,
+          -1.7356535196304321,
+          0.1453966647386551,
+          -1.3364176750183105
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.998779296875,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "log_std_min": [
+          -2.310579299926758,
+          -2.3124234676361084,
+          -2.307964324951172,
+          -2.2998735904693604,
+          -2.318174123764038,
+          -2.3074817657470703,
+          -2.3215620517730713,
+          -2.3027915954589844,
+          -2.3133490085601807
+        ],
+        "log_std_max": [
+          -2.310579299926758,
+          -2.3124234676361084,
+          -2.307964324951172,
+          -2.2998735904693604,
+          -2.318174123764038,
+          -2.3074817657470703,
+          -2.3215620517730713,
+          -2.3027915954589844,
+          -2.3133490085601807
+        ],
+        "log_std_parameter": [
+          -2.310579299926758,
+          -2.3124234676361084,
+          -2.307964324951172,
+          -2.2998735904693604,
+          -2.318174123764038,
+          -2.3074817657470703,
+          -2.3215620517730713,
+          -2.3027915954589844,
+          -2.3133490085601807
+        ],
+        "opening_min": 0.11168383061885834,
+        "opening_max": 0.14986586570739746,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_ppo_numerics": {
+        "timestep": 95,
+        "attempted_minibatches": 30,
+        "accepted_minibatches": 30,
+        "rejected_minibatches": 0,
+        "rejected_rollouts": 0,
+        "rolled_back_steps": 0,
+        "reason_counts": {},
+        "last_rejection": null,
+        "nonfinite_kl_diagnostics": 0,
+        "log_ratio_abs_max": 0.5195258855819702,
+        "max_finite_grad_norm": 33.262786865234375
+      },
+      "actor_after_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          0.24707944691181183,
+          -0.8248131275177002,
+          -1.539110541343689,
+          -0.46744459867477417,
+          0.9867687821388245,
+          -0.8308078646659851,
+          -2.074619770050049,
+          0.0916016474366188,
+          -1.581221103668213
+        ],
+        "mean_max": [
+          0.30601897835731506,
+          -0.67763352394104,
+          -1.2809662818908691,
+          -0.40930208563804626,
+          1.1815768480300903,
+          -0.7158965468406677,
+          -1.7382036447525024,
+          0.14252646267414093,
+          -1.336517333984375
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.999267578125,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "log_std_min": [
+          -2.310504198074341,
+          -2.3125081062316895,
+          -2.3079895973205566,
+          -2.299893379211426,
+          -2.3182356357574463,
+          -2.30770206451416,
+          -2.321636915206909,
+          -2.3029074668884277,
+          -2.313324213027954
+        ],
+        "log_std_max": [
+          -2.310504198074341,
+          -2.3125081062316895,
+          -2.3079895973205566,
+          -2.299893379211426,
+          -2.3182356357574463,
+          -2.30770206451416,
+          -2.321636915206909,
+          -2.3029074668884277,
+          -2.313324213027954
+        ],
+        "log_std_parameter": [
+          -2.310504198074341,
+          -2.3125081062316895,
+          -2.3079895973205566,
+          -2.299893379211426,
+          -2.3182356357574463,
+          -2.30770206451416,
+          -2.321636915206909,
+          -2.3029074668884277,
+          -2.313324213027954
+        ],
+        "opening_min": 0.11158822476863861,
+        "opening_max": 0.1495412439107895,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_bptt_metrics": {
+        "accepted": 1.0,
+        "rollback": 0.0,
+        "skipped": 0.0,
+        "nonfinite_parameter": 0.0,
+        "nonfinite_optimizer": 0.0,
+        "kl_rejected": 0.0,
+        "kl": 0.4985020160675049,
+        "objective": 0.13262410461902618,
+        "kl_gate_enabled": 0.0,
+        "actor_grad_norm": 0.3809390664100647,
+        "reward_mean": 0.036368489265441895,
+        "survival_H": 0.86669921875,
+        "tail_value": -0.07475767284631729,
+        "timeout_fraction": 0.0,
+        "trust_mean": 1.0,
+        "dt_mean": 0.1599999964237213,
+        "horizon_seconds_mean": 0.6399999856948853,
+        "effective_lr": 0.00019999548268333467,
+        "imagined_value_source": 1.0,
+        "actor_chunks": 1.0,
+        "critic_loss": 0.0744553729891777,
+        "critic_grad_norm": 0.37581199407577515,
+        "critic_value_mean": 0.09859508275985718,
+        "critic_target_mean": 0.11094457656145096,
+        "critic_updates": 20.0,
+        "critic_samples": 15532.0,
+        "critic_skipped_nonfinite": 0.0,
+        "critic_effective_lr": 0.00019999548268333467
+      },
+      "seconds": 162.83008392195916,
+      "last_world_model_metrics": {
+        "candidate/state_loss": 5.623599931791231,
+        "candidate/termination_bce": 0.0,
+        "candidate/auxiliary_loss": 0.0,
+        "candidate/nse_1step": 0.04655791601383841,
+        "candidate/nse_kstep": 0.14110465076836673,
+        "candidate/loss": 5.631549599882844,
+        "candidate/contact_bce": 0.07949675280939449,
+        "candidate/contact_accuracy": 0.9711644254721604,
+        "candidate/grad_norm": 29.214239739752436,
+        "candidate/updates": 2910.0,
+        "candidate/skipped_nonfinite": 0.0,
+        "candidate/validation_state_loss": 5.8986583065677,
+        "candidate/validation_termination_bce": 0.0,
+        "candidate/validation_auxiliary_loss": 0.0,
+        "candidate/validation_nse_1step": 0.04697574631540806,
+        "candidate/validation_nse_kstep": 0.14704740357089352,
+        "candidate/validation_loss": 5.906772025219806,
+        "candidate/validation_contact_bce": 0.08113732885617714,
+        "candidate/validation_contact_accuracy": 0.9711945769074676,
+        "candidate/validation_available": 1.0,
+        "bptt/accepted": 1.0,
+        "bptt/rollback": 0.0,
+        "bptt/skipped": 0.0,
+        "bptt/nonfinite_parameter": 0.0,
+        "bptt/nonfinite_optimizer": 0.0,
+        "bptt/kl_rejected": 0.0,
+        "bptt/kl": 0.5562035242071399,
+        "bptt/objective": -0.04861776397091808,
+        "bptt/kl_gate_enabled": 0.0,
+        "bptt/actor_grad_norm": 0.2990029477937655,
+        "bptt/reward_mean": 0.029763449981276478,
+        "bptt/survival_H": 0.8579767400568182,
+        "bptt/tail_value": -0.25047360031030974,
+        "bptt/timeout_fraction": 0.0,
+        "bptt/trust_mean": 1.0,
+        "bptt/dt_mean": 0.1599999964237213,
+        "bptt/horizon_seconds_mean": 0.6399999856948853,
+        "bptt/effective_lr": 0.0001999954826833344,
+        "bptt/imagined_value_source": 1.0,
+        "bptt/actor_chunks": 1.0,
+        "bptt/critic_loss": 0.10460083999417046,
+        "bptt/critic_grad_norm": 0.4934083972271387,
+        "bptt/critic_value_mean": -0.08156472482633861,
+        "bptt/critic_target_mean": -0.07390096377242696,
+        "bptt/critic_updates": 20.0,
+        "bptt/critic_samples": 15528.233766233767,
+        "bptt/critic_skipped_nonfinite": 0.0,
+        "bptt/critic_effective_lr": 0.0001999954826833344,
+        "update_rounds": 291.0,
+        "rounds_this_ppo_update": 77.0,
+        "bptt/accepted_this_ppo_update": 77.0,
+        "bptt/accepted_total": 291.0,
+        "replay_steps": 96.0,
+        "low_replay_steps": 768.0,
+        "replay_memory_mib": 11026.051708221436,
+        "on_gpu": 1.0,
+        "lr_ratio": 0.9999774134166732,
+        "model_learning_rate": 0.00019999548268333467,
+        "actor_learning_rate": 0.00019999548268333467,
+        "critic_learning_rate": 0.00019999548268333467,
+        "update_seconds": 162.05127285100752,
+        "fit_seconds": 99.66450991103193,
+        "imagination_seconds": 60.58085113525158,
+        "waiting_for_probe": 0.0,
+        "validated_snapshot_available": 0.0
+      },
+      "training_status": {
+        "actor": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "real_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 21
+          },
+          "tensor_count": 21,
+          "cpu_step_counters_allowed": false
+        },
+        "dynamics": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 14
+          },
+          "tensor_count": 14,
+          "cpu_step_counters_allowed": false
+        },
+        "imagined_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 6
+          },
+          "tensor_count": 6,
+          "cpu_step_counters_allowed": false
+        },
+        "low_policy": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 26
+          },
+          "tensor_count": 26,
+          "cpu_step_counters_allowed": false
+        },
+        "fixed_scaler": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 2
+          },
+          "tensor_count": 2,
+          "cpu_step_counters_allowed": false
+        },
+        "fk": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 4
+          },
+          "tensor_count": 4,
+          "cpu_step_counters_allowed": false
+        },
+        "observation_noise": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 3
+          },
+          "tensor_count": 3,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 41,
+            "cuda:0": 82
+          },
+          "tensor_count": 123,
+          "cpu_step_counters_allowed": true
+        },
+        "dynamics_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 14,
+            "cuda:0": 28
+          },
+          "tensor_count": 42,
+          "cpu_step_counters_allowed": true
+        },
+        "bptt_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 20,
+            "cuda:0": 40
+          },
+          "tensor_count": 60,
+          "cpu_step_counters_allowed": true
+        },
+        "imagined_critic_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 6,
+            "cuda:0": 12
+          },
+          "tensor_count": 18,
+          "cpu_step_counters_allowed": true
+        },
+        "high_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 19
+          },
+          "tensor_count": 19,
+          "cpu_step_counters_allowed": false
+        },
+        "low_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_memory": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 9
+          },
+          "tensor_count": 9,
+          "cpu_step_counters_allowed": false
+        }
+      },
+      "actor_after_bptt": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          0.8404713273048401,
+          -1.1246486902236938,
+          -1.1108481884002686,
+          0.20827265083789825,
+          -1.0898584127426147,
+          -1.1385749578475952,
+          -5.33656644821167,
+          0.9259572625160217,
+          -1.1083838939666748
+        ],
+        "mean_max": [
+          1.073824167251587,
+          -0.8933964371681213,
+          -0.8909821510314941,
+          0.31269484758377075,
+          -0.8626405596733093,
+          -0.9930991530418396,
+          -4.223063945770264,
+          1.0989019870758057,
+          -0.9655289053916931
+        ],
+        "command_mean_saturation_fraction": [
+          0.4169921875,
+          0.93017578125,
+          0.891845703125,
+          0.0,
+          0.55908203125,
+          0.999755859375,
+          0.94775390625,
+          0.99658203125
+        ],
+        "log_std_min": [
+          -2.310504198074341,
+          -2.3125081062316895,
+          -2.3079895973205566,
+          -2.299893379211426,
+          -2.3182356357574463,
+          -2.30770206451416,
+          -2.321636915206909,
+          -2.3029074668884277,
+          -2.313324213027954
+        ],
+        "log_std_max": [
+          -2.310504198074341,
+          -2.3125081062316895,
+          -2.3079895973205566,
+          -2.299893379211426,
+          -2.3182356357574463,
+          -2.30770206451416,
+          -2.321636915206909,
+          -2.3029074668884277,
+          -2.313324213027954
+        ],
+        "log_std_parameter": [
+          -2.310504198074341,
+          -2.3125081062316895,
+          -2.3079895973205566,
+          -2.299893379211426,
+          -2.3182356357574463,
+          -2.30770206451416,
+          -2.321636915206909,
+          -2.3029074668884277,
+          -2.313324213027954
+        ],
+        "opening_min": 0.004789317958056927,
+        "opening_max": 0.014442048035562038,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "low_policy_unchanged": true,
+      "low_policy_frozen": true,
+      "update_rounds": 291,
+      "expected_update_rounds": 291,
+      "rounds_this_block": 77,
+      "utd_credit": 0.20000000000004547
+    },
+    {
+      "index": 5,
+      "high_steps": 120,
+      "low_steps": 960,
+      "completed": true,
+      "bptt_calls": 77,
+      "bptt_accepted": 77,
+      "protected_rejections": [],
+      "actor_before_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          0.8553099632263184,
+          -1.114271640777588,
+          -1.100524663925171,
+          0.20985299348831177,
+          -1.0782369375228882,
+          -1.1297274827957153,
+          -5.290072917938232,
+          0.9265617728233337,
+          -1.1010890007019043
+        ],
+        "mean_max": [
+          1.066017746925354,
+          -0.9043704271316528,
+          -0.904495894908905,
+          0.30695369839668274,
+          -0.8718357086181641,
+          -0.9900393486022949,
+          -4.282787799835205,
+          1.0881507396697998,
+          -0.9639326930046082
+        ],
+        "command_mean_saturation_fraction": [
+          0.418701171875,
+          0.921142578125,
+          0.882080078125,
+          0.0,
+          0.56298828125,
+          0.99951171875,
+          0.910400390625,
+          0.996337890625
+        ],
+        "log_std_min": [
+          -2.310504198074341,
+          -2.3125081062316895,
+          -2.3079895973205566,
+          -2.299893379211426,
+          -2.3182356357574463,
+          -2.30770206451416,
+          -2.321636915206909,
+          -2.3029074668884277,
+          -2.313324213027954
+        ],
+        "log_std_max": [
+          -2.310504198074341,
+          -2.3125081062316895,
+          -2.3079895973205566,
+          -2.299893379211426,
+          -2.3182356357574463,
+          -2.30770206451416,
+          -2.321636915206909,
+          -2.3029074668884277,
+          -2.313324213027954
+        ],
+        "log_std_parameter": [
+          -2.310504198074341,
+          -2.3125081062316895,
+          -2.3079895973205566,
+          -2.299893379211426,
+          -2.3182356357574463,
+          -2.30770206451416,
+          -2.321636915206909,
+          -2.3029074668884277,
+          -2.313324213027954
+        ],
+        "opening_min": 0.005016104318201542,
+        "opening_max": 0.013616165146231651,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_ppo_numerics": {
+        "timestep": 119,
+        "attempted_minibatches": 30,
+        "accepted_minibatches": 30,
+        "rejected_minibatches": 0,
+        "rejected_rollouts": 0,
+        "rolled_back_steps": 0,
+        "reason_counts": {},
+        "last_rejection": null,
+        "nonfinite_kl_diagnostics": 0,
+        "log_ratio_abs_max": 1.2455964088439941,
+        "max_finite_grad_norm": 117.06007385253906
+      },
+      "actor_after_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          0.8567730784416199,
+          -1.11381196975708,
+          -1.1041780710220337,
+          0.21014128625392914,
+          -1.0780808925628662,
+          -1.1290972232818604,
+          -5.294803142547607,
+          0.9302705526351929,
+          -1.1075254678726196
+        ],
+        "mean_max": [
+          1.0685083866119385,
+          -0.903734564781189,
+          -0.908047616481781,
+          0.30705347657203674,
+          -0.8706347942352295,
+          -0.9900351166725159,
+          -4.286233901977539,
+          1.0934759378433228,
+          -0.968828558921814
+        ],
+        "command_mean_saturation_fraction": [
+          0.439208984375,
+          0.920166015625,
+          0.91162109375,
+          0.0,
+          0.5576171875,
+          0.99951171875,
+          0.948974609375,
+          0.99755859375
+        ],
+        "log_std_min": [
+          -2.3105175495147705,
+          -2.3125216960906982,
+          -2.30800199508667,
+          -2.2999355792999268,
+          -2.318264961242676,
+          -2.307849407196045,
+          -2.3217086791992188,
+          -2.3029685020446777,
+          -2.3133230209350586
+        ],
+        "log_std_max": [
+          -2.3105175495147705,
+          -2.3125216960906982,
+          -2.30800199508667,
+          -2.2999355792999268,
+          -2.318264961242676,
+          -2.307849407196045,
+          -2.3217086791992188,
+          -2.3029685020446777,
+          -2.3133230209350586
+        ],
+        "log_std_parameter": [
+          -2.3105175495147705,
+          -2.3125216960906982,
+          -2.30800199508667,
+          -2.2999355792999268,
+          -2.318264961242676,
+          -2.307849407196045,
+          -2.3217086791992188,
+          -2.3029685020446777,
+          -2.3133230209350586
+        ],
+        "opening_min": 0.004992551635950804,
+        "opening_max": 0.013569960370659828,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_bptt_metrics": {
+        "accepted": 1.0,
+        "rollback": 0.0,
+        "skipped": 0.0,
+        "nonfinite_parameter": 0.0,
+        "nonfinite_optimizer": 0.0,
+        "kl_rejected": 0.0,
+        "kl": 0.1420740783214569,
+        "objective": 0.21390455961227417,
+        "kl_gate_enabled": 0.0,
+        "actor_grad_norm": 0.05354907363653183,
+        "reward_mean": 0.003127658274024725,
+        "survival_H": 0.807861328125,
+        "tail_value": 0.15452292561531067,
+        "timeout_fraction": 0.0,
+        "trust_mean": 1.0,
+        "dt_mean": 0.1599999964237213,
+        "horizon_seconds_mean": 0.6399999856948853,
+        "effective_lr": 0.00019999294172352695,
+        "imagined_value_source": 1.0,
+        "actor_chunks": 1.0,
+        "critic_loss": 0.1256342977285385,
+        "critic_grad_norm": 1.5956716537475586,
+        "critic_value_mean": 0.3239600956439972,
+        "critic_target_mean": 0.2381848394870758,
+        "critic_updates": 20.0,
+        "critic_samples": 15255.0,
+        "critic_skipped_nonfinite": 0.0,
+        "critic_effective_lr": 0.00019999294172352695
+      },
+      "seconds": 162.86943547899136,
+      "last_world_model_metrics": {
+        "candidate/state_loss": 5.975372630280334,
+        "candidate/termination_bce": 0.0,
+        "candidate/auxiliary_loss": 0.0,
+        "candidate/nse_1step": 0.04921197112311016,
+        "candidate/nse_kstep": 0.15066324890433969,
+        "candidate/loss": 5.982631095044025,
+        "candidate/contact_bce": 0.07258461502852379,
+        "candidate/contact_accuracy": 0.9737451045544117,
+        "candidate/grad_norm": 28.095084103670988,
+        "candidate/updates": 3680.0,
+        "candidate/skipped_nonfinite": 0.0,
+        "candidate/validation_state_loss": 6.2193728731824205,
+        "candidate/validation_termination_bce": 0.0,
+        "candidate/validation_auxiliary_loss": 0.0,
+        "candidate/validation_nse_1step": 0.05447649834798528,
+        "candidate/validation_nse_kstep": 0.15595295793050296,
+        "candidate/validation_loss": 6.226731095995222,
+        "candidate/validation_contact_bce": 0.0735822921352727,
+        "candidate/validation_contact_accuracy": 0.9736407391436688,
+        "candidate/validation_available": 1.0,
+        "bptt/accepted": 1.0,
+        "bptt/rollback": 0.0,
+        "bptt/skipped": 0.0,
+        "bptt/nonfinite_parameter": 0.0,
+        "bptt/nonfinite_optimizer": 0.0,
+        "bptt/kl_rejected": 0.0,
+        "bptt/kl": 0.6650944726614209,
+        "bptt/objective": 0.1110907450995662,
+        "bptt/kl_gate_enabled": 0.0,
+        "bptt/actor_grad_norm": 0.698503250038469,
+        "bptt/reward_mean": 0.030314545485783707,
+        "bptt/survival_H": 0.8472440645292207,
+        "bptt/tail_value": -0.07343899521541286,
+        "bptt/timeout_fraction": 0.0,
+        "bptt/trust_mean": 1.0,
+        "bptt/dt_mean": 0.1599999964237213,
+        "bptt/horizon_seconds_mean": 0.6399999856948853,
+        "bptt/effective_lr": 0.00019999294172352684,
+        "bptt/imagined_value_source": 1.0,
+        "bptt/actor_chunks": 1.0,
+        "bptt/critic_loss": 0.09229715478110623,
+        "bptt/critic_grad_norm": 0.660880905660716,
+        "bptt/critic_value_mean": 0.08610509218369888,
+        "bptt/critic_target_mean": 0.08779284342981318,
+        "bptt/critic_updates": 20.0,
+        "bptt/critic_samples": 15376.441558441558,
+        "bptt/critic_skipped_nonfinite": 0.0,
+        "bptt/critic_effective_lr": 0.00019999294172352684,
+        "update_rounds": 368.0,
+        "rounds_this_ppo_update": 77.0,
+        "bptt/accepted_this_ppo_update": 77.0,
+        "bptt/accepted_total": 368.0,
+        "replay_steps": 120.0,
+        "low_replay_steps": 960.0,
+        "replay_memory_mib": 11035.345626831055,
+        "on_gpu": 1.0,
+        "lr_ratio": 0.9999647086176346,
+        "model_learning_rate": 0.00019999294172352695,
+        "actor_learning_rate": 0.00019999294172352695,
+        "critic_learning_rate": 0.00019999294172352695,
+        "update_seconds": 162.091348619957,
+        "fit_seconds": 99.69670145009877,
+        "imagination_seconds": 60.5187837780104,
+        "waiting_for_probe": 0.0,
+        "validated_snapshot_available": 0.0
+      },
+      "training_status": {
+        "actor": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "real_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 21
+          },
+          "tensor_count": 21,
+          "cpu_step_counters_allowed": false
+        },
+        "dynamics": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 14
+          },
+          "tensor_count": 14,
+          "cpu_step_counters_allowed": false
+        },
+        "imagined_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 6
+          },
+          "tensor_count": 6,
+          "cpu_step_counters_allowed": false
+        },
+        "low_policy": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 26
+          },
+          "tensor_count": 26,
+          "cpu_step_counters_allowed": false
+        },
+        "fixed_scaler": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 2
+          },
+          "tensor_count": 2,
+          "cpu_step_counters_allowed": false
+        },
+        "fk": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 4
+          },
+          "tensor_count": 4,
+          "cpu_step_counters_allowed": false
+        },
+        "observation_noise": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 3
+          },
+          "tensor_count": 3,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 41,
+            "cuda:0": 82
+          },
+          "tensor_count": 123,
+          "cpu_step_counters_allowed": true
+        },
+        "dynamics_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 14,
+            "cuda:0": 28
+          },
+          "tensor_count": 42,
+          "cpu_step_counters_allowed": true
+        },
+        "bptt_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 20,
+            "cuda:0": 40
+          },
+          "tensor_count": 60,
+          "cpu_step_counters_allowed": true
+        },
+        "imagined_critic_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 6,
+            "cuda:0": 12
+          },
+          "tensor_count": 18,
+          "cpu_step_counters_allowed": true
+        },
+        "high_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 19
+          },
+          "tensor_count": 19,
+          "cpu_step_counters_allowed": false
+        },
+        "low_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_memory": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 9
+          },
+          "tensor_count": 9,
+          "cpu_step_counters_allowed": false
+        }
+      },
+      "actor_after_bptt": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          1.0171284675598145,
+          -1.8534667491912842,
+          -1.254591464996338,
+          -1.3314415216445923,
+          -1.6284350156784058,
+          -1.4680527448654175,
+          -5.599058628082275,
+          -0.30449408292770386,
+          -0.030868716537952423
+        ],
+        "mean_max": [
+          1.4360802173614502,
+          -1.2073291540145874,
+          -0.7272903919219971,
+          -0.9768009185791016,
+          -1.1795943975448608,
+          -1.1777188777923584,
+          -3.5483503341674805,
+          -0.028091158717870712,
+          0.40429913997650146
+        ],
+        "command_mean_saturation_fraction": [
+          1.0,
+          1.0,
+          0.5302734375,
+          0.999755859375,
+          1.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.3105175495147705,
+          -2.3125216960906982,
+          -2.30800199508667,
+          -2.2999355792999268,
+          -2.318264961242676,
+          -2.307849407196045,
+          -2.3217086791992188,
+          -2.3029685020446777,
+          -2.3133230209350586
+        ],
+        "log_std_max": [
+          -2.3105175495147705,
+          -2.3125216960906982,
+          -2.30800199508667,
+          -2.2999355792999268,
+          -2.318264961242676,
+          -2.307849407196045,
+          -2.3217086791992188,
+          -2.3029685020446777,
+          -2.3133230209350586
+        ],
+        "log_std_parameter": [
+          -2.3105175495147705,
+          -2.3125216960906982,
+          -2.30800199508667,
+          -2.2999355792999268,
+          -2.318264961242676,
+          -2.307849407196045,
+          -2.3217086791992188,
+          -2.3029685020446777,
+          -2.3133230209350586
+        ],
+        "opening_min": 0.0036876967642456293,
+        "opening_max": 0.027967384085059166,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "low_policy_unchanged": true,
+      "low_policy_frozen": true,
+      "update_rounds": 368,
+      "expected_update_rounds": 368,
+      "rounds_this_block": 77,
+      "utd_credit": 5.684341886080802e-14
+    },
+    {
+      "index": 6,
+      "high_steps": 144,
+      "low_steps": 1152,
+      "completed": true,
+      "bptt_calls": 76,
+      "bptt_accepted": 76,
+      "protected_rejections": [],
+      "actor_before_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          1.0655025243759155,
+          -1.9166784286499023,
+          -1.2860186100006104,
+          -1.37078058719635,
+          -1.6962733268737793,
+          -1.5066226720809937,
+          -5.8118672370910645,
+          -0.31003525853157043,
+          -0.07450184971094131
+        ],
+        "mean_max": [
+          1.4974182844161987,
+          -1.220346450805664,
+          -0.6987836360931396,
+          -0.9958788752555847,
+          -1.2326542139053345,
+          -1.1991971731185913,
+          -3.606675148010254,
+          0.021008189767599106,
+          0.4313499927520752
+        ],
+        "command_mean_saturation_fraction": [
+          1.0,
+          1.0,
+          0.37939453125,
+          0.999755859375,
+          1.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.3105175495147705,
+          -2.3125216960906982,
+          -2.30800199508667,
+          -2.2999355792999268,
+          -2.318264961242676,
+          -2.307849407196045,
+          -2.3217086791992188,
+          -2.3029685020446777,
+          -2.3133230209350586
+        ],
+        "log_std_max": [
+          -2.3105175495147705,
+          -2.3125216960906982,
+          -2.30800199508667,
+          -2.2999355792999268,
+          -2.318264961242676,
+          -2.307849407196045,
+          -2.3217086791992188,
+          -2.3029685020446777,
+          -2.3133230209350586
+        ],
+        "log_std_parameter": [
+          -2.3105175495147705,
+          -2.3125216960906982,
+          -2.30800199508667,
+          -2.2999355792999268,
+          -2.318264961242676,
+          -2.307849407196045,
+          -2.3217086791992188,
+          -2.3029685020446777,
+          -2.3133230209350586
+        ],
+        "opening_min": 0.002982913749292493,
+        "opening_max": 0.026424722746014595,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_ppo_numerics": {
+        "timestep": 143,
+        "attempted_minibatches": 30,
+        "accepted_minibatches": 30,
+        "rejected_minibatches": 0,
+        "rejected_rollouts": 0,
+        "rolled_back_steps": 0,
+        "reason_counts": {},
+        "last_rejection": null,
+        "nonfinite_kl_diagnostics": 0,
+        "log_ratio_abs_max": 1.0282363891601562,
+        "max_finite_grad_norm": 62.722801208496094
+      },
+      "actor_after_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          1.0680336952209473,
+          -1.91738760471344,
+          -1.284928560256958,
+          -1.3694798946380615,
+          -1.7004204988479614,
+          -1.5063323974609375,
+          -5.813477039337158,
+          -0.30720582604408264,
+          -0.0728253573179245
+        ],
+        "mean_max": [
+          1.50101637840271,
+          -1.2231340408325195,
+          -0.7024936676025391,
+          -0.9960547685623169,
+          -1.2345376014709473,
+          -1.2009968757629395,
+          -3.617382526397705,
+          0.019629810005426407,
+          0.4287073016166687
+        ],
+        "command_mean_saturation_fraction": [
+          1.0,
+          1.0,
+          0.384765625,
+          0.999755859375,
+          1.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        "log_std_min": [
+          -2.3106319904327393,
+          -2.3124983310699463,
+          -2.3080930709838867,
+          -2.300008773803711,
+          -2.3183510303497314,
+          -2.307823419570923,
+          -2.3218963146209717,
+          -2.303077459335327,
+          -2.3133628368377686
+        ],
+        "log_std_max": [
+          -2.3106319904327393,
+          -2.3124983310699463,
+          -2.3080930709838867,
+          -2.300008773803711,
+          -2.3183510303497314,
+          -2.307823419570923,
+          -2.3218963146209717,
+          -2.303077459335327,
+          -2.3133628368377686
+        ],
+        "log_std_parameter": [
+          -2.3106319904327393,
+          -2.3124983310699463,
+          -2.3080930709838867,
+          -2.300008773803711,
+          -2.3183510303497314,
+          -2.307823419570923,
+          -2.3218963146209717,
+          -2.303077459335327,
+          -2.3133628368377686
+        ],
+        "opening_min": 0.002978130243718624,
+        "opening_max": 0.026150649413466454,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_bptt_metrics": {
+        "accepted": 1.0,
+        "rollback": 0.0,
+        "skipped": 0.0,
+        "nonfinite_parameter": 0.0,
+        "nonfinite_optimizer": 0.0,
+        "kl_rejected": 0.0,
+        "kl": 1.5337765216827393,
+        "objective": 0.09352384507656097,
+        "kl_gate_enabled": 0.0,
+        "actor_grad_norm": 0.5968197584152222,
+        "reward_mean": 0.039787013083696365,
+        "survival_H": 0.832763671875,
+        "tail_value": -0.10895821452140808,
+        "timeout_fraction": 0.0,
+        "trust_mean": 1.0,
+        "dt_mean": 0.1599999964237213,
+        "horizon_seconds_mean": 0.6399999856948853,
+        "effective_lr": 0.0001999898361361157,
+        "imagined_value_source": 1.0,
+        "actor_chunks": 1.0,
+        "critic_loss": 0.05162538215517998,
+        "critic_grad_norm": 0.18041034042835236,
+        "critic_value_mean": 0.05454697459936142,
+        "critic_target_mean": 0.05892280116677284,
+        "critic_updates": 20.0,
+        "critic_samples": 15280.0,
+        "critic_skipped_nonfinite": 0.0,
+        "critic_effective_lr": 0.0001999898361361157
+      },
+      "seconds": 161.80310582899256,
+      "last_world_model_metrics": {
+        "candidate/state_loss": 6.108596237082231,
+        "candidate/termination_bce": 0.0,
+        "candidate/auxiliary_loss": 0.0,
+        "candidate/nse_1step": 0.0503561921711815,
+        "candidate/nse_kstep": 0.15520498274188294,
+        "candidate/loss": 6.116248921344154,
+        "candidate/contact_bce": 0.07652697016141917,
+        "candidate/contact_accuracy": 0.9717516757939991,
+        "candidate/grad_norm": 30.522835731506348,
+        "candidate/updates": 4440.0,
+        "candidate/skipped_nonfinite": 0.0,
+        "candidate/validation_state_loss": 6.061821404256318,
+        "candidate/validation_termination_bce": 0.0,
+        "candidate/validation_auxiliary_loss": 0.0,
+        "candidate/validation_nse_1step": 0.05288263425034912,
+        "candidate/validation_nse_kstep": 0.1530952992800035,
+        "candidate/validation_loss": 6.06971926438181,
+        "candidate/validation_contact_bce": 0.07897868791693136,
+        "candidate/validation_contact_accuracy": 0.9712428042763158,
+        "candidate/validation_available": 1.0,
+        "bptt/accepted": 1.0,
+        "bptt/rollback": 0.0,
+        "bptt/skipped": 0.0,
+        "bptt/nonfinite_parameter": 0.0,
+        "bptt/nonfinite_optimizer": 0.0,
+        "bptt/kl_rejected": 0.0,
+        "bptt/kl": 0.49915543428965303,
+        "bptt/objective": 0.047621513349249175,
+        "bptt/kl_gate_enabled": 0.0,
+        "bptt/actor_grad_norm": 0.2642108055174743,
+        "bptt/reward_mean": 0.014672052291356713,
+        "bptt/survival_H": 0.8277363024259868,
+        "bptt/tail_value": -0.060036331978871635,
+        "bptt/timeout_fraction": 0.0,
+        "bptt/trust_mean": 1.0,
+        "bptt/dt_mean": 0.1599999964237213,
+        "bptt/horizon_seconds_mean": 0.6399999856948853,
+        "bptt/effective_lr": 0.00019998983613611596,
+        "bptt/imagined_value_source": 1.0,
+        "bptt/actor_chunks": 1.0,
+        "bptt/critic_loss": 0.06639179386394589,
+        "bptt/critic_grad_norm": 0.4483711276399462,
+        "bptt/critic_value_mean": 0.03897236514603719,
+        "bptt/critic_target_mean": 0.036069969720158135,
+        "bptt/critic_updates": 20.0,
+        "bptt/critic_samples": 15339.776315789473,
+        "bptt/critic_skipped_nonfinite": 0.0,
+        "bptt/critic_effective_lr": 0.00019998983613611596,
+        "update_rounds": 444.0,
+        "rounds_this_ppo_update": 76.0,
+        "bptt/accepted_this_ppo_update": 76.0,
+        "bptt/accepted_total": 444.0,
+        "replay_steps": 144.0,
+        "low_replay_steps": 1152.0,
+        "replay_memory_mib": 11037.711418151855,
+        "on_gpu": 1.0,
+        "lr_ratio": 0.9999491806805784,
+        "model_learning_rate": 0.0001999898361361157,
+        "actor_learning_rate": 0.0001999898361361157,
+        "critic_learning_rate": 0.0001999898361361157,
+        "update_seconds": 161.0268681460293,
+        "fit_seconds": 99.94643049529986,
+        "imagination_seconds": 59.14681047515478,
+        "waiting_for_probe": 0.0,
+        "validated_snapshot_available": 0.0
+      },
+      "training_status": {
+        "actor": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "real_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 21
+          },
+          "tensor_count": 21,
+          "cpu_step_counters_allowed": false
+        },
+        "dynamics": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 14
+          },
+          "tensor_count": 14,
+          "cpu_step_counters_allowed": false
+        },
+        "imagined_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 6
+          },
+          "tensor_count": 6,
+          "cpu_step_counters_allowed": false
+        },
+        "low_policy": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 26
+          },
+          "tensor_count": 26,
+          "cpu_step_counters_allowed": false
+        },
+        "fixed_scaler": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 2
+          },
+          "tensor_count": 2,
+          "cpu_step_counters_allowed": false
+        },
+        "fk": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 4
+          },
+          "tensor_count": 4,
+          "cpu_step_counters_allowed": false
+        },
+        "observation_noise": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 3
+          },
+          "tensor_count": 3,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 41,
+            "cuda:0": 82
+          },
+          "tensor_count": 123,
+          "cpu_step_counters_allowed": true
+        },
+        "dynamics_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 14,
+            "cuda:0": 28
+          },
+          "tensor_count": 42,
+          "cpu_step_counters_allowed": true
+        },
+        "bptt_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 20,
+            "cuda:0": 40
+          },
+          "tensor_count": 60,
+          "cpu_step_counters_allowed": true
+        },
+        "imagined_critic_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 6,
+            "cuda:0": 12
+          },
+          "tensor_count": 18,
+          "cpu_step_counters_allowed": true
+        },
+        "high_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 19
+          },
+          "tensor_count": 19,
+          "cpu_step_counters_allowed": false
+        },
+        "low_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_memory": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 9
+          },
+          "tensor_count": 9,
+          "cpu_step_counters_allowed": false
+        }
+      },
+      "actor_after_bptt": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          0.3352621793746948,
+          -2.2173609733581543,
+          -2.5703067779541016,
+          -0.9767545461654663,
+          -1.3571332693099976,
+          -1.1888104677200317,
+          -4.917862892150879,
+          0.7155714631080627,
+          -0.20995643734931946
+        ],
+        "mean_max": [
+          0.49863433837890625,
+          -1.1405450105667114,
+          -0.7612321972846985,
+          -0.5463865399360657,
+          -1.007308006286621,
+          -0.9335259795188904,
+          -1.1179946660995483,
+          1.1590710878372192,
+          1.2474778890609741
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          1.0,
+          0.995849609375,
+          0.0,
+          1.0,
+          0.987060546875,
+          0.0947265625,
+          0.02734375
+        ],
+        "log_std_min": [
+          -2.3106319904327393,
+          -2.3124983310699463,
+          -2.3080930709838867,
+          -2.300008773803711,
+          -2.3183510303497314,
+          -2.307823419570923,
+          -2.3218963146209717,
+          -2.303077459335327,
+          -2.3133628368377686
+        ],
+        "log_std_max": [
+          -2.3106319904327393,
+          -2.3124983310699463,
+          -2.3080930709838867,
+          -2.300008773803711,
+          -2.3183510303497314,
+          -2.307823419570923,
+          -2.3218963146209717,
+          -2.303077459335327,
+          -2.3133628368377686
+        ],
+        "log_std_parameter": [
+          -2.3106319904327393,
+          -2.3124983310699463,
+          -2.3080930709838867,
+          -2.300008773803711,
+          -2.3183510303497314,
+          -2.307823419570923,
+          -2.3218963146209717,
+          -2.303077459335327,
+          -2.3133628368377686
+        ],
+        "opening_min": 0.007261630147695541,
+        "opening_max": 0.2463834583759308,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "low_policy_unchanged": true,
+      "low_policy_frozen": true,
+      "update_rounds": 444,
+      "expected_update_rounds": 444,
+      "rounds_this_block": 76,
+      "utd_credit": 0.8000000000000682
+    },
+    {
+      "index": 7,
+      "high_steps": 168,
+      "low_steps": 1344,
+      "completed": true,
+      "bptt_calls": 77,
+      "bptt_accepted": 77,
+      "protected_rejections": [],
+      "actor_before_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          0.227057084441185,
+          -3.5147180557250977,
+          -4.280075550079346,
+          -1.3848519325256348,
+          -1.8770159482955933,
+          -1.4287821054458618,
+          -8.711883544921875,
+          0.7163852453231812,
+          -0.6636083722114563
+        ],
+        "mean_max": [
+          0.7650108933448792,
+          -0.594169020652771,
+          0.0332014374434948,
+          -0.22385284304618835,
+          -0.7907440066337585,
+          -0.9343528151512146,
+          0.3955616354942322,
+          1.1769051551818848,
+          2.567751407623291
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.999267578125,
+          0.989501953125,
+          0.000244140625,
+          0.998779296875,
+          0.98974609375,
+          0.22607421875,
+          0.00048828125
+        ],
+        "log_std_min": [
+          -2.3106319904327393,
+          -2.3124983310699463,
+          -2.3080930709838867,
+          -2.300008773803711,
+          -2.3183510303497314,
+          -2.307823419570923,
+          -2.3218963146209717,
+          -2.303077459335327,
+          -2.3133628368377686
+        ],
+        "log_std_max": [
+          -2.3106319904327393,
+          -2.3124983310699463,
+          -2.3080930709838867,
+          -2.300008773803711,
+          -2.3183510303497314,
+          -2.307823419570923,
+          -2.3218963146209717,
+          -2.303077459335327,
+          -2.3133628368377686
+        ],
+        "log_std_parameter": [
+          -2.3106319904327393,
+          -2.3124983310699463,
+          -2.3080930709838867,
+          -2.300008773803711,
+          -2.3183510303497314,
+          -2.307823419570923,
+          -2.3218963146209717,
+          -2.303077459335327,
+          -2.3133628368377686
+        ],
+        "opening_min": 0.00016459080507047474,
+        "opening_max": 0.5976208448410034,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_ppo_numerics": {
+        "timestep": 167,
+        "attempted_minibatches": 30,
+        "accepted_minibatches": 30,
+        "rejected_minibatches": 0,
+        "rejected_rollouts": 0,
+        "rolled_back_steps": 0,
+        "reason_counts": {},
+        "last_rejection": null,
+        "nonfinite_kl_diagnostics": 0,
+        "log_ratio_abs_max": 1.083648681640625,
+        "max_finite_grad_norm": 57.25049591064453
+      },
+      "actor_after_ppo": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          0.22713439166545868,
+          -3.522226095199585,
+          -4.285740852355957,
+          -1.3896453380584717,
+          -1.879491925239563,
+          -1.4379218816757202,
+          -8.718795776367188,
+          0.717915952205658,
+          -0.6630595922470093
+        ],
+        "mean_max": [
+          0.76526939868927,
+          -0.5967201590538025,
+          0.03340001776814461,
+          -0.2259521782398224,
+          -0.7891662120819092,
+          -0.9313347339630127,
+          0.3951171934604645,
+          1.1774742603302002,
+          2.5669801235198975
+        ],
+        "command_mean_saturation_fraction": [
+          0.0,
+          0.999267578125,
+          0.9892578125,
+          0.000244140625,
+          0.998779296875,
+          0.9873046875,
+          0.2333984375,
+          0.00048828125
+        ],
+        "log_std_min": [
+          -2.3106813430786133,
+          -2.3124098777770996,
+          -2.308234691619873,
+          -2.3001644611358643,
+          -2.3183135986328125,
+          -2.307875633239746,
+          -2.3220481872558594,
+          -2.303138256072998,
+          -2.3135154247283936
+        ],
+        "log_std_max": [
+          -2.3106813430786133,
+          -2.3124098777770996,
+          -2.308234691619873,
+          -2.3001644611358643,
+          -2.3183135986328125,
+          -2.307875633239746,
+          -2.3220481872558594,
+          -2.303138256072998,
+          -2.3135154247283936
+        ],
+        "log_std_parameter": [
+          -2.3106813430786133,
+          -2.3124098777770996,
+          -2.308234691619873,
+          -2.3001644611358643,
+          -2.3183135986328125,
+          -2.307875633239746,
+          -2.3220481872558594,
+          -2.303138256072998,
+          -2.3135154247283936
+        ],
+        "opening_min": 0.00016345721087418497,
+        "opening_max": 0.5975139141082764,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "last_bptt_metrics": {
+        "accepted": 1.0,
+        "rollback": 0.0,
+        "skipped": 0.0,
+        "nonfinite_parameter": 0.0,
+        "nonfinite_optimizer": 0.0,
+        "kl_rejected": 0.0,
+        "kl": 0.4178112745285034,
+        "objective": 0.8270816802978516,
+        "kl_gate_enabled": 0.0,
+        "actor_grad_norm": 0.1430598944425583,
+        "reward_mean": 0.06996558606624603,
+        "survival_H": 0.86083984375,
+        "tail_value": 0.5512328147888184,
+        "timeout_fraction": 0.0,
+        "trust_mean": 1.0,
+        "dt_mean": 0.1599999964237213,
+        "horizon_seconds_mean": 0.6399999856948853,
+        "effective_lr": 0.00019998616593917953,
+        "imagined_value_source": 1.0,
+        "actor_chunks": 1.0,
+        "critic_loss": 0.053728099912405014,
+        "critic_grad_norm": 0.5690943002700806,
+        "critic_value_mean": 0.7257936000823975,
+        "critic_target_mean": 0.7932340502738953,
+        "critic_updates": 20.0,
+        "critic_samples": 15550.0,
+        "critic_skipped_nonfinite": 0.0,
+        "critic_effective_lr": 0.00019998616593917953
+      },
+      "seconds": 164.88518258201657,
+      "last_world_model_metrics": {
+        "candidate/state_loss": 6.967668694335145,
+        "candidate/termination_bce": 0.0,
+        "candidate/auxiliary_loss": 0.0,
+        "candidate/nse_1step": 0.05513011301299194,
+        "candidate/nse_kstep": 0.17963822708501445,
+        "candidate/loss": 6.975558324293657,
+        "candidate/contact_bce": 0.07889630142357443,
+        "candidate/contact_accuracy": 0.9710211722881763,
+        "candidate/grad_norm": 31.023830463359882,
+        "candidate/updates": 5210.0,
+        "candidate/skipped_nonfinite": 0.0,
+        "candidate/validation_state_loss": 7.552508391343154,
+        "candidate/validation_termination_bce": 0.0,
+        "candidate/validation_auxiliary_loss": 0.0,
+        "candidate/validation_nse_1step": 0.05775752537823343,
+        "candidate/validation_nse_kstep": 0.19183028769957555,
+        "candidate/validation_loss": 7.5610606577489285,
+        "candidate/validation_contact_bce": 0.08552238974091295,
+        "candidate/validation_contact_accuracy": 0.970872755174513,
+        "candidate/validation_available": 1.0,
+        "bptt/accepted": 1.0,
+        "bptt/rollback": 0.0,
+        "bptt/skipped": 0.0,
+        "bptt/nonfinite_parameter": 0.0,
+        "bptt/nonfinite_optimizer": 0.0,
+        "bptt/kl_rejected": 0.0,
+        "bptt/kl": 0.5038884793009076,
+        "bptt/objective": 0.6232945750673096,
+        "bptt/kl_gate_enabled": 0.0,
+        "bptt/actor_grad_norm": 0.20270075740945803,
+        "bptt/reward_mean": 0.058585343422827785,
+        "bptt/survival_H": 0.8274750152191559,
+        "bptt/tail_value": 0.3860027529662112,
+        "bptt/timeout_fraction": 0.0,
+        "bptt/trust_mean": 1.0,
+        "bptt/dt_mean": 0.1599999964237213,
+        "bptt/horizon_seconds_mean": 0.6399999856948853,
+        "bptt/effective_lr": 0.0001999861659391797,
+        "bptt/imagined_value_source": 1.0,
+        "bptt/actor_chunks": 1.0,
+        "bptt/critic_loss": 0.045343424447558144,
+        "bptt/critic_grad_norm": 0.3271032235065064,
+        "bptt/critic_value_mean": 0.5897928440532128,
+        "bptt/critic_target_mean": 0.6013101767990496,
+        "bptt/critic_updates": 20.0,
+        "bptt/critic_samples": 15358.077922077922,
+        "bptt/critic_skipped_nonfinite": 0.0,
+        "bptt/critic_effective_lr": 0.0001999861659391797,
+        "update_rounds": 521.0,
+        "rounds_this_ppo_update": 77.0,
+        "bptt/accepted_this_ppo_update": 77.0,
+        "bptt/accepted_total": 521.0,
+        "replay_steps": 168.0,
+        "low_replay_steps": 1344.0,
+        "replay_memory_mib": 11038.485118865967,
+        "on_gpu": 1.0,
+        "lr_ratio": 0.9999308296958976,
+        "model_learning_rate": 0.00019998616593917953,
+        "actor_learning_rate": 0.00019998616593917953,
+        "critic_learning_rate": 0.00019998616593917953,
+        "update_seconds": 164.10235008399468,
+        "fit_seconds": 100.90657763060881,
+        "imagination_seconds": 61.10344093013555,
+        "waiting_for_probe": 0.0,
+        "validated_snapshot_available": 0.0
+      },
+      "training_status": {
+        "actor": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "real_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 21
+          },
+          "tensor_count": 21,
+          "cpu_step_counters_allowed": false
+        },
+        "dynamics": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 14
+          },
+          "tensor_count": 14,
+          "cpu_step_counters_allowed": false
+        },
+        "imagined_critic": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 6
+          },
+          "tensor_count": 6,
+          "cpu_step_counters_allowed": false
+        },
+        "low_policy": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 26
+          },
+          "tensor_count": 26,
+          "cpu_step_counters_allowed": false
+        },
+        "fixed_scaler": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 2
+          },
+          "tensor_count": 2,
+          "cpu_step_counters_allowed": false
+        },
+        "fk": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 4
+          },
+          "tensor_count": 4,
+          "cpu_step_counters_allowed": false
+        },
+        "observation_noise": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 3
+          },
+          "tensor_count": 3,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 41,
+            "cuda:0": 82
+          },
+          "tensor_count": 123,
+          "cpu_step_counters_allowed": true
+        },
+        "dynamics_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 14,
+            "cuda:0": 28
+          },
+          "tensor_count": 42,
+          "cpu_step_counters_allowed": true
+        },
+        "bptt_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 20,
+            "cuda:0": 40
+          },
+          "tensor_count": 60,
+          "cpu_step_counters_allowed": true
+        },
+        "imagined_critic_optimizer": {
+          "finite": true,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cpu": 6,
+            "cuda:0": 12
+          },
+          "tensor_count": 18,
+          "cpu_step_counters_allowed": true
+        },
+        "high_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 19
+          },
+          "tensor_count": 19,
+          "cpu_step_counters_allowed": false
+        },
+        "low_replay": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 22
+          },
+          "tensor_count": 22,
+          "cpu_step_counters_allowed": false
+        },
+        "ppo_memory": {
+          "finite": null,
+          "nonfinite_tensors": [],
+          "cuda_resident": true,
+          "wrong_device_tensors": [],
+          "devices": {
+            "cuda:0": 9
+          },
+          "tensor_count": 9,
+          "cpu_step_counters_allowed": false
+        }
+      },
+      "actor_after_bptt": {
+        "observation_source": "agent._current_next_states; fixed preprocessing, no new noise",
+        "mean_min": [
+          -1.646083950996399,
+          -1.3097673654556274,
+          -3.3755581378936768,
+          -0.11202413588762283,
+          -2.016789197921753,
+          -1.2592339515686035,
+          -10.49219036102295,
+          -1.2721163034439087,
+          -2.036407947540283
+        ],
+        "mean_max": [
+          1.0518091917037964,
+          0.5633507370948792,
+          0.48864251375198364,
+          0.5261858105659485,
+          3.105027437210083,
+          0.11619356274604797,
+          4.274369239807129,
+          1.756123423576355,
+          4.062442779541016
+        ],
+        "command_mean_saturation_fraction": [
+          0.01318359375,
+          0.52490234375,
+          0.539794921875,
+          0.0,
+          0.260009765625,
+          0.6572265625,
+          0.711181640625,
+          0.2158203125
+        ],
+        "log_std_min": [
+          -2.3106813430786133,
+          -2.3124098777770996,
+          -2.308234691619873,
+          -2.3001644611358643,
+          -2.3183135986328125,
+          -2.307875633239746,
+          -2.3220481872558594,
+          -2.303138256072998,
+          -2.3135154247283936
+        ],
+        "log_std_max": [
+          -2.3106813430786133,
+          -2.3124098777770996,
+          -2.308234691619873,
+          -2.3001644611358643,
+          -2.3183135986328125,
+          -2.307875633239746,
+          -2.3220481872558594,
+          -2.303138256072998,
+          -2.3135154247283936
+        ],
+        "log_std_parameter": [
+          -2.3106813430786133,
+          -2.3124098777770996,
+          -2.308234691619873,
+          -2.3001644611358643,
+          -2.3183135986328125,
+          -2.307875633239746,
+          -2.3220481872558594,
+          -2.303138256072998,
+          -2.3135154247283936
+        ],
+        "opening_min": 2.7751570087275468e-05,
+        "opening_max": 0.9862703680992126,
+        "opening_at_lower_endpoint_fraction": 0.0,
+        "opening_at_upper_endpoint_fraction": 0.0,
+        "finite": true
+      },
+      "low_policy_unchanged": true,
+      "low_policy_frozen": true,
+      "update_rounds": 521,
+      "expected_update_rounds": 521,
+      "rounds_this_block": 77,
+      "utd_credit": 0.6000000000000796
+    }
+  ],
+  "first_bptt_ownership": {
+    "dynamics_unchanged": true,
+    "real_critic_unchanged": true,
+    "low_policy_unchanged": true,
+    "std_unchanged": true,
+    "std_grad_none": true
+  },
+  "input_checks": 1361,
+  "input_failures": [],
+  "phase": "completed",
+  "seconds": 1238.657176519977,
+  "teacher_arguments": [
+    "--task",
+    "B1Z1PickMulti",
+    "--object_name",
+    "sugar_box",
+    "--roboinfo",
+    "--observe_gait_commands",
+    "--small_value_set_zero",
+    "--no_velocity_obs",
+    "--sgs_mode",
+    "sgs",
+    "--sgs_bank",
+    "/home/hehui/DQ_WBC/DQ_high-level/data/sgs/sugar_box_v10.pt",
+    "--future_pose_obs",
+    "--future_pose_horizons",
+    ".60",
+    ".90",
+    "--headless",
+    "--num_envs",
+    "4096",
+    "--rl_device",
+    "cuda:0",
+    "--sim_device",
+    "cuda:0",
+    "--world_model",
+    "hybrid",
+    "--wm_recipe",
+    "supermimic",
+    "--experiment_dir",
+    "/tmp/dq_stability_gpu_r7461jpf",
+    "--wandb_name",
+    "stability",
+    "--seed",
+    "43",
+    "--timesteps",
+    "40000",
+    "--stop_after",
+    "168"
+  ],
+  "resolved_config": {
+    "recipe": "supermimic",
+    "mode": "hybrid",
+    "fixed8": true,
+    "replay_envs": 4096,
+    "replay_capacity": 256,
+    "low_replay_capacity": 1000,
+    "window": 8,
+    "batch_size": 2048,
+    "batches_per_update": 10,
+    "hidden": [
+      2048,
+      2048,
+      2048
+    ],
+    "term_hidden": [
+      64,
+      64
+    ],
+    "contact_hidden": [
+      128,
+      128
+    ],
+    "learning_rate": 0.0002,
+    "model_grad_clip": 1.0,
+    "termination_weight": 0.1,
+    "contact_weight": 0.1,
+    "state_loss_reduction": "sum",
+    "auxiliary_weight": 0.0,
+    "action_coordinates": "normalized_commands",
+    "initial_action_std": 0.1,
+    "actor_last_gain": 0.01,
+    "action_rate_mode": "squared_all",
+    "action_rate_weight": -0.002,
+    "warmup_steps": 5,
+    "horizon": 4,
+    "imagination_batch": 4096,
+    "actor_learning_rate": 0.0002,
+    "auxiliary_strength": 1.0,
+    "max_kl": 0.005,
+    "max_grad_norm": 1.0,
+    "max_validation_error": 0.1,
+    "max_start_error": 0.1,
+    "holdout_fraction": 0.1,
+    "recent_fraction": 0.0,
+    "recent_steps": 32,
+    "validation_batch_size": 256,
+    "use_tail_value": true,
+    "probe_interval": 0,
+    "report_max_age_seconds": null,
+    "candidate_checkpoint": "",
+    "validated_checkpoint": "",
+    "probe_report": "",
+    "compact_low_replay": true,
+    "balance_families": false,
+    "fixed_preprocessing": true,
+    "observation_noise_scale": 1.0,
+    "model_microbatch_size": 2048,
+    "imagination_chunk_size": 4096,
+    "updates_per_low_step": 0.4,
+    "actor_betas": [
+      0.9,
+      0.95
+    ],
+    "grad_clip_value": 0.1,
+    "kl_rollback": false,
+    "value_source": "imagined",
+    "critic_hidden": [
+      256,
+      128
+    ],
+    "critic_learning_rate": 0.0002,
+    "critic_epochs": 5,
+    "critic_minibatches": 4,
+    "critic_gae_lambda": 0.95,
+    "critic_max_grad_norm": 1.0,
+    "lr_schedule": "cosine",
+    "lr_final_ratio": 0.03,
+    "lr_decay_low_steps": 250000,
+    "probe_envs": 128,
+    "probe_prefix_steps": 8,
+    "probe_device": "cuda:0",
+    "probe_timeout_seconds": 900.0
+  },
+  "contract": {
+    "low_steps_per_high": 8,
+    "low_dt": 0.02,
+    "high_dt": 0.16,
+    "action_clip": "Infinity",
+    "action_coordinates": "normalized_commands",
+    "action_rate_mode": "squared_all",
+    "state_loss_reduction": "sum",
+    "auxiliary_weight": 0.0,
+    "critic_feature_dim": 189,
+    "critic_features": "canonical_physics_context_and_compact_task_fixed_scales_v2",
+    "imagined_high_steps": 4,
+    "imagined_low_steps": 32,
+    "compact_low_state": 82
+  },
+  "initial_training_status": {
+    "actor": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 22
+      },
+      "tensor_count": 22,
+      "cpu_step_counters_allowed": false
+    },
+    "real_critic": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 21
+      },
+      "tensor_count": 21,
+      "cpu_step_counters_allowed": false
+    },
+    "dynamics": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 14
+      },
+      "tensor_count": 14,
+      "cpu_step_counters_allowed": false
+    },
+    "imagined_critic": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 6
+      },
+      "tensor_count": 6,
+      "cpu_step_counters_allowed": false
+    },
+    "low_policy": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 26
+      },
+      "tensor_count": 26,
+      "cpu_step_counters_allowed": false
+    },
+    "fixed_scaler": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 2
+      },
+      "tensor_count": 2,
+      "cpu_step_counters_allowed": false
+    },
+    "fk": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 4
+      },
+      "tensor_count": 4,
+      "cpu_step_counters_allowed": false
+    },
+    "observation_noise": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 3
+      },
+      "tensor_count": 3,
+      "cpu_step_counters_allowed": false
+    },
+    "high_replay": {
+      "finite": null,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 16
+      },
+      "tensor_count": 16,
+      "cpu_step_counters_allowed": false
+    },
+    "low_replay": {
+      "finite": null,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 16
+      },
+      "tensor_count": 16,
+      "cpu_step_counters_allowed": false
+    },
+    "ppo_memory": {
+      "finite": null,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 9
+      },
+      "tensor_count": 9,
+      "cpu_step_counters_allowed": false
+    }
+  },
+  "pending_high_step": 168,
+  "last_progress": "update block complete in 164.9s; resuming environment collection",
+  "last_ppo_numerics": {
+    "timestep": 167,
+    "attempted_minibatches": 30,
+    "accepted_minibatches": 30,
+    "rejected_minibatches": 0,
+    "rejected_rollouts": 0,
+    "rolled_back_steps": 0,
+    "reason_counts": {},
+    "last_rejection": null,
+    "nonfinite_kl_diagnostics": 0,
+    "log_ratio_abs_max": 1.083648681640625,
+    "max_finite_grad_norm": 57.25049591064453
+  },
+  "bptt_std_ownership_checks": 521,
+  "final_training_status": {
+    "actor": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 22
+      },
+      "tensor_count": 22,
+      "cpu_step_counters_allowed": false
+    },
+    "real_critic": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 21
+      },
+      "tensor_count": 21,
+      "cpu_step_counters_allowed": false
+    },
+    "dynamics": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 14
+      },
+      "tensor_count": 14,
+      "cpu_step_counters_allowed": false
+    },
+    "imagined_critic": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 6
+      },
+      "tensor_count": 6,
+      "cpu_step_counters_allowed": false
+    },
+    "low_policy": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 26
+      },
+      "tensor_count": 26,
+      "cpu_step_counters_allowed": false
+    },
+    "fixed_scaler": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 2
+      },
+      "tensor_count": 2,
+      "cpu_step_counters_allowed": false
+    },
+    "fk": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 4
+      },
+      "tensor_count": 4,
+      "cpu_step_counters_allowed": false
+    },
+    "observation_noise": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 3
+      },
+      "tensor_count": 3,
+      "cpu_step_counters_allowed": false
+    },
+    "ppo_optimizer": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cpu": 41,
+        "cuda:0": 82
+      },
+      "tensor_count": 123,
+      "cpu_step_counters_allowed": true
+    },
+    "dynamics_optimizer": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cpu": 14,
+        "cuda:0": 28
+      },
+      "tensor_count": 42,
+      "cpu_step_counters_allowed": true
+    },
+    "bptt_optimizer": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cpu": 20,
+        "cuda:0": 40
+      },
+      "tensor_count": 60,
+      "cpu_step_counters_allowed": true
+    },
+    "imagined_critic_optimizer": {
+      "finite": true,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cpu": 6,
+        "cuda:0": 12
+      },
+      "tensor_count": 18,
+      "cpu_step_counters_allowed": true
+    },
+    "high_replay": {
+      "finite": null,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 19
+      },
+      "tensor_count": 19,
+      "cpu_step_counters_allowed": false
+    },
+    "low_replay": {
+      "finite": null,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 22
+      },
+      "tensor_count": 22,
+      "cpu_step_counters_allowed": false
+    },
+    "ppo_memory": {
+      "finite": null,
+      "nonfinite_tensors": [],
+      "cuda_resident": true,
+      "wrong_device_tensors": [],
+      "devices": {
+        "cuda:0": 9
+      },
+      "tensor_count": 9,
+      "cpu_step_counters_allowed": false
+    }
+  },
+  "std_changed_by_ppo": true,
+  "total_bptt_calls": 521,
+  "update_rounds": 521,
+  "peak_torch_memory_mib": 20845.55712890625,
+  "device_memory_mib": {
+    "free": 14565.875,
+    "total": 48508.0625
+  }
+}

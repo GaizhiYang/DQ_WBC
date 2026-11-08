@@ -31,6 +31,8 @@ from utils.tsil_checkpoint import (TemporalCheckpointMetadata, read_temporal_che
                                    restore_temporal_arguments)
 from utils.gripper_policy import ContinuousGripperGaussianMixin
 from utils.gripper_control import GRIPPER_ACTION_MODE
+from utils.world_model.action_contract import initialize_actor_output
+from utils.world_model.action_checkpoint import validate_checkpoint_action_contract, TaskContractMetadata
 
 
 def checkpoint_step(path, required=False):
@@ -84,7 +86,10 @@ def create_env(cfg, args, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor ):
 
     cfg["env"]["enableDebugVis"] = args.debugvis
     cfg["env"]["cameraMode"] = "full"
-    cfg["env"]["smallValueSetZero"] = args.small_value_set_zero
+    cfg["env"]["smallValueSetZero"] = (
+        False if cfg["env"].get("world_model", {}).get("task_contract") == "manipulation_v2"
+        else cfg["env"].get("smallValueSetZero", args.small_value_set_zero) if args.eval
+        else args.small_value_set_zero)
     if args.last_commands:
         cfg["env"]["lastCommands"] = True
     if args.record_video:
@@ -110,7 +115,8 @@ def create_env(cfg, args, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor ):
 class Policy(ContinuousGripperGaussianMixin, Model, PredictAttentionSelector):
     def __init__(self, observation_space, action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor,
                   use_tanh=False, clip_actions=False,
-                 clip_log_std=True, min_log_std=-20, max_log_std=2, reduction="sum", deterministic=False):
+                 clip_log_std=True, min_log_std=-20, max_log_std=2, reduction="sum", deterministic=False,
+                 initial_action_std=None, actor_last_gain=None):
         Model.__init__(self, observation_space, action_space, device)
         # The selector initializes nn.Module again. Construct it before the
         # policy mixin registers checkpoint/entropy buffers, or they are lost.
@@ -139,6 +145,8 @@ class Policy(ContinuousGripperGaussianMixin, Model, PredictAttentionSelector):
         cprint(f"self.num_observations is {self.num_observations}", "yellow")
 
         self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
+        initialize_actor_output(self.net[-1], self.log_std_parameter,
+                                initial_action_std=initial_action_std, actor_last_gain=actor_last_gain)
 
     def compute(self, inputs, role):
         grasp_predict_local_pos_flat = inputs["states"][...,-6*self.cube_object_num-9:-3*self.cube_object_num-9]
@@ -289,8 +297,10 @@ def get_trainer(is_eval=False, strict_eval=False, *, enable_logging=True):
             raise ValueError("Strict evaluation requires --checkpoint and does not accept --resume")
         restore_eval_arguments(args)
     temporal_metadata = None
+    checkpoint_payload = None
     if is_eval and args.checkpoint:
-        temporal_metadata = read_temporal_checkpoint(args.checkpoint)
+        checkpoint_payload = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
+        temporal_metadata = read_temporal_checkpoint(args.checkpoint, payload=checkpoint_payload)
         if temporal_metadata is not None:
             restore_temporal_arguments(args, temporal_metadata)
     set_seed(args.seed)
@@ -324,6 +334,17 @@ def get_trainer(is_eval=False, strict_eval=False, *, enable_logging=True):
         
     cfg = deepcopy(temporal_metadata["config"]) if embedded_config else load_cfg(file_path)
     configure_teacher_experiment(cfg, args, is_eval=is_eval, strict_eval=strict_eval)
+    # Resolve before checkpoint checks and before exporting the experiment YAML.
+    # create_env must not silently restore the launcher's legacy deadzone flag.
+    if cfg["env"]["world_model"].get("task_contract") == "manipulation_v2":
+        cfg["env"]["smallValueSetZero"] = False
+    elif not is_eval:
+        cfg["env"]["smallValueSetZero"] = args.small_value_set_zero
+    if args.checkpoint:
+        # Ordinary PPO evaluation skips world_model_training during load. Check
+        # its saved action units before any simulator or policy is constructed.
+        validate_checkpoint_action_contract(cfg, args.checkpoint, payload=checkpoint_payload)
+    checkpoint_payload = None
     if is_eval and cfg["env"]["tsil"]["enabled"] and temporal_metadata is None:
         raise ValueError("TSIL evaluation requires a checkpoint with matching temporal state and normalization")
     prediction_cfg = apply_pose_prediction_config(cfg, args)
@@ -384,13 +405,29 @@ def get_trainer(is_eval=False, strict_eval=False, *, enable_logging=True):
     experiment_cfg = deepcopy(cfg)
     env = create_env(cfg=cfg, args=args, camera_6p_tensor=camera_6p_tensor, grasp_cv_tensor=grasp_cv_tensor, cube_init_tensor=cube_init_tensor)
     device = env.rl_device
-    memory = None if is_eval else RandomMemory(memory_size=24, num_envs=env.num_envs, device=device)
+    wm_settings = cfg["env"]["world_model"]
+    reference_mainline = wm_settings.get("recipe") == "reference"
+    memory = None if is_eval or reference_mainline else RandomMemory(memory_size=24, num_envs=env.num_envs, device=device)
     
     num_features = 0 if args.no_feature else 1024
     encode_dim = 0 if args.no_feature else 128
+    # Existing checkpoints restore their learned weights/std below. Source
+    # initialization applies only to a fresh policy, never after checkpoint load.
+    initialization = ({"initial_action_std": wm_settings.get("initial_action_std"),
+                       "actor_last_gain": wm_settings.get("actor_last_gain")}
+                      if not args.checkpoint else {})
     models_ppo = {}
-    models_ppo["policy"] = Policy(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=args.eval)
-    models_ppo["value"] = Value(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor)
+    if reference_mainline:
+        from utils.world_model.reference_policy import ReferenceTeacherPolicy
+        models_ppo["policy"] = ReferenceTeacherPolicy(
+            env.observation_space, env.action_space, device,
+            hidden=wm_settings["actor_hidden"], amp=wm_settings["policy_amp"],
+            action_noise=wm_settings["action_noise"],
+            last_gain=wm_settings["actor_last_gain"],
+            running_normalization=wm_settings["actor_running_normalization"])
+    else:
+        models_ppo["policy"] = Policy(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=args.eval, **initialization)
+        models_ppo["value"] = Value(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor)
     
     cfg_ppo = deepcopy(PPO_DEFAULT_CONFIG)
     cfg_ppo["rollouts"] = 24  # memory_size
@@ -414,7 +451,6 @@ def get_trainer(is_eval=False, strict_eval=False, *, enable_logging=True):
     cfg_ppo["state_preprocessor_kwargs"] = {"size": env.observation_space, "device": device}
     cfg_ppo["value_preprocessor"] = RunningStandardScaler
     cfg_ppo["value_preprocessor_kwargs"] = {"size": 1, "device": device}
-    wm_settings = cfg["env"]["world_model"]
     if wm_settings.get("fixed_preprocessing", False):
         from utils.world_model.policy_inputs import (FixedScale, HighLevelObservationNoise,
                                                       teacher_observation_vectors)
@@ -435,6 +471,13 @@ def get_trainer(is_eval=False, strict_eval=False, *, enable_logging=True):
     # Log to TensorBoard/W&B every 10 PPO iterations (one rollout per iteration).
     cfg_ppo["experiment"]["write_interval"] = 10 * cfg_ppo["rollouts"]
     cfg_ppo["experiment"]["steps_per_iteration"] = cfg_ppo["rollouts"]
+    if wm_settings["mode"] != "off":
+        # Real collection can pause for minutes inside one WM update block.
+        # Commit complete W&B rows directly; TensorBoard remains a local copy.
+        cfg_ppo["experiment"]["write_interval"] = cfg_ppo["rollouts"]
+        cfg_ppo["experiment"]["wandb_direct_logging"] = True
+        cfg_ppo["experiment"]["world_model_live_logging"] = True
+        cfg_ppo["experiment"]["world_model_log_seconds"] = 10.
     env._env.sgs_log_interval = cfg_ppo["experiment"]["write_interval"]
     cfg_ppo["experiment"]["checkpoint_interval"] = 5000 ## my change
     if is_eval or not enable_logging:
@@ -444,13 +487,27 @@ def get_trainer(is_eval=False, strict_eval=False, *, enable_logging=True):
     cfg_ppo["experiment"]["experiment_name"] = args.wandb_name
     cfg_ppo["experiment"]["wandb"] = args.wandb
     if args.wandb:
-        cfg_ppo["experiment"]["wandb_kwargs"] = {"project": args.wandb_project, "sync_tensorboard": True, "name": args.wandb_name}
+        cfg_ppo["experiment"]["wandb_kwargs"] = {
+            "project": args.wandb_project,
+            "sync_tensorboard": not cfg_ppo["experiment"].get("wandb_direct_logging", False),
+            "name": args.wandb_name}
         # cfg_ppo["experiment"]["wandb_kwargs"]["resume"] = True
+    if reference_mainline:
+        # The independent Agent only receives logging settings. No PPO memory,
+        # real-data Critic, adaptive-KL optimizer or GAE is constructed.
+        cfg_ppo = {"experiment": deepcopy(cfg_ppo["experiment"])}
+        cfg_ppo["experiment"]["steps_per_iteration"] = 1
         
-    agent_class, agent_kwargs = PPO, {}
+    from utils.finite_ppo import FinitePPO
+    revised_baseline = not is_eval and wm_settings.get("recipe") == "manipulation"
+    agent_class, agent_kwargs = (FinitePPO if revised_baseline else PPO), {}
     if cfg["env"]["tsil"]["enabled"]:
         from utils.tsil_ppo import TSILPPO
         agent_class, agent_kwargs = TSILPPO, {"tsil_env": env._env}
+    elif reference_mainline:
+        from utils.wm_reference import ReferenceTeacherAgent
+        agent_class, agent_kwargs = ReferenceTeacherAgent, {
+            "wm_env": env._env, "wm_config": wm_settings}
     elif not is_eval and cfg["env"]["world_model"]["mode"] != "off":
         from utils.wm_ppo import WorldModelPPO
         agent_class, agent_kwargs = WorldModelPPO, {
@@ -461,8 +518,10 @@ def get_trainer(is_eval=False, strict_eval=False, *, enable_logging=True):
             observation_space=env.observation_space,
             action_space=env.action_space,
             device=device, **agent_kwargs)
+    agent.checkpoint_modules["teacher_task_contract"] = TaskContractMetadata(cfg)
     if hasattr(agent, "wm_candidate"):
         from utils.wm_entry import install_probe_callback
+        agent.wm_progress_callback = lambda message: print("[world model] " + message, flush=True)
         agent.wm_teacher_config = deepcopy(experiment_cfg)
         agent.wm_teacher_arguments = dict(vars(args))
         install_probe_callback(agent, Path(args.experiment_dir) / args.wandb_name, args.seed)
@@ -552,25 +611,30 @@ def finalize_teacher_logging(trainer):
 
 if __name__ == "__main__":
     trainer = get_trainer()
+    from utils.world_model.live_logging import close_teacher_logging
+    exit_code = 1
     try:
-        trainer.train()
-    except KeyboardInterrupt:
-        # Preserve the partial logging window when training is interrupted,
-        # then propagate the interrupt instead of saving a completed run.
+        try:
+            trainer.train()
+        except KeyboardInterrupt:
+            # Preserve the partial logging window when training is interrupted,
+            # then propagate the interrupt instead of saving a completed run.
+            finalize_teacher_logging(trainer)
+            from utils.wm_entry import save_world_model_artifacts
+            save_world_model_artifacts(trainer)
+            raise
         finalize_teacher_logging(trainer)
         from utils.wm_entry import save_world_model_artifacts
         save_world_model_artifacts(trainer)
-        raise
-    finalize_teacher_logging(trainer)
-    from utils.wm_entry import save_world_model_artifacts
-    save_world_model_artifacts(trainer)
-    run_dir = Path(trainer.teacher_args.experiment_dir) / trainer.teacher_args.wandb_name
-    if trainer.teacher_config["env"]["sgs"]["mode"] != "disabled":
-        # Diagnostic history is not a checkpoint for resuming training.
-        trainer.env.save_sgs_diagnostics(str(run_dir / "sgs_diagnostics.pt"))
-    if trainer.teacher_args.stop_after is not None:
-        # This is a model checkpoint for smoke evaluation, not a sampler resume.
-        checkpoint_dir = run_dir / "checkpoints"
-        checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        trainer.agents.save(str(checkpoint_dir / f"agent_{trainer.timesteps}.pt"))
-    
+        run_dir = Path(trainer.teacher_args.experiment_dir) / trainer.teacher_args.wandb_name
+        if trainer.teacher_config["env"]["sgs"]["mode"] != "disabled":
+            # Diagnostic history is not a checkpoint for resuming training.
+            trainer.env.save_sgs_diagnostics(str(run_dir / "sgs_diagnostics.pt"))
+        if trainer.teacher_args.stop_after is not None:
+            # This is a model checkpoint for smoke evaluation, not a sampler resume.
+            checkpoint_dir = run_dir / "checkpoints"
+            checkpoint_dir.mkdir(parents=True, exist_ok=True)
+            trainer.agents.save(str(checkpoint_dir / f"agent_{trainer.timesteps}.pt"))
+        exit_code = 0
+    finally:
+        close_teacher_logging(trainer.agents, exit_code=exit_code)

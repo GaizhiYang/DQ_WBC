@@ -101,6 +101,84 @@ class OpeningPolicyChecks:
         optimizer.step()
         self.assertNotEqual(float(before[6]), float(actor.log_std[6]))
 
+    def test_opt_in_keeps_sampling_rng_and_unsaturated_density_compatible(self):
+        actor, states = self.make(batch=32)
+        cpu_rng = torch.get_rng_state()
+        cuda_rng = (torch.cuda.get_rng_state(self.device)
+                    if torch.device(self.device).type == "cuda" else None)
+        with torch.no_grad():
+            actions, logp, default_outputs = actor.act({"states": states})
+        torch.set_rng_state(cpu_rng)
+        if cuda_rng is not None:
+            torch.cuda.set_rng_state(cuda_rng, self.device)
+        with torch.no_grad():
+            opted_actions, opted_logp, outputs = actor.act({"states": states, "latent_ppo": True})
+        self.assertNotIn("latent_actions", default_outputs)
+        torch.testing.assert_close(opted_actions, actions, rtol=0, atol=0)
+        torch.testing.assert_close(opted_logp, logp, rtol=2e-6, atol=2e-6)
+        torch.testing.assert_close(actor.mean_to_action(outputs["latent_actions"]), actions, rtol=0, atol=0)
+        jacobian = outputs["latent_log_abs_det_jacobian"]
+        torch.testing.assert_close(outputs["latent_log_prob"] - jacobian, logp, rtol=2e-6, atol=2e-6)
+        with self.assertRaisesRegex(ValueError, "requires taken_latent_actions"):
+            actor.act({"states": states, "taken_actions": actions, "latent_ppo": True})
+
+    def test_opt_in_public_density_stays_finite_for_extreme_sampled_latents(self):
+        actor, states = self.make(batch=8)
+        for mean in (-1e20, -1000., 1000., 1e20):
+            with self.subTest(mean=mean):
+                with torch.no_grad():
+                    actor.mean[6] = mean
+                    actions, logp, outputs = actor.act({"states": states, "latent_ppo": True})
+                self.assertTrue(bool(torch.isfinite(actions).all()))
+                self.assertTrue(bool(torch.isfinite(logp).all()))
+                expected = outputs["latent_log_prob"] - outputs["latent_log_abs_det_jacobian"]
+                torch.testing.assert_close(logp, expected)
+                _, replay_logp, replay = actor.act({"states": states, "taken_actions": actions,
+                    "taken_latent_actions": outputs["latent_actions"], "latent_ppo": True})
+                torch.testing.assert_close(replay_logp, logp, rtol=0, atol=0)
+                torch.testing.assert_close(replay["latent_log_prob"], outputs["latent_log_prob"], rtol=0, atol=0)
+                mean_score, std_score = torch.autograd.grad(replay_logp.sum(), (actor.mean, actor.log_std))
+                self.assertTrue(bool(torch.isfinite(mean_score).all()))
+                self.assertTrue(bool(torch.isfinite(std_score).all()))
+                # The default baseline keeps its old inverse-opening formula;
+                # the opt-in path must not evaluate or repair that overflow.
+                _, default_logp, default = actor.act({"states": states, "taken_actions": actions})
+                self.assertNotIn("latent_log_prob", default)
+                if abs(mean) == 1e20:
+                    self.assertTrue(bool(torch.isneginf(default_logp).all()))
+
+    def test_saturated_openings_retain_distinct_latents_exact_ratio_and_correct_score(self):
+        actor, states = self.make(batch=32)
+        for mean in (-1000., -100., 100., 1000.):
+            with self.subTest(mean=mean):
+                with torch.no_grad():
+                    actor.mean[6] = mean
+                    taken, _, old = actor.act({"states": states, "latent_ppo": True})
+                latent = old["latent_actions"].detach()
+                self.assertEqual(len(taken[:, 6].unique()), 1)
+                self.assertGreater(len(latent[:, 6].unique()), 1)
+                _, _, replay = actor.act({"states": states, "taken_actions": taken,
+                    "taken_latent_actions": latent, "latent_ppo": True})
+                torch.testing.assert_close(replay["latent_log_prob"], old["latent_log_prob"], rtol=0, atol=0)
+                torch.testing.assert_close((replay["latent_log_prob"] - old["latent_log_prob"]).exp(),
+                    torch.ones_like(old["latent_log_prob"]), rtol=0, atol=0)
+                mean_score, std_score = torch.autograd.grad(replay["latent_log_prob"].sum(),
+                                                            (actor.mean, actor.log_std))
+                delta = latent - actor.mean.detach()
+                variance = actor.log_std.detach().exp().square()
+                torch.testing.assert_close(mean_score, (delta / variance).sum(0))
+                torch.testing.assert_close(std_score, (delta.square() / variance - 1).sum(0))
+                self.assertTrue(bool(torch.isfinite(replay["latent_log_abs_det_jacobian"]).all()))
+                # Perturb the distribution while retaining the SAME sampled z:
+                # its old/new sigmoid Jacobian cancels before float arithmetic.
+                with torch.no_grad():
+                    actor.mean[6] += .125
+                    actor.log_std[6] += .1
+                _, _, updated = actor.act({"states": states, "taken_actions": taken,
+                    "taken_latent_actions": latent, "latent_ppo": True})
+                expected = Normal(actor.mean, actor.log_std.exp()).log_prob(latent).sum(-1, keepdim=True)
+                torch.testing.assert_close(updated["latent_log_prob"], expected, rtol=0, atol=0)
+
     def test_extreme_means_keep_finite_density_and_exact_replayed_likelihood(self):
         actor, states = self.make(batch=8, deterministic=True)
         for mean in (-100., -20., 20., 100.):

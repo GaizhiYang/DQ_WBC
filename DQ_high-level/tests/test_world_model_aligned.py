@@ -91,6 +91,8 @@ class AlignedChecks:
         self.assertLess(aligned.wm_low_replay.states.shape[-1], aligned.wm_adapter.state_dim)
         self.assertEqual(aligned.wm_config["hidden"], [16, 16])  # explicit overrides win
         self.assertEqual(aligned.wm_config["low_replay_capacity"], 32)
+        self.assertEqual(aligned.wm_trainer.cfg.state_loss_reduction, "sum")
+        self.assertEqual(aligned.wm_trainer.cfg.auxiliary_weight, 0.)
         self.assertEqual(SUPERMIMIC_CONFIG["low_replay_capacity"], 1000)
         self.assertEqual(SUPERMIMIC_CONFIG["replay_envs"], 4096)
 
@@ -100,6 +102,8 @@ class AlignedChecks:
         self.assertTrue(all(not parameter.requires_grad for parameter in legacy.wm_validated.parameters()))
         self.assertIsNone(legacy.wm_imagination.imagined_critic)
         self.assertTrue(legacy.wm_imagination.cfg.kl_rollback)
+        self.assertEqual(legacy.wm_trainer.cfg.state_loss_reduction, "mean")
+        self.assertEqual(legacy.wm_trainer.cfg.auxiliary_weight, 1.)
 
     def test_utd_counts_low_steps_carries_fraction_and_does_not_recount_same_data(self):
         agent = make_aligned(self.device, warmup_steps=5, updates_per_low_step=.4)

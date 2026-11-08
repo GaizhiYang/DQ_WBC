@@ -10,6 +10,7 @@ from contextlib import redirect_stdout
 import importlib.util
 import io
 from pathlib import Path
+import sys
 from types import SimpleNamespace
 import tempfile
 import unittest
@@ -17,6 +18,8 @@ from unittest.mock import patch
 import warnings
 
 import torch
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from utils.episode_statistics import RecentEpisodeStatistics
 from utils.pick_success import RollingEpisodeSuccess, advance_pick_hold, lifted_grasp_mask
@@ -382,6 +385,9 @@ class TestEnvironment(ProductionEnvironment):
         self._dof_state = torch.zeros(num_envs, 19, 2)
         self._dof_pos, self._dof_vel = self._dof_state.unbind(-1)
         self._last_dof_vel = torch.zeros_like(self._dof_vel)
+        # Match B1Z1Base's independent 20 ms entrance-velocity snapshot.
+        # Reset methods legitimately require this production-owned buffer.
+        self._low_entry_dof_vel = self._dof_vel.clone()
         self._rigid_body_state = torch.zeros(num_envs, 5, 13)
         self._rigid_body_state[..., 6] = 1
         self.ee_j_eef = torch.zeros(num_envs, 6, 6)

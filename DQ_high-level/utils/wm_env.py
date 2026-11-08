@@ -21,6 +21,12 @@ from modules.pose_prediction import (
 )
 from utils.pick_success import advance_pick_hold, lifted_grasp_mask
 from utils.gripper_control import GRIPPER_ACTION_MODE, CLOSING_OPENING_THRESHOLD, closing_command
+from utils.world_model.action_contract import (high_level_command_components, action_rate_cost,
+                                               validate_action_contract, validate_task_contract,
+                                               outer_command_deadzone, horizontal_base_alignment,
+                                               arm_acceleration_penalty)
+from utils.world_model.task_objective import ManipulationTaskObjective, raw_action_bound_cost
+from utils.world_model.reference_task import ReferencePickTask
 
 
 def quat_normalize(q):
@@ -213,7 +219,22 @@ class TeacherWorldModelAdapter:
         cfg = env.cfg["env"].get("posePrediction", {})
         self.q_scale, self.r_scale = cfg.get("qScale", 1.), cfg.get("rScale", .01)
         self.use_tanh = env.cfg["env"].get("useTanh", False)
-        self.small_commands = env.cfg["env"].get("smallValueSetZero", False)
+        action_settings = env.cfg["env"].get("world_model", {})
+        self.action_coordinates = action_settings.get("action_coordinates", "physical")
+        self.action_rate_mode = action_settings.get("action_rate_mode", "base_l2")
+        self.task_contract = validate_task_contract(action_settings.get("task_contract", "legacy"))
+        self.imagined_reward_mode = action_settings.get("imagined_reward_mode", "native_aux")
+        if self.imagined_reward_mode not in ("native_aux", "reference_task"):
+            raise ValueError("imagined_reward_mode must be native_aux or reference_task")
+        self.task_aux_alpha = float(action_settings.get("task_aux_alpha", .1 if self.task_contract == "manipulation_v2" else 0.))
+        self.raw_action_bound_weight = float(action_settings.get("raw_action_bound_weight", 0.))
+        self.raw_gripper_latent_bound = float(action_settings.get("raw_gripper_latent_bound", 3.))
+        for name in ("task_aux_alpha", "raw_action_bound_weight", "raw_gripper_latent_bound"):
+            value = getattr(self, name)
+            if not math.isfinite(value) or value < 0 or (name == "raw_gripper_latent_bound" and value == 0):
+                raise ValueError(name + " must be finite and nonnegative (latent bound positive)")
+        validate_action_contract(self.action_coordinates, self.action_rate_mode, self.use_tanh)
+        self.small_commands = outer_command_deadzone(self.task_contract, env.cfg["env"].get("smallValueSetZero", False))
         self.forward_limit = .45 if env.commands_curriculum else .4
         self.stop_pick = env.stop_pick
         self.max_steps, self.hold_steps = env.max_episode_length, env.hold_steps
@@ -224,6 +245,12 @@ class TeacherWorldModelAdapter:
         self.low_dt = float(env.dt)
         self.velocity_obs = env.num_velocity_obs != 0
         self.reward_scales = dict(env.reward_scales)
+        self.reference_task = (ReferencePickTask(
+            hold_steps=self.hold_steps, lift_threshold=self.lift_threshold,
+            success_reward=self.reward_scales.get("pick_up", 0.),
+            high_dt=getattr(self, "high_dt", self.low_dt*env.control_freq_low_init),
+            config=action_settings.get("reference_task_config"))
+            if self.imagined_reward_mode == "reference_task" else None)
         allowed_rewards = {"approaching", "lifting", "pick_up", "acc_penalty", "command_reward", "action_rate", "ee_orn", "base_dir", "rad_penalty", "base_ang_pen", "base_approaching", "grasp_base_height", "gripper_rate", "limit_yaw_rotation_penalty", "base_height", "action_penalty"}
         unknown = set(self.reward_scales) - allowed_rewards
         if unknown:
@@ -269,6 +296,10 @@ class TeacherWorldModelAdapter:
         self.physical_context_scale = torch.ones(self.physical_context.shape[-1], device=self.device, dtype=self.dtype)*2.
         self.physical_context_scale[:8] = self.physical_context.new_tensor([20., .1, .1, .1, 400., 40., 5., 2.5])
         self.object_count = len(env.obj_list)
+        self.task_objective = (ManipulationTaskObjective(env, action_settings.get("task_aux_config"))
+                               if self.task_contract == "manipulation_v2" and self.reference_task is None else None)
+        if self.task_contract == "legacy" and self.task_aux_alpha != 0:
+            raise ValueError("task_aux_alpha requires the manipulation_v2 task contract")
         self.context_feature_dim = self.context_dim-1+self.physical_context.shape[-1]+self.object_count
         self.input_scale = torch.ones(self.state_dim, device=self.device, dtype=self.dtype)
         self.error_scale = torch.ones(self.physical_dim, device=self.device, dtype=self.dtype)
@@ -324,6 +355,8 @@ class TeacherWorldModelAdapter:
                                 ("commands", "commands"), ("closest", "closest_dist"), ("highest", "highest_object"),
                                 ("hold", "pick_counter"), ("best_hold", "best_pick_counter"), ("completed", "pick_success_recorded"),
                                 ("progress", "progress_buf"), ("table_height", "table_heights")):
+            if name == "last_dof_vel" and self.task_contract == "manipulation_v2":
+                attribute = "_low_entry_dof_vel"
             fields[name] = getattr(env, attribute)[ids].to(self.dtype).reshape(len(ids), -1)
         fields["prev_action"] = env.action_history_buf[ids, -1]
         predictor = env.object_pose_predictor
@@ -452,6 +485,18 @@ class TeacherWorldModelAdapter:
             "feature_width": self.feature_table.shape[-1],
             "grasp_candidates": self.grasp_table.shape[1],
             "reward_scales": dict(self.reward_scales),
+            "action_coordinates": self.action_coordinates,
+            "action_rate_mode": self.action_rate_mode,
+            "task_contract": self.task_contract,
+            "imagined_reward_mode": self.imagined_reward_mode,
+            "reference_task": self.reference_task.metadata if self.reference_task is not None else None,
+            "small_commands_zero": self.small_commands,
+            "task_aux_alpha": self.task_aux_alpha,
+            "task_objective": self.task_objective.metadata if self.task_objective is not None else None,
+            "raw_action_bound_weight": self.raw_action_bound_weight,
+            "raw_gripper_latent_bound": self.raw_gripper_latent_bound,
+            "reward_contract": ("horizontal_heading_and_final_20ms_acceleration_v2"
+                                if self.task_contract == "manipulation_v2" else "legacy"),
             "loss_contract": {
                 "main": "equal aggregate weight per learned physical/memory field",
                 "main_scales": {"position_m": .05, "rotation_rad": .1, "linear_velocity_m_s": .5,
@@ -588,13 +633,11 @@ class TeacherWorldModelAdapter:
     def _control(self, state, action):
         action = action.clamp(-self.clip_actions, self.clip_actions)
         action = torch.cat((action[:, :6], action[:, 6:7].clamp(0., 1.), action[:, 7:]), -1)
-        dp = action[:, :3] * .02 if self.use_tanh else action[:, :3].clamp(-.02, .02)
-        dr = action[:, 3:6] * .06 if self.use_tanh else action[:, 3:6].clamp(-.06, .06)
+        dp, dr, forward, yaw = high_level_command_components(
+            action, self.forward_limit, action_coordinates=self.action_coordinates, use_tanh=self.use_tanh)
         goal = self.get(state, "goal_pos") + dp
         goal = torch.stack((goal[:, 0].clamp(0., .7), goal[:, 1].clamp(-.7, .7), goal[:, 2].clamp(-.6, .6)), -1)
         rpy = self.get(state, "goal_rpy") + dr
-        forward = action[:, 7] * self.forward_limit if self.use_tanh else action[:, 7].clamp(-self.forward_limit, self.forward_limit)
-        yaw = action[:, 8] * .6 if self.use_tanh else action[:, 8].clamp(-.6, .6)
         command = torch.stack((forward, torch.zeros_like(forward), yaw), -1)
         if self.small_commands:
             command = command * ((forward.abs() > .15) | (yaw.abs() > .35))[:, None]
@@ -602,9 +645,10 @@ class TeacherWorldModelAdapter:
             command = torch.where(closing_command(action[:, 6:7]), torch.zeros_like(command), command)
         return action, goal, rpy, command
 
-    def task_outcome(self, previous, state, action, context):
+    def task_outcome(self, previous, state, action, context, *, geometry=None):
         """The existing hard task rules, including failure-before-success."""
-        robot, obj, ee, base, angles, heading, arm = self._geometry(state)
+        robot, obj, ee, base, angles, heading, arm = (
+            self._geometry(state) if geometry is None else geometry)
         relative_ee = quat_inverse_apply(base, ee[:, :3]-arm)
         ik_error = (self.get(state, "goal_pos")[:, 2]-relative_ee[:, 2]).abs()
         yaw_deviation = (angles[:, 2]-context[:, 1]).abs()
@@ -619,9 +663,19 @@ class TeacherWorldModelAdapter:
             self.get(previous, "completed")[:, 0] > .5, self.hold_steps)
         completed = (self.get(previous, "completed")[:, 0] > .5) | success
         timeout = (self.get(state, "progress")[:, 0] >= self.max_steps) & ~completed & ~failed
-        return {"failed": failed, "success": success, "completed": completed, "timeout": timeout,
+        outcome = {"failed": failed, "success": success, "completed": completed, "timeout": timeout,
                 "lifted": lifted, "hold": count, "best_hold": best, "hold_progress": hold_progress,
                 "distance": distance, "height": obj[:, 2]-self.get(state, "table_height")[:, 0]-context[:, 2]}
+        if self.reference_task is not None:
+            outcome.update(self.reference_task.outcomes(
+                outcome=outcome, previous_count=self.get(previous, "hold")[:, 0],
+                previous_best=self.get(previous, "best_hold")[:, 0],
+                previous_completed=self.get(previous, "completed")[:, 0] > .5,
+                object_height=obj[:, 2],
+                target_height=self.get(state, "table_height")[:, 0]+context[:, 2]+self.lift_threshold,
+                distance=distance, opening=action[:, 6],
+                time_limit=self.get(state, "progress")[:, 0] >= self.max_steps))
+        return outcome
 
     def integrate(self, state, delta, action, context, dt):
         """Learned semi-implicit physical step + exact high-level memory update.
@@ -720,11 +774,13 @@ class TeacherWorldModelAdapter:
                   (pred_height-true_height)/.05)
         return torch.stack([error.square().mean(-1) for error in errors], -1).mean(-1)
 
-    def reward_terms(self, previous, state, action, context):
+    def reward_terms(self, previous, state, action, context, *, geometry=None, outcome=None):
         """Exact default reward equations; no surrogate success reward."""
         action = action.clamp(-self.clip_actions, self.clip_actions)
-        outcome = self.task_outcome(previous, state, action, context)
-        robot, obj, ee, base, angles, heading, arm = self._geometry(state)
+        geometry = self._geometry(state) if geometry is None else geometry
+        if outcome is None:
+            outcome = self.task_outcome(previous, state, action, context, geometry=geometry)
+        robot, obj, ee, base, angles, heading, arm = geometry
         distance, height = outcome["distance"], outcome["height"]
         closest = self.get(previous, "closest")[:, 0]
         highest = self.get(previous, "highest")[:, 0]
@@ -737,21 +793,26 @@ class TeacherWorldModelAdapter:
         orientation = torch.where(distance >= .01, orientation, torch.zeros_like(orientation))
         base_height = torch.exp(-(robot[:, 2]-self.base_height_target).abs())
         yaw_deviation = (angles[:, 2]-context[:, 1]).abs()
-        acc = torch.linalg.vector_norm(self.get(state, "dof_vel")[:, -7:-1]-self.get(state, "last_dof_vel")[:, -7:-1], dim=-1)/self.low_dt
+        velocity = self.get(state, "dof_vel")[:, -7:-1]
+        entry_velocity = self.get(state, "last_dof_vel")[:, -7:-1]
+        acc = torch.linalg.vector_norm(velocity-entry_velocity, dim=-1)/self.low_dt
         commands = self.get(state, "commands")
         terms = {
             "approaching": torch.tanh(10*(closest-distance).clamp(0., 10.)) * ~outcome["lifted"],
             "lifting": torch.tanh(10*(height-highest).clamp(0., 10.)) * ~outcome["lifted"],
             "pick_up": outcome["success"].to(state.dtype),
-            "acc_penalty": 1-torch.exp(-acc),
+            "acc_penalty": (arm_acceleration_penalty(velocity, entry_velocity, self.low_dt)
+                            if self.task_contract == "manipulation_v2" else 1-torch.exp(-acc)),
             "command_reward": torch.where(base_distance < .2, torch.exp(-commands[:, 0].abs()), torch.zeros_like(distance))*context[:, 3],
-            "action_rate": torch.linalg.vector_norm(action[:, 7:9]-self.get(previous, "prev_action")[:, 7:9], dim=-1),
+            "action_rate": action_rate_cost(action, self.get(previous, "prev_action"), self.action_rate_mode),
             "gripper_rate": (action[:, 6]-self.get(previous, "prev_action")[:, 6]).abs()*context[:, 3],
             "action_penalty": 1-torch.exp(-10*torch.linalg.vector_norm(action, dim=-1)),
             "ee_orn": orientation,
             # Existing code zeroes XY of the object direction. Its dot product
             # with the horizontal heading is zero; preserve this baseline.
-            "base_dir": torch.zeros_like(distance),
+            "base_dir": (horizontal_base_alignment(robot[:, :3], obj[:, :3],
+                           quat_apply(heading, state.new_tensor([1., 0., 0.]).expand(len(state), -1)))
+                         if self.task_contract == "manipulation_v2" else torch.zeros_like(distance)),
             "base_approaching": torch.tanh(-10*(base_distance-self.base_distance).abs())+1,
             "base_height": base_height,
             "grasp_base_height": base_height*outcome["hold_progress"],
@@ -761,10 +822,74 @@ class TeacherWorldModelAdapter:
         }
         return terms
 
-    def reward(self, previous, state, action, context):
-        terms = self.reward_terms(previous, state, action, context)
+    def task_reward(self, previous, state, action, context, *, geometry=None, outcome=None):
+        """Real task reward only, for same-POST parity and real-data diagnostics."""
+        terms = self.reward_terms(previous, state, action, context,
+                                  geometry=geometry, outcome=outcome)
         result = sum(terms[name]*scale for name, scale in self.reward_scales.items())
         return result.clamp_min(0.) if self.only_positive else result
+
+    def reward_components(self, previous, state, action, context, *, geometry=None, outcome=None):
+        """POST imagined target and its components; no tensor is cached on self.
+
+        Optional raw-mean cost is added by imagination using raw_action_cost:
+        a physical replay action cannot recover a saturated Gaussian latent.
+        """
+        geometry = self._geometry(state) if geometry is None else geometry
+        outcome = self.task_outcome(previous, state, action, context, geometry=geometry) if outcome is None else outcome
+        task = self.task_reward(previous, state, action, context, geometry=geometry, outcome=outcome)
+        zero = torch.zeros_like(task)
+        parts = {"task": task, "aux": zero, "weighted_aux": zero, "raw_action_bound": zero,
+                 "total": task}
+        if self.reference_task is not None:
+            parts.update(self.reference_task.reward_components(
+                obj=geometry[1], ee=geometry[2], height=outcome["height"], distance=outcome["distance"],
+                action=action, previous_action=self.get(previous, "prev_action"),
+                arm_velocity=self.get(state, "dof_vel")[:, -7:-1], outcome=outcome))
+            return parts
+        if self.task_objective is not None:
+            robot, obj, ee = geometry[:3]
+            ids = self._ids(context)
+            obj_rotation = quaternion_to_matrix(quat_normalize(obj[:, 3:7]))
+            ee_rotation = quaternion_to_matrix(quat_normalize(ee[:, 3:7]))
+            local = self.grasp_table[ids]
+            positions = obj[:, None, :3] + (obj_rotation[:, None] @ local[..., :3, 3:4]).squeeze(-1)
+            rotations = obj_rotation[:, None] @ local[..., :3, :3] @ self.grasp_correction
+            aux = self.task_objective(robot=robot, obj=obj, ee=ee,
+                object_rotation=obj_rotation, ee_rotation=ee_rotation,
+                grasp_positions=positions, grasp_rotations=rotations,
+                gripper_angle=self.get(state, "dof_pos")[:, -1], object_ids=ids % self.object_count,
+                table_height=self.get(state, "table_height")[:, 0], rest_height=context[:, 2],
+                lift_threshold=self.lift_threshold,
+                high_dt=getattr(self, "high_dt", self.low_dt*self.env.control_freq_low_init))
+            parts.update(aux)
+            parts["weighted_aux"] = self.task_aux_alpha * parts["aux"]
+            parts["total"] = task + parts["weighted_aux"]
+        return parts
+
+    def raw_action_cost(self, action, latent_mean):
+        if self.raw_action_bound_weight == 0:
+            return action.new_zeros(action.shape[:-1])
+        dt = getattr(self, "high_dt", self.low_dt*self.env.control_freq_low_init)
+        return self.raw_action_bound_weight * dt * raw_action_bound_cost(
+            action, latent_mean, self.forward_limit, coordinates=self.action_coordinates,
+            latent_bound=self.raw_gripper_latent_bound)
+
+    def reward(self, previous, state, action, context, *, geometry=None, outcome=None):
+        parts = self.reward_components(previous, state, action, context,
+                                      geometry=geometry, outcome=outcome)
+        if outcome is not None:
+            for name in ("task", "aux", "weighted_aux", "total"):
+                outcome["reward_" + name] = parts[name]
+        return parts["total"]
+
+    def reward_and_outcome(self, previous, state, action, context):
+        """Evaluate one endpoint once, without retaining tensors on the adapter."""
+        geometry = self._geometry(state)
+        outcome = self.task_outcome(previous, state, action, context, geometry=geometry)
+        reward = self.reward(previous, state, action, context,
+                             geometry=geometry, outcome=outcome)
+        return reward, outcome
 
     def termination_features(self, state, context):
         robot, obj, ee, base, angles, heading, arm = self._geometry(state)

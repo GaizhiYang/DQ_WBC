@@ -23,6 +23,7 @@ class WindowBatch:
     family: torch.Tensor       # [B], reset family, NOT task execution stage
     episode_ids: torch.Tensor  # [B]
     env_ids: torch.Tensor      # [B]
+    valid_mask: torch.Tensor = None  # optional [K,B], terminal included, reset tail excluded
 
 
 @dataclass
@@ -99,12 +100,14 @@ class TransitionReplay:
     ``capacity`` is measured in vectorized environment steps. A monotonically
     increasing time stamp forbids false windows across a ring overwrite, even
     inside a very long episode. Train/validation ownership is a deterministic
-    hash of (environment, episode), so overlapping windows cannot leak between
-    the splits. Recorded terminal next states must be captured BEFORE reset.
+    hash of (environment, episode), or fixed held-out environment slots. Neither
+    split allows overlapping training/validation windows. Recorded terminal
+    next states must be captured BEFORE reset.
     """
 
     def __init__(self, num_envs, capacity, state_dim, action_dim, context_dim,
-                 device, holdout_fraction=0.1, num_families=3, state_codec=None):
+                 device, holdout_fraction=0.1, num_families=3, state_codec=None,
+                 holdout_mode="episode", allow_partial_windows=False):
         self.num_envs, self.capacity = int(num_envs), int(capacity)
         self.state_dim, self.action_dim = int(state_dim), int(action_dim)
         self.context_dim, self.num_families = int(context_dim), int(num_families)
@@ -115,6 +118,14 @@ class TransitionReplay:
             raise ValueError("Invalid world-model replay dimensions")
         if not 0 <= self.holdout_fraction < 1:
             raise ValueError("holdout_fraction must be in [0, 1)")
+        if holdout_mode not in ("episode", "environment"):
+            raise ValueError("holdout_mode must be episode or environment")
+        self.holdout_mode = holdout_mode
+        self.allow_partial_windows = bool(allow_partial_windows)
+        self.holdout_envs = (max(1, round(self.num_envs * self.holdout_fraction))
+                             if holdout_mode == "environment" and self.holdout_fraction else 0)
+        if self.holdout_envs >= self.num_envs:
+            raise ValueError("Environment holdout must leave at least one training world")
         self.state_codec = state_codec
         self.storage_state_dim = self.state_dim
         if state_codec is not None:
@@ -146,6 +157,14 @@ class TransitionReplay:
         self._episodes = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
         self._env_ids = torch.arange(self.num_envs, device=self.device)
         self.steps = 0
+        # Monotone sample clock, independent of ring size/overwrites. Updated
+        # once per newly collected real transition; no replay sampling counts.
+        self.valid_train_transitions = torch.zeros((), device=self.device, dtype=torch.long)
+        # Training performs many draws between vectorized environment steps.
+        # Reuse eligibility and probabilities until their source tensors change.
+        # These derived values are not part of any replay/checkpoint payload.
+        self._sampling_cache = {}
+        self._sampling_cache_version = None
 
     @property
     def size(self):
@@ -154,8 +173,29 @@ class TransitionReplay:
 
     @property
     def memory_bytes(self):
-        return sum(v.numel() * v.element_size() for v in vars(self).values()
-                   if isinstance(v, torch.Tensor))
+        resident = sum(v.numel() * v.element_size() for v in vars(self).values()
+                       if isinstance(v, torch.Tensor))
+        cached = sum(v.numel() * v.element_size()
+                     for entry in self._sampling_cache.values() for v in entry.values()
+                     if isinstance(v, torch.Tensor))
+        return resident + cached
+
+    def _invalidate_sampling_cache(self):
+        self._sampling_cache.clear()
+        self._sampling_cache_version = None
+
+    def _sampling_version(self):
+        # Tensor versions are host-side metadata, with no CUDA synchronization.
+        # Besides add(), support explicit in-place invalidation/split edits by
+        # diagnostic callers and replacing one of the public index tensors.
+        sources = (self.valid, self.holdout, self.episode_ids, self.family,
+                   self.stamp, self.terminated, self.truncated)
+        try:
+            return (self.steps, tuple((id(value), value._version) for value in sources))
+        except RuntimeError:
+            # Tensors created inside inference_mode do not have version
+            # counters. Conservatively rebuild rather than risk stale indices.
+            return None
 
     def _tensor(self, value, dtype=torch.float32):
         return torch.as_tensor(value, device=self.device, dtype=dtype).detach()
@@ -173,8 +213,10 @@ class TransitionReplay:
         """Copy one complete vector step without retaining simulator buffers.
 
         ``valid=False`` excludes a transition with no trustworthy terminal state
-        (or an external reset); any multi-step window containing it is excluded.
+        (or an external reset). Complete windows containing it are excluded;
+        partial windows mask that transition and the remaining suffix.
         Passing explicit episode IDs also handles resets outside normal ``done``.
+        Returns the valid training-row mask for one-time normalization updates.
         """
         row = self.steps % self.capacity
         states = self._tensor(states).reshape(self.num_envs, self.state_dim)
@@ -195,6 +237,7 @@ class TransitionReplay:
                   & (family < self.num_families) & (episodes >= 0))
         if valid is not None:
             finite &= self._tensor(valid, torch.bool).reshape(self.num_envs)
+        self._invalidate_sampling_cache()
         self.states[row].copy_(self._encode_states(states))
         self.next_states[row].copy_(self._encode_states(next_states))
         self.actions[row].copy_(actions)
@@ -209,12 +252,19 @@ class TransitionReplay:
         self.episode_ids[row].copy_(episodes)
         self.stamp[row].fill_(self.steps)
         self.valid[row].copy_(finite)
-        # Integer hashing; all transitions of one episode get the same split.
-        hashed = ((episodes * 1103515245 + (self._env_ids + 1) * 12345)
-                  % 2147483647) % 10000
-        self.holdout[row].copy_(hashed < int(self.holdout_fraction * 10000))
+        if self.holdout_mode == "environment":
+            held_out = self._env_ids >= self.num_envs - self.holdout_envs
+        else:
+            # Integer hashing; all transitions of one episode get the same split.
+            hashed = ((episodes * 1103515245 + (self._env_ids + 1) * 12345)
+                      % 2147483647) % 10000
+            held_out = hashed < int(self.holdout_fraction * 10000)
+        self.holdout[row].copy_(held_out)
+        train_mask = finite & ~held_out
+        self.valid_train_transitions.add_(train_mask.sum())
         self._episodes.copy_(episodes + (terminated | truncated).long())
         self.steps += 1
+        return train_mask
 
     def _split_mask(self, split):
         if split == "train":
@@ -226,35 +276,74 @@ class TransitionReplay:
         raise ValueError("split must be train, validation, holdout, or all")
 
     @torch.no_grad()
-    def window_mask(self, k, split="train"):
+    def _window_candidates(self, k, split="train"):
         k = int(k)
         if not 1 <= k <= self.capacity:
             raise ValueError("window must be between 1 and replay capacity")
+        if split == "holdout":
+            split = "validation"
+        if split not in ("train", "validation", "all"):
+            raise ValueError("split must be train, validation, holdout, or all")
+        version = self._sampling_version()
+        if version is None or version != self._sampling_cache_version:
+            self._invalidate_sampling_cache()
+            self._sampling_cache_version = version
+        key = (k, split)
+        if key in self._sampling_cache:
+            return self._sampling_cache[key]
         mask = self._split_mask(split)
         done = self.terminated | self.truncated
         for offset in range(1, k):
+            chronological = torch.roll(self.stamp, -offset, 0) == self.stamp + offset
+            if self.allow_partial_windows:
+                # All K rows must exist, even when only their terminal prefix
+                # is supervised. Never manufacture an uncollected ring tail.
+                mask &= chronological
+                continue
             mask &= (torch.roll(self.valid, -offset, 0)
                      & (torch.roll(self.episode_ids, -offset, 0) == self.episode_ids)
                      & (torch.roll(self.family, -offset, 0) == self.family)
-                     & (torch.roll(self.stamp, -offset, 0) == self.stamp + offset)
+                     & (torch.roll(self.holdout, -offset, 0) == self.holdout)
+                     & chronological
                      & ~torch.roll(done, -(offset - 1), 0))
-        return mask
-
-    def can_sample(self, k=1, split="train"):
-        return bool(self.window_mask(k, split).any())
+        indices = mask.reshape(-1).nonzero(as_tuple=False).flatten()
+        entry = {"mask": mask, "indices": indices}
+        self._sampling_cache[key] = entry
+        return entry
 
     @torch.no_grad()
-    def _sample_indices(self, mask, n, balance_families=True,
+    def window_mask(self, k, split="train"):
+        # Preserve the public method's ownership: callers may edit their mask.
+        return self._window_candidates(k, split)["mask"].clone()
+
+    def can_sample(self, k=1, split="train"):
+        return self._window_candidates(k, split)["indices"].numel() > 0
+
+    @torch.no_grad()
+    def _sample_indices(self, candidates, n, balance_families=True,
                         recent_fraction=0.0, recent_steps=32):
         if int(n) < 1:
             raise ValueError("sample batch size must be positive")
         if not 0 <= float(recent_fraction) <= 1:
             raise ValueError("recent_fraction must be in [0, 1]")
-        # nonzero is the only dynamic cardinality operation. Payloads never move
-        # to the CPU; the candidate indices and multinomial sampler stay on GPU.
-        indices = mask.reshape(-1).nonzero(as_tuple=False).flatten()
+        # Candidate discovery (including nonzero's dynamic cardinality) is
+        # shared by can_sample and every draw in the same update block.
+        indices = candidates["indices"]
         if indices.numel() == 0:
             raise RuntimeError("World-model replay has no sampleable windows")
+        options = (bool(balance_families), float(recent_fraction),
+                   max(1, int(recent_steps)) if recent_fraction > 0 else 0)
+        if candidates.get("weight_options") == options:
+            weights = candidates["weights"]
+        else:
+            weights = self._sampling_weights(indices, *options)
+            # Keep only the latest distribution for this window/split; callers
+            # sweeping sampling parameters cannot grow this cache unboundedly.
+            candidates.update(weight_options=options, weights=weights)
+        sampled = indices[torch.multinomial(weights, int(n), replacement=True)]
+        return sampled // self.num_envs, sampled % self.num_envs
+
+    def _sampling_weights(self, indices, balance_families, recent_fraction, recent_steps):
         families = self.family.reshape(-1)[indices]
         weights = torch.ones(indices.numel(), device=self.device)
         if balance_families:
@@ -271,13 +360,12 @@ class TransitionReplay:
             recent = torch.where(recent.sum() > 0,
                                  recent / recent.sum().clamp_min(1e-12), weights)
             weights = (1 - recent_fraction) * weights + recent_fraction * recent
-        sampled = indices[torch.multinomial(weights, int(n), replacement=True)]
-        return sampled // self.num_envs, sampled % self.num_envs
+        return weights
 
     @torch.no_grad()
     def sample_windows(self, n, k, split="train", balance_families=True,
                        recent_fraction=0.0, recent_steps=32):
-        row, env = self._sample_indices(self.window_mask(k, split), n,
+        row, env = self._sample_indices(self._window_candidates(k, split), n,
                                        balance_families, recent_fraction, recent_steps)
         offsets = torch.arange(k, device=self.device)[:, None]
         rr = (row[None, :] + offsets) % self.capacity
@@ -286,16 +374,26 @@ class TransitionReplay:
         # termination. No reset observation can become a supervised target.
         states = torch.cat((self.states[row, env][None], self.next_states[rr, ee]), 0)
         states = self._decode_states(states)
+        valid_mask = None
+        if self.allow_partial_windows:
+            valid_mask = (self.valid[rr, ee]
+                          & (self.episode_ids[rr, ee] == self.episode_ids[row, env][None])
+                          & (self.family[rr, ee] == self.family[row, env][None])
+                          & (self.holdout[rr, ee] == self.holdout[row, env][None])
+                          & (self.stamp[rr, ee] == self.stamp[row, env][None] + offsets))
+            done = self.terminated[rr, ee] | self.truncated[rr, ee]
+            before = torch.cat((torch.ones_like(done[:1]), ~done[:-1]), 0)
+            valid_mask = torch.cumprod((valid_mask & before).long(), 0).bool()
         return WindowBatch(states, self.actions[rr, ee], self.context[rr, ee],
                            self.dt[rr, ee], self.rewards[rr, ee],
                            self.terminated[rr, ee], self.truncated[rr, ee],
                            self.success[rr, ee], self.family[row, env],
-                           self.episode_ids[row, env], env)
+                           self.episode_ids[row, env], env, valid_mask)
 
     @torch.no_grad()
     def sample_starts(self, n, split="train", balance_families=True,
                       recent_fraction=0.0, recent_steps=32):
-        row, env = self._sample_indices(self._split_mask(split), n,
+        row, env = self._sample_indices(self._window_candidates(1, split), n,
                                        balance_families, recent_fraction, recent_steps)
         return StartBatch(self._decode_states(self.states[row, env]), self.actions[row, env],
                           self._decode_states(self.next_states[row, env]), self.context[row, env],

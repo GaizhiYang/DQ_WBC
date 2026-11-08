@@ -27,6 +27,9 @@ class MemoryWriter:
     def flush(self):
         self.flush_count += 1
 
+    def close(self):
+        self.closed = True
+
     def values(self, tag):
         return [(value, step) for key, value, step in self.scalars if key == tag]
 

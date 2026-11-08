@@ -28,6 +28,7 @@ from skrl.agents.torch import Agent
 from skrl.agents.torch.ppo import PPO_DEFAULT_CONFIG
 from skrl.trainers.torch import SequentialTrainer
 from utils import config
+from utils.world_model.action_checkpoint import TaskContractMetadata
 
 
 def _entry_fixture(directory, name="main", wandb=True, sgs=False):
@@ -87,6 +88,7 @@ def _entry_fixture(directory, name="main", wandb=True, sgs=False):
         "RunningStandardScaler": object, "PPO": make_agent,
         "teacher_run_end": config.teacher_run_end, "SequentialTrainer": make_trainer,
         "copy_cfg": config.copy_cfg,
+        "TaskContractMetadata": TaskContractMetadata,
     })
     path = ROOT / "train_multistate_DQ_teacher.py"
     node = next(node for node in ast.parse(path.read_text()).body

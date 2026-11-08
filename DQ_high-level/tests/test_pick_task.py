@@ -1,21 +1,50 @@
 """Exercise actual task termination/rewards on CPU without constructing a simulator.
 
-Run this module in the Isaac Gym environment as its own process: Isaac Gym must
-be imported before torch. No task constructor, model, or physics scene is used.
+The real method bodies are extracted into their original inheritance hierarchy,
+as in the SGS CPU fixtures. This keeps discovery independent of Isaac Gym's
+import order; no task constructor, model, or physics scene is used.
 """
 
+import ast
 import math
 import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from isaacgym import gymapi  # Must precede importing torch.
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from envs.b1z1_pickmulti import B1Z1PickMulti
+from test_sgs_env import NAMESPACE, method_node
 from utils.pick_success import RollingEpisodeSuccess
+
+
+def _cpu_task_type():
+    class CountedEnvironment:
+        @property
+        def num_envs(self):
+            return self.num_environments
+
+    layers = (
+        ("RewardVecTask", "CountedEnvironment", "reward_vec_task.py",
+         ("_reward_reach", "_reward_pick_up", "_reward_base_height")),
+        ("B1Z1Base", "RewardVecTask", "b1z1_base.py",
+         ("check_termination", "_prepare_reward_function", "compute_reward", "_reset_env_tensors")),
+        ("B1Z1PickMulti", "B1Z1Base", "b1z1_pickmulti.py",
+         ("check_termination", "_yaw_deviation", "compute_reward", "_reset_env_tensors",
+          "_reset_pick_state", "_record_episode_outcomes", "_reward_grasp_base_height",
+          "_reward_limit_yaw_rotation_penalty")),
+    )
+    classes = [ast.ClassDef(name=name, bases=[ast.Name(id=base, ctx=ast.Load())], keywords=[],
+                   decorator_list=[], body=[method_node(filename, name, method) for method in methods])
+               for name, base, filename, methods in layers]
+    namespace = dict(NAMESPACE, CountedEnvironment=CountedEnvironment)
+    exec(compile(ast.fix_missing_locations(ast.Module(body=classes, type_ignores=[])),
+                 "<production CPU pick-task methods>", "exec"), namespace)
+    return namespace["B1Z1PickMulti"]
+
+
+B1Z1PickMulti = _cpu_task_type()
 
 
 def make_task(eval_mode=False, reward_scales=None, num_envs=1, wandb_enabled=False):
@@ -209,6 +238,8 @@ class PickTaskTests(unittest.TestCase):
         task._table_actor_ids = torch.tensor([1, 4])
         task._cube_actor_ids = torch.tensor([2, 5])
         task._dof_state = torch.zeros((2, 20, 2))
+        task._dof_vel = task._dof_state[..., 1]
+        task._low_entry_dof_vel = task._dof_vel.clone()
         task._root_states = torch.zeros((6, 13))
         task.rand_cmd_scale = False
         task.object_pose_predictor = None

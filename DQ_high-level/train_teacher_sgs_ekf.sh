@@ -51,7 +51,7 @@ cd -- "$script_dir"
 
 python_bin="${PYTHON_BIN:-python}"
 seed="${SEED:-43}"
-rl_device="${RL_DEVICE:-cuda:0}"
+rl_device="${RL_DEVICE:-cuda:1}"
 bank_path="${SGS_BANK:-data/sgs/sugar_box_v10.pt}"
 run_name="${RUN_NAME:-sgs_ekf_sugar_box_seed${seed}_$(TZ=Asia/Shanghai date +%Y%m%d_%H%M%S)}"
 

@@ -1,0 +1,117 @@
+{
+  "date": "2026-11-07",
+  "algorithm": "reference_pure_bptt_v1",
+  "source_commit": "eda7da480c6d92a68cc41c9628b7efdae08cae23",
+  "training_success_claimed": false,
+  "cpu": {
+    "discovered": 848,
+    "passed": 656,
+    "skipped": 192,
+    "command": "CUDA_VISIBLE_DEVICES='' /home/hehui/miniconda3/envs/dqwbc/bin/python -m unittest discover -s DQ_high-level/tests -p 'test_*.py'",
+    "log_sha256": "c82fa904d2ad5e646c8f12f3a23c1248e2aab2c4b7d2ff819ab1fbe5e0928dfa"
+  },
+  "gpu": [
+    {
+      "report": "SuperMimic_reference_gpu_validation.json",
+      "passed": true,
+      "device": "cuda:0",
+      "num_envs": 16,
+      "full_networks": false,
+      "real_high_steps": 74,
+      "imagined_low_steps": 128,
+      "seconds": 38.288103562023025,
+      "peak_torch_memory_mib": 102.78173828125,
+      "inference_checkpoint_roundtrip": true,
+      "bptt_updates": 2.0,
+      "diagnostic_overrides": {
+        "world_model_only_iterations": 2,
+        "wm_max_batches": 2,
+        "replay_envs": 16,
+        "replay_capacity": 96,
+        "low_replay_capacity": 256,
+        "batch_size": 16,
+        "model_microbatch_size": 8,
+        "imagination_batch": 8,
+        "imagination_chunk_size": 4,
+        "diagnostics_interval": 2,
+        "diagnostics_batch_size": 8,
+        "validation_batch_size": 8,
+        "hidden": [
+          64,
+          64
+        ],
+        "actor_hidden": [
+          64,
+          32
+        ],
+        "critic_hidden": [
+          32,
+          16
+        ]
+      }
+    },
+    {
+      "report": "SuperMimic_reference_full_network_gpu_validation.json",
+      "passed": true,
+      "device": "cuda:0",
+      "num_envs": 16,
+      "full_networks": true,
+      "real_high_steps": 74,
+      "imagined_low_steps": 128,
+      "seconds": 40.9390657430049,
+      "peak_torch_memory_mib": 4966.71484375,
+      "inference_checkpoint_roundtrip": true,
+      "bptt_updates": 2.0,
+      "diagnostic_overrides": {
+        "world_model_only_iterations": 2,
+        "wm_max_batches": 2,
+        "replay_envs": 16,
+        "replay_capacity": 96,
+        "low_replay_capacity": 256,
+        "batch_size": 16,
+        "model_microbatch_size": 8,
+        "imagination_batch": 8,
+        "imagination_chunk_size": 4,
+        "diagnostics_interval": 2,
+        "diagnostics_batch_size": 8,
+        "validation_batch_size": 8
+      }
+    }
+  ],
+  "file_sha256": {
+    "DQ_high-level/utils/wm_reference.py": "2354b604c4f8f2601ca79e7dbf2ce350c48a6fe1bec0a7ec7b0c5a44a75e4476",
+    "DQ_high-level/utils/world_model/reference_policy.py": "4e7ad48ea9db9d5aa9b50374cf6f371ee5c291d5762500e24da857984da4062c",
+    "DQ_high-level/utils/world_model/reference_recipe.py": "e7cc664b0c08721feff35b55879e5f1dd1028723cbfe9985a829e1e29c00378b",
+    "DQ_high-level/utils/world_model/reference_task.py": "1bfae005f645eb3affcf0706751c8a402fcd6ae2f9669dd8583192643964419e",
+    "DQ_high-level/utils/world_model/physical_increments.py": "8f8c8dda693655cea6ab397f9184be609dc6b4c5a1ebe7cb567fb7c00587013f",
+    "DQ_high-level/utils/world_model/hierarchical.py": "617f2a4fbb3e6e003e337b2c18587365b44bb5c9f46a2ab37ca63946944946d8",
+    "DQ_high-level/utils/world_model/imagination.py": "8799df06bae86a7faad2051109e66664753af419eb46293e29f57cce002decaf",
+    "DQ_high-level/utils/world_model/imagined_critic.py": "4ed1aba9ebe6612a8bf29140611730050bce7cfa68948721ab542845bf0b8112",
+    "DQ_high-level/utils/world_model/trainer.py": "8f7913a10f7f5d7b0b5f354835aa611ec8f5dab187e3ad97b4166f303cfb3b03",
+    "DQ_high-level/utils/wm_entry.py": "be7be1ce9ae62d3fc9b64a4be39582faf580f34797ccc10d8b65ee6f0f760583",
+    "DQ_high-level/train_multistate_DQ_teacher.py": "2a06f2e669ad81001cdc20be23ef6643454cf04423d8ca93464fa09886638b85",
+    "DQ_high-level/utils/world_model/action_checkpoint.py": "6a8c13aaf5e0da66358ae80acbd285dfa909a636c0455421f777cadab819bd30"
+  },
+  "checks": {
+    "git_diff_check": true,
+    "launcher_bash_syntax": true,
+    "launcher_dry_run_cuda0_reference": true,
+    "entry_probe_python_compile": true
+  },
+  "not_validated": [
+    "long-run convergence",
+    "full-task success improvement",
+    "4096-environment production-batch throughput"
+  ],
+  "isolated_probe_load_smoke": {
+    "completed_all_workers": true,
+    "device": "cuda:0",
+    "num_envs": 4,
+    "prefix_steps": 2,
+    "max_steps": 3,
+    "status": "diagnostic_not_training_benefit_evidence",
+    "value_evidence_complete_cases": 0,
+    "quality_or_direction_claimed": false,
+    "report": "SuperMimic_reference_probe_loading_validation.json"
+  }
+}

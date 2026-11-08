@@ -18,13 +18,22 @@ SUPERMIMIC_CONFIG = {
     "hidden": [2048, 2048, 2048],
     "batch_size": 2048,
     "batches_per_update": 10,
-    "model_microbatch_size": 256,
+    "state_loss_reduction": "sum",
+    "auxiliary_weight": 0.0,
+    "action_coordinates": "normalized_commands",
+    "initial_action_std": 0.1,
+    "actor_last_gain": 0.01,
+    "action_rate_mode": "squared_all",
+    "action_rate_weight": -0.002,  # SuperMimic -0.1 action difference weight * 0.02 s.
+    # Keep the logical minibatch together on the CUDA 0 / 48 GiB launcher.
+    # Smaller overrides remain available for devices with less free memory.
+    "model_microbatch_size": 2048,
     "validation_batch_size": 256,
     "imagination_batch": 4096,
-    "imagination_chunk_size": 128,
+    "imagination_chunk_size": 4096,
     "horizon": 4,
     "warmup_steps": 5,  # 40 low steps; first Actor update still waits for PPO.
-    "updates_per_low_step": 0.4,
+    "updates_per_low_step": 2.0,  # INCREASED from 0.4 to match SuperMimic training intensity
     "learning_rate": 2e-4,
     "actor_learning_rate": 2e-4,
     "auxiliary_strength": 1.0,
@@ -48,6 +57,42 @@ SUPERMIMIC_CONFIG = {
     "observation_noise_scale": 1.0,
     # Probes are optional diagnostics, never activation/rollback gates.
     "probe_interval": 0,
+    # Disable overly aggressive gating for initial training
+    "disable_action_probes": True,
+    "loose_error_gates": True,
+}
+
+
+# Separate from SUPERMIMIC_CONFIG: saved legacy recipes keep their UTD behavior.
+MANIPULATION_CONFIG = {
+    **SUPERMIMIC_CONFIG,
+    "recipe": "manipulation",
+    "batches_per_update": 1,
+    "updates_per_low_step": 0.0,
+    "wm_epochs": 1.0,
+    "wm_max_batches": 512,
+    "wm_prepare_boundaries": 4,
+    "value_prepare_boundaries": 2,
+    "value_prepare_batches": 8,
+    "actor_stage1_boundaries": 4,
+    "actor_stage2_boundaries": 4,
+    "actor_stage1_updates": 1,
+    "actor_stage2_updates": 2,
+    "actor_max_updates": 4,
+    "holdout_mode": "environment",
+    "holdout_fraction": 0.05,
+    "allow_partial_windows": True,
+    "diagnostics_interval": 1,
+    "diagnostics_batch_size": 128,
+    "critic_memory": False,
+    "layer_norm": False,
+    "running_normalization": False,
+    "amp": "none",
+    "task_contract": "manipulation_v2",
+    "task_aux_alpha": 0.1,
+    "task_aux_config": {},
+    "raw_action_bound_weight": 0.0,
+    "raw_gripper_latent_bound": 3.0,
 }
 
 

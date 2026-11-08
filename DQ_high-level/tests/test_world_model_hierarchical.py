@@ -126,6 +126,73 @@ class HierarchicalChecks:
         self.assertTrue(all(parameter.grad is None for parameter in model.parameters()))
         self.assertEqual(result.device.type, torch.device(self.device).type)
 
+    def test_four_high_decisions_backpropagate_through_all_32_low_responses(self):
+        spec, model, initial, context = self.make()
+        model.double()
+        spec.low_policy.double()
+        initial, context = initial.double(), context.double()
+        # Exercise a nonzero learned residual as well as the plant's explicit
+        # integration; a zero output head cannot test its input Jacobian.
+        with torch.no_grad():
+            model.dynamics.net[-1].weight.fill_(.005)
+        theta = torch.nn.Parameter(initial.new_tensor(.4))
+
+        def rollout(parameter, first_action_offset=None):
+            spec.controls.clear()
+            spec.integrated.clear()
+            spec.prepares = spec.finishes = 0
+            state = initial
+            actions, observations = [], []
+            for high_step in range(4):
+                # The same policy parameter sees newly predicted physical
+                # observations at every high-level decision.
+                observation = state[:, :2]
+                observations.append(observation)
+                command = parameter * (.5 + observation[:, 0] + .2 * observation[:, 1])
+                action = torch.cat((command[:, None], state.new_zeros(len(state), 8)), -1)
+                if high_step == 0 and first_action_offset is not None:
+                    action = action + first_action_offset
+                if action.requires_grad:
+                    action.retain_grad()
+                actions.append(action)
+                state = model(state, action, context, .16)
+            return state[:, 0].square().mean(), state, actions, observations
+
+        with freeze_parameters(model, spec.low_policy):
+            loss, endpoint, actions, observations = rollout(theta)
+            loss.backward()
+            self.assertEqual((spec.prepares, spec.finishes, len(spec.controls), len(spec.integrated)),
+                             (4, 4, 32, 32))
+            torch.testing.assert_close(endpoint[:, 10], endpoint.new_full((len(endpoint),), 4.))
+            self.assertTrue(all(not torch.equal(observations[0], value) for value in observations[1:]))
+            self.assertTrue(all(action.grad is not None and bool(torch.isfinite(action.grad).all())
+                                for action in actions))
+            self.assertGreater(float(theta.grad.abs()), 1e-8)
+            self.assertGreater(float(actions[0].grad[:, 0].abs().sum()), 1e-8)
+            theta_gradient = theta.grad.detach().clone()
+            first_gradient = actions[0].grad.detach().clone()
+
+            # Central differences rerun the real hierarchical operator. They
+            # do not reproduce its eight-step recurrence in the test, and
+            # detect detached intermediate observations/history even when the
+            # forward values remain correct.
+            epsilon = 1e-5
+            direction = torch.zeros_like(actions[0])
+            direction[:, 0] = direction.new_tensor([.7, -.2, .4, 1.1])
+            with torch.no_grad():
+                plus, *_ = rollout(theta.detach() + epsilon)
+                minus, *_ = rollout(theta.detach() - epsilon)
+                finite_theta = (plus - minus) / (2 * epsilon)
+                plus, *_ = rollout(theta.detach(), epsilon * direction)
+                minus, *_ = rollout(theta.detach(), -epsilon * direction)
+                finite_first = (plus - minus) / (2 * epsilon)
+            torch.testing.assert_close(theta_gradient, finite_theta, rtol=3e-5, atol=2e-8)
+            torch.testing.assert_close((first_gradient * direction).sum(), finite_first,
+                                       rtol=3e-5, atol=2e-8)
+        self.assertTrue(all(parameter.grad is None for parameter in model.parameters()))
+        self.assertTrue(all(not parameter.requires_grad and parameter.grad is None
+                            for parameter in spec.low_policy.parameters()))
+
     def test_frozen_controller_is_not_in_dynamics_optimizer_or_checkpoint(self):
         spec, model, _, _ = self.make()
         trainer = WorldModelTrainer(model)

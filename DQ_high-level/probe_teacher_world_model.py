@@ -29,7 +29,7 @@ ROOT = Path(__file__).resolve().parent
 
 def parser():
     arguments = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    arguments.add_argument("--checkpoint", required=True, help="Single candidate bundle saved by WorldModelPPO.save_candidate")
+    arguments.add_argument("--checkpoint", required=True, help="Candidate bundle saved by the world-model teacher agent")
     arguments.add_argument("--output", required=True, help="JSON action-effect report")
     arguments.add_argument("--num_envs", type=int, default=128)
     arguments.add_argument("--prefix_steps", type=int, default=4)
@@ -63,6 +63,103 @@ def _load_bundle(torch, path):
         if not bundle.get(name):
             raise ValueError("Candidate bundle is missing %s; re-export it with the matching teacher/configuration" % name)
     return bundle
+
+
+def _load_probe_model(adapter, bundle, device):
+    """Reconstruct the saved numerical model contract, including norm buffers.
+
+    Imports remain lazy: real workers must import Isaac Gym before PyTorch.
+    Legacy snapshots omit the optional LN/normalization/AMP settings.
+    """
+    from utils.world_model import HierarchicalDynamics, ResidualDynamics
+    config = bundle["config"]
+    common = dict(hidden=tuple(config.get("hidden", (512, 512, 512))), device=device)
+    if config.get("fixed8", False):
+        model = HierarchicalDynamics(
+            adapter, contact_hidden=tuple(config.get("contact_hidden", (128, 128))),
+            nominal_dt=.16, layer_norm=config.get("layer_norm", False),
+            running_normalization=config.get("running_normalization", False),
+            amp=config.get("amp", "none"),
+            dynamics_target=config.get("dynamics_target", "residual"), **common)
+    else:
+        model = ResidualDynamics(
+            adapter, term_hidden=tuple(config.get("term_hidden", (64, 64))),
+            nominal_dt=float(config.get("nominal_dt", .15)), **common)
+    model.load_state_dict(bundle["model"])
+    saved_coordinates = bundle.get("metadata", {}).get("model_coordinates")
+    if config.get("recipe") == "reference" and saved_coordinates is None:
+        raise ValueError("Reference candidate is missing its physical-coordinate metadata")
+    if saved_coordinates is not None:
+        coordinates = getattr(model, "coordinate_metadata", None)
+        if coordinates is None or saved_coordinates != coordinates():
+            raise ValueError("Probe dynamics coordinates differ from the saved model contract")
+    model.eval()
+    return model
+
+
+def _verify_probe_metadata(adapter, bundle):
+    """Match task and numerical contracts using the same legacy defaults as PPO."""
+    from utils.world_model.probes import configuration_fingerprint
+    if not hasattr(adapter, "metadata"):
+        return
+    actual = adapter.metadata()
+    config = bundle["config"]
+    if config.get("recipe") == "reference":
+        from utils.wm_reference import reference_metadata
+        actual = reference_metadata(adapter, config)
+    elif config.get("recipe") == "manipulation":
+        actual["model_execution"] = {"recipe": "manipulation",
+                                     "layer_norm": config.get("layer_norm", False),
+                                     "running_normalization": config.get("running_normalization", False),
+                                     "amp": config.get("amp", "none")}
+
+    def canonical(metadata):
+        result = deepcopy(metadata)
+        defaults = {"task_contract": "legacy", "task_aux_alpha": 0.,
+                    "task_objective": None, "raw_action_bound_weight": 0.,
+                    "raw_gripper_latent_bound": 3., "reward_contract": "legacy",
+                    "critic_memory": False}
+        for name, value in defaults.items():
+            result.setdefault(name, value)
+        if "small_commands_zero" not in result and "small_commands" in result.get("control", {}):
+            result["small_commands_zero"] = result["control"]["small_commands"]
+        return result
+
+    if configuration_fingerprint(canonical(actual)) != configuration_fingerprint(canonical(bundle["metadata"])):
+        raise ValueError("Probe task/adapter schema does not match candidate metadata")
+
+
+def _load_probe_teacher(agent, bundle):
+    """Restore a pure Actor or legacy PPO teacher without inventing a Critic."""
+    weights = bundle["teacher"]
+    reference = bundle.get("config", {}).get("recipe") == "reference"
+    value = getattr(agent, "value", None)
+    if reference:
+        if value is not None or weights.get("value") is not None:
+            raise ValueError("Reference diagnostics require the saved pure Actor with value=None")
+    elif value is None or weights.get("value") is None:
+        raise ValueError("Legacy PPO diagnostics require their matching real Critic")
+    agent.policy.load_state_dict(weights["policy"])
+    if not reference:
+        value.load_state_dict(weights["value"])
+    for name, attribute in (("state_preprocessor", "_state_preprocessor"),
+                            ("value_preprocessor", "_value_preprocessor")):
+        if weights.get(name) is not None:
+            preprocessor = getattr(agent, attribute, None)
+            if not callable(getattr(preprocessor, "load_state_dict", None)):
+                raise ValueError("Reconstructed teacher cannot restore saved " + name)
+            preprocessor.load_state_dict(weights[name])
+    # Reference Actor normalization is part of policy.state_dict; evaluation
+    # reads those statistics and must not update them from diagnostic samples.
+    agent.set_running_mode("eval")
+
+
+def _probe_mean_action(agent, raw_observation):
+    preprocessor = getattr(agent, "_state_preprocessor", None)
+    observation = (preprocessor(raw_observation, train=False)
+                   if preprocessor is not None else raw_observation)
+    mean, _, _ = agent.policy.compute({"states": observation}, role="policy")
+    return agent.policy.mean_to_action(mean)
 
 
 def _new_session(cli, bundle, torch):
@@ -120,21 +217,11 @@ def _new_session(cli, bundle, torch):
         teacher.get_params = original_get_params
         sys.argv = original_argv
     agent = trainer.agents
-    weights = bundle["teacher"]
-    agent.policy.load_state_dict(weights["policy"])
-    agent.value.load_state_dict(weights["value"])
-    for name, attribute in (("state_preprocessor", "_state_preprocessor"),
-                            ("value_preprocessor", "_value_preprocessor")):
-        if weights.get(name) is not None:
-            getattr(agent, attribute).load_state_dict(weights[name])
-    agent.set_running_mode("eval")
+    _load_probe_teacher(agent, bundle)
     adapter_class = (Fixed8TeacherWorldModelAdapter if bundle.get("config", {}).get("fixed8", False)
                      else TeacherWorldModelAdapter)
     adapter = adapter_class(trainer.env._env)
-    if hasattr(adapter, "metadata"):
-        actual_metadata = adapter.metadata()
-        if configuration_fingerprint(actual_metadata) != configuration_fingerprint(bundle["metadata"]):
-            raise ValueError("Probe task/adapter schema does not match candidate metadata")
+    _verify_probe_metadata(adapter, bundle)
     raw_env = trainer.env._env
     sgs_enabled = getattr(raw_env, "sgs_enabled", False)
     fingerprint = raw_env.sgs_bank.fingerprint if sgs_enabled else None
@@ -163,8 +250,7 @@ def _worker(cli):
     # Import order is required by the installed Isaac Gym extension.
     from isaacgym import gymapi  # noqa: F401
     import torch
-    from utils.world_model import HierarchicalDynamics, ResidualDynamics
-    from utils.world_model.probes import (bounded_probe_action, model_fingerprint,
+    from utils.world_model.probes import (bounded_probe_action, model_fingerprint, predicted_task_reward,
                                          random_continuous_directions, seed_probe)
 
     if not cli.device.startswith("cuda") or not torch.cuda.is_available():
@@ -181,17 +267,13 @@ def _worker(cli):
                 prefix = []
                 for _ in range(cli.prefix_steps):
                     raw_obs = session.env.obs_buf.clamp(-session.env.clip_obs, session.env.clip_obs)
-                    obs = session.trainer.agents._state_preprocessor(raw_obs, train=False)
-                    action, _, _ = session.trainer.agents.policy.compute({"states": obs}, role="policy")
-                    action = session.trainer.agents.policy.mean_to_action(action)
+                    action = _probe_mean_action(session.trainer.agents, raw_obs)
                     prefix.append(action.detach().clone())
                     session.step(action)
                 raw_obs = session.env.obs_buf.clamp(-session.env.clip_obs, session.env.clip_obs)
-                obs = session.trainer.agents._state_preprocessor(raw_obs, train=False)
-                base, _, _ = session.trainer.agents.policy.compute({"states": obs}, role="policy")
-                # compute returns a latent Gaussian mean; the environment
-                # consumes sigmoid-transformed continuous gripper opening.
-                base = session.trainer.agents.policy.mean_to_action(base).detach().clone()
+                # Both Actor architectures map their raw gripper output to the
+                # same continuous execution opening. No exploration is sampled.
+                base = _probe_mean_action(session.trainer.agents, raw_obs).detach().clone()
                 generator = torch.Generator(device=cli.device).manual_seed(cli.seed+1943)
                 directions = random_continuous_directions(base, generator=generator)
                 state, context = session.capture()
@@ -215,23 +297,20 @@ def _worker(cli):
             physical_context = session.adapter.normalize_context(context)
             transition = session.step(action)
             action = transition.executed_action
-            config = bundle["config"]
-            if config.get("fixed8", False):
-                model = HierarchicalDynamics(
-                    session.adapter, hidden=tuple(config.get("hidden", (512, 512, 512))),
-                    contact_hidden=tuple(config.get("contact_hidden", (128, 128))),
-                    nominal_dt=.16, device=cli.device)
-            else:
-                model = ResidualDynamics(
-                    session.adapter, hidden=tuple(config.get("hidden", (512, 512, 512))),
-                    term_hidden=tuple(config.get("term_hidden", (64, 64))),
-                    nominal_dt=float(config.get("nominal_dt", .15)), device=cli.device)
-            model.load_state_dict(bundle["model"])
-            model.eval()
+            model = _load_probe_model(session.adapter, bundle, cli.device)
             predicted = model.step(state, action, context, transition.dt)
-            predicted_reward = session.adapter.reward(state, predicted, action, context).reshape(-1)
+            predicted_reward = predicted_task_reward(session.adapter, state, predicted, action, context).reshape(-1)
+            # State-only auxiliary quality is recorded separately. A perturbed
+            # execution action cannot recover the original Gaussian latent, so
+            # this diagnostic deliberately excludes raw-latent bound costs.
+            components = getattr(session.adapter, "reward_components", None)
+            model_aux = (components(state, predicted, action, context)["weighted_aux"].reshape(-1)
+                         if callable(components) else torch.zeros_like(predicted_reward))
+            real_aux = (components(state, transition.state, action, context)["weighted_aux"].reshape(-1)
+                        if callable(components) else torch.zeros_like(predicted_reward))
             record = {"start": state, "context": context, "physical_context": physical_context,
                       "reward": transition.reward, "dt": transition.dt, "model_reward": predicted_reward,
+                      "real_state_aux_reward": real_aux, "model_state_aux_reward": model_aux,
                       "alive": alive, "prefix_dt": (torch.stack(prefix_dt) if prefix_dt else
                                         torch.empty(0, cli.num_envs, 1, device=cli.device)),
                       "next_state": transition.state, "predicted_state": predicted,
@@ -300,8 +379,18 @@ def _run(cli):
             raise ValueError("Probe reset families/bank changed between workers")
     config = ActionEffectProbeConfig(min_pairs=cli.min_pairs,
                                     min_informative_pairs=cli.min_informative_pairs)
+    auxiliary_diagnostics = {}
+    for name, branch in branches.items():
+        values = {}
+        for field in ("real_state_aux_reward", "model_state_aux_reward"):
+            finite = branch[field][torch.isfinite(branch[field])]
+            values[field + "_mean"] = float(finite.mean()) if finite.numel() else None
+        auxiliary_diagnostics[name] = values
     report = summarize_replayed_branches(branches, next(iter(hashes)), bundle["metadata"], config,
         metadata={"simulator": "IsaacGym", "device": cli.device, "seed": cli.seed,
+                  "reward_contract": "native_task_without_imagination_auxiliary",
+                  "auxiliary_scope": "state_auxiliary_only_without_raw_latent_cost",
+                  "auxiliary_diagnostics": auxiliary_diagnostics,
                   "prefix_length": cli.prefix_steps, "protocol": "independent_simulator_prefix_replay",
                   "process_isolation": True, "candidate": cli.checkpoint,
                   "candidate_bundle_sha256": bundle_hash,

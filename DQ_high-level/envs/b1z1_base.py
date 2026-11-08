@@ -121,6 +121,15 @@ class B1Z1Base(RewardVecTask):
         self.max_episode_length = self.cfg["env"]["maxEpisodeLength"]
         self.control_freq_low_init = self.cfg["env"].get("controlFrequencyLow", 7)
         world_model_cfg = self.cfg["env"].get("world_model", {})
+        from utils.world_model.action_contract import validate_action_contract, validate_task_contract
+        self.task_contract = validate_task_contract(world_model_cfg.get("task_contract", "legacy"))
+        self.action_coordinates = world_model_cfg.get("action_coordinates", "physical")
+        self.action_rate_mode = world_model_cfg.get("action_rate_mode", "base_l2")
+        validate_action_contract(self.action_coordinates, self.action_rate_mode,
+                                 self.cfg["env"].get("useTanh", False))
+        if self.action_coordinates == "normalized_commands" and (
+                self.pitch_control or self.floating_base or not self.continuous_gripper):
+            raise ValueError("normalized_commands requires the nine-action continuous-gripper teacher")
         self.world_model_fixed8 = (world_model_cfg.get("fixed8", False)
                                   or world_model_cfg.get("mode", "off") != "off")
         if self.world_model_fixed8:
@@ -344,6 +353,9 @@ class B1Z1Base(RewardVecTask):
         self._dof_pos = self._dof_state.view(self.num_envs, self.dof_per_env, 2)[..., :self.num_dofs, 0]
         self._dof_vel = self._dof_state.view(self.num_envs, self.dof_per_env, 2)[..., :self.num_dofs, 1]
         self._last_dof_vel = self._dof_vel.clone()
+        # Separate low-period entrance buffer: simulator refreshes must never
+        # overwrite the velocity preceding the last complete 20 ms cycle.
+        self._low_entry_dof_vel = self._dof_vel.clone()
         
         self._initial_dof_pos = self._dof_pos.clone()
         self._initial_dof_vel = self._dof_vel.clone()
@@ -1038,6 +1050,9 @@ class B1Z1Base(RewardVecTask):
         if env_ids is None:
             env_ids = to_torch(np.arange(self.num_envs), device=self.device, dtype=torch.long)
         self._reset_envs(env_ids)
+        # This runs after either ordinary or SGS restoration, including a bank
+        # whose restored joint velocities differ from the old episode.
+        self._low_entry_dof_vel[env_ids] = self._dof_vel[env_ids]
         return
     
     def _reset_actors(self, env_ids):
@@ -1096,6 +1111,7 @@ class B1Z1Base(RewardVecTask):
         self.progress_buf[env_ids] = 0
         self.reset_buf[env_ids] = 0
         self._terminate_buf[env_ids] = 0
+        self._low_entry_dof_vel[env_ids] = self._dof_vel[env_ids]
         self.num_steps_to_change_mode[env_ids] = 0 
         self.increase_to_change_step[env_ids] = 1 
         
@@ -1789,7 +1805,9 @@ class B1Z1Base(RewardVecTask):
         
         return self.torques
     
-    def floating_base_control(self):
+    def floating_base_control(self, upload_tensors=None):
+        from utils.numerical_checks import require_finite_tensors
+
         actor_root_state_copy = self._root_states.clone()
         x_vel_local = self.commands[:, 0]
         vel_global = quat_apply(self._robot_root_states[:, 3:7], torch.cat([x_vel_local.unsqueeze(-1), torch.zeros_like(x_vel_local.unsqueeze(-1)), torch.zeros_like(x_vel_local.unsqueeze(-1))], dim=-1))
@@ -1799,6 +1817,11 @@ class B1Z1Base(RewardVecTask):
         actor_root_state_copy[self._robot_actor_ids, 9] = self.commands[:, 1]
         actor_root_state_copy[self._robot_actor_ids, 12] = yaw_vel_global[:, -1]
         actor_root_state_copy[self._robot_actor_ids, 2] = torch.clip(actor_root_state_copy[self._robot_actor_ids, 2], 0.4, 0.66)
+        uploads = dict(upload_tensors or {})
+        uploads["robot_root_states"] = actor_root_state_copy[self._robot_actor_ids]
+        require_finite_tensors(
+            uploads, phase="physx.floating_base_upload",
+            step=getattr(self, "_numerical_step", getattr(self, "global_step_counter", None)))
         self.gym.set_actor_root_state_tensor_indexed(self.sim, gymtorch.unwrap_tensor(actor_root_state_copy),
                                                         gymtorch.unwrap_tensor(self._robot_actor_ids), self.num_envs)
         
@@ -1921,7 +1944,9 @@ class B1Z1Base(RewardVecTask):
         self.table_commands[:,5] = 0
         self.table_commands[:,2] = self.vel_line_z_fix
 
-    def floating_table_control(self):
+    def floating_table_control(self, upload_tensors=None):
+        from utils.numerical_checks import require_finite_tensors
+
         if self.table_level == "Level01":
             self.compute_table_command_level_01()
         elif self.table_level == "Level02":
@@ -1962,15 +1987,30 @@ class B1Z1Base(RewardVecTask):
         actor_root_state_copy[self._table_actor_ids, 3:5]=0.0
         actor_root_state_copy[self._table_actor_ids, 10:12]=0.0
         _table_actor_ids32 = self._table_actor_ids.to(torch.int32)
+        uploads = dict(upload_tensors or {})
+        upload_env_ids = {}
         if getattr(self, "_sgs_has_pending_reset", False):
             reset_ids = self._sgs_pending_reset.nonzero(as_tuple=False).flatten()
             robot_ids32 = self._robot_actor_ids[reset_ids].to(torch.int32)
-            self.gym.set_dof_state_tensor_indexed(
-                self.sim, gymtorch.unwrap_tensor(self._dof_state),
-                gymtorch.unwrap_tensor(robot_ids32), len(robot_ids32))
             _table_actor_ids32 = torch.cat((
                 _table_actor_ids32, robot_ids32,
                 self._cube_actor_ids[reset_ids].to(torch.int32)))
+            uploads["reset_dof_state"] = self._dof_state.reshape(self.num_envs, -1, 2)[reset_ids]
+            upload_env_ids["reset_dof_state"] = reset_ids
+        # Indexed Gym setters consume only these rows. Aggregate them with the
+        # targets/torques so every upload is checked before the first setter,
+        # using one host decision for the entire physical substep.
+        uploads["actor_root_states"] = actor_root_state_copy[_table_actor_ids32.long()]
+        actors_per_env = self._root_states.shape[0] // self.num_envs
+        upload_env_ids["actor_root_states"] = _table_actor_ids32.long() // actors_per_env
+        require_finite_tensors(
+            uploads, phase="physx.upload",
+            step=getattr(self, "_numerical_step", getattr(self, "global_step_counter", None)),
+            env_ids=upload_env_ids)
+        if getattr(self, "_sgs_has_pending_reset", False):
+            self.gym.set_dof_state_tensor_indexed(
+                self.sim, gymtorch.unwrap_tensor(self._dof_state),
+                gymtorch.unwrap_tensor(robot_ids32), len(robot_ids32))
             self._sgs_pending_reset.zero_()
             self._sgs_has_pending_reset = False
         self.gym.set_actor_root_state_tensor_indexed(self.sim, gymtorch.unwrap_tensor(actor_root_state_copy),
@@ -1986,17 +2026,24 @@ class B1Z1Base(RewardVecTask):
             Observations, rewards, resets, info
             Observations are dict of observations (currently only one member called 'obs')
         """
-        
+        from utils.numerical_checks import require_finite_tensors
+
+        self._numerical_step = "high={}".format(self.global_step_counter)
         if self.pred_success:
             if actions.shape[-1] == (self.action_space.shape[-1]+1):
                 actions, _ = actions[...,:-1], actions[...,-1]
-                
+        # Check before clamp: Inf must not silently become a finite command.
+        require_finite_tensors({"actions": actions}, phase="env.step.actions",
+                               step=self._numerical_step)
+
         if self.rand_control:
             self.control_freq_low = random.randint(self.control_freq_low_init-1, self.control_freq_low_init) 
         
         # randomize actions
         if self.dr_randomizations.get('actions', None):
             actions = self.dr_randomizations['actions']['noise_lambda'](actions)
+            require_finite_tensors({"actions": actions}, phase="env.step.randomized_actions",
+                                   step=self._numerical_step)
 
         action_tensor = torch.clamp(actions, -self.clip_actions, self.clip_actions)
         
@@ -2016,6 +2063,8 @@ class B1Z1Base(RewardVecTask):
         wm_collect_low = wm_adapter is not None and hasattr(wm_adapter, "capture_low_action")
         self.world_model_low_steps = []
         for low_step in range(self.control_freq_low):
+            if getattr(self, "task_contract", "legacy") == "manipulation_v2":
+                self._low_entry_dof_vel.copy_(self._dof_vel)
             if wm_collect_low:
                 wm_ids = self.world_model_env_ids
                 wm_before, wm_context = wm_adapter.capture(wm_ids)
@@ -2032,19 +2081,25 @@ class B1Z1Base(RewardVecTask):
             
             if self.floating_base:
                 all_pos_targets = self.get_all_pos_targets(ee_goal_cart, ee_goal_orn_quat)
-                self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(all_pos_targets))
-                self.floating_base_control()
                 
             # step physics and render each frame
             for i in range(self.control_freq_inv):
+                self._numerical_step = "high={}, low={}, physics={}".format(
+                    self.global_step_counter, low_step, i)
                 if self.floating_base:
-                    pass
-                    # self.floating_base_control()
+                    if i == 0:
+                        self.floating_base_control({"dof_targets": all_pos_targets})
+                        self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(all_pos_targets))
+                    else:
+                        require_finite_tensors(
+                            {"dof_targets": all_pos_targets}, phase="physx.simulate",
+                            step=self._numerical_step)
                 else:
                     env_torques = self.get_torques() # This is the chassis of the robotic dog, excluding the torque of the robotic arm (all degrees of freedom are set to 0), which is the final output given to the robot.
                     all_pos_targets = self.get_all_pos_targets(ee_goal_cart, ee_goal_orn_quat) # Obtain the target motors (degrees of freedom) on the robotic arm, excluding the chassis robot dog.
                     ## DQ add ##
-                    self.floating_table_control()
+                    self.floating_table_control({"dof_targets": all_pos_targets,
+                                                 "dof_torques": env_torques})
                     self.table_heights = self.table_commands[:,4] + self.table_dimz / 2.0
                     ## DQ add ##
                     self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(all_pos_targets))
@@ -2111,6 +2166,12 @@ class B1Z1Base(RewardVecTask):
         if self.arm_delay and (action_delay > 0):
             action_tensor[:, :7] =  self.action_history_buf[:, -action_delay - 2, :7] # Arm uses one more step delay
         self.actions[:] = action_tensor[:]
+        normalized_commands = getattr(self, "action_coordinates", "physical") == "normalized_commands"
+        if normalized_commands:
+            from utils.world_model.action_contract import high_level_command_components
+            components = high_level_command_components(
+                self.actions, .45 if self.commands_curriculum else .4,
+                action_coordinates="normalized_commands")
         # -------------------------delta based on current ee pos----------------------------
         # arm_base_local = torch.tensor([0.3, 0.0, 0.09], device=self.device).repeat(self.num_envs, 1)
         # arm_base = quat_apply(self._robot_root_states[:, 3:7], arm_base_local) + self._robot_root_states[:, :3]
@@ -2128,7 +2189,9 @@ class B1Z1Base(RewardVecTask):
         # -------------------------delta based on current ee pos----------------------------
         
         # -------------------------delta based on current ee goal----------------------------
-        if False: # self.cfg["env"].get("lastCommands", False) and (self.global_step_counter > 50000 or self.enable_camera):
+        if normalized_commands:
+            self.delta_goal_cart = components[0]
+        elif False: # self.cfg["env"].get("lastCommands", False) and (self.global_step_counter > 50000 or self.enable_camera):
             if self.cfg["env"]["useTanh"]:
                 self.delta_goal_cart = self.actions[:, :3] * 0.015
             else:
@@ -2148,7 +2211,9 @@ class B1Z1Base(RewardVecTask):
         self.ee_goal_global_cart = ee_goal_cart.clone()
 
         
-        if self.cfg["env"]["useTanh"]:
+        if normalized_commands:
+            self.delta_goal_orn = components[1]
+        elif self.cfg["env"]["useTanh"]:
             self.delta_goal_orn = self.actions[:, 3:6] * 0.06 #my change 0.06->0.08# 
         else:
             self.delta_goal_orn = torch.clip(self.actions[:, 3:6], -0.06, 0.06)
@@ -2160,7 +2225,10 @@ class B1Z1Base(RewardVecTask):
         self.ee_goal_global_orn_quat = ee_goal_orn_quat.clone()
         # -------------------------delta based on current ee goal----------------------------
         self.set_gripper()
-        self.clip_commands()
+        if normalized_commands:
+            self.commands[:, 0] = components[2]
+        else:
+            self.clip_commands()
         if (not self.pitch_control) and (not self.floating_base):
             self.commands[:, 1] = 0
         if self.pitch_control:
@@ -2175,12 +2243,16 @@ class B1Z1Base(RewardVecTask):
             else:
                 self.commands[:, 1] = torch.clip(self.actions[:, 9], -0.3, 0.3)
         
-        if self.cfg["env"]["useTanh"]:
+        if normalized_commands:
+            self.commands[:, 2] = components[3]
+        elif self.cfg["env"]["useTanh"]:
             self.commands[:, 2] = self.actions[:, 8] * 0.6
         else:
             self.commands[:, 2] = torch.clip(self.actions[:, 8], -0.6, 0.6)
         # set small commands to zero
-        if self.cfg["env"].get("smallValueSetZero", False):
+        from utils.world_model.action_contract import outer_command_deadzone
+        if outer_command_deadzone(getattr(self, "task_contract", "legacy"),
+                                  self.cfg["env"].get("smallValueSetZero", False)):
             self.commands[:, :] *= (torch.logical_or(torch.abs(self.commands[:, 0]) > LIN_VEL_X_CLIP, torch.abs(self.commands[:, 2]) > ANG_VEL_YAW_CLIP)).unsqueeze(1)
         # -------------------------receive commands----------------------------
         self.clipped_actions[:, :3] = self.delta_goal_cart[:].clone()

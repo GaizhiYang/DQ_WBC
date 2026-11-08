@@ -70,6 +70,9 @@ class MemoryWriter:
     def flush(self):
         self.flush_count += 1
 
+    def close(self):
+        self.closed = True
+
 
 class TrackingAgent:
     record_transition = agent_method("record_transition")
@@ -462,6 +465,7 @@ class SGSFamilyLoggingTests(unittest.TestCase):
                 self.assertEqual(agent.writer.values("SuccessWindow / completed"), [(1., interrupted_step)])
                 self.assertEqual(agent.writer.values("SuccessWindow / successes"), [(1., interrupted_step)])
                 self.assertEqual(agent.writer.flush_count, 1)
+                self.assertTrue(agent.writer.closed)
                 self.assertFalse(agent.tracking_data)
                 self.assertEqual(agent.write_interval, 240)
                 env.save_sgs_diagnostics.assert_not_called()

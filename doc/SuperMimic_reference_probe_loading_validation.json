@@ -1,0 +1,318 @@
+{
+  "schema": "dq-manipulation-independent-value-direction-v1",
+  "status": "diagnostic_not_training_benefit_evidence",
+  "checkpoint": "/tmp/dq_reference_candidate.pt",
+  "bundle_sha256": "83c72b78bfbb46e04634d7d01ea66871b225163db0c52e2ed7fec3812ea18279",
+  "device": "cuda:0",
+  "seed": 43,
+  "family_sampling": "original",
+  "prefix_steps": 2,
+  "max_steps": 3,
+  "gamma": 0.99,
+  "horizon": 16,
+  "critic_updates": 40,
+  "observation_noise": "none",
+  "return_target": "real_POST_reference_surrogate_minus_raw_latent_cost_until_native_end_no_bootstrap",
+  "learning_algorithm": "reference_pure_bptt_v1",
+  "model_coordinates": {
+    "dynamics_target": "physical_increment",
+    "version": 1,
+    "frame": "PRE robot heading",
+    "rotation": "left-multiplied shortest rotation vector",
+    "blocks": [
+      {
+        "name": "robot.dv",
+        "width": 3,
+        "unit": "m/s",
+        "error_floor": 0.01
+      },
+      {
+        "name": "robot.dw",
+        "width": 3,
+        "unit": "rad/s",
+        "error_floor": 0.01
+      },
+      {
+        "name": "robot.dp",
+        "width": 3,
+        "unit": "m",
+        "error_floor": 0.001
+      },
+      {
+        "name": "robot.drot",
+        "width": 3,
+        "unit": "rad",
+        "error_floor": 0.001
+      },
+      {
+        "name": "object.dv",
+        "width": 3,
+        "unit": "m/s",
+        "error_floor": 0.01
+      },
+      {
+        "name": "object.dw",
+        "width": 3,
+        "unit": "rad/s",
+        "error_floor": 0.01
+      },
+      {
+        "name": "object.dp",
+        "width": 3,
+        "unit": "m",
+        "error_floor": 0.001
+      },
+      {
+        "name": "object.drot",
+        "width": 3,
+        "unit": "rad",
+        "error_floor": 0.001
+      },
+      {
+        "name": "dq",
+        "width": 19,
+        "unit": "rad",
+        "error_floor": 0.01
+      },
+      {
+        "name": "dqd",
+        "width": 19,
+        "unit": "rad/s",
+        "error_floor": 0.01
+      }
+    ],
+    "error_floor_is_accuracy_threshold": false
+  },
+  "direction_space": "first_raw_deterministic_action",
+  "direction_kind": "bptt",
+  "coordinate": null,
+  "radius": 0.05,
+  "start_repeatability": {
+    "base": {
+      "max_state": 0.0,
+      "max_context": 0.0
+    },
+    "plus": {
+      "max_state": 0.0,
+      "max_context": 0.0
+    },
+    "minus": {
+      "max_state": 0.0,
+      "max_context": 0.0
+    },
+    "repeat": {
+      "max_state": 0.0,
+      "max_context": 0.0
+    },
+    "plan": {
+      "max_state": 0.0,
+      "max_context": 0.0
+    }
+  },
+  "valid_start_pairs": 4,
+  "value": {
+    "eligible": 4,
+    "complete": 0,
+    "unfinished": 4,
+    "nonfinite_prediction_or_return": 0,
+    "error": {
+      "n": 0,
+      "mean": null,
+      "ci95": null,
+      "nonfinite": 0
+    },
+    "absolute_error": {
+      "n": 0,
+      "mean": null,
+      "ci95": null,
+      "nonfinite": 0
+    },
+    "rmse": null,
+    "pearson": null,
+    "pairwise_order_agreement": null,
+    "order_rows": 0,
+    "status": "diagnostic_only_thresholds_uncalibrated",
+    "unfinished_status": "not_accepted_as_value_ground_truth"
+  },
+  "direction": {
+    "pairs": 0,
+    "real_plus_minus": {
+      "n": 0,
+      "mean": null,
+      "ci95": null,
+      "nonfinite": 0
+    },
+    "real_plus_base": {
+      "n": 0,
+      "mean": null,
+      "ci95": null,
+      "nonfinite": 0
+    },
+    "model_plus_minus": {
+      "n": 0,
+      "mean": null,
+      "ci95": null,
+      "nonfinite": 0
+    },
+    "base_repeat_absolute": {
+      "n": 0,
+      "mean": null,
+      "ci95": null,
+      "nonfinite": 0
+    },
+    "informative_pairs": 0,
+    "direction_agreement": null,
+    "model_improves_real_worsens": 0,
+    "status": "diagnostic_only_not_exact_contact_derivative"
+  },
+  "families": {
+    "full_task": {
+      "value": {
+        "eligible": 4,
+        "complete": 0,
+        "unfinished": 4,
+        "nonfinite_prediction_or_return": 0,
+        "error": {
+          "n": 0,
+          "mean": null,
+          "ci95": null,
+          "nonfinite": 0
+        },
+        "absolute_error": {
+          "n": 0,
+          "mean": null,
+          "ci95": null,
+          "nonfinite": 0
+        },
+        "rmse": null,
+        "pearson": null,
+        "pairwise_order_agreement": null,
+        "order_rows": 0,
+        "status": "diagnostic_only_thresholds_uncalibrated",
+        "unfinished_status": "not_accepted_as_value_ground_truth"
+      },
+      "success_rate_complete_cases": {
+        "n": 0,
+        "mean": null,
+        "ci95": null,
+        "nonfinite": 0
+      },
+      "observed_success_count": 0,
+      "native_return": {
+        "n": 0,
+        "mean": null,
+        "ci95": null,
+        "nonfinite": 0
+      }
+    },
+    "pregrasp": {
+      "value": {
+        "eligible": 0,
+        "complete": 0,
+        "unfinished": 0,
+        "nonfinite_prediction_or_return": 0,
+        "error": {
+          "n": 0,
+          "mean": null,
+          "ci95": null,
+          "nonfinite": 0
+        },
+        "absolute_error": {
+          "n": 0,
+          "mean": null,
+          "ci95": null,
+          "nonfinite": 0
+        },
+        "rmse": null,
+        "pearson": null,
+        "pairwise_order_agreement": null,
+        "order_rows": 0,
+        "status": "diagnostic_only_thresholds_uncalibrated",
+        "unfinished_status": "not_accepted_as_value_ground_truth"
+      },
+      "success_rate_complete_cases": {
+        "n": 0,
+        "mean": null,
+        "ci95": null,
+        "nonfinite": 0
+      },
+      "observed_success_count": 0,
+      "native_return": {
+        "n": 0,
+        "mean": null,
+        "ci95": null,
+        "nonfinite": 0
+      }
+    },
+    "near_goal": {
+      "value": {
+        "eligible": 0,
+        "complete": 0,
+        "unfinished": 0,
+        "nonfinite_prediction_or_return": 0,
+        "error": {
+          "n": 0,
+          "mean": null,
+          "ci95": null,
+          "nonfinite": 0
+        },
+        "absolute_error": {
+          "n": 0,
+          "mean": null,
+          "ci95": null,
+          "nonfinite": 0
+        },
+        "rmse": null,
+        "pearson": null,
+        "pairwise_order_agreement": null,
+        "order_rows": 0,
+        "status": "diagnostic_only_thresholds_uncalibrated",
+        "unfinished_status": "not_accepted_as_value_ground_truth"
+      },
+      "success_rate_complete_cases": {
+        "n": 0,
+        "mean": null,
+        "ci95": null,
+        "nonfinite": 0
+      },
+      "observed_success_count": 0,
+      "native_return": {
+        "n": 0,
+        "mean": null,
+        "ci95": null,
+        "nonfinite": 0
+      }
+    }
+  },
+  "predicate_mismatch_counts": [
+    0,
+    0,
+    0
+  ],
+  "native_task_return_difference": {
+    "n": 0,
+    "mean": null,
+    "ci95": null,
+    "nonfinite": 0
+  },
+  "aux_return": {
+    "n": 0,
+    "mean": null,
+    "ci95": null,
+    "nonfinite": 0
+  },
+  "executed_first_action_plus_minus_per_dimension": [
+    0.02503032051026821,
+    0.052063822746276855,
+    0.031715042889118195,
+    0.0048914141952991486,
+    0.007587437983602285,
+    0.03810999169945717,
+    0.0031011179089546204,
+    0.01830805093050003,
+    0.03511274605989456
+  ],
+  "unmeasured_contact_state": "independent_same_seed_prefix_and_repeatability_not_PhysX_rewind",
+  "elapsed_seconds": 55.05330300331116,
+  "evidence_directory": "/tmp/dq_reference_probe_loading.json.artifacts"
+}

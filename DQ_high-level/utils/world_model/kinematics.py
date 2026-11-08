@@ -131,9 +131,11 @@ class B1Z1Kinematics(nn.Module):
         fk = B1Z1Kinematics(device="cuda:0", dof_names=env.dof_names,
                            base_com=(com.x, com.y, com.z))
         result = fk(base13, joint_pos19, joint_vel19)
+        ee = fk.end_effector(base13, joint_pos19, joint_vel19)
 
     Module buffers can be moved with ``.to(device=..., dtype=...)``; no CPU
-    transfers, simulator calls, or autograd detaches occur in ``forward``.
+    transfers, simulator calls, or autograd detaches occur in either path.
+    ``end_effector`` skips all leg branches when only EE geometry is needed.
     """
 
     def __init__(self, urdf_path=None, device=None, *,
@@ -197,6 +199,16 @@ class B1Z1Kinematics(nn.Module):
                                  joint.find("child").get("link"),
                                  indices[joint.get("name")] if kind != "fixed" else -1))
         self.joints = tuple(joints)
+        self._all_joints = tuple(enumerate(self.joints))
+        ee_ancestors = set()
+        link = self.ee_name
+        while link != self.root_name:
+            ee_ancestors.add(link)
+            link = children[link].find("parent").get("link")
+        # Pure Python tree metadata: no extra state_dict entries or device
+        # tensors, and no ancestor discovery inside a training forward pass.
+        self._ee_joints = tuple((index, joint) for index, joint in self._all_joints
+                                if joint.child in ee_ancestors)
         self.register_buffer("offsets", torch.tensor(offsets, dtype=dtype, device=device))
         self.register_buffer("rotations", torch.tensor(rotations, dtype=dtype, device=device))
         self.register_buffer("axes", torch.tensor(axes, dtype=dtype, device=device))
@@ -216,6 +228,21 @@ class B1Z1Kinematics(nn.Module):
 
     def forward(self, base13: Tensor, joint_pos: Tensor,
                 joint_vel: Tensor, base_com=None) -> Dict[str, Tensor]:
+        """Return EE pose/twist and all four foot positions/velocities."""
+        return self._forward(base13, joint_pos, joint_vel, base_com, include_feet=True)
+
+    def end_effector(self, base13: Tensor, joint_pos: Tensor,
+                     joint_vel: Tensor, base_com=None) -> Dict[str, Tensor]:
+        """Return only ``ee_pos``, ``ee_quat``, ``ee_vel``, ``ee_omega``.
+
+        Inputs, COM correction and gradients match ``forward``. Only joints
+        on the root-to-EE path are evaluated; feet and leg intermediates are
+        never constructed. Both paths use the same registered URDF buffers.
+        """
+        return self._forward(base13, joint_pos, joint_vel, base_com, include_feet=False)
+
+    def _forward(self, base13: Tensor, joint_pos: Tensor,
+                 joint_vel: Tensor, base_com, *, include_feet: bool) -> Dict[str, Tensor]:
         if base13.shape[-1] != 13 or joint_pos.shape[-1] != 19 or joint_vel.shape[-1] != 19:
             raise ValueError("Expected base13[...,13], joint_pos[...,19], joint_vel[...,19]")
         if base13.shape[:-1] != joint_pos.shape[:-1] or joint_pos.shape != joint_vel.shape:
@@ -229,7 +256,8 @@ class B1Z1Kinematics(nn.Module):
         quaternions = {self.root_name: quat}
         velocities = {self.root_name: self.root_origin_velocity(base13, base_com)}
         angular = {self.root_name: base13[..., 10:13]}
-        for index, joint in enumerate(self.joints):
+        joints = self._all_joints if include_feet else self._ee_joints
+        for index, joint in joints:
             parent, child = joint.parent, joint.child
             parent_pos, parent_quat = positions[parent], quaternions[parent]
             displacement = _quat_apply(parent_quat, self.offsets[index].expand_as(parent_pos))
@@ -247,11 +275,13 @@ class B1Z1Kinematics(nn.Module):
             positions[child], quaternions[child] = position, orientation
             velocities[child], angular[child] = velocity, omega
 
-        return {
+        result = {
             "ee_pos": positions[self.ee_name],
             "ee_quat": quaternions[self.ee_name],
             "ee_vel": velocities[self.ee_name],
             "ee_omega": angular[self.ee_name],
-            "feet_pos": torch.stack([positions[name] for name in self.foot_names], dim=-2),
-            "feet_vel": torch.stack([velocities[name] for name in self.foot_names], dim=-2),
         }
+        if include_feet:
+            result["feet_pos"] = torch.stack([positions[name] for name in self.foot_names], dim=-2)
+            result["feet_vel"] = torch.stack([velocities[name] for name in self.foot_names], dim=-2)
+        return result
