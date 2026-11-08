@@ -101,7 +101,7 @@ class LiftedGraspTests(unittest.TestCase):
         )
         self.assertEqual(mask.tolist(), [True, True, False])
 
-    def test_open_gripper_and_distant_end_effector_do_not_qualify(self):
+    def test_half_open_or_wider_target_and_distant_end_effector_do_not_qualify(self):
         mask = lifted_grasp_mask(
             torch.full((5,), .8), torch.full((5,), .5),
             torch.full((5,), .045),
@@ -109,6 +109,15 @@ class LiftedGraspTests(unittest.TestCase):
             torch.tensor([-1., 0., 1., -1., -1.]), .20,
         )
         self.assertEqual(mask.tolist(), [True, False, False, False, False])
+
+    def test_continuous_partial_closure_qualifies_below_half_open(self):
+        commands = torch.tensor([-1., -.5, -.01, 0., .01, .5, 1.])
+        mask = lifted_grasp_mask(
+            torch.full_like(commands, .8), torch.full_like(commands, .5),
+            torch.full_like(commands, .045), torch.full_like(commands, .05),
+            commands, .20,
+        )
+        self.assertEqual(mask.tolist(), [True, True, True, False, False, False, False])
 
 
 class PickHoldTests(unittest.TestCase):

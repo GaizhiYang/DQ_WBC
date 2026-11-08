@@ -88,7 +88,7 @@ class BankPreview:
         self.env = create_builder_environment(
             num_envs=1, device=args.device, seed=args.seed, enable_graphics=True)
         self.env.rand_control = True
-        # The real policy interprets action 0 as fully open, not "hold".
+        # The real policy interprets action 0 as half open, not "hold".
         # Override only this preview instance so playback preserves the saved
         # randomized aperture until the user explicitly presses O.
         self.env.set_gripper = self._apply_preview_gripper

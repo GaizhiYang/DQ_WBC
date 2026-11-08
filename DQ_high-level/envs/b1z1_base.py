@@ -2143,7 +2143,7 @@ class B1Z1Base(RewardVecTask):
         # -------------------------receive commands----------------------------
         self.clipped_actions[:, :3] = self.delta_goal_cart[:].clone()
         self.clipped_actions[:, 3:6] = self.delta_goal_orn[:].clone()
-        self.clipped_actions[:, 6] = self.actions[:,6].clone()
+        self.clipped_actions[:, 6] = self.actions[:, 6].clamp(-1., 1.)
         if self.pitch_control:
             self.clipped_actions[:, 7:] = self.commands[:].clone()
         else:
@@ -2152,7 +2152,8 @@ class B1Z1Base(RewardVecTask):
         self.command_history_buf = torch.cat([self.command_history_buf[:, 1:], self.clipped_actions[:, None, :]], dim=1)
         
         if self.stop_pick: 
-            self.commands = torch.where(self.actions[:, 6].unsqueeze(-1) < 0, torch.zeros_like(self.commands), self.commands) # Start to close then we should stop
+            # Stop when the requested aperture is below 50% open.
+            self.commands = torch.where(self.actions[:, 6].unsqueeze(-1) < 0, torch.zeros_like(self.commands), self.commands)
         
         if self.rand_depth_clip:
             self.depth_clip_lower = torch_rand_float(self.depth_clip_rand_range[0], self.depth_clip_rand_range[1], (self.num_envs,1), device=self.device).unsqueeze(-1)
@@ -2160,15 +2161,13 @@ class B1Z1Base(RewardVecTask):
         return ee_goal_cart, ee_goal_orn_quat
     
     def set_gripper(self):
-        u_gripper = self.actions[:, 6].unsqueeze(-1)
-        if self.num_gripper_dof == 1:
-            self.gripper_dof_pos[:] = torch.where(u_gripper >= 0, self.dof_limits_lower[-1].item(), self.dof_limits_upper[-1].item()) # >= 0 open    
-        elif self.num_gripper_dof == 2:
-            # TODO: May check this; dof limits lower or higher corresponds to gripper open or close
-            self.gripper_dof_pos[:, -2] = torch.where(u_gripper >= 0, self.dof_limits_lower[-2].item(), self.dof_limits_upper[-2].item())
-            self.gripper_dof_pos[:, -1] = torch.where(u_gripper >= 0, self.dof_limits_lower[-1].item(), self.dof_limits_upper[-1].item())
-        else:
+        """Map action 6 to an absolute aperture: -1 closed, 0 half, +1 open."""
+        if self.num_gripper_dof not in (1, 2):
             raise NotImplementedError
+        opening = (self.actions[:, 6:7].clamp(-1., 1.) + 1.) * .5
+        closed = self.dof_limits_upper[-self.num_gripper_dof:]
+        opened = self.dof_limits_lower[-self.num_gripper_dof:]
+        self.gripper_dof_pos[:] = closed + opening * (opened - closed)
     
     # For random gripper kp
     def clip_commands(self):

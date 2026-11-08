@@ -169,6 +169,28 @@ def pregrasp_local_offset(distance, lateral, vertical):
     return torch.stack((-axial_squared.sqrt(), lateral, vertical), dim=-1)
 
 
+def level02_object_motion_xy(state):
+    """World XY motion induced by Level02 at the object's support location.
+
+    Construction holds the table still and clears object velocity, so the
+    saved motion commands, rather than transient object velocity, define the
+    direction that will resume after reset. Include the table's local heading
+    and the tangential velocity from enabled yaw rotation.
+    """
+    table = state["table_root"]
+    quaternion = table[:, 3:7]
+    quaternion = quaternion / quaternion.norm(dim=1, keepdim=True).clamp_min(1e-12)
+    x, y, z, w = quaternion.unbind(-1)
+    velocity = torch.stack((2 * (x * y - w * z),
+                            1 - 2 * (x.square() + z.square())), dim=1)
+    velocity = velocity * state["table_vy"][:, None]
+    offset = state["object_root"][:, :2] - table[:, :2]
+    yaw_rate = torch.where(state["rotation_enabled"].bool(),
+                           state["table_yaw_rate"], 0.)
+    tangent = torch.stack((-offset[:, 1], offset[:, 0]), dim=1)
+    return velocity + yaw_rate[:, None] * tangent
+
+
 def quaternion_angles_deg(quaternion):
     from isaacgym.torch_utils import euler_from_quat
     # The task's nominal object quaternion uses rounded 0.707 components.
@@ -352,6 +374,21 @@ class PhysicsBankBuilder:
                 & self._in_range(delta[:, 1], base["y_range_m"])
                 & angle_valid)
 
+    @staticmethod
+    def _base_motion_aligned(state):
+        """Require an acute horizontal angle to the resumed object motion."""
+        quaternion = state["robot_root"][:, 3:7]
+        quaternion = quaternion / quaternion.norm(dim=1, keepdim=True).clamp_min(1e-12)
+        x, y, z, w = quaternion.unbind(-1)
+        forward = torch.stack((1 - 2 * (y.square() + z.square()),
+                               2 * (x * y + w * z)), dim=1)
+        motion = level02_object_motion_xy(state)
+        scale = forward.norm(dim=1) * motion.norm(dim=1)
+        cosine = (forward * motion).sum(dim=1) / scale.clamp_min(1e-12)
+        # Do not let roundoff turn an exactly perpendicular heading into an
+        # accepted acute angle. A stationary reference has no valid direction.
+        return (scale > 1e-12) & (cosine > 1e-6)
+
     def _place_robot(self, base):
         """Move a grounded, ungrasped robot and its world-frame caches together."""
         from isaacgym.torch_utils import euler_from_quat, quat_from_euler_xyz, quat_mul
@@ -532,6 +569,7 @@ class PhysicsBankBuilder:
         checks, evidence = self._physics_window(opened)
         state = self._state(evidence)
         checks["base_range"] = self._base_in_range(state, self.reset_config["full_task"]["base"])
+        checks["base_motion_alignment"] = self._base_motion_aligned(state)
         checks["object_yaw_range"] = self._angle_in_range(
             state["object_yaw_offset_deg"], self.reset_config["object"]["yaw_offset_range_deg"])
         checks["default_arm_pose"] = (
@@ -603,6 +641,7 @@ class PhysicsBankBuilder:
         checks = {**({"sample_geometry": sample_geometry} if family == "pregrasp" else {}),
                   "ik_position": position_error < .003, "ik_orientation": angle_error < .05,
                   **window_checks, "base_range": self._base_in_range(state, cfg["base"]),
+                  "base_motion_alignment": self._base_motion_aligned(state),
                   "object_yaw_range": self._angle_in_range(
                       state["object_yaw_offset_deg"], self.reset_config["object"]["yaw_offset_range_deg"])}
         if family == "pregrasp":
@@ -781,6 +820,7 @@ class PhysicsBankBuilder:
         state["candidate_local_offset"] = quat_rotate_inverse(candidate_quat, env.ee_pos - points[ids, candidate])
         state["ee_rotation_offset_deg"] = quaternion_angles_deg(quat_mul(quat_conjugate(candidate_quat), env.ee_orn))
         checks["final_base_range"] = self._base_in_range(state, cfg["base"])
+        checks["final_base_motion_alignment"] = self._base_motion_aligned(state)
         checks["final_object_yaw"] = self._angle_in_range(state["object_yaw_offset_deg"],
                                                          self.reset_config["object"]["yaw_offset_range_deg"])
         # Contacts and low-level history are deliberately reconstructed, exactly
@@ -854,6 +894,8 @@ class PhysicsBankBuilder:
                 "sampling": "uniform geometry targets followed by IK and basic physics filtering",
                 "base_displacement": "object world XY minus robot root world XY",
                 "heading_offset": "robot yaw minus bearing to object, degrees",
+                "motion_heading_constraint": "robot forward XY dot Level02 object-motion XY > 0; "
+                    "motion includes rotated local table velocity and enabled yaw tangential velocity",
                 "singleton_position_tolerance_m": SINGLE_VALUE_POSITION_TOLERANCE_M,
                 "singleton_heading_tolerance_deg": SINGLE_VALUE_HEADING_TOLERANCE_DEG,
                 "at_grasp_position_tolerance_m": self.AT_GRASP_POSITION_TOLERANCE_M,

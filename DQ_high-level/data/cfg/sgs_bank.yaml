@@ -5,6 +5,9 @@
 #   y = 物体中心 world_y - 机器人底盘中心 world_y
 #   heading_offset = wrap(机器人 yaw - atan2(y, x))
 #   0 度表示机器人正朝向物体，正值表示逆时针偏转。
+# 各类还要求底盘前向与物体预期水平运动方向夹角小于 90 度（点积为正）。
+# 运动方向按保存的 Level02 桌面朝向、平移和旋转参数计算，不使用构库时近零的物体速度。
+# 朝向仍在所设偏角范围内采样；反向或正交的候选会被拒绝，不自动扩大范围。
 # 范围约束用于最终状态验收，不只约束摆放目标。
 # 构建时均匀采样目标，再检查可达性、碰撞和足底大致接地；入库分布不保证均匀。
 # 不要求稳定站立；前两类仅做几何检查，Near-Goal 额外执行短时闭爪、抬升与抓持保持。
@@ -42,7 +45,7 @@ pregrasp:
   base:
     x_range_m: [0.68, 0.95]
     y_range_m: [-0.2, 0.2]
-    heading_offset_range_deg: [-15, 15]
+    heading_offset_range_deg: [-15, 15] #另外约束了机器人朝向与物体同向
   ee_approach_distance_range_m: [0.05, 0.15]
   ee_lateral_offset_range_m: [-0.05, 0.05]
   ee_vertical_offset_range_m: [-0.05, 0.05]

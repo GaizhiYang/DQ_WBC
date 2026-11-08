@@ -54,7 +54,8 @@ def lifted_grasp_mask(object_height, table_height, rest_height, ee_distance,
                       gripper_command, lift_threshold):
     """Measure lift above the object's resting height on the current table.
 
-    A close command plus proximity is a grasp proxy, not a contact-force test.
+    A target aperture below 50% open (continuous action < 0) plus proximity
+    is a grasp proxy, not a contact-force test or a measured-closure check.
     Compare absolute heights to avoid subtractive rounding at the threshold.
     """
     target_height = table_height + rest_height + lift_threshold

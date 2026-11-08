@@ -74,16 +74,16 @@ class TeacherSuccessAuditTests(unittest.TestCase):
         torch.testing.assert_close(env._cube_root_states, current_pose)
         torch.testing.assert_close(env.object_pose_predictor.future_poses, predicted)
 
-    def test_final_hold_requires_a_negative_close_command(self):
-        env = make_environment([.21, .21, .21])
-        env.actions[:, 6] = torch.tensor([-1., 0., 1.])
+    def test_final_hold_accepts_partial_targets_below_half_open(self):
+        env = make_environment([.21] * 5)
+        env.actions[:, 6] = torch.tensor([-1., -.4, -.01, 0., .6])
         env.pick_counter.fill_(env.hold_steps - 1)
         env.check_termination()
         reward, _ = env._reward_pick_up()
-        self.assertEqual(env.lifted_object.tolist(), [True, False, False])
-        self.assertEqual(env.pick_counter.tolist(), [10, 0, 0])
-        self.assertEqual(env.pick_success_recorded.tolist(), [True, False, False])
-        self.assertEqual(reward.tolist(), [1., 0., 0.])
+        self.assertEqual(env.lifted_object.tolist(), [True, True, True, False, False])
+        self.assertEqual(env.pick_counter.tolist(), [10, 10, 10, 0, 0])
+        self.assertEqual(env.pick_success_recorded.tolist(), [True, True, True, False, False])
+        self.assertEqual(reward.tolist(), [1., 1., 1., 0., 0.])
 
     def test_exact_lift_threshold_is_inclusive_but_proximity_is_strict(self):
         env = make_environment([.20, .20, .20])
