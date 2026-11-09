@@ -26,7 +26,7 @@ from utils.config import (load_cfg, get_params, copy_cfg, configure_teacher_expe
 import utils.wrapper as wrapper
 import time
 from legged_gym.envs.manip_loco.b1z1_config import B1Z1RoughCfg
-from modules.predictattention import PredictAttentionSelector
+from modules.predictattention import PredictAttentionSelector, teacher_gfm_kwargs
 from utils.tsil_checkpoint import (TemporalCheckpointMetadata, read_temporal_checkpoint,
                                    restore_temporal_arguments)
 
@@ -107,17 +107,22 @@ def create_env(cfg, args, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor ):
 class Policy(GaussianMixin, Model, PredictAttentionSelector):
     def __init__(self, observation_space, action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor,
                   use_tanh=False, clip_actions=False,
-                 clip_log_std=True, min_log_std=-20, max_log_std=2, reduction="sum", deterministic=False):
+                 clip_log_std=True, min_log_std=-20, max_log_std=2, reduction="sum", deterministic=False,
+                 num_future_pose_obs=0, num_tsil_obs=0):
         Model.__init__(self, observation_space, action_space, device)
         transform_func = torch.distributions.transforms.TanhTransform() if use_tanh else None
         GaussianMixin.__init__(self, clip_actions, clip_log_std, min_log_std, max_log_std, reduction, transform_func=transform_func, deterministic=deterministic)
-        PredictAttentionSelector.__init__(self, d_model=64)
+        PredictAttentionSelector.__init__(self, d_model=64, obj_feat_dim=encode_dim or 128,
+                                          future_pose_dim=num_future_pose_obs)
 
         self.to(device)
         self.num_features = num_features # 1024
         self.encode_dim = encode_dim # 128
         self.cube_object_num = 30  # Candidate grasps per object, not the number of object assets.
         self.notrain_obs_num = 3*self.cube_object_num + 3*self.cube_object_num # 30 cube's pos + rpy feature_num
+        # Layout: current state, EKF poses + valid, optional TSIL, grasps, last action.
+        future_end = -(self.notrain_obs_num + self.num_actions + num_tsil_obs)
+        self.future_pose_slice = slice(future_end - num_future_pose_obs, future_end)
         
         if num_features > 0:
             self.feature_encoder = nn.Sequential(nn.Linear(self.num_features, 512), # input : (envs,1024), output : (envs,512)
@@ -136,27 +141,31 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
         self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
 
     def compute(self, inputs, role):
-        grasp_predict_local_pos_flat = inputs["states"][...,-6*self.cube_object_num-9:-3*self.cube_object_num-9]
-        grasp_predict_local_rpy_flat = inputs["states"][...,-3*self.cube_object_num-9:-9]
+        grasp_predict_local_pos_flat = inputs["states"][...,-6*self.cube_object_num-self.num_actions:-3*self.cube_object_num-self.num_actions]
+        grasp_predict_local_rpy_flat = inputs["states"][...,-3*self.cube_object_num-self.num_actions:-self.num_actions]
         grasp_predict_local_pos = grasp_predict_local_pos_flat.view(-1, self.cube_object_num, 3)
         grasp_predict_local_rpy = grasp_predict_local_rpy_flat.view(-1, self.cube_object_num, 3)
         grasp_predict_local = torch.cat([grasp_predict_local_pos,grasp_predict_local_rpy],dim=-1)
         cube_local_pos_rpy = inputs["states"][...,self.num_features:self.num_features+6]
-        last_action = inputs["states"][...,-9:]
+        last_action = inputs["states"][...,-self.num_actions:]
 
         if self.num_features > 0:
             features_encode = self.feature_encoder(inputs["states"][..., :self.num_features]) # input : (envs,1024), output : (envs,128)
-            right_predict_point = self.attention_forward(grasps=grasp_predict_local,obj_feat=features_encode,pose=cube_local_pos_rpy)
-            actions = self.net(torch.cat([inputs["states"][..., self.num_features:-self.notrain_obs_num-9],last_action , features_encode,right_predict_point], dim=-1)) # dim = 70+128? 意思就是先提取点云特征的encoder维度，然后再和后面70维度的其他本体观察值合并
+            future_pose_obs = inputs["states"][..., self.future_pose_slice] if self.future_pose_dim else None
+            right_predict_point = self.attention_forward(grasps=grasp_predict_local, obj_feat=features_encode,
+                                                        pose=cube_local_pos_rpy, future_pose_obs=future_pose_obs)
+            actions = self.net(torch.cat([inputs["states"][..., self.num_features:-self.notrain_obs_num-self.num_actions],last_action , features_encode,right_predict_point], dim=-1))
         else:
             actions = self.net(inputs["states"])
         return actions, self.log_std_parameter, {}
 
 class Value(DeterministicMixin, Model, PredictAttentionSelector):
-    def __init__(self, observation_space, action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor):
+    def __init__(self, observation_space, action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor,
+                 num_future_pose_obs=0, num_tsil_obs=0):
         Model.__init__(self, observation_space, action_space, device)
         DeterministicMixin.__init__(self)
-        PredictAttentionSelector.__init__(self, d_model=64)
+        PredictAttentionSelector.__init__(self, d_model=64, obj_feat_dim=encode_dim or 128,
+                                          future_pose_dim=num_future_pose_obs)
 
         self.to(device)
 
@@ -164,6 +173,8 @@ class Value(DeterministicMixin, Model, PredictAttentionSelector):
         self.encode_dim = encode_dim # 128
         self.cube_object_num = 30  # Candidate grasps per object, not the number of object assets.
         self.notrain_obs_num = 3*self.cube_object_num + 3*self.cube_object_num # 30 cube's pos + rpy feature_num
+        future_end = -(self.notrain_obs_num + self.num_actions + num_tsil_obs)
+        self.future_pose_slice = slice(future_end - num_future_pose_obs, future_end)
         
         if num_features > 0:
             self.feature_encoder = nn.Sequential(nn.Linear(self.num_features, 512), # input : (envs,1024), output : (envs,512)
@@ -181,18 +192,20 @@ class Value(DeterministicMixin, Model, PredictAttentionSelector):
         self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
 
     def compute(self, inputs, role):
-        grasp_predict_local_pos_flat = inputs["states"][...,-6*self.cube_object_num-9:-3*self.cube_object_num-9]
-        grasp_predict_local_rpy_flat = inputs["states"][...,-3*self.cube_object_num-9:-9]
+        grasp_predict_local_pos_flat = inputs["states"][...,-6*self.cube_object_num-self.num_actions:-3*self.cube_object_num-self.num_actions]
+        grasp_predict_local_rpy_flat = inputs["states"][...,-3*self.cube_object_num-self.num_actions:-self.num_actions]
         grasp_predict_local_pos = grasp_predict_local_pos_flat.view(-1, self.cube_object_num, 3)
         grasp_predict_local_rpy = grasp_predict_local_rpy_flat.view(-1, self.cube_object_num, 3)
         grasp_predict_local = torch.cat([grasp_predict_local_pos,grasp_predict_local_rpy],dim=-1)
         cube_local_pos_rpy = inputs["states"][...,self.num_features:self.num_features+6]
-        last_action = inputs["states"][...,-9:]
+        last_action = inputs["states"][...,-self.num_actions:]
 
         if self.num_features > 0:
             features_encode = self.feature_encoder(inputs["states"][..., :self.num_features]) # input : (envs,1024), output : (envs,128)
-            right_predict_point = self.attention_forward(grasps=grasp_predict_local,obj_feat=features_encode,pose=cube_local_pos_rpy)
-            actions = self.net(torch.cat([inputs["states"][..., self.num_features:-self.notrain_obs_num-9],last_action , features_encode,right_predict_point], dim=-1)) 
+            future_pose_obs = inputs["states"][..., self.future_pose_slice] if self.future_pose_dim else None
+            right_predict_point = self.attention_forward(grasps=grasp_predict_local, obj_feat=features_encode,
+                                                        pose=cube_local_pos_rpy, future_pose_obs=future_pose_obs)
+            actions = self.net(torch.cat([inputs["states"][..., self.num_features:-self.notrain_obs_num-self.num_actions],last_action , features_encode,right_predict_point], dim=-1))
             return actions, {}        
         else:
             return self.net(inputs["states"]), {}
@@ -378,8 +391,9 @@ def get_trainer(is_eval=False, strict_eval=False):
     num_features = 0 if args.no_feature else 1024
     encode_dim = 0 if args.no_feature else 128
     models_ppo = {}
-    models_ppo["policy"] = Policy(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=args.eval)
-    models_ppo["value"] = Value(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor)
+    gfm_kwargs = teacher_gfm_kwargs(env)
+    models_ppo["policy"] = Policy(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=args.eval, **gfm_kwargs)
+    models_ppo["value"] = Value(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, **gfm_kwargs)
     
     cfg_ppo = deepcopy(PPO_DEFAULT_CONFIG)
     cfg_ppo["rollouts"] = 24  # memory_size

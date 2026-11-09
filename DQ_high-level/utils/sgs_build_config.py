@@ -111,7 +111,7 @@ def _range(value, path, *, positive=False, angle=False):
     return result
 
 
-def _base(value, path):
+def _base(value, path, heading_reference="object_bearing"):
     _keys(value, _BASE_KEYS, path)
     result = {
         key: _range(value[key], f"{path}.{key}",
@@ -120,6 +120,13 @@ def _base(value, path):
     }
     if result["x_range_m"] == [0., 0.] and result["y_range_m"] == [0., 0.]:
         raise ValueError(f"{path}: x and y cannot both be fixed at zero")
+    if heading_reference == "object_motion":
+        low, high = result["heading_offset_range_deg"]
+        if low < 0 or high > 90 or low >= 90:
+            raise ValueError(
+                f"{path}.heading_offset_range_deg with object_motion must satisfy "
+                "0 <= minimum < 90 and maximum <= 90 degrees; 90 is an open upper limit"
+            )
     return result
 
 
@@ -151,7 +158,12 @@ def validate_build_config(mapping, lifted_threshold=None):
         raise ValueError("schema_version must be the integer 3, 4 or 5")
     families = BUILD_FAMILIES[version]
     root_keys = {"schema_version", "object", "validation", *families}
+    if "heading_reference" in mapping:
+        root_keys.add("heading_reference")
     _keys(mapping, root_keys, "SGS build config")
+    heading_reference = mapping.get("heading_reference", "object_bearing")
+    if heading_reference not in ("object_bearing", "object_motion"):
+        raise ValueError("heading_reference must be object_bearing or object_motion")
     _keys(mapping["object"], {"yaw_offset_range_deg"}, "object")
     _keys(mapping["validation"], _VALIDATION_KEYS, "validation")
     steps = mapping["validation"]["physics_steps"]
@@ -169,13 +181,15 @@ def validate_build_config(mapping, lifted_threshold=None):
             mapping["object"]["yaw_offset_range_deg"], "object.yaw_offset_range_deg", angle=True)},
         "validation": validation,
     }
+    if "heading_reference" in mapping:
+        result["heading_reference"] = heading_reference
     for family, extra_key in _FAMILY_EXTRA.items():
         if family not in families:
             continue
         source = mapping[family]
         extra_keys = _PREGRASP_OFFSET_KEYS if family == "pregrasp" else set()
         _keys(source, {"base", extra_key, *extra_keys}, family)
-        result[family] = {"base": _base(source["base"], f"{family}.base")}
+        result[family] = {"base": _base(source["base"], f"{family}.base", heading_reference)}
         if family == "full_task":
             if source[extra_key] != "default":
                 raise ValueError("full_task.arm_pose must be 'default'")
@@ -215,7 +229,7 @@ def validate_build_config(mapping, lifted_threshold=None):
         source = mapping["near_goal"]
         _keys(source, {"base", "object_lift_height_range_m", *_NEAR_GOAL_POSITIVE_KEYS},
               "near_goal")
-        near_goal = {"base": _base(source["base"], "near_goal.base")}
+        near_goal = {"base": _base(source["base"], "near_goal.base", heading_reference)}
         near_goal["object_lift_height_range_m"] = _range(
             source["object_lift_height_range_m"], "near_goal.object_lift_height_range_m",
             positive=True)

@@ -46,6 +46,7 @@ def collect(args):
     from skrl.utils import set_seed
     from skrl.resources.preprocessors.torch import RunningStandardScaler
     from train_multistate_DQ_teacher import create_env, get_predict_point, Policy
+    from modules.predictattention import teacher_gfm_kwargs
     from utils.pose_trajectory import PoseTrajectoryRecorder
 
     set_seed(args.seed)  # The imported training module sets its own seed first.
@@ -89,7 +90,7 @@ def collect(args):
             policy = Policy(env.observation_space, env.action_space, env.rl_device,
                 0 if args.no_feature else 1024, 0 if args.no_feature else 128,
                 camera, grasps, initial, use_tanh=args.use_tanh,
-                clip_actions=args.use_tanh, deterministic=True)
+                clip_actions=args.use_tanh, deterministic=True, **teacher_gfm_kwargs(env))
             policy.load_state_dict(checkpoint["policy"])
             policy.to(env.rl_device)
             policy.eval()

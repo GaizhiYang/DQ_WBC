@@ -164,6 +164,61 @@ class BuildAuditTests(unittest.TestCase):
         self.assertNotIn("ee_candidate_distance_m", report["families"]["full_task"]["coverage"])
         self.assertEqual(report["families"]["full_task"]["stored_candidate_counts"], [])
 
+    def motion_bank(self):
+        bank = self.bank()
+        count = len(bank["family_id"])
+        bank.update({
+            "table_root": bank["object_root"].clone(),
+            "table_vy": torch.ones(count, device=self.device),
+            "rotation_enabled": torch.zeros(count, device=self.device),
+            "table_yaw_rate": torch.zeros(count, device=self.device),
+        })
+        return bank
+
+    def test_motion_angle_uses_rotated_translation_and_enabled_yaw_not_object_bearing(self):
+        bank = self.motion_bank()
+        # A robot facing +X sees its object at +X (bearing offset zero).
+        # Table-local +Y rotates to -X; positive yaw adds +Y at the object,
+        # giving a northwest motion direction and an unsigned angle of 135.
+        bank["table_root"][0, 0] -= 1.
+        bank["table_root"][0, 5:7] = math.sqrt(.5)
+        bank["table_vy"][0] = .25
+        bank["rotation_enabled"][0] = 1.
+        bank["table_yaw_rate"][0] = .25
+        before = {name: value.clone() for name, value in bank.items()}
+        report = BuildAudit(FAMILIES).summary(bank)
+        coverage = report["families"]["full_task"]["coverage"]
+        self.assertAlmostEqual(coverage["base_heading_offset_deg"]["mean"], 0., places=5)
+        self.assertAlmostEqual(coverage["base_motion_angle_deg"]["mean"], 135., places=4)
+        self.assertEqual(coverage["base_motion_angle_deg"]["finite_count"], 1)
+        json.dumps(report, allow_nan=False)
+        for name, value in bank.items():
+            torch.testing.assert_close(value, before[name])
+
+    def test_legacy_bank_omits_motion_angle_when_motion_fields_are_unavailable(self):
+        bank = self.bank()
+        for tensors in (bank, {**bank, "table_root": bank["object_root"].clone()}):
+            report = BuildAudit(FAMILIES).summary(tensors)
+            for family in FAMILIES:
+                coverage = report["families"][family]["coverage"]
+                self.assertIn("base_heading_offset_deg", coverage)
+                self.assertNotIn("base_motion_angle_deg", coverage)
+
+    def test_zero_motion_angle_coverage_is_nonfinite_and_json_safe(self):
+        bank = self.motion_bank()
+        bank["table_vy"].zero_()
+        report = BuildAudit(FAMILIES).summary(bank)
+        for family, count in zip(FAMILIES, (1, 2, 1)):
+            coverage = report["families"][family]["coverage"]["base_motion_angle_deg"]
+            self.assertEqual(coverage["count"], count)
+            self.assertEqual(coverage["finite_count"], 0)
+            self.assertEqual(coverage["nonfinite_count"], count)
+            self.assertIsNone(coverage["min"])
+            self.assertIsNone(coverage["max"])
+            self.assertIsNone(coverage["mean"])
+            self.assertEqual(coverage["histogram"]["counts"], [])
+        json.dumps(report, allow_nan=False)
+
     def test_constant_empty_and_nonfinite_histograms_are_json_safe(self):
         report = BuildAudit(FAMILIES).summary(self.bank(include_full=False))
         json.dumps(report, allow_nan=False)

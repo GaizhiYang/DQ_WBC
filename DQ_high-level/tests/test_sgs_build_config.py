@@ -47,9 +47,10 @@ class BuildConfigTests(unittest.TestCase):
         self.assertTrue(MODULE.DEFAULT_BUILD_CONFIG_PATH.is_absolute())
         self.assertEqual(normalized["full_task"]["arm_pose"], "default")
         self.assertEqual(normalized["schema_version"], 5)
+        self.assertEqual(normalized["heading_reference"], "object_motion")
         self.assertEqual(normalized, loaded)
         self.assertEqual(set(normalized), {
-            "schema_version", "object", "validation", "full_task", "pregrasp", "near_goal"})
+            "schema_version", "heading_reference", "object", "validation", "full_task", "pregrasp", "near_goal"})
         self.assertEqual(set(normalized["pregrasp"]["ee_rotation_offset_range_deg"]),
                          {"roll", "pitch", "yaw"})
 

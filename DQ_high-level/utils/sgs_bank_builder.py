@@ -22,6 +22,7 @@ from utils.sgs_grounding import (
     foot_indices, grounding_state, approx_grounded_mask,
     grasp_contact_body_indices,
 )
+from utils.sgs_motion import level02_object_motion_xy, base_motion_angle_deg
 
 
 @contextmanager
@@ -167,28 +168,6 @@ def pregrasp_local_offset(distance, lateral, vertical):
     if bool((axial_squared <= 0).any()):
         raise ValueError("pregrasp lateral/vertical offsets must fit inside the requested distance")
     return torch.stack((-axial_squared.sqrt(), lateral, vertical), dim=-1)
-
-
-def level02_object_motion_xy(state):
-    """World XY motion induced by Level02 at the object's support location.
-
-    Construction holds the table still and clears object velocity, so the
-    saved motion commands, rather than transient object velocity, define the
-    direction that will resume after reset. Include the table's local heading
-    and the tangential velocity from enabled yaw rotation.
-    """
-    table = state["table_root"]
-    quaternion = table[:, 3:7]
-    quaternion = quaternion / quaternion.norm(dim=1, keepdim=True).clamp_min(1e-12)
-    x, y, z, w = quaternion.unbind(-1)
-    velocity = torch.stack((2 * (x * y - w * z),
-                            1 - 2 * (x.square() + z.square())), dim=1)
-    velocity = velocity * state["table_vy"][:, None]
-    offset = state["object_root"][:, :2] - table[:, :2]
-    yaw_rate = torch.where(state["rotation_enabled"].bool(),
-                           state["table_yaw_rate"], 0.)
-    tangent = torch.stack((-offset[:, 1], offset[:, 0]), dim=1)
-    return velocity + yaw_rate[:, None] * tangent
 
 
 def quaternion_angles_deg(quaternion):
@@ -363,13 +342,18 @@ class PhysicsBankBuilder:
     def _base_in_range(self, state, base):
         root, obj = state["robot_root"], state["object_root"]
         delta = obj[:, :2] - root[:, :2]
-        x, y, z, w = root[:, 3:7].unbind(-1)
-        yaw = torch.atan2(2 * (w * z + x * y), 1 - 2 * (y.square() + z.square()))
-        heading = yaw - torch.atan2(delta[:, 1], delta[:, 0])
-        heading = torch.remainder(heading + np.pi, 2 * np.pi) - np.pi
-        # The -180/+180 seam is the same physical orientation. Fixed headings
-        # use a circular tolerance, rather than a linear interval at that seam.
-        angle_valid = self._angle_in_range(torch.rad2deg(heading), base["heading_offset_range_deg"])
+        if self.reset_config.get("heading_reference", "object_bearing") == "object_motion":
+            heading = base_motion_angle_deg(state)
+            low, high = base["heading_offset_range_deg"]
+            margin = SINGLE_VALUE_HEADING_TOLERANCE_DEG if low == high else 1e-4
+            angle_valid = (heading >= low - margin) & (heading <= high + margin)
+        else:
+            x, y, z, w = root[:, 3:7].unbind(-1)
+            yaw = torch.atan2(2 * (w * z + x * y), 1 - 2 * (y.square() + z.square()))
+            heading = yaw - torch.atan2(delta[:, 1], delta[:, 0])
+            heading = torch.remainder(heading + np.pi, 2 * np.pi) - np.pi
+            # Fixed legacy offsets use a circular tolerance at the +/-180 seam.
+            angle_valid = self._angle_in_range(torch.rad2deg(heading), base["heading_offset_range_deg"])
         return (self._in_range(delta[:, 0], base["x_range_m"])
                 & self._in_range(delta[:, 1], base["y_range_m"])
                 & angle_valid)
@@ -377,17 +361,26 @@ class PhysicsBankBuilder:
     @staticmethod
     def _base_motion_aligned(state):
         """Require an acute horizontal angle to the resumed object motion."""
-        quaternion = state["robot_root"][:, 3:7]
-        quaternion = quaternion / quaternion.norm(dim=1, keepdim=True).clamp_min(1e-12)
-        x, y, z, w = quaternion.unbind(-1)
-        forward = torch.stack((1 - 2 * (y.square() + z.square()),
-                               2 * (x * y + w * z)), dim=1)
-        motion = level02_object_motion_xy(state)
-        scale = forward.norm(dim=1) * motion.norm(dim=1)
-        cosine = (forward * motion).sum(dim=1) / scale.clamp_min(1e-12)
         # Do not let roundoff turn an exactly perpendicular heading into an
         # accepted acute angle. A stationary reference has no valid direction.
-        return (scale > 1e-12) & (cosine > 1e-6)
+        return base_motion_angle_deg(state) < math.degrees(math.acos(1e-6))
+
+    def _sample_base_yaw(self, base, dx, dy):
+        bearing = torch.atan2(dy, dx)
+        offset = torch.deg2rad(self._sample_range(base["heading_offset_range_deg"]))
+        if self.reset_config.get("heading_reference", "object_bearing") != "object_motion":
+            return bearing + offset
+        env = self.env
+        motion = level02_object_motion_xy({
+            "object_root": env._cube_root_states, "table_root": env._table_root_states,
+            "table_vy": env.vel_line_forward_y_level02,
+            "rotation_enabled": env.lin_circle_select, "table_yaw_rate": env.vel_angular_yaw,
+        })
+        direction = torch.atan2(motion[:, 1], motion[:, 0])
+        plus, minus = direction + offset, direction - offset
+        # Both signs have the requested unsigned motion angle. Prefer the side
+        # facing the object so the arm can approach it. IK still checks reach.
+        return torch.where(torch.cos(plus - bearing) >= torch.cos(minus - bearing), plus, minus)
 
     def _place_robot(self, base):
         """Move a grounded, ungrasped robot and its world-frame caches together."""
@@ -397,7 +390,7 @@ class PhysicsBankBuilder:
         old_position = root[:, :3].clone()
         dx = self._sample_range(base["x_range_m"])
         dy = self._sample_range(base["y_range_m"])
-        yaw = torch.atan2(dy, dx) + torch.deg2rad(self._sample_range(base["heading_offset_range_deg"]))
+        yaw = self._sample_base_yaw(base, dx, dy)
         old_yaw = euler_from_quat(root[:, 3:7])[2]
         zero = torch.zeros_like(yaw)
         rotation_quat = quat_from_euler_xyz(zero, zero, yaw - old_yaw)
@@ -893,7 +886,13 @@ class PhysicsBankBuilder:
                 "reset_config": deepcopy(self.reset_config),
                 "sampling": "uniform geometry targets followed by IK and basic physics filtering",
                 "base_displacement": "object world XY minus robot root world XY",
-                "heading_offset": "robot yaw minus bearing to object, degrees",
+                "heading_reference": self.reset_config.get("heading_reference", "object_bearing"),
+                "heading_offset": ("unsigned horizontal angle between robot forward and Level02 object motion, degrees"
+                    if self.reset_config.get("heading_reference") == "object_motion"
+                    else "robot yaw minus bearing to object, degrees"),
+                "heading_sampling": ("motion yaw +/- sampled angle; choose the side nearer the bearing to object"
+                    if self.reset_config.get("heading_reference") == "object_motion"
+                    else "bearing to object plus sampled signed offset"),
                 "motion_heading_constraint": "robot forward XY dot Level02 object-motion XY > 0; "
                     "motion includes rotated local table velocity and enabled yaw tangential velocity",
                 "singleton_position_tolerance_m": SINGLE_VALUE_POSITION_TOLERANCE_M,

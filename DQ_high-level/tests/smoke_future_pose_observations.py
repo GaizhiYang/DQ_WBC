@@ -14,6 +14,7 @@ from isaacgym import gymapi
 import torch
 from skrl.resources.preprocessors.torch import RunningStandardScaler
 from train_multistate_DQ_teacher import create_env, get_predict_point, Policy, Value
+from modules.predictattention import teacher_gfm_kwargs
 from envs.b1z1_base import B1Z1Base
 from utils.config import get_params, load_cfg
 
@@ -42,8 +43,13 @@ def main():
         assert raw.num_future_pose_obs == 13
         assert raw.object_pose_predictor.horizons == (.3, .6)
         assert not raw.object_pose_predictor.valid.any()
-        policy = Policy(env.observation_space, env.action_space, env.rl_device, 1024, 128, camera, grasps, initial).to(env.rl_device)
-        value = Value(env.observation_space, env.action_space, env.rl_device, 1024, 128, camera, grasps, initial).to(env.rl_device)
+        gfm_kwargs = teacher_gfm_kwargs(env)
+        policy = Policy(env.observation_space, env.action_space, env.rl_device, 1024, 128, camera, grasps, initial, **gfm_kwargs).to(env.rl_device)
+        value = Value(env.observation_space, env.action_space, env.rl_device, 1024, 128, camera, grasps, initial, **gfm_kwargs).to(env.rl_device)
+        assert policy.query_proj.in_features == value.query_proj.in_features == 147
+        query_inputs = {}
+        policy.query_proj.register_forward_pre_hook(lambda module, inputs: query_inputs.update(policy=inputs[0].clone()))
+        value.query_proj.register_forward_pre_hook(lambda module, inputs: query_inputs.update(value=inputs[0].clone()))
         scaler = RunningStandardScaler(size=env.observation_space, device=env.rl_device)
         valid_samples = 0
         resets = 0
@@ -69,6 +75,8 @@ def main():
                 normalized = scaler(obs, train=True)
                 actions, _, _ = policy.compute({"states": normalized}, "policy")
                 values, _ = value.compute({"states": normalized}, "value")
+                for query in query_inputs.values():
+                    torch.testing.assert_close(query[:, -13:], normalized[:, -202:-189])
                 assert actions.shape == (4, 9) and values.shape == (4, 1)
                 assert torch.isfinite(actions).all() and torch.isfinite(values).all()
                 if step == 6:
@@ -96,6 +104,7 @@ def main():
         torch.testing.assert_close(proxy.states_buf, expected_student)
         print("FUTURE_POSE_SMOKE " + json.dumps(dict(observation_dim=obs.shape[1], horizons=[.3, .6],
               valid_forecast_samples=valid_samples, resets=resets, policy_input=policy.net[0].in_features,
+              gfm_query_input=policy.query_proj.in_features,
               student_proprioception_dim=expected_student.shape[1]-6, finite=True)))
     finally:
         if raw.viewer is not None:

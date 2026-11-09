@@ -52,7 +52,7 @@ cd -- "$script_dir"
 python_bin="${PYTHON_BIN:-python}"
 seed="${SEED:-43}"
 rl_device="${RL_DEVICE:-cuda:0}"
-bank_path="${SGS_BANK:-data/sgs/sugar_box_v10.pt}"
+bank_path="${SGS_BANK:-data/sgs/sugar_box_v12.pt}"
 run_name="${RUN_NAME:-sgs_ekf_sugar_box_seed${seed}_$(TZ=Asia/Shanghai date +%Y%m%d_%H%M%S)}"
 
 if [[ ! -f "$bank_path" ]]; then
@@ -65,7 +65,7 @@ cmd=(
     --cfg_file data/cfg/DQ_teacher.yaml
     --task B1Z1PickMulti --object_name sugar_box
     --rl_device "$rl_device" --sim_device "${SIM_DEVICE:-$rl_device}"
-    --num_envs "${NUM_ENVS:-4096}" --timesteps "${TIMESTEPS:-120000}"
+    --num_envs "${NUM_ENVS:-8192}" --timesteps "${TIMESTEPS:-120000}"
     --roboinfo --observe_gait_commands --small_value_set_zero
     --rand_control --no_velocity_obs
     --sgs_mode sgs --sgs_bank "$bank_path" --success_mode hold

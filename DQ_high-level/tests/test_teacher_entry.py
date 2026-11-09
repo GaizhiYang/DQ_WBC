@@ -54,7 +54,7 @@ class TeacherConfigurationTests(unittest.TestCase):
             self.assertEqual(cfg["env"]["successMode"], "hold")
             self.assertEqual(config.teacher_run_end(args.timesteps, stop_after=args.stop_after), 24)
             self.assertEqual(settings, dict(enabled=True, horizons=[.2, .5],
-                                            history=7, qScale=2., rScale=.02))
+                                            history=7, qScale=2., rScale=.02, gfmFuturePoses=True))
             saved = Path(directory) / "run"
             config.copy_cfg(source, saved, cfg=cfg)
             restored = config.load_cfg(saved / source.name)

@@ -12,6 +12,8 @@ import math
 
 import torch
 
+from utils.sgs_motion import base_motion_angle_deg
+
 
 def _integer_vector(value, name):
     if not isinstance(value, torch.Tensor) or value.ndim != 1:
@@ -198,6 +200,12 @@ class BuildAudit:
             "validation_peak_contact_force_n": read("validation_peak_contact_force_n"),
             "validation_max_object_displacement_m": read("validation_max_object_displacement_m"),
         }
+        motion_names = ("table_root", "table_vy", "rotation_enabled", "table_yaw_rate")
+        if all(name in tensors for name in motion_names):
+            motion_state = {"robot_root": robot, "object_root": obj,
+                            **{name: read(name, 13 if name == "table_root" else None)
+                               for name in motion_names}}
+            metrics["base_motion_angle_deg"] = base_motion_angle_deg(motion_state)
         if "lift_height" in tensors:
             metrics["lift_height"] = read("lift_height")
         # These records describe a near-goal validation window. Placeholder

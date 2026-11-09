@@ -232,7 +232,8 @@ def get_predict_point(camera_6p_info=None, cube_predict_info_path=None, cube_roo
     return camera_tensor, grasp_cv_tensor, cube_init_tensor
 
 def get_trainer(is_eval=False):
-    from utils.config import load_cfg, get_params, copy_cfg, apply_pose_prediction_config
+    from utils.config import (load_cfg, get_params, copy_cfg, apply_pose_prediction_config,
+                              restore_student_teacher_observation_config)
     
     args = get_params()
     set_seed(args.seed)
@@ -251,7 +252,8 @@ def get_trainer(is_eval=False):
     args.wandb = args.wandb and (not args.eval) and (not args.debug)
     
     from utils.tsil_checkpoint import reject_temporal_student_teacher
-    reject_temporal_student_teacher(args.teacher_ckpt_path)
+    if not args.eval and args.teacher_ckpt_path:
+        reject_temporal_student_teacher(args.teacher_ckpt_path)
     cfg_file = "DQ_stu.yaml"
     file_path = "data/cfg/" + cfg_file
     
@@ -274,6 +276,10 @@ def get_trainer(is_eval=False):
         print("Find the latest checkpoint: ", args.checkpoint)
         
     cfg = load_cfg(file_path)
+    if not args.eval and args.teacher_ckpt_path:
+        teacher_config = restore_student_teacher_observation_config(cfg, args.teacher_ckpt_path)
+        if teacher_config is not None:
+            cprint(f"Teacher observation config: {teacher_config}", "yellow")
     apply_pose_prediction_config(cfg, args)
     if args.no_velocity_obs:
         cfg["env"]["noVelocityObs"] = True
@@ -388,6 +394,7 @@ def get_trainer(is_eval=False):
     
     from train_multistate_DQ_teacher import Policy as PPOPolicy
     from train_multistate_DQ_teacher import Value as PPOValue
+    from modules.predictattention import teacher_gfm_kwargs
     from train_multistate_DQ_teacher import PPO_DEFAULT_CONFIG, PPO
 
     teacher_action_space = env.action_space
@@ -417,8 +424,9 @@ def get_trainer(is_eval=False):
     cfg_ppo["value_preprocessor_kwargs"] = {"size": 1, "device": device}
 
     ppo_models = {}
-    ppo_models["policy"] = PPOPolicy(teacher_obs_space, teacher_action_space, device, num_features=1024, encode_dim=128, camera_6p_tensor=camera_6p_tensor, grasp_cv_tensor=grasp_cv_tensor, cube_init_tensor=cube_init_tensor, use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=True)
-    ppo_models["value"] = PPOValue(teacher_obs_space, teacher_action_space, device, num_features=1024, encode_dim=128, camera_6p_tensor=camera_6p_tensor, grasp_cv_tensor=grasp_cv_tensor, cube_init_tensor=cube_init_tensor)
+    gfm_kwargs = teacher_gfm_kwargs(env)
+    ppo_models["policy"] = PPOPolicy(teacher_obs_space, teacher_action_space, device, num_features=1024, encode_dim=128, camera_6p_tensor=camera_6p_tensor, grasp_cv_tensor=grasp_cv_tensor, cube_init_tensor=cube_init_tensor, use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=True, **gfm_kwargs)
+    ppo_models["value"] = PPOValue(teacher_obs_space, teacher_action_space, device, num_features=1024, encode_dim=128, camera_6p_tensor=camera_6p_tensor, grasp_cv_tensor=grasp_cv_tensor, cube_init_tensor=cube_init_tensor, **gfm_kwargs)
     ppo_agent = PPO(models=ppo_models,
                 memory=memory,
                 cfg=cfg_ppo,

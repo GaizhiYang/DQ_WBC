@@ -1,19 +1,22 @@
 # SGS 配置库构建参数。修改后需要重新构建 .pt 配置库，训练直接读取构建后的库。
 # 单位：距离为米，角度为度；每个范围均写成 [最小值, 最大值]。
-# 各类 base 的定义一致（世界坐标系、有符号）：
+# 各类 base 的位置定义一致（世界坐标系、有符号）：
 #   x = 物体中心 world_x - 机器人底盘中心 world_x
 #   y = 物体中心 world_y - 机器人底盘中心 world_y
-#   heading_offset = wrap(机器人 yaw - atan2(y, x))
-#   0 度表示机器人正朝向物体，正值表示逆时针偏转。
-# 各类还要求底盘前向与物体预期水平运动方向夹角小于 90 度（点积为正）。
+# heading_reference: object_motion 时，heading_offset_range_deg 是底盘前向与物体
+# 预期水平运动方向的无符号夹角范围；0 度表示同向，90 度表示正交。
+# 直接均匀采样夹角，在运动方向两侧的对称朝向中选更面向物体的一侧。
+# 各类仍要求夹角小于 90 度；可设 [75, 90]，但实际不接受恰好 90 度。
 # 运动方向按保存的 Level02 桌面朝向、平移和旋转参数计算，不使用构库时近零的物体速度。
-# 朝向仍在所设偏角范围内采样；反向或正交的候选会被拒绝，不自动扩大范围。
+# 缺省 heading_reference 或设为 object_bearing 时保留旧定义：
+#   heading_offset = wrap(机器人 yaw - atan2(y, x))，有符号，正值逆时针。
 # 范围约束用于最终状态验收，不只约束摆放目标。
 # 构建时均匀采样目标，再检查可达性、碰撞和足底大致接地；入库分布不保证均匀。
 # 不要求稳定站立；前两类仅做几何检查，Near-Goal 额外执行短时闭爪、抬升与抓持保持。
 # [a, a] 表示固定目标；仅这种零宽范围允许 5 mm / 1 度的物理验收容差。
 # 不可达的范围会降低有效样本数，严重时导致构建失败；不会自动放宽到范围外。
 schema_version: 5
+heading_reference: object_motion
 
 # 物体在桌面上的朝向扰动，绕世界 z 轴，相对于正常 reset 的物体姿态。
 # 仅离线构库应用；不改变物体的支撑面，也不改变原训练任务的普通 reset。
@@ -32,7 +35,7 @@ full_task:
   base:
     x_range_m: [2.0, 2.0]
     y_range_m: [0.0, 0.0]
-    heading_offset_range_deg: [-15, 15]
+    heading_offset_range_deg: [75.0, 90.0]
   arm_pose: default
 
 # 临近抓取：夹爪打开，末端位于候选抓取位姿的 local -x 一侧。
@@ -43,9 +46,9 @@ full_task:
 # 姿态在候选坐标系中追加 roll/pitch/yaw 扰动，每轴限制在 [-45, 45] 度。
 pregrasp:
   base:
-    x_range_m: [0.68, 0.95]
+    x_range_m: [0.80, 0.95]
     y_range_m: [-0.2, 0.2]
-    heading_offset_range_deg: [-15, 15] #另外约束了机器人朝向与物体同向
+    heading_offset_range_deg: [45.0, 75.0]
   ee_approach_distance_range_m: [0.05, 0.15]
   ee_lateral_offset_range_m: [-0.05, 0.05]
   ee_vertical_offset_range_m: [-0.05, 0.05]
@@ -61,7 +64,7 @@ near_goal:
   base:
     x_range_m: [0.68, 0.85]
     y_range_m: [-0.1, 0.1]
-    heading_offset_range_deg: [-10, 10]
+    heading_offset_range_deg: [45.0, 75.0]
   object_lift_height_range_m: [0.05, 0.10]
   close_time_s: 1.50
   lift_time_s: 0.60

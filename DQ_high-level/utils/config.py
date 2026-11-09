@@ -1,7 +1,9 @@
 import os
+import json
 import yaml
 import argparse
 import math
+from copy import deepcopy
 from pathlib import Path
 
 
@@ -156,6 +158,36 @@ def apply_pose_prediction_config(cfg, args):
         if value is not None:
             settings[key] = value
     return settings
+
+
+def restore_student_teacher_observation_config(cfg, teacher_checkpoint):
+    """Restore teacher-only input settings before applying explicit CLI overrides.
+
+    Saved runs can use a custom YAML recorded in teacher_run.json. With no saved
+    YAML, leave the student's existing defaults intact for standalone legacy
+    checkpoints; never substitute the repository's current teacher defaults.
+    """
+    if not teacher_checkpoint:
+        return None
+    run_dir = Path(teacher_checkpoint).expanduser().resolve().parent.parent
+    candidates = []
+    metadata_path = run_dir / "teacher_run.json"
+    if metadata_path.is_file():
+        with metadata_path.open() as stream:
+            metadata = json.load(stream)
+        config_file = metadata.get("config_file")
+        if config_file:
+            candidates.append(run_dir / Path(config_file).name)
+    candidates.append(run_dir / "DQ_teacher.yaml")
+    config_path = next((path for path in candidates if path.is_file()), None)
+    if config_path is None:
+        return None
+    with config_path.open() as stream:
+        saved = yaml.safe_load(stream)
+    saved_env = saved["env"]
+    cfg["env"]["posePrediction"] = deepcopy(saved_env.get("posePrediction", {}))
+    cfg["env"]["noVelocityObs"] = saved_env.get("noVelocityObs", False)
+    return config_path
 
 
 def get_parser():
