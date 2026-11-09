@@ -1,8 +1,8 @@
 **DQ_high-level 教师策略与学生策略：网络结构、张量流与训练关系**
 
-本文按当前代码更新，教师图采用你正在使用的新配置：**移除机器人线速度和物体相对速度观测，加入 EKF 对未来 0.30 秒、0.60 秒的位姿预测**。教师观测为 **1284 维**，Actor/Critic 主 MLP 的融合输入为 **214 维**，高层动作仍为 **9 维**。
+本文按当前代码更新，教师图采用以下配置：**移除机器人线速度和物体相对速度观测，加入 EKF 对未来 0.30 秒、0.60 秒的位姿预测**。预测时刻可由配置或命令行修改。教师观测为 **1284 维**，Actor/Critic 主 MLP 的融合输入为 **214 维**，高层动作仍为 **9 维**。
 
-建议先看 [最新教师 Actor 全图（SVG，可放大）](assets/dq_high_level_networks/02_teacher_actor.svg)，再看 [EKF 预测与坐标转换图](assets/dq_high_level_networks/18_teacher_pose_prediction.svg) 和 [Critic 全图](assets/dq_high_level_networks/05_teacher_critic.svg)。**新增预测13维直接进入两个主 MLP；抓取注意力的 Query 仍使用当前物体位姿。**
+建议先看 [最新教师 Actor 全图（SVG，可放大）](assets/dq_high_level_networks/02_teacher_actor.svg)，再看 [EKF 预测与坐标转换图](assets/dq_high_level_networks/18_teacher_pose_prediction.svg) 和 [Critic 全图](assets/dq_high_level_networks/05_teacher_critic.svg)。**两组预测位姿及有效标志共13维，同时进入 Actor/Critic 的抓取融合模块（GFM）Query 和主 MLP；Query 输入为147维。**
 
 教师使用 **物体特征编码器＋抓取候选注意力＋Actor/Critic MLP**；EKF 是环境侧的固定滤波器，没有可学习参数。学生使用 **共享视觉 CNN＋双分支状态引导时序 Transformer＋主动作头＋残差动作头**。两者输出相同的 9 维高层动作，并调用已经训练好的底层控制器。
 
@@ -33,6 +33,7 @@
 | 底层步态观测 | 启用 `--observe_gait_commands` |
 | 教师速度观测 | 启用 `--no_velocity_obs`，移除机器人线速度3维、物体相对平面速度2维 |
 | 未来物体位姿 | 启用 `--future_pose_obs --future_pose_horizons 0.30 0.60` |
+| GFM 未来位姿输入 | `env.posePrediction.gfmFuturePoses: True`，Query 为 `128+6+13=147` 维 |
 | EKF 输入与参数 | 最近5帧世界位姿及实际时间戳；`q_scale=1.0`，`r_scale=0.01` |
 | 底座与动作 | 非 `floating_base`，不启用 `--pitch_control`，9 维高层动作 |
 | 物体特征 | 启用，1024 维；不启用 `--no_feature` |
@@ -98,6 +99,8 @@
 
 **送入教师网络前，全部 1284 维观测先经过 `RunningStandardScaler`。** 这包含预计算物体特征、抓取候选、未来位姿以及有效标志。`valid` 在环境原始观测中是0/1，标准化后不再要求保持0/1。该预处理器维护运行均值和方差，默认将标准化值裁剪到 `[-5,5]`；它不是可学习的神经网络。后面的教师网络图均以这个实际预处理顺序为准。来源：[`PPO 配置`](../DQ_high-level/train_multistate_DQ_teacher.py)、[`PPO.act`](../third_party/skrl/skrl/agents/torch/ppo/ppo.py#L199)、[`RunningStandardScaler`](../third_party/skrl/skrl/resources/preprocessors/torch/running_standard_scaler.py)。
 
+GFM 复用这份标准化后的预测13维，包括标准化的 `valid`，不将它重新转成布尔掩码。这里没有新增观测通道，因此原始观测1284维、主MLP输入214维和学生数值状态61维均不变。
+
 **三种常用配置的维度对比。** `--no_velocity_obs` 实际删除5维观测，不是置零；关节速度仍保留。新增预测使用历史位姿估计运动，不读取仿真真值速度。
 
 | 项目 | 原始教师：有速度 | 移除速度 | **本文：移除速度＋两组EKF预测** |
@@ -108,6 +111,7 @@
 | 抓取候选 RPY 切片 | `[1177:1267]` | `[1172:1262]` | `[1185:1275]` |
 | 上一步高层动作切片 | `[1267:1276]` | `[1262:1271]` | `[1275:1284]` |
 | Actor / Critic 主 MLP 输入 | 206 | 201 | **214** |
+| GFM Query 输入 | 134 | 134 | **147** |
 | 学生数值状态 / 完整输入 | 61 / 62269 | 61 / 62269 | **61 / 62269** |
 
 如果保留速度并开启两组预测，教师观测为 `1276+13=1289`，主 MLP 输入为219；这不是本文图示的配置。
@@ -133,7 +137,9 @@ python train_multistate_DQ_teacher.py \
   --headless --wandb --wandb_name ekf_future_030_060
 ```
 
-配置会写入实验 YAML 的 `env.noVelocityObs` 和 `env.posePrediction`，使用 `--resume` 从该实验恢复时会保留。直接用 `--checkpoint` 回放不会自动读取实验 YAML，因此 `play_multistate_DQ_teacher.py` 也要传入匹配的速度、预测开关及预测参数；首次用该教师训练学生时，`train_multi_bc_deter_DQ_stu.py` 同样需要这些参数。旧checkpoint的首层和标准化器维度与1284维模型不同，应使用新实验目录从头训练。
+新默认 YAML 的 `env.posePrediction.gfmFuturePoses: True` 在开启 EKF 后生效；关闭 EKF 时 Query 仍为134维。旧保存 YAML 缺少该字段时按 `False` 解释，保留原来的134维 Query，可按旧结构加载权重。新旧 GFM 的 `query_proj` 权重形状不同，启用新结构应使用新实验目录从头训练。实验配置会保存该开关，评估和恢复须使用匹配的保存配置；不能只根据观测维度区分两种 GFM，因为两者均可接收1284维观测。蒸馏脚本会从教师 checkpoint 所在实验目录的保存 YAML 恢复预测配置和速度观测开关，再应用显式命令行覆盖；缺少保存 YAML 时沿用学生配置。
+
+本文切片表对应未启用 TSIL 的配置。启用 TSIL 后，其两维时间观测位于预测块与抓取候选之间，EKF块相对观测尾部的切片从 `[-202:-189]` 变为 `[-204:-191]`；网络按配置的预测维数和TSIL维数定位，Query 不拼入这两维时间观测。
 
 ---
 
@@ -179,7 +185,7 @@ $$
 
 ![图2：教师Actor完整网络](assets/dq_high_level_networks/02_teacher_actor.svg)
 
-*图 2：当前物体位姿6维既参与注意力Query，也包含在当前状态58维中。未来预测13维在标准化后直接进入主MLP，不进入抓取注意力。图中两个当前物体位姿入口是同一份数据的两种用途，不是在原始观测中存储了两份。*
+*图 2：当前物体位姿6维和未来预测13维均参与 GFM Query，也分别进入主MLP的当前状态块和预测块。这些分支复用同一份标准化观测，不重复增加原始观测维度。*
 
 进入主 MLP 的维度为：
 
@@ -213,16 +219,16 @@ concat([
 
 该编码 $z\in\mathbb{R}^{128}$ 一路直接进入动作 MLP，另一路与物体位姿拼接以生成注意力 Query。因此物体特征同时影响“如何汇总抓取候选”和“最终如何行动”。
 
-**抓取注意力根据物体特征和当前物体位姿，对30个当前抓取候选做连续汇总。** EKF未来位姿不进入该模块，所以Query输入仍是 `128+6=134` 维。实现位于 [`PredictAttentionSelector`](../DQ_high-level/modules/predictattention.py#L6)。
+**GFM 根据物体特征、当前物体位姿和两组 EKF 预测，对30个当前抓取候选做连续汇总。** Query 输入为 `128+6+13=147` 维；Key/Value 仍使用当前候选，模块仍输出6维抓取表示。实现位于 [`PredictAttentionSelector`](../DQ_high-level/modules/predictattention.py)。
 
 ![图4：抓取候选注意力](assets/dq_high_level_networks/04_grasp_attention.svg)
 
 *图 4：单头、单 Query 的缩放点积注意力。四个线性投影均为可学习参数，没有额外 FFN、LayerNorm 或位置编码。*
 
-设标准化后的当前物体位姿为 $p\in\mathbb{R}^{B\times6}$，当前候选集合为 $G\in\mathbb{R}^{B\times30\times6}$，则：
+设标准化后的当前物体位姿为 $p\in\mathbb{R}^{B\times6}$，两组预测位姿及有效标志为 $f\in\mathbb{R}^{B\times13}$，当前候选集合为 $G\in\mathbb{R}^{B\times30\times6}$，则：
 
 $$
-c=[z,p]\in\mathbb{R}^{B\times134},
+c=[z,p,f]\in\mathbb{R}^{B\times147},
 \quad Q=\operatorname{unsqueeze}(W_qc+b_q)\in\mathbb{R}^{B\times1\times64},
 $$
 
@@ -238,11 +244,11 @@ $$
 
 | 投影 | 输入→输出 | 参数数 |
 |---|---|---:|
-| `query_proj` | `134→64` | 8,640 |
+| `query_proj` | `147→64` | 9,472 |
 | `key_proj` | `6→64` | 448 |
 | `value_proj` | `6→64` | 448 |
 | `output_proj` | `64→6` | 390 |
-| **注意力模块合计** | | **9,926** |
+| **注意力模块合计** | | **10,758** |
 
 虽然变量名为 `selected_grasp` 或 `right_predict_point`，实际计算没有 `argmax`，没有返回某个候选的索引，也没有直接抓取位姿真值损失。输出应解释为 **6 维可学习抓取表示**：它由标准化候选经注意力和线性投影得到，不保证恰好等于某个候选，也不保证自身就是合法物理位姿。这个表示与其他状态一起服务于动作决策。
 
@@ -265,7 +271,7 @@ Actor内部没有RNN或图像历史。环境侧EKF利用物体历史位姿，Act
 
 ![图5：教师Critic完整网络](assets/dq_high_level_networks/05_teacher_critic.svg)
 
-*图5：Critic使用与Actor相同的1284维教师观测，包括同一份EKF预测；它在自己的参数下重新计算物体编码和抓取表示。EKF不需要为Actor和Critic各运行一次。*
+*图5：Critic使用与Actor相同的1284维教师观测和147维 GFM Query；它在自己的参数下重新计算物体编码和抓取表示。两者共用一份EKF预测，滤波器无需运行两次。*
 
 Critic 的主 MLP 为：
 
@@ -670,21 +676,21 @@ $$
 
 <a id="verification"></a>
 
-**最新教师的参数量与维度已重新按实际类定义核对。** 本次从源码加载Policy/Value类，使用1284维输入、批量 `B=2` 独立实例化并前向验证，没有创建Isaac Gym环境。实际捕获到Query投影输入 `[2,134]`、两个主MLP输入 `[2,214]`、Actor输出 `[2,9]`、Critic输出 `[2,1]`，输出均为有限值；两个模型参数对象互不共享。验证环境为本地 `dqwbc` Python、PyTorch `2.4.1+cu121`。学生与底层的结构和统计沿用原文核对结果。本次修改是图文更新，不把随机前向当成策略性能验证。
+**下表按启用 EKF 和 `gfmFuturePoses` 的教师结构计算。** 教师观测为1284维，Query输入147维，主MLP输入214维，Actor输出9维、Critic输出1维。相比此前只将预测送入主MLP的结构，新增参数仅来自 Query 投影。学生与底层的结构和统计沿用原文核对结果；维度和参数量不表示策略性能。
 
 | 网络 | 实际输入 | 核心融合维度 | 输出 | 注册参数总数 |
 |---|---|---|---|---:|
-| 高层教师 Actor | `[B,1284]` | 214 | 动作均值 `[B,9]`，log_std `[9]` | **875,864** |
-| 高层教师 Critic | `[B,1284]` | 214 | `[B,1]` | **874,832** |
+| 高层教师 Actor | `[B,1284]` | 214 | 动作均值 `[B,9]`，log_std `[9]` | **876,696** |
+| 高层教师 Critic | `[B,1284]` | 214 | `[B,1]` | **875,664** |
 | 高层学生 Policy | `[B,62269]` | 189；残差输入 198 | 最终动作 `[B,9]`，残差 `[B,9]` | **5,367,339** |
 | 底层 ActorCritic 整体 | 历史推理为 `[B,781]` | Actor 91；Critic 输入 89 | Actor 18；Critic 2 | **166,116** |
 
-教师Actor＋Critic总参数为 **1,750,696**。相比移除速度、尚未加入预测的1271维教师，每个主MLP首层新增 `13×512=6,656` 个权重，两个网络共新增13,312个参数。EKF与历史缓存没有可学习参数。Critic和学生各自有9个未使用的 `log_std_parameter`，统计中保留它们；教师Actor的9个log_std是实际高斯策略参数，不应扣为闲置。
+教师Actor＋Critic总参数为 **1,752,360**。相比同样接收1284维观测、但预测仅进入主MLP的旧结构，每个 Query 投影新增 `13×64=832` 个权重，两个网络共新增1,664个参数；两个主MLP保持不变。相比尚未加入预测的1271维教师，主MLP首层与Query合计新增 `2×13×(512+64)=14,976` 个权重。EKF与历史缓存没有可学习参数。Critic和学生各自有9个未使用的 `log_std_parameter`，统计中保留它们；教师Actor的9个log_std是实际高斯策略参数，不应扣为闲置。
 
 | 高层模块 | 教师 Actor | 教师 Critic | 学生 Policy |
 |---|---:|---:|---:|
 | 物体特征编码器 | 590,464 | 590,464 | — |
-| 抓取注意力四个投影 | 9,926 | 9,926 | — |
+| 抓取注意力四个投影 | 10,758 | 10,758 | — |
 | 主 MLP | 275,465 | 274,433 | — |
 | 环境侧EKF与坐标转换 | 0；Actor/Critic共用预测观测 | 0 | 不输入学生 |
 | 共享 CNN | — | — | 4,158,992 |
@@ -714,13 +720,13 @@ $$
 
 独立验证确认：教师 Actor、Critic、学生的前向维度与反向传播通过；底层历史分支 `781→18`、特权分支 `89→18`、历史编码 `10×71→20` 和 Critic `89→2` 的前向维度符合本文。Actor/Critic 独立参数、学生 CNN 共享实例和两个 Transformer 独立参数均与实际构造一致。
 
-**使用本图理解或修改代码时，应保留以下实现边界。** 教师固定假设候选数为 30，Query 输入为 134，观测尾部动作为 9；学生固定使用 61 维状态、54×96 图像的 CNN 展平尺寸，以及残差输入中的 `+9`。更改机器人、动作数、物体特征维度、相机模式或分辨率时，需要同步核对观测切片和网络层，不能认为命令行选项会自动适配全部结构。
+**使用本图理解或修改代码时，应保留以下实现边界。** 教师固定假设候选数为30，尾部按实际动作数切片，本文配置为9维动作；本文的两组预测使 Query 为147维，关闭 EKF 或使用旧 GFM 配置时为134维。学生固定使用61维状态、54×96图像的CNN展平尺寸，以及残差输入中的 `+9`。更改机器人、动作数、物体特征维度、相机模式或分辨率时，需要同步核对观测切片和网络层，不能认为命令行选项会自动适配全部结构。
 
 | 容易误读的对象 | 当前代码的实际含义 |
 |---|---|
 | `PredictPoint` | 抓取候选坐标变换，不是神经网络 |
 | `RollingSE3Predictor` | 环境侧固定EKF，滚动5帧历史；不会经PPO训练 |
-| 新增13维 | 两组未来位姿＋有效标志，进入Actor/Critic主MLP；不进入抓取注意力或学生数值状态 |
+| 预测13维 | 两组未来位姿＋有效标志，进入Actor/Critic的GFM Query和主MLP；不进入学生数值状态 |
 | 当前/未来物体坐标 | yaw对齐、机械臂基座相对xy、世界z；两组未来使用当前机器人参考 |
 | `features.npy` 与抓取 JSON | 离线预计算输入；当前路径没有在线点云编码器或抓取提议网络 |
 | `PredictAttentionSelector` | 单头注意力与线性投影，不是完整 Transformer，也不做 argmax |

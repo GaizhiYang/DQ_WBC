@@ -32,23 +32,26 @@ python build_sgs_bank.py \
 | YAML 字段 | 含义 | 当前值 |
 | --- | --- | --- |
 | `full_task.base.x_range_m` / `y_range_m` | 完整任务底盘到物体的世界 x / y 有符号间隔，单位 m | `[2.0, 2.0]` / `[0.0, 0.0]` |
-| `full_task.base.heading_offset_range_deg` | 底盘朝向相对物体方向的偏角，单位度 | `[-15, 15]` |
+| `full_task.base.heading_offset_range_deg` | 底盘前向与物体预期运动方向的无符号夹角，单位度 | `[75, 90]`，不包含 90° |
 | `full_task.arm_pose` | 完整任务机械臂关节姿态 | `default` |
-| `pregrasp.base.x_range_m` / `y_range_m` | 临近抓取底盘与物体间隔 | `[0.68, 0.95]` / `[-0.2, 0.2]` |
-| `pregrasp.base.heading_offset_range_deg` | 临近抓取底盘朝向偏角 | `[-15, 15]` |
+| `pregrasp.base.x_range_m` / `y_range_m` | 临近抓取底盘与物体间隔 | `[0.80, 0.95]` / `[-0.2, 0.2]` |
+| `pregrasp.base.heading_offset_range_deg` | 临近抓取底盘前向与物体运动方向的夹角 | `[45, 75]` |
 | `pregrasp.ee_approach_distance_range_m` | 末端到候选抓取原点的欧氏距离，单位 m | `[0.05, 0.15]` |
 | `near_goal.base.x_range_m` / `y_range_m` | 已抓住类别的底盘与物体间隔 | `[0.68, 0.85]` / `[-0.1, 0.1]` |
-| `near_goal.base.heading_offset_range_deg` | 已抓住类别的底盘朝向偏角 | `[-10, 10]` |
+| `near_goal.base.heading_offset_range_deg` | 已抓住类别的底盘前向与物体运动方向的夹角 | `[45, 75]` |
 | `near_goal.object_lift_height_range_m` | 物体中心相对原桌面支撑位置的实际抬升量 | `[0.05, 0.10]` |
 
-三类 `base` 使用相同定义：`x = object_world_x - robot_base_world_x`，`y = object_world_y - robot_base_world_y`；不是底盘局部坐标，也不是水平欧氏距离。偏角为 `wrap(robot_yaw - atan2(y, x))`，0° 表示正朝向物体，正值表示逆时针，范围须位于 `[-180, 180]` 内。
+三类 `base` 的位置使用相同定义：`x = object_world_x - robot_base_world_x`，`y = object_world_y - robot_base_world_y`；不是底盘局部坐标，也不是水平欧氏距离。当前配置显式设置根字段 `heading_reference: object_motion`，所以 `heading_offset_range_deg: [45, 75]` 直接表示机器人前向与物体预期水平运动方向的无符号夹角在 45°～75°。先均匀采样夹角 θ，再从 `motion_yaw + θ` 和 `motion_yaw - θ` 中选择更面向物体的位置方向的一侧；没有额外施加旧的物体方位偏角范围。保存前按实际底盘前向和最终物体、桌面状态重新测量夹角验收。
 
-构库还要求底盘前向与物体预期水平运动方向的夹角小于 90°，即两个水平向量的点积为正；正交和反向候选均拒绝。方向依据保存的 Level02 运动参数计算：先将桌面局部 `[0, table_vy, 0]` 按桌面朝向转至世界系，再加上启用桌面旋转时的 `ω × (object_position - table_position)` 切向速度。构库会暂时固定桌面、清零物体速度，因此不能用当时近零的物体实测速度判断方向；Near-Goal 也沿用这组任务运动参数作为朝向参考。此条件与 YAML 的位置和偏角范围同时满足，不会自动翻转朝向或放宽范围；无可行交集会导致样本不足。拒绝原因记录为 `base_motion_alignment`，Near-Goal 保存帧另检查 `final_base_motion_alignment`。已有 `.pt` 不会自动更新，需要重新构库使该约束生效。
+运动夹角范围须满足 `0 <= minimum < 90`、`minimum <= maximum <= 90`；90° 仅能用作开上界，`[90, 90]` 会报错。未设置 `heading_reference` 或显式设为 `object_bearing` 的旧配置继续采用 `wrap(robot_yaw - atan2(y, x))` 有符号偏角，0° 表示正朝向物体，正值为逆时针，范围仍为 `[-180, 180]`。旧 `.pt` 不会随 YAML 修改而更新，需要重新构库。
+
+构库还要求底盘前向与物体预期水平运动方向的夹角小于 90°，即两个水平向量的点积为正；正交和反向候选均拒绝。方向依据保存的 Level02 运动参数计算：先将桌面局部 `[0, table_vy, 0]` 按桌面朝向转至世界系，再加上启用桌面旋转时的 `ω × (object_position - table_position)` 切向速度。构库会暂时固定桌面、清零物体速度，因此不能用当时近零的物体实测速度判断方向；Near-Goal 也沿用这组任务运动参数作为朝向参考。此条件与 YAML 的位置和角度范围同时满足，不会放宽范围；不可达设置会导致样本不足。拒绝原因记录为 `base_motion_alignment`，Near-Goal 保存帧另检查 `final_base_motion_alignment`。审计新增 `coverage.base_motion_angle_deg` 记录实测运动夹角，原 `base_heading_offset_deg` 仍表示相对物体位置方向的有符号偏角。
 
 以下是当前可调扰动参数，数值是本仓库的工程设置，不是论文推荐常数：
 
 ```yaml
 schema_version: 5
+heading_reference: object_motion
 object:
   yaw_offset_range_deg: [-15, 15]
 validation:

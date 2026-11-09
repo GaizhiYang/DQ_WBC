@@ -2,6 +2,7 @@
 
 Run from any directory: python /path/to/render_diagrams.py
 Teacher figures describe --no_velocity_obs --future_pose_obs, horizons .30/.60 s.
+GFM queries include the normalized forecast block (gfmFuturePoses=True).
 """
 from pathlib import Path
 import json
@@ -99,7 +100,7 @@ def teacher_actor():
         ("future", "新增预测观测：[B,13]\n[1082:1095]\n0.30秒位姿6 + 0.60秒位姿6 + valid1", "forecast"),
         ("previous", "上一高层动作：[B,9]\n[1275:1284]", "input"),
         ("enc", "feature_encoder\nLinear 1024→512 + ELU\nLinear 512→128", "net"),
-        ("att", "抓取候选注意力\nQuery = 编码128 + 当前物体位姿6\nKey / Value = 当前30个抓取候选\n输出抓取表示：[B,6]", "net"),
+        ("att", "抓取融合模块 GFM\nQuery = 编码128 + 当前物体位姿6 + 预测13 = 147\nKey / Value = 当前30个抓取候选\n输出抓取表示：[B,6]", "net"),
         ("cat", "按代码顺序拼接：[当前58, 预测13, 上一动作9, 编码128, 抓取表示6]\n58 + 13 + 9 + 128 + 6 = 214", "op"),
         ("l1", "Linear 214→512 + ELU", "net"),
         ("l2", "Linear 512→256 + ELU", "net"),
@@ -113,6 +114,7 @@ def teacher_actor():
     g.chain("source", "raw", "norm")
     for k in ("f", "p", "gs", "other", "future", "previous"): g.edge("norm", k)
     g.chain("f", "enc"); g.edge("enc", "att", "编码128"); g.edge("p", "att"); g.edge("gs", "att")
+    g.edge("future", "att", "标准化预测13（含valid）")
     g.edge("enc", "cat", "编码128"); g.edge("other", "cat"); g.edge("att", "cat", "抓取表示6")
     g.edge("future", "cat", "预测直接进入主MLP"); g.edge("previous", "cat")
     g.chain("cat", "l1", "l2", "l3", "mean", "dist", "out"); g.edge("std", "dist")
@@ -135,9 +137,10 @@ def feature_encoder():
 def grasp_attention():
     g = Figure("04_grasp_attention", "抓取候选注意力：单头、单Query、30个Key/Value")
     for key, label, kind in [
-        ("z", "物体编码 z：[B,128]", "input"), ("p", "当前物体位姿 p：[B,6]\n未来13维不进入Query", "input"),
-        ("context", "concat(z,p)：[B,134]", "op"),
-        ("q", "query_proj：Linear 134→64\nunsqueeze → Q：[B,1,64]", "net"),
+        ("z", "物体编码 z：[B,128]", "input"), ("p", "当前物体位姿 p：[B,6]", "input"),
+        ("future", "标准化预测 f：[B,13]\n0.30秒位姿6 + 0.60秒位姿6 + valid1", "forecast"),
+        ("context", "concat(z,p,f)：[B,147]\ngfmFuturePoses=True", "op"),
+        ("q", "query_proj：Linear 147→64\nunsqueeze → Q：[B,1,64]", "net"),
         ("grasps", "G：[B,30,6]\n由当前物体位姿变换的抓取候选", "input"),
         ("k", "key_proj：Linear 6→64\nK：[B,30,64]", "net"),
         ("v", "value_proj：Linear 6→64\nV：[B,30,64]", "net"),
@@ -147,7 +150,8 @@ def grasp_attention():
         ("out", "output_proj：Linear 64→6\n抓取表示 g：[B,6]", "net"),
         ("note", "连续注意力汇总 + 线性投影\n没有argmax、候选索引或位姿监督损失", "fixed"),
     ]: g.node(key, label, kind)
-    g.edge("z", "context"); g.edge("p", "context"); g.chain("context", "q", "score", "soft", "weighted", "out", "note")
+    g.edge("z", "context"); g.edge("p", "context"); g.edge("future", "context")
+    g.chain("context", "q", "score", "soft", "weighted", "out", "note")
     g.edge("grasps", "k"); g.edge("grasps", "v"); g.edge("k", "score"); g.edge("v", "weighted")
     return g
 
@@ -158,7 +162,7 @@ def teacher_critic():
         ("o", "教师观测：[B,1284]\n经过同一PPO状态标准化器", "input"),
         ("e", "Critic独立 feature_encoder\n1024→512 + ELU→128", "net"),
         ("g", "当前物体位姿6 + 当前抓取候选30×6", "input"),
-        ("a", "Critic独立 PredictAttentionSelector\n134/6→64→6", "net"),
+        ("a", "Critic独立 GFM\nQuery147 / 候选6→64→输出6", "net"),
         ("r", "当前状态58 + 上一动作9\n物体当前位姿包含在58维中", "input"),
         ("future", "新增预测观测：[B,13]\n未来0.30秒6 + 0.60秒6 + valid1", "forecast"),
         ("c", "concat([当前58, 预测13, 上一动作9, 编码128, 抓取表示6])\n[B,214]", "op"),
@@ -171,6 +175,7 @@ def teacher_critic():
     ]: g.node(key, label, kind)
     for k in ("e", "g", "r", "future"): g.edge("o", k)
     g.edge("future", "c")
+    g.edge("future", "a", "标准化预测13（含valid）")
     g.edge("e", "a"); g.edge("g", "a"); g.edge("r", "c"); g.edge("e", "c"); g.edge("a", "c")
     g.chain("c", "l1", "l2", "l3", "l4", "v")
     return g
@@ -190,7 +195,7 @@ def pose_prediction():
         ("valid", "有效标志 valid：[B,1]\n5帧齐全且预测数值正常才为1\n不是准确率或置信概率", "fixed"),
         ("reset", "环境reset：只清空对应环境历史\n历史不足或数值异常：valid=0\n两组未来位姿都填当前物体观测6维", "fixed"),
         ("block", "拼接新增观测：[B,13]\n0.30秒位姿6 | 0.60秒位姿6 | valid1", "forecast"),
-        ("obs", "放在当前状态之后、抓取候选之前\n完整观测1284 → 标准化 → Actor / Critic主MLP", "output"),
+        ("obs", "放在当前状态之后、抓取候选之前\n完整观测1284 → 标准化\nActor / Critic：GFM Query147 + 主MLP214", "output"),
     ]: g.node(key, label, kind)
     g.edge("world", "history"); g.edge("time", "history")
     g.chain("history", "ekf", "forecast", "convert", "pose", "block", "obs")
