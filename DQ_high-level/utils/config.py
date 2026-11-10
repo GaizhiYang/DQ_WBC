@@ -246,7 +246,11 @@ def get_parser():
                         help="Number of environments to create. Overrides the config value.")
     parser.add_argument("--object_name", type=str, default=None,
                         help="Train/evaluate DQ_teacher or DQ_stu on one object from env.asset.asset_multi (e.g. sugar_box).")
-    
+
+    # SuperMimic option
+    parser.add_argument("--use_supermimic", action="store_true",
+                        help="Use SuperMimic algorithm (world model + BPTT) instead of PPO.")
+
     return parser
 
 

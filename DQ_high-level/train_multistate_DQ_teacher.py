@@ -22,7 +22,7 @@ from skrl.utils import set_seed
 from envs import *    #import b1z1_pickmulti.py
 from PredictPiontTransform.predictpoint_mul import PredictPoint
 from utils.config import (load_cfg, get_params, copy_cfg, configure_teacher_experiment,
-                          teacher_run_end, apply_pose_prediction_config)
+                          teacher_run_end, apply_pose_prediction_config, apply_tsil_config)
 import utils.wrapper as wrapper
 import time
 from legged_gym.envs.manip_loco.b1z1_config import B1Z1RoughCfg
@@ -506,22 +506,92 @@ def finalize_teacher_logging(trainer):
 
 
 if __name__ == "__main__":
-    trainer = get_trainer()
-    try:
-        trainer.train()
-    except KeyboardInterrupt:
-        # Preserve the partial logging window when training is interrupted,
-        # then propagate the interrupt instead of saving a completed run.
+    args = get_params()
+
+    # Check if SuperMimic mode is enabled
+    if hasattr(args, 'use_supermimic') and args.use_supermimic:
+        cprint("\n" + "="*60, "cyan")
+        cprint("  SuperMimic v2 Training Mode Enabled", "cyan")
+        cprint("  Algorithm: World Model + BPTT (instead of PPO)", "cyan")
+        cprint("="*60 + "\n", "cyan")
+
+        # Load config and prepare environment (same as get_trainer)
+        set_seed(args.seed)
+        args.eval = False
+        args.wandb = args.wandb and (not args.eval) and (not args.debug)
+
+        if args.sgs_mode in ("uniform", "sgs") and (args.resume or args.checkpoint):
+            raise ValueError("SGS/uniform-bank training starts from scratch")
+
+        file_path = teacher_config_path(args, is_eval=False, strict_eval=False)
+        cfg = load_cfg(file_path)
+        configure_teacher_experiment(cfg, args, is_eval=False, strict_eval=False)
+        prediction_cfg = apply_pose_prediction_config(cfg, args)
+
+        if args.no_velocity_obs:
+            cfg["env"]["noVelocityObs"] = True
+
+        # Handle object_name
+        multi_obj = cfg["env"]["asset"]["asset_multi"]
+        if args.object_name is not None:
+            if args.object_name not in multi_obj:
+                raise ValueError(f"Unknown --object_name {args.object_name!r}")
+            multi_obj = {args.object_name: multi_obj[args.object_name]}
+            cfg["env"]["asset"]["asset_multi"] = multi_obj
+        object_indices = [obj["dict_idx"] for obj in multi_obj.values()]
+
+        cfg['env']['wandb'] = args.wandb
+        cfg['env']["useTanh"] = getattr(args, 'use_tanh', False)
+        cfg['env']["near_goal_stop"] = getattr(args, 'near_goal_stop', False)
+        cfg['env']["obj_move_prob"] = getattr(args, 'obj_move_prob', 0.0)
+
+        if args.num_envs is not None:
+            if args.num_envs <= 0:
+                raise ValueError("--num_envs must be a positive integer")
+            cfg['env']['numEnvs'] = args.num_envs
+
+        tsil_cfg = apply_tsil_config(cfg, args, is_eval=False)
+
+        # Get prediction point data
+        args.intervel = 23
+        camera_6p_tensor, grasp_cv_tensor, cube_init_tensor = get_predict_point(
+            cube_predict_info_path="contact_grasp_info_mul",
+            cube_root_states_info_path="30all_nomove_cube_root_states5.pt",
+            num_env=cfg['env']['numEnvs'],
+            intervel=args.intervel,
+            delta_height=0.1,
+            object_indices=object_indices
+        )
+
+        # Create environment
+        experiment_cfg = deepcopy(cfg)
+        env = create_env(cfg, args, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor)
+
+        # Import and run SuperMimic v2 training
+        from simple_supermimic_trainer import run_supermimic_training
+
+        # Run SuperMimic training
+        agent = run_supermimic_training(env, args, experiment_cfg)
+
+        cprint("\n[SuperMimic v2] Training finished successfully!", "green")
+    else:
+        # Original PPO training
+        trainer = get_trainer()
+        try:
+            trainer.train()
+        except KeyboardInterrupt:
+            # Preserve the partial logging window when training is interrupted,
+            # then propagate the interrupt instead of saving a completed run.
+            finalize_teacher_logging(trainer)
+            raise
         finalize_teacher_logging(trainer)
-        raise
-    finalize_teacher_logging(trainer)
-    run_dir = Path(trainer.teacher_args.experiment_dir) / trainer.teacher_args.wandb_name
-    if trainer.teacher_config["env"]["sgs"]["mode"] != "disabled":
-        # Diagnostic history is not a checkpoint for resuming training.
-        trainer.env.save_sgs_diagnostics(str(run_dir / "sgs_diagnostics.pt"))
-    if trainer.teacher_args.stop_after is not None:
-        # This is a model checkpoint for smoke evaluation, not a sampler resume.
-        checkpoint_dir = run_dir / "checkpoints"
-        checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        trainer.agents.save(str(checkpoint_dir / f"agent_{trainer.timesteps}.pt"))
-    
+        run_dir = Path(trainer.teacher_args.experiment_dir) / trainer.teacher_args.wandb_name
+        if trainer.teacher_config["env"]["sgs"]["mode"] != "disabled":
+            # Diagnostic history is not a checkpoint for resuming training.
+            trainer.env.save_sgs_diagnostics(str(run_dir / "sgs_diagnostics.pt"))
+        if trainer.teacher_args.stop_after is not None:
+            # This is a model checkpoint for smoke evaluation, not a sampler resume.
+            checkpoint_dir = run_dir / "checkpoints"
+            checkpoint_dir.mkdir(parents=True, exist_ok=True)
+            trainer.agents.save(str(checkpoint_dir / f"agent_{trainer.timesteps}.pt"))
+
