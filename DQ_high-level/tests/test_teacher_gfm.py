@@ -99,8 +99,9 @@ class StudentTeacherGFMConfigurationTests(unittest.TestCase):
         future_width = (6 * len(settings.get("horizons", [0.3, 0.6])) + 1
                         if settings.get("enabled", False) else 0)
         env = SimpleNamespace(cfg=cfg, num_future_pose_obs=future_width, num_tsil_obs=0)
+        observation_width = teacher_gfm_kwargs(env)["num_future_pose_obs"]
         return PredictAttentionSelector(
-            future_pose_dim=teacher_gfm_kwargs(env)["num_future_pose_obs"]).query_proj.in_features
+            future_pose_dim=observation_width - 1 if observation_width else 0).query_proj.in_features
 
     def test_custom_saved_config_restores_full_prediction_settings_and_new_query(self):
         prediction = {"enabled": True, "horizons": [0.2, 0.7], "history": 9,
@@ -117,7 +118,7 @@ class StudentTeacherGFMConfigurationTests(unittest.TestCase):
             self.assertEqual(config_utils.restore_student_teacher_observation_config(cfg, checkpoint),
                              selected.resolve())
             self.assertEqual(cfg, expected)
-            self.assertEqual(self.selector_width(cfg), 147)
+            self.assertEqual(self.selector_width(cfg), 146)
 
     def test_default_saved_yaml_keeps_old_future_query_when_flag_is_missing(self):
         prediction = {"enabled": True, "horizons": [0.4, 0.9], "history": 7,
@@ -170,7 +171,7 @@ class StudentTeacherGFMConfigurationTests(unittest.TestCase):
             self.assertEqual(settings, {"enabled": True, "horizons": [0.1, 0.4, 0.8],
                                         "history": 3, "qScale": 1.5, "rScale": 0.005,
                                         "gfmFuturePoses": True})
-            self.assertEqual(self.selector_width(cfg), 153)
+            self.assertEqual(self.selector_width(cfg), 152)
 
     def test_student_entry_restores_only_during_training_and_before_cli_overrides(self):
         source = ROOT / "train_multi_bc_deter_DQ_stu.py"
@@ -208,7 +209,7 @@ class StudentTeacherGFMConfigurationTests(unittest.TestCase):
                     cfg = namespace["cfg"]
                     self.assertEqual(len(calls), 0 if is_eval else 1)
                     self.assertEqual(cfg["env"]["posePrediction"]["horizons"], [0.1, 0.5])
-                    self.assertEqual(self.selector_width(cfg), 134 if is_eval else 147)
+                    self.assertEqual(self.selector_width(cfg), 134 if is_eval else 146)
 
 
 class TeacherGFMTests(unittest.TestCase):
@@ -268,24 +269,24 @@ class TeacherGFMTests(unittest.TestCase):
                 handle.remove()
         return output, captured
 
-    def test_policy_and_value_query_receive_exact_current_future_and_validity_channels(self):
+    def test_policy_and_value_query_receive_current_and_future_poses_without_validity(self):
         for cls in (Policy, Value):
             for temporal_width, action_width in ((0, 9), (2, 9), (2, 10)):
                 with self.subTest(model=cls.__name__, tsil=temporal_width, actions=action_width):
                     fixture = self.fixture(temporal_width=temporal_width, action_width=action_width)
                     model = self.model(cls, fixture)
                     output, captured = self.capture(model, fixture.state)
-                    expected = torch.cat((captured["features"], fixture.pose, fixture.future), dim=-1)
+                    expected = torch.cat((captured["features"], fixture.pose, fixture.future[:, :-1]), dim=-1)
                     torch.testing.assert_close(captured["query"], expected)
                     torch.testing.assert_close(captured["candidates"], fixture.candidates)
-                    self.assertEqual(model.query_proj.in_features, 147)
+                    self.assertEqual(model.query_proj.in_features, 146)
                     self.assertEqual(output.shape, (2, action_width if cls is Policy else 1))
                     # The existing MLP still receives state + actions + feature + selected grasp.
                     expected_mlp_width = fixture.state.shape[-1] - self.feature_width + 128 - 180 + 6
                     self.assertEqual(captured["mlp"].shape, (2, expected_mlp_width))
                     torch.testing.assert_close(captured["mlp"][:, -6:], captured["selected"])
 
-    def test_both_predicted_poses_and_validity_have_gradients_through_grasp_selection(self):
+    def test_both_predicted_poses_have_gfm_gradients_but_validity_has_zero_gradient(self):
         for cls in (Policy, Value):
             with self.subTest(model=cls.__name__):
                 fixture = self.fixture(temporal_width=2)
@@ -295,10 +296,26 @@ class TeacherGFMTests(unittest.TestCase):
                 # Differentiate GFM itself, excluding the direct EKF-to-MLP path.
                 captured["selected"].square().sum().backward()
                 gradients = state.grad[:, fixture.future_slice]
-                for name, span in (("first", slice(0, 6)), ("second", slice(6, 12)),
-                                   ("validity", slice(12, 13))):
+                for name, span in (("first", slice(0, 6)), ("second", slice(6, 12))):
                     with self.subTest(channel=name):
                         self.assertGreater(gradients[:, span].abs().sum().item(), 1e-9)
+                self.assertTrue(torch.equal(gradients[:, 12], torch.zeros_like(gradients[:, 12])))
+
+    def test_changing_validity_keeps_query_and_selected_grasp_but_updates_mlp_input(self):
+        for cls in (Policy, Value):
+            for temporal_width in (0, 2):
+                with self.subTest(model=cls.__name__, tsil=temporal_width):
+                    fixture = self.fixture(temporal_width=temporal_width)
+                    model = self.model(cls, fixture)
+                    _, original = self.capture(model, fixture.state)
+                    changed = fixture.state.clone()
+                    changed[:, fixture.future_slice.stop - 1] = 1 - fixture.future[:, -1]
+                    _, result = self.capture(model, changed)
+                    self.assertTrue(torch.equal(result["query"], original["query"]))
+                    self.assertTrue(torch.equal(result["selected"], original["selected"]))
+                    valid_in_mlp = self.body_width + fixture.future.shape[-1] - 1
+                    torch.testing.assert_close(original["mlp"][:, valid_in_mlp], fixture.future[:, -1])
+                    torch.testing.assert_close(result["mlp"][:, valid_in_mlp], 1 - fixture.future[:, -1])
 
     def test_changing_either_future_pose_changes_selected_grasp(self):
         for cls in (Policy, Value):
@@ -332,8 +349,8 @@ class TeacherGFMTests(unittest.TestCase):
                     fixture = self.fixture(future_width=6 * horizons + 1, temporal_width=2)
                     model = self.model(cls, fixture)
                     _, captured = self.capture(model, fixture.state)
-                    self.assertEqual(captured["query"].shape, (2, 134 + 6 * horizons + 1))
-                    torch.testing.assert_close(captured["query"][:, 134:], fixture.future)
+                    self.assertEqual(captured["query"].shape, (2, 134 + 6 * horizons))
+                    torch.testing.assert_close(captured["query"][:, 134:], fixture.future[:, :-1])
                     self.assertEqual(captured["candidates"].shape, (2, 30, 6))
 
     def test_gfm_future_disabled_preserves_legacy_query_but_keeps_mlp_future_input(self):
@@ -375,16 +392,20 @@ class TeacherGFMTests(unittest.TestCase):
                                              strict=True)
                     actual, _ = self.capture(restored, fixture.state)
                     torch.testing.assert_close(actual, expected)
-                    self.assertEqual(restored.query_proj.weight.shape, (64, 134 + future_width))
+                    self.assertEqual(restored.query_proj.weight.shape,
+                                     (64, 134 + (future_width - 1 if future_width else 0)))
 
-    def test_future_selector_requires_configured_pose_and_validity_width(self):
-        selector = PredictAttentionSelector(future_pose_dim=13).to(self.device)
+    def test_future_selector_requires_only_configured_pose_width(self):
+        selector = PredictAttentionSelector(future_pose_dim=12).to(self.device)
         fixture = self.fixture()
         feature = torch.zeros(2, 128, device=self.device)
-        for future in (None, fixture.future[:, :12], fixture.future[:, :7]):
+        for future in (None, fixture.future, fixture.future[:, :7]):
             with self.subTest(width=None if future is None else future.shape[-1]):
-                with self.assertRaisesRegex(ValueError, "future|validity"):
+                with self.assertRaisesRegex(ValueError, "future|pose"):
                     selector.attention_forward(fixture.candidates, feature, fixture.pose, future)
+        selected = selector.attention_forward(fixture.candidates, feature, fixture.pose,
+                                               fixture.future[:, :12])
+        self.assertEqual(selected.shape, (2, 6))
 
     def test_legacy_selector_matches_original_attention_equations(self):
         selector = PredictAttentionSelector().to(self.device)

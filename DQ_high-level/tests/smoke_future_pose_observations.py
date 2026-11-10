@@ -46,7 +46,7 @@ def main():
         gfm_kwargs = teacher_gfm_kwargs(env)
         policy = Policy(env.observation_space, env.action_space, env.rl_device, 1024, 128, camera, grasps, initial, **gfm_kwargs).to(env.rl_device)
         value = Value(env.observation_space, env.action_space, env.rl_device, 1024, 128, camera, grasps, initial, **gfm_kwargs).to(env.rl_device)
-        assert policy.query_proj.in_features == value.query_proj.in_features == 147
+        assert policy.query_proj.in_features == value.query_proj.in_features == 146
         query_inputs = {}
         policy.query_proj.register_forward_pre_hook(lambda module, inputs: query_inputs.update(policy=inputs[0].clone()))
         value.query_proj.register_forward_pre_hook(lambda module, inputs: query_inputs.update(value=inputs[0].clone()))
@@ -76,7 +76,7 @@ def main():
                 actions, _, _ = policy.compute({"states": normalized}, "policy")
                 values, _ = value.compute({"states": normalized}, "value")
                 for query in query_inputs.values():
-                    torch.testing.assert_close(query[:, -13:], normalized[:, -202:-189])
+                    torch.testing.assert_close(query[:, -12:], normalized[:, -202:-190])
                 assert actions.shape == (4, 9) and values.shape == (4, 1)
                 assert torch.isfinite(actions).all() and torch.isfinite(values).all()
                 if step == 6:

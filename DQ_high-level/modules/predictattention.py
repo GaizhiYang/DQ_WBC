@@ -17,8 +17,8 @@ def teacher_gfm_kwargs(env):
 class PredictAttentionSelector(nn.Module):
     def __init__(self, d_model=64, obj_feat_dim=128, future_pose_dim=0):
         super().__init__()
-        if future_pose_dim < 0 or (future_pose_dim and (future_pose_dim < 7 or (future_pose_dim - 1) % 6)):
-            raise ValueError("GFM future_pose_dim must be 0 or 6 * horizons + 1")
+        if future_pose_dim < 0 or future_pose_dim % 6:
+            raise ValueError("GFM future_pose_dim must be 6 * horizons (poses only)")
         self.future_pose_dim = future_pose_dim
         self.key_proj = nn.Linear(6, d_model)
         self.value_proj = nn.Linear(6, d_model)
@@ -29,11 +29,10 @@ class PredictAttentionSelector(nn.Module):
         context = [obj_feat, pose]
         if self.future_pose_dim:
             if future_pose_obs is None or future_pose_obs.shape[-1] != self.future_pose_dim:
-                raise ValueError("GFM requires the configured future poses and validity channel")
+                raise ValueError("GFM requires the configured future poses without a validity channel")
             # These channels have the same normalization as the current pose.
-            # The validity value is an input feature, not a boolean mask here.
             context.append(future_pose_obs)
-        context = torch.cat(context, dim=-1)  # 147 with two future poses + validity
+        context = torch.cat(context, dim=-1)  # 146 with two future poses
         Q = self.query_proj(context).unsqueeze(1)      # [B, 1, d_model]
         K = self.key_proj(grasps)                      # [B, N, d_model]
         V = self.value_proj(grasps)                    # [B, N, d_model]

@@ -113,7 +113,7 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
         transform_func = torch.distributions.transforms.TanhTransform() if use_tanh else None
         GaussianMixin.__init__(self, clip_actions, clip_log_std, min_log_std, max_log_std, reduction, transform_func=transform_func, deterministic=deterministic)
         PredictAttentionSelector.__init__(self, d_model=64, obj_feat_dim=encode_dim or 128,
-                                          future_pose_dim=num_future_pose_obs)
+                                          future_pose_dim=num_future_pose_obs - 1 if num_future_pose_obs else 0)
 
         self.to(device)
         self.num_features = num_features # 1024
@@ -121,8 +121,9 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
         self.cube_object_num = 30  # Candidate grasps per object, not the number of object assets.
         self.notrain_obs_num = 3*self.cube_object_num + 3*self.cube_object_num # 30 cube's pos + rpy feature_num
         # Layout: current state, EKF poses + valid, optional TSIL, grasps, last action.
+        # GFM consumes only the poses; skip the forecast block's final valid channel.
         future_end = -(self.notrain_obs_num + self.num_actions + num_tsil_obs)
-        self.future_pose_slice = slice(future_end - num_future_pose_obs, future_end)
+        self.future_pose_slice = slice(future_end - num_future_pose_obs, future_end - 1)
         
         if num_features > 0:
             self.feature_encoder = nn.Sequential(nn.Linear(self.num_features, 512), # input : (envs,1024), output : (envs,512)
@@ -165,7 +166,7 @@ class Value(DeterministicMixin, Model, PredictAttentionSelector):
         Model.__init__(self, observation_space, action_space, device)
         DeterministicMixin.__init__(self)
         PredictAttentionSelector.__init__(self, d_model=64, obj_feat_dim=encode_dim or 128,
-                                          future_pose_dim=num_future_pose_obs)
+                                          future_pose_dim=num_future_pose_obs - 1 if num_future_pose_obs else 0)
 
         self.to(device)
 
@@ -174,7 +175,7 @@ class Value(DeterministicMixin, Model, PredictAttentionSelector):
         self.cube_object_num = 30  # Candidate grasps per object, not the number of object assets.
         self.notrain_obs_num = 3*self.cube_object_num + 3*self.cube_object_num # 30 cube's pos + rpy feature_num
         future_end = -(self.notrain_obs_num + self.num_actions + num_tsil_obs)
-        self.future_pose_slice = slice(future_end - num_future_pose_obs, future_end)
+        self.future_pose_slice = slice(future_end - num_future_pose_obs, future_end - 1)
         
         if num_features > 0:
             self.feature_encoder = nn.Sequential(nn.Linear(self.num_features, 512), # input : (envs,1024), output : (envs,512)
