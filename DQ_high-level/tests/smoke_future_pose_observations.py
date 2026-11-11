@@ -17,6 +17,7 @@ from train_multistate_DQ_teacher import create_env, get_predict_point, Policy, V
 from modules.predictattention import teacher_gfm_kwargs
 from envs.b1z1_base import B1Z1Base
 from utils.config import get_params, load_cfg
+from utils.object_pose import pose_to_rpy_observation
 
 
 def main():
@@ -62,10 +63,15 @@ def main():
                 assert torch.isfinite(obs).all()
                 valid = prediction[:, -1].bool()
                 valid_samples += int(valid.sum())
+                current_local_pose = raw._current_object_pose_in_arm_frame()
+                torch.testing.assert_close(obs[:, 1024:1030], pose_to_rpy_observation(current_local_pose))
+                # Samples enter the EKF in A, before any fitting or forecasting.
+                torch.testing.assert_close(raw.object_pose_predictor.poses[:, -1], current_local_pose)
                 if valid.any():
-                    # Both z channels are predicted WORLD heights, not relative z.
-                    torch.testing.assert_close(prediction[valid][:, [2, 8]],
-                                               raw.object_pose_predictor.future_poses[valid, :, 2])
+                    # Forecasts already use A; all xyz/RPY channels pass through directly.
+                    expected = pose_to_rpy_observation(
+                        raw.object_pose_predictor.future_poses[valid].reshape(-1, 7)).reshape(-1, 12)
+                    torch.testing.assert_close(prediction[valid, :12], expected)
                 if (~valid).any():
                     torch.testing.assert_close(prediction[~valid, :12].reshape(-1, 2, 6),
                                                obs[~valid, 1024:1030].unsqueeze(1).expand(-1, 2, -1))

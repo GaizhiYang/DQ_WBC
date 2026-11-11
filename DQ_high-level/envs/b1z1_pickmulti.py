@@ -13,7 +13,9 @@ from utils.low_level_model import ActorCritic
 from utils.config import load_cfg, get_params, copy_cfg
 from utils.pick_success import lifted_grasp_mask, advance_pick_hold, RollingEpisodeSuccess
 from modules.pose_prediction import RollingSE3Predictor
-from utils.object_pose import object_pose_in_teacher_frame
+from utils.object_pose import (
+    object_pose_in_arm_frame, object_pose_in_teacher_frame, pose_to_rpy_observation,
+)
 from PredictPiontTransform.predictpoint_mul import PredictPoint
 import time
 
@@ -290,11 +292,11 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         # reset's final refresh, without advancing any environment's physics.
         self._update_curr_dist()
         if self.object_pose_predictor is not None:
-            # SGS bypasses the ordinary reset path. Seed the restored bank pose
+            # SGS bypasses the ordinary reset path. Seed the restored A-frame pose
             # before observations, without carrying history across episodes.
             self.object_pose_predictor.reset(env_ids)
             self.object_pose_predictor.push(
-                self._cube_root_states[env_ids, :7], self.gym.get_sim_time(self.sim), env_ids)
+                self._current_object_pose_in_arm_frame(env_ids), self.gym.get_sim_time(self.sim), env_ids)
         if getattr(self, "tsil_enabled", False):
             self._reset_tsil_state(env_ids)
         self._compute_observations(env_ids)
@@ -733,7 +735,7 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             # method. Clear old history BEFORE that first new-episode observation.
             self.object_pose_predictor.reset(env_ids)
             self.object_pose_predictor.push(
-                self._cube_root_states[env_ids, :7], self.gym.get_sim_time(self.sim), env_ids)
+                self._current_object_pose_in_arm_frame(env_ids), self.gym.get_sim_time(self.sim), env_ids)
         if getattr(self, "tsil_enabled", False):
             self._reset_tsil_state(env_ids)
         return
@@ -751,9 +753,22 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.curr_height[:] = self._cube_root_states[:, 2] - self.table_heights - self.init_height
         self.highest_object = torch.where(self.highest_object < 0, self.curr_height, self.highest_object)
 
+    def _current_object_pose_in_arm_frame(self, env_ids=None):
+        """Measure xyz/xyzw relative to the arm anchor and full current body rotation."""
+        robot = self._robot_root_states if env_ids is None else self._robot_root_states[env_ids]
+        obj = self._cube_root_states if env_ids is None else self._cube_root_states[env_ids]
+        # Compute from current roots, including immediately after an ordinary
+        # reset when the cached arm_base may still belong to the previous state.
+        offset = robot.new_tensor([0.3, 0., 0.09]).expand(robot.shape[0], -1)
+        arm_base = quat_apply(robot[:, 3:7], offset) + robot[:, :3]
+        return object_pose_in_arm_frame(obj[:, :3], obj[:, 3:7], arm_base, robot[:, 3:7])
+
     def _update_object_pose_prediction(self):
         if self.object_pose_predictor is not None:
-            self.object_pose_predictor.push(self._cube_root_states[:, :7], self.gym.get_sim_time(self.sim))
+            # Fit relative object motion from A-frame measurements at each sample,
+            # including changes caused by the robot's own translation and rotation.
+            self.object_pose_predictor.push(
+                self._current_object_pose_in_arm_frame(), self.gym.get_sim_time(self.sim))
             self.object_pose_predictor.predict()
 
     def _future_object_observations(self, env_ids, current_object_obs):
@@ -761,16 +776,9 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             return self.future_object_obs[env_ids]
         horizons = len(self.pose_prediction_horizons)
         future = self.object_pose_predictor.future_poses[env_ids]
-        # Compute directly from current robot state, including on reset when
-        # update_roboinfo() has not run yet. All horizons share this reference.
-        robot = self._robot_root_states[env_ids]
-        offset = torch.tensor([0.3, 0., 0.09], device=self.device).expand(len(env_ids), -1)
-        arm_base = quat_apply(robot[:, 3:7], offset) + robot[:, :3]
-        encoded = object_pose_in_teacher_frame(
-            future[..., :3].reshape(-1, 3), future[..., 3:7].reshape(-1, 4),
-            arm_base[:, None, :].expand(-1, horizons, -1).reshape(-1, 3),
-            self.base_yaw_quat[env_ids, None, :].expand(-1, horizons, -1).reshape(-1, 4),
-        ).reshape(-1, horizons, 6)
+        # Forecasts already describe relative poses in A. Only change the
+        # quaternion representation to RPY; do not transform them a second time.
+        encoded = pose_to_rpy_observation(future.reshape(-1, 7)).reshape(-1, horizons, 6)
         valid = self.object_pose_predictor.valid[env_ids]
         encoded = torch.where(valid[:, None, None], encoded, current_object_obs[:, None, :])
         self.future_object_obs[env_ids] = torch.cat((encoded.flatten(1), valid[:, None].to(encoded.dtype)), dim=-1)
@@ -1062,7 +1070,7 @@ def compute_robot_observations(robot_root_state, table_root_state, cube_root_sta
     arm_base_local = torch.tensor([0.3, 0.0, 0.09], device=robot_root_state.device).repeat(robot_root_state.shape[0], 1) ## have to change if change robot model
     arm_base = quat_apply(base_quat, arm_base_local) + robot_root_state[:, :3]
     
-    object_pose_obs = object_pose_in_teacher_frame(cube_pos, cube_orn, arm_base, base_quat_yaw)
+    object_pose_obs = object_pose_in_teacher_frame(cube_pos, cube_orn, arm_base, base_quat)
     cube_pos_local = object_pose_obs[:, :3]
     cube_orn_local_rpy = object_pose_obs[:, 3:]
     cube_vel_local = quat_rotate_inverse(base_quat_yaw, cube_vel)

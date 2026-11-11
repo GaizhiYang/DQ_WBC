@@ -64,11 +64,12 @@ def euler_from_quat(q):
 
 
 NAMESPACE = {
-    "torch": torch, "F": torch.nn.functional,
+    "torch": torch, "Tensor": torch.Tensor, "F": torch.nn.functional,
     "tqdm": SimpleNamespace(write=print),
     "quat_apply": quat_apply, "quat_rotate_inverse": quat_rotate_inverse,
     "quat_rotate": quat_apply,
     "quat_mul": quat_mul, "quat_from_euler_xyz": quat_from_euler_xyz,
+    "quat_conjugate": lambda q: torch.cat((-q[..., :3], q[..., 3:]), dim=-1),
     "euler_from_quat": euler_from_quat,
     "gymtorch": SimpleNamespace(unwrap_tensor=lambda value: value),
     "torch_rand_float": lambda low, high, shape, device: torch.full(
@@ -76,6 +77,15 @@ NAMESPACE = {
     "np": SimpleNamespace(pi=torch.pi, deg2rad=lambda value: value * torch.pi / 180.),
     "advance_pick_hold": advance_pick_hold, "lifted_grasp_mask": lifted_grasp_mask,
 }
+
+
+# Execute the production pose helpers without importing the simulator runtime.
+for pose_function in ast.parse((ROOT / "utils" / "object_pose.py").read_text()).body:
+    if isinstance(pose_function, ast.FunctionDef) and pose_function.name in (
+            "object_pose_in_arm_frame", "pose_to_rpy_observation"):
+        pose_function.decorator_list = []
+        exec(compile(ast.fix_missing_locations(ast.Module(body=[pose_function], type_ignores=[])),
+                     str(ROOT / "utils" / "object_pose.py"), "exec"), NAMESPACE)
 
 
 def method_node(filename, class_name, method_name):
@@ -142,7 +152,9 @@ class BaseStandIn:
 def production_environment_class():
     methods = ("reset", "_reset_sgs_envs", "_record_sgs_metrics", "_print_sgs_success_rates",
                "update_roboinfo", "step", "check_termination", "_yaw_deviation",
-               "_reset_pick_state", "_record_episode_outcomes", "_update_curr_dist")
+               "_reset_pick_state", "_record_episode_outcomes", "_update_curr_dist",
+               "_current_object_pose_in_arm_frame", "_update_object_pose_prediction",
+               "_future_object_observations")
     cls = ast.ClassDef(
         name="B1Z1PickMulti", bases=[ast.Name(id="B1Z1Base", ctx=ast.Load())],
         keywords=[], body=[method_node("b1z1_pickmulti.py", "B1Z1PickMulti", name)
@@ -493,7 +505,7 @@ class SGSEnvironmentTests(unittest.TestCase):
         env.initialize()
         self.assertEqual(predictor.count.tolist(), [1] * 4)
         for step in range(1, 5):
-            poses = env._cube_root_states[:, :7].clone()
+            poses = env._current_object_pose_in_arm_frame().clone()
             poses[:, 0] += 100.0 + step * .03
             predictor.push(poses, 1.0 + .15 * step)
         predictor.predict()
@@ -507,9 +519,10 @@ class SGSEnvironmentTests(unittest.TestCase):
             self.assertEqual(ids.tolist(), [0, 2])
             self.assertEqual(predictor.count[ids].tolist(), [1, 1])
             self.assertFalse(predictor.valid[ids].any().item())
-            torch.testing.assert_close(predictor.poses[ids, -1], env._cube_root_states[ids, :7])
+            local_poses = env._current_object_pose_in_arm_frame(ids)
+            torch.testing.assert_close(predictor.poses[ids, -1], local_poses)
             torch.testing.assert_close(
-                predictor.future_poses[ids], env._cube_root_states[ids, None, :7].expand(-1, 2, -1))
+                predictor.future_poses[ids], local_poses[:, None, :].expand(-1, 2, -1))
             return compute_observations(ids)
 
         with patch.object(env, "_compute_observations", side_effect=check_first_observations) as observe:
@@ -520,12 +533,53 @@ class SGSEnvironmentTests(unittest.TestCase):
         self.assertEqual(env.sgs_sampler.visits_total.tolist(), [1, 0, 1, 0, 0, 0])
         # A stationary new episode must not inherit the old episode's motion.
         ids = torch.tensor([0, 2])
-        poses = env._cube_root_states[ids, :7].clone()
+        poses = env._current_object_pose_in_arm_frame(ids).clone()
         for step in range(1, 5):
             predictor.push(poses, 1.75 + .15 * step, ids)
         predictor.predict()
         self.assertTrue(predictor.valid[ids].all().item())
         torch.testing.assert_close(predictor.future_poses[ids], poses[:, None].expand(-1, 2, -1))
+
+    def test_prediction_samples_full_arm_frame_from_current_roots(self):
+        env = TestEnvironment()
+        env.initialize()
+        robot = env._robot_root_states
+        robot[:, :3] = torch.tensor([2., -1., .55])
+        robot[:, 3:7] = quat_from_euler_xyz(
+            torch.full((4,), .2), torch.full((4,), -.3), torch.full((4,), .6))
+        local_position = torch.tensor([[.4, -.1, .2]]).expand(4, -1)
+        local_rotation = quat_from_euler_xyz(
+            torch.full((4,), -.15), torch.full((4,), .1), torch.full((4,), .25))
+        env._cube_root_states[:, :3] = robot[:, :3] + quat_apply(
+            robot[:, 3:7], local_position + torch.tensor([.3, 0., .09]))
+        env._cube_root_states[:, 3:7] = quat_mul(robot[:, 3:7], local_rotation)
+        env.arm_base.fill_(100.)  # A reset can leave this cache stale.
+        expected = torch.cat((local_position, local_rotation), dim=-1)
+        torch.testing.assert_close(env._current_object_pose_in_arm_frame(), expected)
+        env.gym.get_sim_time = lambda sim: 1.5
+        env.object_pose_predictor = SimpleNamespace(push=unittest.mock.Mock(), predict=unittest.mock.Mock())
+        env._update_object_pose_prediction()
+        torch.testing.assert_close(env.object_pose_predictor.push.call_args.args[0], expected)
+        self.assertEqual(env.object_pose_predictor.push.call_args.args[1], 1.5)
+        env.object_pose_predictor.predict.assert_called_once_with()
+
+    def test_prediction_observations_keep_arm_frame_and_warmup_uses_current_pose(self):
+        env = TestEnvironment()
+        env.initialize()
+        env.pose_prediction_horizons = [.6, .9]
+        env.future_object_obs = torch.zeros(4, 13)
+        future = torch.tensor([[[.4, -.1, .2, 0., 0., 0., 1.],
+                                [.3, -.2, .15, 0., 0., 0., 1.]]]).repeat(4, 1, 1)
+        valid = torch.tensor([True, False, True, False])
+        env.object_pose_predictor = SimpleNamespace(future_poses=future, valid=valid)
+        current = torch.tensor([[.5, .1, .3, .2, -.1, .4]]).repeat(4, 1)
+        encoded = env._future_object_observations(torch.arange(4), current)
+        expected = torch.cat((future[..., :3], torch.zeros(4, 2, 3)), dim=-1)
+        expected[~valid] = current[~valid, None, :].expand(-1, 2, -1)
+        torch.testing.assert_close(encoded[:, :12].reshape(4, 2, 6), expected)
+        torch.testing.assert_close(encoded[:, -1], valid.float())
+        env._robot_root_states[:, :3] += 10.
+        torch.testing.assert_close(env._future_object_observations(torch.arange(4), current), encoded)
 
     def test_near_goal_reset_restores_actual_aperture_closed_target_and_clean_success(self):
         bank = make_near_goal_bank()

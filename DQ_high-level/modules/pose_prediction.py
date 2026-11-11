@@ -1,8 +1,12 @@
 """Batched, causal SE(3) EKF forecasts for teacher observations.
 
 The equations match modules/kalman_filter.py (the Paparazzo reference).
-Each forecast refits a fresh filter on a rolling window of measured world poses,
-matching the offline benchmark. No simulator velocities or future states enter.
+Each forecast refits a fresh filter on a rolling window of measured poses.
+The teacher supplies object poses relative to the arm frame A at each sample;
+forecasts therefore describe relative motion, including the robot's motion.
+The same filter also accepts world poses for the offline benchmark. Input and
+output always share the caller's pose convention. No simulator velocities or
+future states enter.
 """
 
 import math
@@ -108,7 +112,7 @@ def poses_to_transforms(poses: Tensor) -> Tensor:
 
 
 class RollingSE3Predictor:
-    """Independent history per environment; outputs [N, horizons, 7] world poses."""
+    """Independent per-env histories; [N,horizons,7] forecasts in the input convention."""
 
     def __init__(self, num_envs, device, history=5, horizons=(0.30, 0.60),
                  q_scale=1.0, r_scale=0.01, dtype=torch.float32):
@@ -150,14 +154,16 @@ class RollingSE3Predictor:
         self.future_poses[env_ids, :, 6] = 1
 
     @torch.no_grad()
-    def push(self, world_poses, timestamp, env_ids=None):
+    def push(self, measured_poses, timestamp, env_ids=None):
         """Record once per physical sample. Repeated timestamps are ignored.
 
-        world_poses corresponds to env_ids (or all environments when omitted).
+        measured_poses corresponds to env_ids (or all environments when omitted).
+        Each pose is xyz/xyzw. The teacher records T_A(t)O(t), so a moving robot
+        changes the measured relative pose even when the world object is static.
         Invalid measurements invalidate only the affected environment's history.
         """
         ids = self.env_ids if env_ids is None else env_ids
-        poses = world_poses.detach().to(device=self.device, dtype=self.dtype)
+        poses = measured_poses.detach().to(device=self.device, dtype=self.dtype)
         now = torch.as_tensor(timestamp, dtype=torch.float64, device=self.device).expand(ids.numel())
         norm = torch.linalg.vector_norm(poses[:, 3:7], dim=-1)
         good = torch.isfinite(poses).all(-1) & torch.isfinite(now) & (norm > 1e-8)
@@ -187,8 +193,8 @@ class RollingSE3Predictor:
         if ids.numel() == 0:
             return self.future_poses, self.valid
         poses = self.poses[ids].clone()
-        # Translation invariance permits a local origin for numerical accuracy
-        # in large grids of Isaac Gym environments. Return world coordinates.
+        # Translation invariance permits a temporary local origin for numerical
+        # accuracy. Restore the input coordinate origin in the returned poses.
         origin = poses[:, :1, :3].clone()
         poses[..., :3] -= origin
         measured = poses_to_transforms(poses.reshape(-1, 7)).reshape(-1, self.history, 4, 4)

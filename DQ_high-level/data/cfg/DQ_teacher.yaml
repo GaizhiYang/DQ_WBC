@@ -254,7 +254,7 @@ reward:
     command_reward: 0.05 
     action_rate: -0.001
     ee_orn: 0.01
-    base_dir: 0.05
+    base_dir: 0.0
     rad_penalty: 0.0
     base_ang_pen: 0.0
     base_approaching: 0.01

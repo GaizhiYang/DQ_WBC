@@ -61,7 +61,7 @@ class TeacherSuccessAuditTests(unittest.TestCase):
 
     def test_success_uses_simulator_pose_when_ekf_future_pose_disagrees(self):
         env = make_environment([.08, .21])
-        predicted = env._cube_root_states[:, None, :7].repeat(1, 2, 1)
+        predicted = env._current_object_pose_in_arm_frame()[:, None, :].repeat(1, 2, 1)
         predicted[0, :, 2] += 1.
         predicted[1, :, 2] -= 1.
         env.object_pose_predictor = SimpleNamespace(
