@@ -58,17 +58,32 @@ class TeacherRewardTests(unittest.TestCase):
         self.assertEqual(env.pick_counter.tolist(), [0, 0, 0, 1])
         self.assertFalse(env.episode_success.any().item())
 
-    def test_base_direction_preserves_baseline_zero_reward(self):
-        env = make_environment([.08] * 5, [0., 90., 180., 90., 0.])
+    def test_base_direction_rewards_horizontal_alignment(self):
+        env = make_environment([.08] * 6, [0., 90., 180., 90., 0., 45.])
         env._robot_root_states[:, :2] = 0
         objects = torch.tensor([[1., 0., 2.], [1., 0., -3.], [1., 0., .5],
-                                [0., 1., 4.], [0., 0., 20.]])
+                                [0., 1., 4.], [0., 0., 20.], [1., 0., 2.]])
         original = objects.clone()
-        reward, _ = env._reward_base_dir(objects)
-        # Deliberately retain 633_test_pro's vertical object-direction vector,
-        # which is orthogonal to the robot's horizontal yaw-only heading.
-        torch.testing.assert_close(reward, torch.zeros(5), atol=1e-6, rtol=0)
+        reward, metric = env._reward_base_dir(objects)
+        expected = torch.tensor([1., 0., -1., 1., 0., 2. ** -.5])
+        torch.testing.assert_close(reward, expected, atol=1e-6, rtol=0)
+        torch.testing.assert_close(metric, expected, atol=1e-6, rtol=0)
         torch.testing.assert_close(objects, original)
+        self.assertTrue(torch.isfinite(reward).all().item())
+
+        # Object height and a common world translation cannot change heading alignment.
+        objects[:, 2] += 100.
+        translation = torch.tensor([3., -4., 7.])
+        env._robot_root_states[:, :3] += translation
+        translated_reward, _ = env._reward_base_dir(objects + translation)
+        torch.testing.assert_close(translated_reward, expected, atol=1e-6, rtol=0)
+
+    def test_base_direction_handles_negligible_horizontal_distance(self):
+        env = make_environment([.08] * 3)
+        env._robot_root_states[:, :2] = 0
+        objects = torch.tensor([[0., 0., 20.], [.005, 0., -20.], [.02, 0., 20.]])
+        reward, _ = env._reward_base_dir(objects)
+        torch.testing.assert_close(reward, torch.tensor([0., 0., 1.]))
         self.assertTrue(torch.isfinite(reward).all().item())
 
     def test_yaw_penalty_has_no_terminal_or_failure_side_effects(self):
