@@ -397,13 +397,27 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.num_future_pose_obs = 6 * len(self.pose_prediction_horizons) + 1 if prediction_enabled else 0
         self.num_velocity_obs = 0 if self.cfg["env"].get("noVelocityObs", False) else 5
         removed_velocity_dim = 5 - self.num_velocity_obs
+        # Episode progress for the critic only: the time limit ends episodes as
+        # true terminals, so the value of a state depends on the steps left.
+        critic_time_obs = self.cfg["env"].get("criticTimeObs", False)
+        if not isinstance(critic_time_obs, bool):
+            raise ValueError("env.criticTimeObs must be a boolean")
+        if critic_time_obs and (self.no_feature or self.cfg["env"].get("lastCommands", False)):
+            raise ValueError("Critic time observations require object features and lastCommands=False")
+        self.num_critic_time_obs = 1 if critic_time_obs else 0
+        teacher_extra_obs = self.num_future_pose_obs + self.num_tsil_obs + self.num_critic_time_obs
         # Student states already exclude both velocities, so their size stays fixed.
         super()._setup_obs_and_action_info(
-            removed_dim=9+30*6+2-removed_velocity_dim+self.num_future_pose_obs+self.num_tsil_obs,
+            removed_dim=9+30*6+2-removed_velocity_dim+teacher_extra_obs,
             num_action=9,
-            num_obs=38+30*6+2+self.num_features-1-removed_velocity_dim+self.num_future_pose_obs+self.num_tsil_obs,
+            num_obs=38+30*6+2+self.num_features-1-removed_velocity_dim+teacher_extra_obs,
         )
-        
+        # The channel sits just before the forecast block, so the forecast and
+        # TSIL indices, which count from the end, keep their positions.
+        self.critic_time_obs_index = (
+            -(self.cfg["env"]["numActions"] + 30*6 + self.num_tsil_obs
+              + self.num_future_pose_obs + 1) if critic_time_obs else None)
+
         
     def _extra_env_settings(self):
         self.multi_obj = self.cfg["env"]["asset"]["asset_multi"]  #the cfg here refer to the b1z1_pickmulti.yaml
@@ -787,7 +801,7 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
     def _compute_observations(self, env_ids=None):
         if env_ids is None:
             env_ids = to_torch(np.arange(self.num_envs), device=self.device, dtype=torch.long)
-            
+
         obs = super()._compute_observations(env_ids)
         
         if not self.no_feature:
@@ -821,7 +835,11 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
                 grasp_predict_world_rpy_flat = grasp_predict_local_rpy.view(grasp_predict_local_rpy.shape[0], -1) ## [num_env,3*object_num]
                 future_obs = self._future_object_observations(env_ids, obs[:, :6])
                 temporal_obs = self._tsil_observations(env_ids)
-                obs_new = torch.cat([obs[...,:-6],future_obs,temporal_obs,grasp_predict_world_pos_flat,grasp_predict_world_rpy_flat],dim = -1)
+                # Critic-only elapsed fraction of the step limit: 0 at reset, 1 at timeout.
+                critic_time_obs = (
+                    self.progress_buf[env_ids, None].to(obs.dtype) / self.max_episode_length
+                    if getattr(self, "num_critic_time_obs", 0) else obs.new_empty((len(env_ids), 0)))
+                obs_new = torch.cat([obs[...,:-6],critic_time_obs,future_obs,temporal_obs,grasp_predict_world_pos_flat,grasp_predict_world_rpy_flat],dim = -1)
 
                 self.obs_buf[env_ids] = torch.cat([self.feature_obs[env_ids, :], obs_new, self.action_history_buf[env_ids, -1]], dim=-1) # self.action_history_buf: [num_env,3,9], obs: [num_env, 61]
 

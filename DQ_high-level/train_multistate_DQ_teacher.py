@@ -51,7 +51,8 @@ def restore_eval_arguments(args):
     saved = metadata.get("arguments", {})
     for name in ("roboinfo", "observe_gait_commands", "small_value_set_zero", "no_feature",
                  "mask_arm", "pitch_control", "rand_control", "arm_delay", "rand_cmd_scale",
-                 "rand_depth_clip", "stop_pick", "use_tanh", "last_commands", "no_velocity_obs"):
+                 "rand_depth_clip", "stop_pick", "use_tanh", "last_commands", "no_velocity_obs",
+                 "critic_time_obs"):
         if name in saved:
             setattr(args, name, saved[name])
 
@@ -108,7 +109,7 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
     def __init__(self, observation_space, action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor,
                   use_tanh=False, clip_actions=False,
                  clip_log_std=True, min_log_std=-20, max_log_std=2, reduction="sum", deterministic=False,
-                 num_future_pose_obs=0, num_tsil_obs=0):
+                 num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None):
         Model.__init__(self, observation_space, action_space, device)
         transform_func = torch.distributions.transforms.TanhTransform() if use_tanh else None
         GaussianMixin.__init__(self, clip_actions, clip_log_std, min_log_std, max_log_std, reduction, transform_func=transform_func, deterministic=deterministic)
@@ -124,12 +125,22 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
         # GFM consumes only the poses; skip the forecast block's final valid channel.
         future_end = -(self.notrain_obs_num + self.num_actions + num_tsil_obs)
         self.future_pose_slice = slice(future_end - num_future_pose_obs, future_end - 1)
-        
+        # The critic-only episode-progress channel is removed from the actor's
+        # MLP input; store its position within that input slice.
+        self.critic_time_position = None
+        if critic_time_index is not None:
+            body_width = self.num_observations - self.num_features - self.notrain_obs_num - self.num_actions
+            position = body_width + critic_time_index + self.notrain_obs_num + self.num_actions
+            if num_features <= 0 or not 6 <= position < body_width:
+                raise ValueError("critic_time_index must point inside the teacher state block")
+            self.critic_time_position = position
+
         if num_features > 0:
             self.feature_encoder = nn.Sequential(nn.Linear(self.num_features, 512), # input : (envs,1024), output : (envs,512)
                                                   nn.ELU(),
                                                   nn.Linear(512, self.encode_dim),) # input : (envs,512), output : (envs,128)
-        self.net = nn.Sequential(nn.Linear(self.num_observations - self.num_features + self.encode_dim - self.notrain_obs_num + 6, 512), 
+        actor_time_width = 0 if self.critic_time_position is None else 1
+        self.net = nn.Sequential(nn.Linear(self.num_observations - self.num_features + self.encode_dim - self.notrain_obs_num + 6 - actor_time_width, 512),
                             nn.ELU(),
                             nn.Linear(512, 256),
                             nn.ELU(),
@@ -155,14 +166,20 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
             future_pose_obs = inputs["states"][..., self.future_pose_slice] if self.future_pose_dim else None
             right_predict_point = self.attention_forward(grasps=grasp_predict_local, obj_feat=features_encode,
                                                         pose=cube_local_pos_rpy, future_pose_obs=future_pose_obs)
-            actions = self.net(torch.cat([inputs["states"][..., self.num_features:-self.notrain_obs_num-self.num_actions],last_action , features_encode,right_predict_point], dim=-1))
+            state_block = inputs["states"][..., self.num_features:-self.notrain_obs_num-self.num_actions]
+            if self.critic_time_position is not None:
+                state_block = torch.cat((state_block[..., :self.critic_time_position],
+                                         state_block[..., self.critic_time_position + 1:]), dim=-1)
+            actions = self.net(torch.cat([state_block, last_action, features_encode, right_predict_point], dim=-1))
         else:
             actions = self.net(inputs["states"])
         return actions, self.log_std_parameter, {}
 
 class Value(DeterministicMixin, Model, PredictAttentionSelector):
     def __init__(self, observation_space, action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor,
-                 num_future_pose_obs=0, num_tsil_obs=0):
+                 num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None):
+        # critic_time_index needs no handling here: the value MLP consumes the
+        # whole state block, including the episode-progress channel.
         Model.__init__(self, observation_space, action_space, device)
         DeterministicMixin.__init__(self)
         PredictAttentionSelector.__init__(self, d_model=64, obj_feat_dim=encode_dim or 128,
@@ -334,6 +351,9 @@ def get_trainer(is_eval=False, strict_eval=False):
     if args.no_velocity_obs:
         cfg["env"]["noVelocityObs"] = True
     cprint(f"Teacher velocity observations: {'disabled' if cfg['env'].get('noVelocityObs', False) else 'enabled'}", "yellow")
+    if args.critic_time_obs is not None:
+        cfg["env"]["criticTimeObs"] = args.critic_time_obs
+    cprint(f"Teacher critic episode-progress input: {'enabled' if cfg['env'].get('criticTimeObs', False) else 'disabled'}", "yellow")
     multi_obj = cfg["env"]["asset"]["asset_multi"]
     if args.object_name is not None:
         if args.object_name not in multi_obj:

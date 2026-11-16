@@ -81,9 +81,13 @@ This part you can totally refer to [VBC's Low-level introduction](https://github
    It sets `CUDA_VISIBLE_DEVICES=2` before launching Python and uses logical
    `cuda:0` for both the policy and simulator. Other settings and options are
    inherited from the shared launcher, including `--dry-run`.
-   The launcher enables headless training and W&B, using the validated v10
-   SGS bank, 16384 environments, 120000 training steps, seed 43, and EKF
+   The launcher enables headless training and W&B, using the validated v12
+   SGS bank, 8192 environments, 120000 training steps, seed 43, and EKF
    horizons of 0.60/0.90 seconds (history 5, Q scale 1.0, R scale 0.01).
+   It also passes `--critic_time_obs`: the critic (not the actor) receives the
+   elapsed fraction of the 100-step limit, because a timeout ends the episode
+   as a true terminal. Append `--no_critic_time_obs` for the previous baseline;
+   checkpoints with and without this channel have different input sizes.
    Runs get a timestamped name under
    `DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/`.
    Use `--dry-run` to inspect the command without starting training, or

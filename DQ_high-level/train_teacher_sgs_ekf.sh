@@ -9,6 +9,8 @@ Usage: bash DQ_high-level/train_teacher_sgs_ekf.sh [--dry-run] [--no-wandb] [tea
 Train the sugar_box teacher with both SGS and EKF future-pose observations.
 Defaults: 8192 environments, 120000 steps, seed 43, CUDA 0, headless, W&B enabled.
 EKF: horizons 0.60/0.90 seconds, history 5, Q scale 1.0, R scale 0.01.
+The critic also receives episode progress (step / 100); the actor does not.
+Append --no_critic_time_obs to train the previous baseline without it.
 
 Environment overrides:
   PYTHON_BIN       Python from the activated dqwbc environment (default: python)
@@ -71,6 +73,7 @@ cmd=(
     --sgs_mode sgs --sgs_bank "$bank_path" --success_mode hold
     --future_pose_obs --future_pose_horizons 0.60 0.90
     --ekf_history 5 --ekf_q_scale 1.0 --ekf_r_scale 0.01
+    --critic_time_obs
     --experiment_dir "${EXPERIMENT_DIR:-DQ_teacher/b1-pick-sugar-box-sgs-ekf}"
     --wandb_project "${WANDB_PROJECT:-isaacgym}" --wandb_name "$run_name"
     --seed "$seed" --headless

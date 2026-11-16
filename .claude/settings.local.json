@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -v '\\\\.\\\\\\(png\\\\|jpg\\\\|stl\\\\|obj\\\\|dae\\\\|urdf\\\\|xml\\\\|npy\\\\|pt\\\\\\)$')"
+    ]
+  }
+}

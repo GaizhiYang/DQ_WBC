@@ -240,6 +240,13 @@ def get_parser():
     parser.add_argument("--roboinfo", action="store_true")
     parser.add_argument("--no_velocity_obs", action="store_true",
                         help="Remove robot local linear velocity (3D) and object-relative planar velocity (2D) from B1Z1PickMulti teacher observations.")
+    # Not a mutually exclusive group: the last flag wins, so launcher defaults
+    # can be overridden by appending the opposite flag.
+    parser.add_argument("--critic_time_obs", dest="critic_time_obs", action="store_true",
+                        help="Add episode progress (step / maxEpisodeLength) to the teacher critic input only; the actor ignores it.")
+    parser.add_argument("--no_critic_time_obs", dest="critic_time_obs", action="store_false",
+                        help="Disable the critic episode-progress input, e.g. for an A/B baseline.")
+    parser.set_defaults(critic_time_obs=None)
     prediction = parser.add_mutually_exclusive_group()
     prediction.add_argument("--future_pose_obs", dest="future_pose_obs", action="store_true",
                             help="Add EKF future object poses to teacher observations (default horizons: 0.30/0.60 seconds).")

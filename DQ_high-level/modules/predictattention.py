@@ -4,14 +4,22 @@ import numpy as np
 
 
 def teacher_gfm_kwargs(env):
-    """Use the saved GFM layout; configs predating this flag keep the old Query."""
+    """Teacher Policy/Value layout kwargs from the environment.
+
+    Use the saved GFM layout; configs predating this flag keep the old Query.
+    The critic-only episode-progress index is added only when that channel exists.
+    """
     enabled = env.cfg["env"].get("posePrediction", {}).get("gfmFuturePoses", False)
     if not isinstance(enabled, bool):
         raise ValueError("env.posePrediction.gfmFuturePoses must be a boolean")
-    return {
+    kwargs = {
         "num_future_pose_obs": getattr(env, "num_future_pose_obs", 0) if enabled else 0,
         "num_tsil_obs": getattr(env, "num_tsil_obs", 0),
     }
+    critic_time_index = getattr(env, "critic_time_obs_index", None)
+    if critic_time_index is not None:
+        kwargs["critic_time_index"] = critic_time_index
+    return kwargs
 
 
 class PredictAttentionSelector(nn.Module):

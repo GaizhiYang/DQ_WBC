@@ -21,6 +21,7 @@ env:
   holdSteps: 10
   lastCommands: False
   noVelocityObs: False # Set --no_velocity_obs to remove 3D robot + 2D relative object velocity
+  criticTimeObs: False # Set --critic_time_obs to give the critic step/maxEpisodeLength; the actor ignores it
   successMode: hold # legacy/hold are compatibility aliases for the shared training/evaluation rule
   sgs:
     mode: disabled # disabled / uniform / sgs; enabled modes require a validated bank
