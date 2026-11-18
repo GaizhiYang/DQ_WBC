@@ -1,0 +1,47 @@
+{"time":"2026-11-18T22:18:10.045475283+08:00","level":"INFO","msg":"stream: starting","core version":"0.24.2"}
+{"time":"2026-11-18T22:18:13.239108683+08:00","level":"INFO","msg":"stream: created new stream","id":"w3et3fey"}
+{"time":"2026-11-18T22:18:13.239208047+08:00","level":"INFO","msg":"stream: started","id":"w3et3fey"}
+{"time":"2026-11-18T22:18:13.239264617+08:00","level":"INFO","msg":"handler: started","stream_id":"w3et3fey"}
+{"time":"2026-11-18T22:18:13.239290076+08:00","level":"INFO","msg":"sender: started","stream_id":"w3et3fey"}
+{"time":"2026-11-18T22:18:13.239289339+08:00","level":"INFO","msg":"writer: started","stream_id":"w3et3fey"}
+{"time":"2026-11-18T22:18:24.196129753+08:00","level":"WARN","msg":"tensorboard: no root directory","error":"timed out after 10s"}
+{"time":"2026-11-18T22:18:24.196177893+08:00","level":"INFO","msg":"tensorboard: tracking new log directory","rootDir":{},"logDir":"LocalOrCloudPath(LocalPath=\"/home/hehui/DQ_WBC/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/g2_smoke\")","namespace":""}
+{"time":"2026-11-18T22:18:24.196427109+08:00","level":"INFO","msg":"tensorboard: saving file","fileLocation":"/home/hehui/DQ_WBC/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/g2_smoke/events.out.tfevents.1795011494.hilab-workstation.1856473.0","runPath":"DQ_teacher/b1-pick-sugar-box-sgs-ekf/g2_smoke/events.out.tfevents.1795011494.hilab-workstation.1856473.0"}
+{"time":"2026-11-18T22:20:34.211881756+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":925}
+{"time":"2026-11-18T22:20:34.21322974+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":130}
+{"time":"2026-11-18T22:22:54.233220566+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":1849}
+{"time":"2026-11-18T22:22:54.234666809+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":146}
+{"time":"2026-11-18T22:25:19.253222298+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":2796}
+{"time":"2026-11-18T22:25:19.254295095+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":174}
+{"time":"2026-11-18T22:27:34.273688927+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":3731}
+{"time":"2026-11-18T22:27:34.274358774+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":173}
+{"time":"2026-11-18T22:29:49.294598673+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":4766}
+{"time":"2026-11-18T22:29:49.295073379+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":87}
+{"time":"2026-11-18T22:32:09.316014847+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":5719}
+{"time":"2026-11-18T22:32:09.316514364+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":113}
+{"time":"2026-11-18T22:34:24.333958101+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":6609}
+{"time":"2026-11-18T22:34:24.33569703+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":175}
+{"time":"2026-11-18T22:36:34.352754181+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":7577}
+{"time":"2026-11-18T22:36:34.353467974+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":60}
+{"time":"2026-11-18T22:38:44.372284962+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":8490}
+{"time":"2026-11-18T22:38:44.373881213+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":174}
+{"time":"2026-11-18T22:40:59.391098945+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":9505}
+{"time":"2026-11-18T22:40:59.39149984+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":126}
+{"time":"2026-11-18T22:43:14.412833153+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":10415}
+{"time":"2026-11-18T22:43:14.413529571+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":174}
+{"time":"2026-11-18T22:45:29.434706512+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":11457}
+{"time":"2026-11-18T22:45:29.434811718+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":2}
+{"time":"2026-11-18T22:49:59.472373971+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":13422}
+{"time":"2026-11-18T22:49:59.47249158+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":8}
+{"time":"2026-11-18T22:52:14.490907903+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":14281}
+{"time":"2026-11-18T22:52:14.491136145+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":20}
+{"time":"2026-11-18T22:54:29.511097455+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":15245}
+{"time":"2026-11-18T22:54:29.511666776+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":14}
+{"time":"2026-11-18T22:56:44.527514071+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":16115}
+{"time":"2026-11-18T22:56:44.52928279+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":174}
+{"time":"2026-11-18T22:58:59.546466602+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":17070}
+{"time":"2026-11-18T22:58:59.548269965+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":174}
+{"time":"2026-11-18T23:08:04.630120371+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":20886}
+{"time":"2026-11-18T23:08:04.630698918+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":169}
+{"time":"2026-11-18T23:10:19.647641197+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":21863}
+{"time":"2026-11-18T23:10:19.648110581+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":129}

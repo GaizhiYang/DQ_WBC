@@ -1,0 +1,216 @@
+_wandb:
+    value:
+        cli_version: 0.24.2
+        e:
+            abv6d3fh78wfy8yyjokk5acgkpjlvwo9:
+                args:
+                    - --cfg_file
+                    - data/cfg/DQ_teacher.yaml
+                    - --task
+                    - B1Z1PickMulti
+                    - --object_name
+                    - sugar_box
+                    - --rl_device
+                    - cuda:0
+                    - --sim_device
+                    - cuda:0
+                    - --num_envs
+                    - "8192"
+                    - --timesteps
+                    - "120000"
+                    - --roboinfo
+                    - --observe_gait_commands
+                    - --small_value_set_zero
+                    - --rand_control
+                    - --no_velocity_obs
+                    - --sgs_mode
+                    - sgs
+                    - --sgs_bank
+                    - data/sgs/sugar_box_v12.pt
+                    - --success_mode
+                    - hold
+                    - --future_pose_obs
+                    - --future_pose_horizons
+                    - "0.60"
+                    - "0.90"
+                    - --ekf_history
+                    - "5"
+                    - --ekf_q_scale
+                    - "1.0"
+                    - --ekf_r_scale
+                    - "0.01"
+                    - --critic_time_obs
+                    - --experiment_dir
+                    - DQ_teacher/b1-pick-sugar-box-sgs-ekf
+                    - --wandb_project
+                    - isaacgym
+                    - --wandb_name
+                    - sgs_ekf_sugar_box_seed43_20261117_145509
+                    - --seed
+                    - "43"
+                    - --headless
+                    - --wandb
+                codePath: DQ_high-level/train_multistate_DQ_teacher.py
+                codePathLocal: train_multistate_DQ_teacher.py
+                cpu_count: 16
+                cpu_count_logical: 24
+                cudaVersion: "13.0"
+                disk:
+                    /:
+                        total: "1967317512192"
+                        used: "1379693158400"
+                email: 3307848159@qq.com
+                executable: /home/hehui/miniconda3/envs/dqwbc/bin/python
+                git:
+                    commit: 39e6debd58489671cb5f73047226097b0226e706
+                    remote: https://github.com/GaizhiYang/DQ_WBC.git
+                gpu: NVIDIA GeForce RTX 4090
+                gpu_count: 2
+                gpu_nvidia:
+                    - architecture: Ada
+                      cudaCores: 16384
+                      memoryTotal: "51527024640"
+                      name: NVIDIA GeForce RTX 4090
+                      uuid: GPU-3c667bd0-0b43-648c-cdc9-3ec6317905ed
+                    - architecture: Ada
+                      cudaCores: 16384
+                      memoryTotal: "25757220864"
+                      name: NVIDIA GeForce RTX 4090
+                      uuid: GPU-739d65ec-6751-a68e-e0b1-a13b2a8834a4
+                host: hilab-workstation
+                memory:
+                    total: "67116863488"
+                os: Linux-6.8.0-88-generic-x86_64-with-glibc2.17
+                program: train_multistate_DQ_teacher.py
+                python: CPython 3.8.20
+                root: /home/hehui/DQ_WBC/DQ_high-level
+                startedAt: "2026-11-17T06:57:20.695519Z"
+                writerId: abv6d3fh78wfy8yyjokk5acgkpjlvwo9
+        m:
+            - "1": iteration
+              "6":
+                - 3
+              "7": []
+            - "2": '*'
+              "5": 1
+              "6":
+                - 1
+              "7": []
+        python_version: 3.8.20
+        t:
+            "1":
+                - 1
+                - 41
+            "2":
+                - 1
+                - 41
+            "3":
+                - 3
+                - 7
+                - 13
+                - 16
+                - 35
+                - 66
+            "4": 3.8.20
+            "5": 0.24.2
+            "12": 0.24.2
+            "13": linux-x86_64
+clip_predicted_values:
+    value: true
+close_environment_at_exit:
+    value: true
+disable_progressbar:
+    value: false
+discount_factor:
+    value: 0.99
+entropy_loss_scale:
+    value: 0
+experiment:
+    value:
+        checkpoint_interval: 5000
+        directory: DQ_teacher/b1-pick-sugar-box-sgs-ekf
+        experiment_name: sgs_ekf_sugar_box_seed43_20261117_145509
+        steps_per_iteration: 24
+        store_separately: false
+        wandb: true
+        wandb_kwargs:
+            name: sgs_ekf_sugar_box_seed43_20261117_145509
+            project: isaacgym
+            sync_tensorboard: true
+        write_interval: 240
+grad_norm_clip:
+    value: 1
+headless:
+    value: true
+kl_threshold:
+    value: 0
+lambda:
+    value: 0.95
+learning_epochs:
+    value: 5
+learning_rate:
+    value: 0.00042
+learning_rate_scheduler:
+    value: skrl.resources.schedulers.torch.kl_adaptive.KLAdaptiveLR
+learning_rate_scheduler_kwargs:
+    value:
+        kl_threshold: 0.008
+learning_starts:
+    value: 0
+mini_batches:
+    value: 6
+policy:
+    value:
+        "0": Linear(in_features=214, out_features=512, bias=True)
+        "1": ELU(alpha=1.0)
+        "2": Linear(in_features=512, out_features=256, bias=True)
+        "3": ELU(alpha=1.0)
+        "4": Linear(in_features=256, out_features=128, bias=True)
+        "5": ELU(alpha=1.0)
+        "6": Linear(in_features=128, out_features=9, bias=True)
+random_timesteps:
+    value: 0
+ratio_clip:
+    value: 0.2
+rewards_shaper:
+    value: null
+rollouts:
+    value: 24
+state_preprocessor:
+    value: skrl.resources.preprocessors.torch.running_standard_scaler.RunningStandardScaler
+state_preprocessor_kwargs:
+    value:
+        device: cuda:0
+        size: Box(-inf, inf, (1285,), float32)
+time_limit_bootstrap:
+    value: false
+timesteps:
+    value: 120000
+tsil:
+    value:
+        coefficient: 0.05
+        enabled: false
+        micro_batch_size: 2048
+        samples_per_trajectory: 32
+        screen_batch_size: 4096
+        top_k: 5
+        value_coefficient: 0.05
+value:
+    value:
+        "0": Linear(in_features=215, out_features=512, bias=True)
+        "1": ELU(alpha=1.0)
+        "2": Linear(in_features=512, out_features=256, bias=True)
+        "3": ELU(alpha=1.0)
+        "4": Linear(in_features=256, out_features=128, bias=True)
+        "5": ELU(alpha=1.0)
+        "6": Linear(in_features=128, out_features=1, bias=True)
+value_clip:
+    value: 0.2
+value_loss_scale:
+    value: 1
+value_preprocessor:
+    value: skrl.resources.preprocessors.torch.running_standard_scaler.RunningStandardScaler
+value_preprocessor_kwargs:
+    value:
+        device: cuda:0
+        size: 1
