@@ -1,0 +1,96 @@
+{
+  "os": "Linux-6.8.0-88-generic-x86_64-with-glibc2.17",
+  "python": "CPython 3.8.20",
+  "startedAt": "2026-11-18T15:41:59.620493Z",
+  "args": [
+    "--cfg_file",
+    "data/cfg/DQ_teacher.yaml",
+    "--task",
+    "B1Z1PickMulti",
+    "--object_name",
+    "sugar_box",
+    "--rl_device",
+    "cuda:0",
+    "--sim_device",
+    "cuda:0",
+    "--num_envs",
+    "8192",
+    "--timesteps",
+    "120000",
+    "--roboinfo",
+    "--observe_gait_commands",
+    "--small_value_set_zero",
+    "--rand_control",
+    "--no_velocity_obs",
+    "--sgs_mode",
+    "sgs",
+    "--sgs_bank",
+    "data/sgs/sugar_box_v12.pt",
+    "--success_mode",
+    "hold",
+    "--future_pose_obs",
+    "--future_pose_horizons",
+    "0.60",
+    "0.90",
+    "--ekf_history",
+    "5",
+    "--ekf_q_scale",
+    "1.0",
+    "--ekf_r_scale",
+    "0.01",
+    "--critic_time_obs",
+    "--experiment_dir",
+    "DQ_teacher/b1-pick-sugar-box-sgs-ekf",
+    "--wandb_project",
+    "isaacgym",
+    "--wandb_name",
+    "g1_only",
+    "--seed",
+    "43",
+    "--headless",
+    "--wandb",
+    "--grasp_tokens"
+  ],
+  "program": "train_multistate_DQ_teacher.py",
+  "codePath": "DQ_high-level/train_multistate_DQ_teacher.py",
+  "codePathLocal": "train_multistate_DQ_teacher.py",
+  "git": {
+    "remote": "https://github.com/GaizhiYang/DQ_WBC.git",
+    "commit": "1257f1a25ba2586c5467cdc0d104c4fb53f6876c"
+  },
+  "email": "3307848159@qq.com",
+  "root": "/home/hehui/DQ_WBC/DQ_high-level",
+  "host": "hilab-workstation",
+  "executable": "/home/hehui/miniconda3/envs/dqwbc/bin/python",
+  "cpu_count": 16,
+  "cpu_count_logical": 24,
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "gpu_count": 2,
+  "disk": {
+    "/": {
+      "total": "1967317512192",
+      "used": "1385444048896"
+    }
+  },
+  "memory": {
+    "total": "67116863488"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA GeForce RTX 4090",
+      "memoryTotal": "51527024640",
+      "cudaCores": 16384,
+      "architecture": "Ada",
+      "uuid": "GPU-3c667bd0-0b43-648c-cdc9-3ec6317905ed"
+    },
+    {
+      "name": "NVIDIA GeForce RTX 4090",
+      "memoryTotal": "25757220864",
+      "cudaCores": 16384,
+      "architecture": "Ada",
+      "uuid": "GPU-739d65ec-6751-a68e-e0b1-a13b2a8834a4"
+    }
+  ],
+  "cudaVersion": "13.0",
+  "writerId": "ndzrsa9a7tzsat60nq1jdfr2hyxdarr4"
+}

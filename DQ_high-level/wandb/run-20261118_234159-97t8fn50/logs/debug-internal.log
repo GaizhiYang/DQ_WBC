@@ -1,0 +1,33 @@
+{"time":"2026-11-18T23:41:59.945592622+08:00","level":"INFO","msg":"stream: starting","core version":"0.24.2"}
+{"time":"2026-11-18T23:42:03.203159274+08:00","level":"INFO","msg":"stream: created new stream","id":"97t8fn50"}
+{"time":"2026-11-18T23:42:03.203354472+08:00","level":"INFO","msg":"stream: started","id":"97t8fn50"}
+{"time":"2026-11-18T23:42:03.203649359+08:00","level":"INFO","msg":"writer: started","stream_id":"97t8fn50"}
+{"time":"2026-11-18T23:42:03.203687487+08:00","level":"INFO","msg":"handler: started","stream_id":"97t8fn50"}
+{"time":"2026-11-18T23:42:03.203698707+08:00","level":"INFO","msg":"sender: started","stream_id":"97t8fn50"}
+{"time":"2026-11-18T23:42:14.378085807+08:00","level":"WARN","msg":"tensorboard: no root directory","error":"timed out after 10s"}
+{"time":"2026-11-18T23:42:14.3781293+08:00","level":"INFO","msg":"tensorboard: tracking new log directory","rootDir":{},"logDir":"LocalOrCloudPath(LocalPath=\"/home/hehui/DQ_WBC/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/g1_only\")","namespace":""}
+{"time":"2026-11-18T23:42:14.378326491+08:00","level":"INFO","msg":"tensorboard: saving file","fileLocation":"/home/hehui/DQ_WBC/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/g1_only/events.out.tfevents.1795016524.hilab-workstation.1934850.0","runPath":"DQ_teacher/b1-pick-sugar-box-sgs-ekf/g1_only/events.out.tfevents.1795016524.hilab-workstation.1934850.0"}
+{"time":"2026-11-18T23:46:24.412825561+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":1822}
+{"time":"2026-11-18T23:46:24.413688682+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":174}
+{"time":"2026-11-18T23:48:39.432025595+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":2789}
+{"time":"2026-11-18T23:48:39.43282993+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":174}
+{"time":"2026-11-18T23:50:49.451329421+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":3733}
+{"time":"2026-11-18T23:50:49.451991287+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":128}
+{"time":"2026-11-18T23:52:59.472777642+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":4716}
+{"time":"2026-11-18T23:52:59.473353256+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":149}
+{"time":"2026-11-18T23:57:09.508755717+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":6587}
+{"time":"2026-11-18T23:57:09.509414626+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":174}
+{"time":"2026-11-18T23:59:14.526613289+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":7549}
+{"time":"2026-11-18T23:59:14.526760862+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":17}
+{"time":"2026-11-19T00:01:14.546880688+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":8546}
+{"time":"2026-11-19T00:01:14.547324119+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":112}
+{"time":"2026-11-19T00:05:24.580151354+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":10464}
+{"time":"2026-11-19T00:05:24.580669207+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":102}
+{"time":"2026-11-19T00:09:29.61493144+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":12377}
+{"time":"2026-11-19T00:09:29.615277378+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":74}
+{"time":"2026-11-19T00:11:34.630763886+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":13247}
+{"time":"2026-11-19T00:11:34.631646346+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":174}
+{"time":"2026-11-19T00:13:34.64740854+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":14253}
+{"time":"2026-11-19T00:13:34.647870559+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":108}
+{"time":"2026-11-19T00:15:39.664898933+08:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":15159}
+{"time":"2026-11-19T00:15:39.665507071+08:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":174}

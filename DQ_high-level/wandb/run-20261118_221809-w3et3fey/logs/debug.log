@@ -18,3 +18,174 @@ config: {'rollouts': 24, 'learning_epochs': 5, 'mini_batches': 6, 'discount_fact
 2026-11-18 22:18:14,193 INFO    MainThread:1856473 [wandb_run.py:_redirect():2469] Redirects installed.
 2026-11-18 22:18:14,194 INFO    MainThread:1856473 [wandb_init.py:init():1082] run started, returning control to user process
 2026-11-18 22:18:14,195 INFO    MainThread:1856473 [wandb_run.py:_tensorboard_callback():1615] tensorboard callback: DQ_teacher/b1-pick-sugar-box-sgs-ekf/g2_smoke, True
+2026-11-18 23:34:32,114 INFO    wandb-AsyncioManager-main:1856473 [service_client.py:_forward_responses():94] Reached EOF.
+2026-11-18 23:34:32,114 INFO    wandb-AsyncioManager-main:1856473 [mailbox.py:close():154] Closing mailbox, abandoning 1 handles.
+2026-11-18 23:34:43,586 ERROR   wandb-AsyncioManager-main:1856473 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 38, in publish
+    await self._send_server_request(request)
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 64, in _send_server_request
+    await self._writer.drain()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 387, in drain
+    await self._protocol._drain_helper()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 190, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-11-18 23:34:43,587 ERROR   wandb-AsyncioManager-main:1856473 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 38, in publish
+    await self._send_server_request(request)
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 64, in _send_server_request
+    await self._writer.drain()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 387, in drain
+    await self._protocol._drain_helper()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 190, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-11-18 23:34:43,587 ERROR   wandb-AsyncioManager-main:1856473 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 38, in publish
+    await self._send_server_request(request)
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 64, in _send_server_request
+    await self._writer.drain()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 387, in drain
+    await self._protocol._drain_helper()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 190, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-11-18 23:34:43,588 ERROR   wandb-AsyncioManager-main:1856473 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 38, in publish
+    await self._send_server_request(request)
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 64, in _send_server_request
+    await self._writer.drain()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 387, in drain
+    await self._protocol._drain_helper()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 190, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-11-18 23:34:43,588 ERROR   wandb-AsyncioManager-main:1856473 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 38, in publish
+    await self._send_server_request(request)
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 64, in _send_server_request
+    await self._writer.drain()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 387, in drain
+    await self._protocol._drain_helper()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 190, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-11-18 23:34:43,588 ERROR   wandb-AsyncioManager-main:1856473 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 38, in publish
+    await self._send_server_request(request)
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 64, in _send_server_request
+    await self._writer.drain()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 387, in drain
+    await self._protocol._drain_helper()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 190, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-11-18 23:34:43,588 ERROR   wandb-AsyncioManager-main:1856473 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 38, in publish
+    await self._send_server_request(request)
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 64, in _send_server_request
+    await self._writer.drain()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 387, in drain
+    await self._protocol._drain_helper()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 190, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-11-18 23:34:43,588 ERROR   wandb-AsyncioManager-main:1856473 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 38, in publish
+    await self._send_server_request(request)
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 64, in _send_server_request
+    await self._writer.drain()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 387, in drain
+    await self._protocol._drain_helper()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 190, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-11-18 23:34:43,588 ERROR   wandb-AsyncioManager-main:1856473 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 38, in publish
+    await self._send_server_request(request)
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 64, in _send_server_request
+    await self._writer.drain()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 387, in drain
+    await self._protocol._drain_helper()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 190, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-11-18 23:34:43,589 ERROR   wandb-AsyncioManager-main:1856473 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 38, in publish
+    await self._send_server_request(request)
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 64, in _send_server_request
+    await self._writer.drain()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 387, in drain
+    await self._protocol._drain_helper()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 190, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-11-18 23:34:43,589 ERROR   wandb-AsyncioManager-main:1856473 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 38, in publish
+    await self._send_server_request(request)
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 64, in _send_server_request
+    await self._writer.drain()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 387, in drain
+    await self._protocol._drain_helper()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 190, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-11-18 23:34:43,589 ERROR   wandb-AsyncioManager-main:1856473 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 38, in publish
+    await self._send_server_request(request)
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 64, in _send_server_request
+    await self._writer.drain()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 387, in drain
+    await self._protocol._drain_helper()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 190, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-11-18 23:34:43,589 ERROR   wandb-AsyncioManager-main:1856473 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 38, in publish
+    await self._send_server_request(request)
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/site-packages/wandb/sdk/lib/service/service_client.py", line 64, in _send_server_request
+    await self._writer.drain()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 387, in drain
+    await self._protocol._drain_helper()
+  File "/home/hehui/miniconda3/envs/dqwbc/lib/python3.8/asyncio/streams.py", line 190, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
