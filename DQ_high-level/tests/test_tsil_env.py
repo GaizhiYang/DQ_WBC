@@ -216,8 +216,9 @@ class TemporalEnvironmentTests(unittest.TestCase):
                 return torch.arange(64, dtype=torch.float).expand(len(ids), -1)
 
         node = ast.ClassDef(name="Task", bases=[ast.Name(id="Base", ctx=ast.Load())],
-                            keywords=[], decorator_list=[], body=[method_node(
-                                "b1z1_pickmulti.py", "B1Z1PickMulti", "_compute_observations")])
+                            keywords=[], decorator_list=[], body=[
+                                method_node("b1z1_pickmulti.py", "B1Z1PickMulti", name)
+                                for name in ("_compute_observations", "_grasp_candidate_observations")])
         namespace = dict(NAMESPACE, Base=Base,
                          quat_conjugate=lambda q: q * torch.tensor([-1., -1., -1., 1.]),
                          quat_to_euler_zyx=lambda q: torch.zeros_like(q[..., :3]),

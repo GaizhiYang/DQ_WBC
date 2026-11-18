@@ -17,6 +17,7 @@ from utils.object_pose import (
     object_pose_in_arm_frame, object_pose_in_teacher_frame, pose_to_rpy_observation,
 )
 from PredictPiontTransform.predictpoint_mul import PredictPoint
+from modules.grasp_tokens import build_grasp_tokens, layout_from_config
 import time
 
 from isaacgym import gymapi
@@ -384,9 +385,17 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.base_obj_dis = torch.norm(base_obj_dis, dim=-1)
         
     def _setup_obs_and_action_info(self):
+        # Direction 8: the grasp tokens replace the 180-dim candidate block in place,
+        # so every index counted from the end shifts by the same width.
+        self.grasp_token_layout = layout_from_config(self.cfg)
+        if self.grasp_token_layout is not None and (
+                self.no_feature or self.cfg["env"].get("lastCommands", False)):
+            raise ValueError("Grasp tokens require object features and lastCommands=False")
+        self.num_grasp_obs = 30*6 if self.grasp_token_layout is None else self.grasp_token_layout.width
         self.tsil_enabled = self.cfg["env"].get("tsil", {}).get("enabled", False)
         self.num_tsil_obs = 2 if self.tsil_enabled else 0
-        self.tsil_time_indices = (-191, -190) if self.tsil_enabled else ()
+        self.tsil_time_indices = ((-(9 + self.num_grasp_obs + 2), -(9 + self.num_grasp_obs + 1))
+                                  if self.tsil_enabled else ())
         if self.tsil_enabled and (self.no_feature or self.cfg["env"].get("lastCommands", False)):
             raise ValueError("TSIL observations require object features and lastCommands=False")
         self.pose_prediction_cfg = self.cfg["env"].get("posePrediction", {})
@@ -408,14 +417,14 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         teacher_extra_obs = self.num_future_pose_obs + self.num_tsil_obs + self.num_critic_time_obs
         # Student states already exclude both velocities, so their size stays fixed.
         super()._setup_obs_and_action_info(
-            removed_dim=9+30*6+2-removed_velocity_dim+teacher_extra_obs,
+            removed_dim=9+self.num_grasp_obs+2-removed_velocity_dim+teacher_extra_obs,
             num_action=9,
-            num_obs=38+30*6+2+self.num_features-1-removed_velocity_dim+teacher_extra_obs,
+            num_obs=38+self.num_grasp_obs+2+self.num_features-1-removed_velocity_dim+teacher_extra_obs,
         )
         # The channel sits just before the forecast block, so the forecast and
         # TSIL indices, which count from the end, keep their positions.
         self.critic_time_obs_index = (
-            -(self.cfg["env"]["numActions"] + 30*6 + self.num_tsil_obs
+            -(self.cfg["env"]["numActions"] + self.num_grasp_obs + self.num_tsil_obs
               + self.num_future_pose_obs + 1) if critic_time_obs else None)
 
         
@@ -798,6 +807,52 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.future_object_obs[env_ids] = torch.cat((encoded.flatten(1), valid[:, None].to(encoded.dtype)), dim=-1)
         return self.future_object_obs[env_ids]
 
+    def _grasp_candidate_observations(self, obs, env_ids):
+        """Original 180-dim block: 30 candidate positions, then 30 [yaw, pitch, roll], in A."""
+        grasp_predict_world_pos,grasp_predict_world_rpy = self.get_grasp_world(obs[...,-6:], env_ids)
+
+        ####### related pose ########
+        grasp_global_rot = quat_from_euler_xyz(grasp_predict_world_rpy[...,0],grasp_predict_world_rpy[...,1],grasp_predict_world_rpy[...,2])
+        base_quat = self._robot_root_states[env_ids, 3:7]  # [num_envs, 4], base quaternion
+        base_quat = base_quat.unsqueeze(1).repeat(1, grasp_global_rot.shape[1], 1)  # [num_env, n, 4] ， base quaternion
+        base_quat_conj = quat_conjugate(base_quat)   # Inverse of base quaternion
+        #  Compute local quaternion: q_local = q_base^(-1) * q_global
+        ee_grasp_local_orn_quat = quat_mul(base_quat_conj, grasp_global_rot)
+        grasp_predict_local_rpy = quat_to_euler_zyx(ee_grasp_local_orn_quat)
+        ####### related pose ########
+
+        ####### related orientation ########
+        # base_quat = self._robot_root_states[env_ids, 3:7]  # [num_envs, 4], base quaternion
+        arm_base = self.arm_base[env_ids].unsqueeze(1).repeat(1, grasp_global_rot.shape[1], 1)
+        relative_pos = grasp_predict_world_pos - arm_base
+        grasp_predict_local_pos = quat_rotate_inverse_batched(base_quat, relative_pos)
+        grasp_predict_local_pos[..., 2] = torch.clip(grasp_predict_local_pos[..., 2], -0.6, 0.6)
+        ####### related orientation ########
+
+        ####### grasp predict #######
+
+        grasp_predict_world_pos_flat = grasp_predict_local_pos.view(grasp_predict_local_pos.shape[0], -1) ## [num_env,3*object_num]
+        grasp_predict_world_rpy_flat = grasp_predict_local_rpy.view(grasp_predict_local_rpy.shape[0], -1) ## [num_env,3*object_num]
+        return torch.cat([grasp_predict_world_pos_flat, grasp_predict_world_rpy_flat], dim=-1)
+
+    def _grasp_token_observations(self, env_ids):
+        """Direction 8 token block: every candidate at h = 0 and at each EKF horizon, in A at t.
+
+        h = 0 uses the measured object pose; h > 0 uses the EKF forecasts, which are
+        already relative poses in A. Without a valid forecast, or once the object is
+        lifted, the flag tells the model to attend only to the h = 0 tokens.
+        """
+        layout = self.grasp_token_layout
+        poses = self._current_object_pose_in_arm_frame(env_ids)[:, None, :]
+        future_active = torch.zeros(len(env_ids), dtype=torch.bool, device=self.device)
+        if layout.num_horizons > 1:
+            poses = torch.cat((poses, self.object_pose_predictor.future_poses[env_ids]), dim=1)
+            future_active = self.object_pose_predictor.valid[env_ids] & ~self.lifted_object[env_ids]
+        # Same gripper-axis correction as PredictPoint.decompose_pose_to_xyz_rpy.
+        correction = self.Rx_rot @ self.Rz_rot @ self.Rx_rot
+        return build_grasp_tokens(poses[..., :3], poses[..., 3:7], self.T_grasp_in_obj[env_ids],
+                                  correction, future_active, layout)
+
     def _compute_observations(self, env_ids=None):
         if env_ids is None:
             env_ids = to_torch(np.arange(self.num_envs), device=self.device, dtype=torch.long)
@@ -808,38 +863,17 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             if self.cfg["env"].get("lastCommands", False):
                 self.obs_buf[env_ids] = torch.cat([self.feature_obs[env_ids, :], obs, self.command_history_buf[env_ids, -1]], dim=-1)
             else:
-                ####### grasp predict #######
-                grasp_predict_world_pos,grasp_predict_world_rpy = self.get_grasp_world(obs[...,-6:], env_ids)
-
-                ####### related pose ########
-                grasp_global_rot = quat_from_euler_xyz(grasp_predict_world_rpy[...,0],grasp_predict_world_rpy[...,1],grasp_predict_world_rpy[...,2])
-                base_quat = self._robot_root_states[env_ids, 3:7]  # [num_envs, 4], base quaternion
-                base_quat = base_quat.unsqueeze(1).repeat(1, grasp_global_rot.shape[1], 1)  # [num_env, n, 4] ， base quaternion
-                base_quat_conj = quat_conjugate(base_quat)   # Inverse of base quaternion
-                #  Compute local quaternion: q_local = q_base^(-1) * q_global
-                ee_grasp_local_orn_quat = quat_mul(base_quat_conj, grasp_global_rot)
-                grasp_predict_local_rpy = quat_to_euler_zyx(ee_grasp_local_orn_quat)
-                ####### related pose ########
-
-                ####### related orientation ########
-                # base_quat = self._robot_root_states[env_ids, 3:7]  # [num_envs, 4], base quaternion
-                arm_base = self.arm_base[env_ids].unsqueeze(1).repeat(1, grasp_global_rot.shape[1], 1)
-                relative_pos = grasp_predict_world_pos - arm_base
-                grasp_predict_local_pos = quat_rotate_inverse_batched(base_quat, relative_pos)
-                grasp_predict_local_pos[..., 2] = torch.clip(grasp_predict_local_pos[..., 2], -0.6, 0.6)
-                ####### related orientation ########
-
-                ####### grasp predict #######
-
-                grasp_predict_world_pos_flat = grasp_predict_local_pos.view(grasp_predict_local_pos.shape[0], -1) ## [num_env,3*object_num]
-                grasp_predict_world_rpy_flat = grasp_predict_local_rpy.view(grasp_predict_local_rpy.shape[0], -1) ## [num_env,3*object_num]
+                if getattr(self, "grasp_token_layout", None) is not None:
+                    grasp_obs = self._grasp_token_observations(env_ids)
+                else:
+                    grasp_obs = self._grasp_candidate_observations(obs, env_ids)
                 future_obs = self._future_object_observations(env_ids, obs[:, :6])
                 temporal_obs = self._tsil_observations(env_ids)
                 # Critic-only elapsed fraction of the step limit: 0 at reset, 1 at timeout.
                 critic_time_obs = (
                     self.progress_buf[env_ids, None].to(obs.dtype) / self.max_episode_length
                     if getattr(self, "num_critic_time_obs", 0) else obs.new_empty((len(env_ids), 0)))
-                obs_new = torch.cat([obs[...,:-6],critic_time_obs,future_obs,temporal_obs,grasp_predict_world_pos_flat,grasp_predict_world_rpy_flat],dim = -1)
+                obs_new = torch.cat([obs[...,:-6],critic_time_obs,future_obs,temporal_obs,grasp_obs],dim = -1)
 
                 self.obs_buf[env_ids] = torch.cat([self.feature_obs[env_ids, :], obs_new, self.action_history_buf[env_ids, -1]], dim=-1) # self.action_history_buf: [num_env,3,9], obs: [num_env, 61]
 

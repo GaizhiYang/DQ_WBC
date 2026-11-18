@@ -18,6 +18,7 @@ import warnings
 
 import torch
 
+from modules.grasp_tokens import build_grasp_tokens, layout_from_config
 from utils.episode_statistics import RecentEpisodeStatistics
 from utils.pick_success import RollingEpisodeSuccess, advance_pick_hold, lifted_grasp_mask
 
@@ -76,6 +77,7 @@ NAMESPACE = {
         shape, (low + high) / 2, device=device),
     "np": SimpleNamespace(pi=torch.pi, deg2rad=lambda value: value * torch.pi / 180.),
     "advance_pick_hold": advance_pick_hold, "lifted_grasp_mask": lifted_grasp_mask,
+    "layout_from_config": layout_from_config, "build_grasp_tokens": build_grasp_tokens,
 }
 
 

@@ -40,6 +40,10 @@ env:
     history: 5
     qScale: 1.0
     rScale: 0.01
+  graspTokens: # Direction 8; absent in legacy configs means disabled
+    enabled: False # --grasp_tokens (G1): token block + GFM embedding output; new checkpoints only
+    rotation: rot6d # --grasp_token_rotation rot6d|euler
+    future: False # --grasp_future_tokens (G2): tokens at h = 0 and every posePrediction horizon
 
   low_policy_path: "data/low_model/model_44000.pt"
   taskddescription: "023"

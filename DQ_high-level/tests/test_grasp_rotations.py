@@ -177,8 +177,9 @@ class CandidateObservationTests(unittest.TestCase):
                 return torch.arange(64, dtype=torch.float).expand(len(ids), -1)
 
         node = ast.ClassDef(name="Task", bases=[ast.Name(id="Base", ctx=ast.Load())],
-                            keywords=[], decorator_list=[], body=[method_node(
-                                "b1z1_pickmulti.py", "B1Z1PickMulti", "_compute_observations")])
+                            keywords=[], decorator_list=[], body=[
+                                method_node("b1z1_pickmulti.py", "B1Z1PickMulti", name)
+                                for name in ("_compute_observations", "_grasp_candidate_observations")])
         namespace = dict(vars(QUATERNIONS), Base=Base)
         exec(compile(ast.fix_missing_locations(ast.Module(body=[node], type_ignores=[])),
                      str(ROOT / "envs/b1z1_pickmulti.py"), "exec"), namespace)

@@ -92,7 +92,7 @@ class EnvironmentLayoutTests(unittest.TestCase):
                 return torch.arange(64, dtype=torch.float).expand(len(ids), -1)
 
         num_envs = len(progress)
-        task = task_with("_compute_observations", base=Base)
+        task = task_with("_compute_observations", "_grasp_candidate_observations", base=Base)
         task.no_feature = False
         task.cfg = {"env": {}}
         task.num_critic_time_obs = 1 if enabled else 0

@@ -44,7 +44,7 @@ def collect(args):
     import torch
     import yaml
     from skrl.utils import set_seed
-    from skrl.resources.preprocessors.torch import RunningStandardScaler
+    from utils.state_scaler import teacher_state_preprocessor
     from train_multistate_DQ_teacher import create_env, get_predict_point, Policy
     from modules.predictattention import teacher_gfm_kwargs
     from utils.pose_trajectory import PoseTrajectoryRecorder
@@ -87,14 +87,18 @@ def collect(args):
     try:
         policy = scaler = None
         if checkpoint is not None:
+            gfm_kwargs = teacher_gfm_kwargs(env)
             policy = Policy(env.observation_space, env.action_space, env.rl_device,
                 0 if args.no_feature else 1024, 0 if args.no_feature else 128,
                 camera, grasps, initial, use_tanh=args.use_tanh,
-                clip_actions=args.use_tanh, deterministic=True, **teacher_gfm_kwargs(env))
+                clip_actions=args.use_tanh, deterministic=True, **gfm_kwargs)
             policy.load_state_dict(checkpoint["policy"])
             policy.to(env.rl_device)
             policy.eval()
-            scaler = RunningStandardScaler(size=env.observation_space, device=env.rl_device)
+            scaler_class, scaler_kwargs = teacher_state_preprocessor(
+                env.observation_space, env.action_space, env.rl_device,
+                gfm_kwargs.get("grasp_token_layout"))
+            scaler = scaler_class(**scaler_kwargs)
             scaler.load_state_dict(checkpoint["state_preprocessor"])
             scaler.eval()
         # Explicit initial reset, just as the trainer does for terminated envs.

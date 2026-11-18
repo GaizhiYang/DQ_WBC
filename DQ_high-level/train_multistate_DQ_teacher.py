@@ -22,7 +22,8 @@ from skrl.utils import set_seed
 from envs import *    #import b1z1_pickmulti.py
 from PredictPiontTransform.predictpoint_mul import PredictPoint
 from utils.config import (load_cfg, get_params, copy_cfg, configure_teacher_experiment,
-                          teacher_run_end, apply_pose_prediction_config)
+                          teacher_run_end, apply_pose_prediction_config, apply_grasp_token_config)
+from utils.state_scaler import teacher_state_preprocessor
 import utils.wrapper as wrapper
 import time
 from legged_gym.envs.manip_loco.b1z1_config import B1Z1RoughCfg
@@ -109,18 +110,21 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
     def __init__(self, observation_space, action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor,
                   use_tanh=False, clip_actions=False,
                  clip_log_std=True, min_log_std=-20, max_log_std=2, reduction="sum", deterministic=False,
-                 num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None):
+                 num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None, grasp_token_layout=None):
         Model.__init__(self, observation_space, action_space, device)
         transform_func = torch.distributions.transforms.TanhTransform() if use_tanh else None
         GaussianMixin.__init__(self, clip_actions, clip_log_std, min_log_std, max_log_std, reduction, transform_func=transform_func, deterministic=deterministic)
         PredictAttentionSelector.__init__(self, d_model=64, obj_feat_dim=encode_dim or 128,
-                                          future_pose_dim=num_future_pose_obs - 1 if num_future_pose_obs else 0)
+                                          future_pose_dim=num_future_pose_obs - 1 if num_future_pose_obs else 0,
+                                          token_layout=grasp_token_layout)
 
         self.to(device)
         self.num_features = num_features # 1024
         self.encode_dim = encode_dim # 128
         self.cube_object_num = 30  # Candidate grasps per object, not the number of object assets.
-        self.notrain_obs_num = 3*self.cube_object_num + 3*self.cube_object_num # 30 cube's pos + rpy feature_num
+        # Old block: 30 candidate positions + 30 [yaw, pitch, roll]; token mode: the token block.
+        self.notrain_obs_num = (grasp_token_layout.width if grasp_token_layout is not None
+                                else 3*self.cube_object_num + 3*self.cube_object_num)
         # Layout: current state, EKF poses + valid, optional TSIL, grasps, last action.
         # GFM consumes only the poses; skip the forecast block's final valid channel.
         future_end = -(self.notrain_obs_num + self.num_actions + num_tsil_obs)
@@ -140,7 +144,7 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
                                                   nn.ELU(),
                                                   nn.Linear(512, self.encode_dim),) # input : (envs,512), output : (envs,128)
         actor_time_width = 0 if self.critic_time_position is None else 1
-        self.net = nn.Sequential(nn.Linear(self.num_observations - self.num_features + self.encode_dim - self.notrain_obs_num + 6 - actor_time_width, 512),
+        self.net = nn.Sequential(nn.Linear(self.num_observations - self.num_features + self.encode_dim - self.notrain_obs_num + self.selected_dim - actor_time_width, 512),
                             nn.ELU(),
                             nn.Linear(512, 256),
                             nn.ELU(),
@@ -151,13 +155,27 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
         cprint(f"self.num_observations is {self.num_observations}", "yellow")
 
         self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
+        # Direction 8 diagnostics, filled during rollouts (see track_attention).
+        self.attention_tracker = None
+        self._previous_attention_argmax = None
+
+    def track_attention(self):
+        """Log attention entropy, mass on future tokens and argmax switches per rollout step."""
+        attn = self.last_attention
+        if self.attention_tracker is None or attn is None or torch.is_grad_enabled():
+            return
+        entropy = -(attn * torch.log(attn.clamp_min(1e-12))).sum(-1).mean()
+        future_mass = attn[:, self.token_h[:, 0] > 0].sum(-1).mean()
+        argmax = attn.argmax(-1)
+        previous = self._previous_attention_argmax
+        if previous is not None and previous.shape == argmax.shape:
+            self.attention_tracker("GFM / argmax switch rate", (argmax != previous).float().mean().item())
+        self._previous_attention_argmax = argmax
+        self.attention_tracker("GFM / attention entropy", entropy.item())
+        self.attention_tracker("GFM / future token mass", future_mass.item())
 
     def compute(self, inputs, role):
-        grasp_predict_local_pos_flat = inputs["states"][...,-6*self.cube_object_num-self.num_actions:-3*self.cube_object_num-self.num_actions]
-        grasp_predict_local_rpy_flat = inputs["states"][...,-3*self.cube_object_num-self.num_actions:-self.num_actions]
-        grasp_predict_local_pos = grasp_predict_local_pos_flat.view(-1, self.cube_object_num, 3)
-        grasp_predict_local_rpy = grasp_predict_local_rpy_flat.view(-1, self.cube_object_num, 3)
-        grasp_predict_local = torch.cat([grasp_predict_local_pos,grasp_predict_local_rpy],dim=-1)
+        grasp_predict_local = self.grasp_attention_input(inputs["states"])
         cube_local_pos_rpy = inputs["states"][...,self.num_features:self.num_features+6]
         last_action = inputs["states"][...,-self.num_actions:]
 
@@ -166,6 +184,8 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
             future_pose_obs = inputs["states"][..., self.future_pose_slice] if self.future_pose_dim else None
             right_predict_point = self.attention_forward(grasps=grasp_predict_local, obj_feat=features_encode,
                                                         pose=cube_local_pos_rpy, future_pose_obs=future_pose_obs)
+            if self.token_layout is not None:
+                self.track_attention()
             state_block = inputs["states"][..., self.num_features:-self.notrain_obs_num-self.num_actions]
             if self.critic_time_position is not None:
                 state_block = torch.cat((state_block[..., :self.critic_time_position],
@@ -177,20 +197,23 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
 
 class Value(DeterministicMixin, Model, PredictAttentionSelector):
     def __init__(self, observation_space, action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor,
-                 num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None):
+                 num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None, grasp_token_layout=None):
         # critic_time_index needs no handling here: the value MLP consumes the
         # whole state block, including the episode-progress channel.
         Model.__init__(self, observation_space, action_space, device)
         DeterministicMixin.__init__(self)
         PredictAttentionSelector.__init__(self, d_model=64, obj_feat_dim=encode_dim or 128,
-                                          future_pose_dim=num_future_pose_obs - 1 if num_future_pose_obs else 0)
+                                          future_pose_dim=num_future_pose_obs - 1 if num_future_pose_obs else 0,
+                                          token_layout=grasp_token_layout)
 
         self.to(device)
 
         self.num_features = num_features # 1024
         self.encode_dim = encode_dim # 128
         self.cube_object_num = 30  # Candidate grasps per object, not the number of object assets.
-        self.notrain_obs_num = 3*self.cube_object_num + 3*self.cube_object_num # 30 cube's pos + rpy feature_num
+        # Old block: 30 candidate positions + 30 [yaw, pitch, roll]; token mode: the token block.
+        self.notrain_obs_num = (grasp_token_layout.width if grasp_token_layout is not None
+                                else 3*self.cube_object_num + 3*self.cube_object_num)
         future_end = -(self.notrain_obs_num + self.num_actions + num_tsil_obs)
         self.future_pose_slice = slice(future_end - num_future_pose_obs, future_end - 1)
         
@@ -198,7 +221,7 @@ class Value(DeterministicMixin, Model, PredictAttentionSelector):
             self.feature_encoder = nn.Sequential(nn.Linear(self.num_features, 512), # input : (envs,1024), output : (envs,512)
                                                   nn.ELU(),
                                                   nn.Linear(512, self.encode_dim),) # input : (envs,512), output : (envs,128)
-        self.net = nn.Sequential(nn.Linear(self.num_observations - self.num_features + self.encode_dim - self.notrain_obs_num + 6, 512), # self.num_observations = 1094
+        self.net = nn.Sequential(nn.Linear(self.num_observations - self.num_features + self.encode_dim - self.notrain_obs_num + self.selected_dim, 512), # self.num_observations = 1094
                             nn.ELU(),
                             nn.Linear(512, 256),
                             nn.ELU(),
@@ -210,11 +233,7 @@ class Value(DeterministicMixin, Model, PredictAttentionSelector):
         self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
 
     def compute(self, inputs, role):
-        grasp_predict_local_pos_flat = inputs["states"][...,-6*self.cube_object_num-self.num_actions:-3*self.cube_object_num-self.num_actions]
-        grasp_predict_local_rpy_flat = inputs["states"][...,-3*self.cube_object_num-self.num_actions:-self.num_actions]
-        grasp_predict_local_pos = grasp_predict_local_pos_flat.view(-1, self.cube_object_num, 3)
-        grasp_predict_local_rpy = grasp_predict_local_rpy_flat.view(-1, self.cube_object_num, 3)
-        grasp_predict_local = torch.cat([grasp_predict_local_pos,grasp_predict_local_rpy],dim=-1)
+        grasp_predict_local = self.grasp_attention_input(inputs["states"])
         cube_local_pos_rpy = inputs["states"][...,self.num_features:self.num_features+6]
         last_action = inputs["states"][...,-self.num_actions:]
 
@@ -354,6 +373,7 @@ def get_trainer(is_eval=False, strict_eval=False):
     if args.critic_time_obs is not None:
         cfg["env"]["criticTimeObs"] = args.critic_time_obs
     cprint(f"Teacher critic episode-progress input: {'enabled' if cfg['env'].get('criticTimeObs', False) else 'disabled'}", "yellow")
+    cprint(f"Teacher grasp tokens (direction 8): {apply_grasp_token_config(cfg, args)}", "yellow")
     multi_obj = cfg["env"]["asset"]["asset_multi"]
     if args.object_name is not None:
         if args.object_name not in multi_obj:
@@ -434,8 +454,15 @@ def get_trainer(is_eval=False, strict_eval=False):
     cfg_ppo["value_loss_scale"] = 1.0
     cfg_ppo["kl_threshold"] = 0
     cfg_ppo["rewards_shaper"] = None
-    cfg_ppo["state_preprocessor"] = RunningStandardScaler
-    cfg_ppo["state_preprocessor_kwargs"] = {"size": env.observation_space, "device": device}
+    token_layout = gfm_kwargs.get("grasp_token_layout")
+    if token_layout is not None and cfg["env"]["tsil"]["enabled"]:
+        # TSILPPO installs its own frozen scaler, which would rescale the token block.
+        raise ValueError("Grasp tokens are not supported together with TSIL")
+    cfg_ppo["state_preprocessor"], cfg_ppo["state_preprocessor_kwargs"] = teacher_state_preprocessor(
+        env.observation_space, env.action_space, device, token_layout)
+    if token_layout is not None:
+        cprint(f"Grasp token layout: {token_layout.to_dict()}, {token_layout.num_tokens} tokens x "
+               f"{token_layout.feature_dim} features, unscaled slice {cfg_ppo['state_preprocessor_kwargs']['passthrough']}", "yellow")
     cfg_ppo["value_preprocessor"] = RunningStandardScaler
     cfg_ppo["value_preprocessor_kwargs"] = {"size": 1, "device": device}
     cfg_ppo["tsil"] = deepcopy(cfg["env"]["tsil"])
@@ -464,6 +491,9 @@ def get_trainer(is_eval=False, strict_eval=False):
             observation_space=env.observation_space,
             action_space=env.action_space,
             device=device, **agent_kwargs)
+    if token_layout is not None and not is_eval:
+        # Rollout-time attention diagnostics, averaged over each write interval.
+        models_ppo["policy"].attention_tracker = agent.track_data
     if cfg["env"]["tsil"]["enabled"]:
         agent.checkpoint_modules["tsil_metadata"] = TemporalCheckpointMetadata(
             experiment_cfg, args, env.observation_space.shape[0], env.tsil_time_reference)

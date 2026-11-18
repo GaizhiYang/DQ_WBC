@@ -160,6 +160,20 @@ def apply_pose_prediction_config(cfg, args):
     return settings
 
 
+def apply_grasp_token_config(cfg, args):
+    """Apply explicit direction-8 CLI overrides, preserving saved experiment settings."""
+    settings = cfg["env"].setdefault("graspTokens", {})
+    for key, value in dict(enabled=False, rotation="rot6d", future=False).items():
+        settings.setdefault(key, value)
+    overrides = dict(enabled="grasp_tokens", rotation="grasp_token_rotation",
+                     future="grasp_future_tokens")
+    for key, argument in overrides.items():
+        value = getattr(args, argument, None)
+        if value is not None:
+            settings[key] = value
+    return settings
+
+
 def restore_student_teacher_observation_config(cfg, teacher_checkpoint):
     """Restore teacher-only input settings before applying explicit CLI overrides.
 
@@ -247,6 +261,16 @@ def get_parser():
     parser.add_argument("--no_critic_time_obs", dest="critic_time_obs", action="store_false",
                         help="Disable the critic episode-progress input, e.g. for an A/B baseline.")
     parser.set_defaults(critic_time_obs=None)
+    # Direction 8 grasp tokens; the last flag wins, like --critic_time_obs.
+    parser.add_argument("--grasp_tokens", dest="grasp_tokens", action="store_true",
+                        help="G1: replace the 180-dim candidate block with grasp tokens and feed the GFM embedding (not a 6-dim pose) to the MLP.")
+    parser.add_argument("--no_grasp_tokens", dest="grasp_tokens", action="store_false")
+    parser.add_argument("--grasp_token_rotation", choices=("rot6d", "euler"), default=None,
+                        help="Token rotation features: rot6d (rotation-matrix columns) or zyx Euler [yaw, pitch, roll].")
+    parser.add_argument("--grasp_future_tokens", dest="grasp_future_tokens", action="store_true",
+                        help="G2: add tokens at the EKF forecast horizons (requires --future_pose_obs).")
+    parser.add_argument("--no_grasp_future_tokens", dest="grasp_future_tokens", action="store_false")
+    parser.set_defaults(grasp_tokens=None, grasp_future_tokens=None)
     prediction = parser.add_mutually_exclusive_group()
     prediction.add_argument("--future_pose_obs", dest="future_pose_obs", action="store_true",
                             help="Add EKF future object poses to teacher observations (default horizons: 0.30/0.60 seconds).")
