@@ -16,6 +16,7 @@ import gymnasium
 import numpy as np
 from scipy.spatial.transform import Rotation
 import torch
+import yaml
 
 from modules.grasp_tokens import (GraspTokenLayout, build_grasp_tokens, layout_from_config,
                                   rotation_features, split_grasp_tokens)
@@ -25,7 +26,7 @@ from test_critic_time_obs import SetupBase, task_with
 from test_sgs_env import NAMESPACE, method_node
 from test_teacher_gfm import ROOT, Policy, Value
 from utils import config as config_utils
-from utils.state_scaler import PassthroughStandardScaler, teacher_state_preprocessor
+from utils.state_scaler import PassthroughStandardScaler, TokenStandardScaler, teacher_state_preprocessor
 
 
 SPEC = importlib.util.spec_from_file_location(
@@ -162,19 +163,43 @@ class TokenLayoutTests(unittest.TestCase):
         layout = layout_from_config({"env": {"graspTokens": {"enabled": True, "future": True},
                                              "posePrediction": prediction}})
         self.assertEqual(layout.horizons, (0.0, 0.6, 0.9))
+        # Saved configs from before the normalization option keep the raw tokens.
+        self.assertEqual(layout.normalization, "raw")
+        shared = layout_from_config({"env": {"graspTokens": {"enabled": True, "normalization": "shared"}}})
+        self.assertEqual(shared.normalization, "shared")
+        self.assertEqual(shared.width, GraspTokenLayout().width)
         for tokens, prediction_cfg in (({"enabled": True, "future": True}, {"enabled": False}),
                                        ({"enabled": False, "future": True}, prediction),
                                        ({"enabled": "true"}, prediction),
-                                       ({"enabled": True, "rotation": "quat"}, prediction)):
+                                       ({"enabled": True, "rotation": "quat"}, prediction),
+                                       ({"enabled": True, "normalization": "layer"}, prediction)):
             with self.subTest(tokens=tokens), self.assertRaises(ValueError):
                 layout_from_config({"env": {"graspTokens": tokens, "posePrediction": prediction_cfg}})
 
     def test_cli_overrides_only_explicit_flags(self):
         cfg = {"env": {"graspTokens": {"enabled": True, "future": True}}}
         args = type("Args", (), {"grasp_tokens": None, "grasp_token_rotation": "euler",
-                                 "grasp_future_tokens": False})()
+                                 "grasp_future_tokens": False, "grasp_token_norm": None})()
         self.assertEqual(config_utils.apply_grasp_token_config(cfg, args),
-                         {"enabled": True, "future": False, "rotation": "euler"})
+                         {"enabled": True, "future": False, "rotation": "euler", "normalization": "raw"})
+        args.grasp_token_norm = "shared"
+        self.assertEqual(config_utils.apply_grasp_token_config(cfg, args)["normalization"], "shared")
+
+    def test_repository_config_uses_shared_normalization(self):
+        cfg = yaml.safe_load((ROOT / "data/cfg/DQ_teacher.yaml").read_text())
+        self.assertEqual(cfg["env"]["graspTokens"]["normalization"], "shared")
+        self.assertIs(cfg["env"]["criticGfm"], True)
+
+    def test_new_cli_flags(self):
+        parse = lambda *argv: config_utils.get_params(list(argv))
+        args = parse()
+        self.assertIsNone(args.grasp_token_norm)
+        self.assertIsNone(args.critic_gfm)
+        self.assertFalse(args.value_norm_returns_only)
+        args = parse("--grasp_token_norm", "raw", "--no_critic_gfm", "--value_norm_returns_only")
+        self.assertEqual((args.grasp_token_norm, args.critic_gfm, args.value_norm_returns_only),
+                         ("raw", False, True))
+        self.assertTrue(parse("--no_critic_gfm", "--critic_gfm").critic_gfm)
 
     def setup_task(self, tokens=None, tsil=True, critic_time=True):
         task = task_with("_setup_obs_and_action_info", base=SetupBase)
@@ -217,11 +242,11 @@ class TokenModelTests(unittest.TestCase):
         return torch.cat((random(self.feature_width), random(self.body_width), future, block,
                           random(ACTIONS)), dim=-1)
 
-    def model(self, cls):
+    def model(self, cls, layout=None, **kwargs):
         torch.manual_seed(5)
         width = self.feature_width + self.body_width + 13 + self.layout.width + ACTIONS
         return cls(width, ACTIONS, "cpu", self.feature_width, 128, None, None, None,
-                   num_future_pose_obs=13, grasp_token_layout=self.layout)
+                   num_future_pose_obs=13, grasp_token_layout=layout or self.layout, **kwargs)
 
     def test_outputs_mlp_width_and_future_mask(self):
         future = torch.arange(self.layout.num_tokens) >= CANDIDATES
@@ -264,6 +289,62 @@ class TokenModelTests(unittest.TestCase):
         self.assertEqual(calls.count("GFM / future token mass"), 2)
         self.assertEqual(calls.count("GFM / argmax switch rate"), 1)
 
+    def test_original_gfm_logs_policy_and_critic_attention(self):
+        width = self.feature_width + self.body_width + 13 + 180 + ACTIONS
+        state = 0.3 * torch.randn(2, width, generator=torch.Generator().manual_seed(12))
+        for cls, tag in ((Policy, "GFM"), (Value, "GFM critic")):
+            with self.subTest(model=cls.__name__):
+                torch.manual_seed(5)
+                model, calls = cls(width, ACTIONS, "cpu", self.feature_width, 128, None, None, None,
+                                   num_future_pose_obs=13), []
+                model.attention_tracker = lambda name, value: calls.append(name)
+                with torch.no_grad():
+                    for _ in range(2):
+                        model.compute({"states": state}, role="policy")
+                self.assertEqual(model.last_attention.shape, (2, CANDIDATES))
+                self.assertEqual(calls.count(f"{tag} / attention entropy"), 2)
+                self.assertEqual(calls.count(f"{tag} / argmax switch rate"), 1)
+                self.assertFalse(any("future token mass" in name for name in calls))
+
+    def test_shared_normalization_layer_norms_the_embedding(self):
+        layout = GraspTokenLayout(horizons=(0.0, 0.6, 0.9), normalization="shared")
+        self.assertFalse(hasattr(self.model(Policy), "output_norm"))
+        for cls in (Policy, Value):
+            with self.subTest(model=cls.__name__):
+                model, captured = self.model(cls, layout), []
+                self.assertIsInstance(model.output_norm, torch.nn.LayerNorm)
+                self.assertIn("output_norm.weight", model.state_dict())
+                model.net[0].register_forward_hook(lambda module, inputs, output: captured.append(inputs[0]))
+                model.compute({"states": self.state(1.0)}, role="policy")
+                embedding = captured[0][:, -64:]
+                torch.testing.assert_close(embedding.mean(-1), torch.zeros(2), atol=1e-5, rtol=0)
+                torch.testing.assert_close(embedding.var(-1, unbiased=False), torch.ones(2), atol=2e-2, rtol=0)
+                copy = self.model(cls, layout)
+                copy.load_state_dict(model.state_dict(), strict=True)
+
+    def test_critic_without_gfm_ignores_the_grasp_block(self):
+        value, calls = self.model(Value, critic_gfm=False), []
+        value.attention_tracker = lambda name, number: calls.append(name)
+        self.assertEqual(value.selected_dim, 0)
+        self.assertFalse([key for key in value.state_dict()
+                          if key.startswith(("key_proj", "value_proj", "query_proj", "output_"))])
+        self.assertEqual(value.net[0].in_features, self.body_width + 13 + ACTIONS + 128)
+        state = self.state(1.0)
+        changed = state.clone()
+        start = self.feature_width + self.body_width + 13
+        changed[:, start:start + self.layout.width] = 5.0
+        with torch.no_grad():
+            first = value.compute({"states": state}, role="value")[0]
+            second = value.compute({"states": changed}, role="value")[0]
+        self.assertEqual(first.shape, (2, 1))
+        torch.testing.assert_close(first, second)
+        self.assertIsNone(value.last_attention)
+        self.assertEqual(calls, [])
+        copy = self.model(Value, critic_gfm=False)
+        copy.load_state_dict(value.state_dict(), strict=True)
+        # The actor keeps its GFM.
+        self.assertEqual(self.model(Policy).selected_dim, 64)
+
 
 class PassthroughScalerTests(unittest.TestCase):
     def test_token_slice_stays_raw_and_other_dimensions_are_scaled(self):
@@ -284,6 +365,63 @@ class PassthroughScalerTests(unittest.TestCase):
         torch.testing.assert_close(scaler(data[:3], inverse=True)[:, 8:17], data[:3, 8:17])
         reference = RunningStandardScaler(observation, device="cpu")
         reference.load_state_dict(scaler.state_dict(), strict=True)
+
+
+class TokenScalerTests(unittest.TestCase):
+    observation = gymnasium.spaces.Box(-np.inf, np.inf, shape=(40,))
+    action = gymnasium.spaces.Box(-1, 1, shape=(3,))
+    # 3 tokens x 8 features + flag = 25 dims, ending before the 3 action dims: (12, 37).
+    layout = GraspTokenLayout(num_candidates=3, rotation="euler", normalization="shared")
+
+    def scaler(self):
+        scaler_class, kwargs = teacher_state_preprocessor(self.observation, self.action, "cpu", self.layout)
+        self.assertIs(scaler_class, TokenStandardScaler)
+        self.assertEqual((kwargs["token_block"], kwargs["feature_dim"]), ((12, 37), 8))
+        return scaler_class(**kwargs), kwargs
+
+    @staticmethod
+    def data():
+        generator = torch.Generator().manual_seed(4)
+        data = 3.0 + 2.0 * torch.randn(6000, 40, generator=generator)
+        # Token k is offset by 4k, so the tokens' means differ.
+        data[:, 12:36] += 4.0 * torch.arange(3.0).repeat_interleave(8)
+        data[:, 36] = (torch.rand(6000, generator=generator) > 0.5).float()
+        return data
+
+    def test_tokens_share_statistics_and_the_flag_stays_raw(self):
+        scaler, _ = self.scaler()
+        data = self.data()
+        scaled = scaler(data, train=True)
+        tokens = scaled[:, 12:36].reshape(-1, 3, 8)
+        pooled = tokens.reshape(-1, 8)
+        self.assertLess(pooled.mean(0).abs().max().item(), 0.05)
+        self.assertLess((pooled.std(0) - 1).abs().max().item(), 0.05)
+        # Shared statistics keep the tokens' relative offsets (per-token scaling would erase them).
+        per_token = tokens.mean(0).mean(-1)
+        self.assertLess(per_token[0].item(), -0.9)
+        self.assertGreater(per_token[2].item(), 0.9)
+        same = data[:2].clone()
+        same[:, 20:28] = same[:, 12:20]
+        out = scaler(same)
+        torch.testing.assert_close(out[:, 20:28], out[:, 12:20])
+        torch.testing.assert_close(scaled[:, 36], data[:, 36])
+        outside = torch.cat((scaled[:, :12], scaled[:, 37:]), dim=-1)
+        self.assertLess(outside.mean(0).abs().max().item(), 0.05)
+        self.assertLess((outside.std(0) - 1).abs().max().item(), 0.05)
+        torch.testing.assert_close(scaler(scaled[:3], inverse=True)[:, 12:37], data[:3, 12:37],
+                                   atol=1e-4, rtol=0)
+
+    def test_rollout_batches_checkpoints_and_validation(self):
+        scaler, kwargs = self.scaler()
+        data = self.data()
+        self.assertEqual(scaler(data.view(100, 60, 40), train=True).shape, (100, 60, 40))
+        self.assertEqual(scaler.token_count.item(), 1 + 6000 * 3)
+        copy = TokenStandardScaler(**kwargs)
+        copy.load_state_dict(scaler.state_dict(), strict=True)
+        torch.testing.assert_close(copy(data[:5]), scaler(data[:5]))
+        self.assertIn("token_variance", scaler.state_dict())
+        with self.assertRaises(ValueError):
+            TokenStandardScaler(40, token_block=(12, 36), feature_dim=8, device="cpu")
 
 
 if __name__ == "__main__":

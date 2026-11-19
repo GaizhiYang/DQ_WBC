@@ -2198,7 +2198,7 @@ class B1Z1Base(RewardVecTask):
                 self.commands[:, 0] = torch.clip(self.actions[:, 7], -0.45, 0.45)
     
     def _compute_states_buf(self): # if enabled_camera is true, then this function will be called
-        teacher_only_tail = (self.num_actions + 180 + self.num_velocity_obs + self.num_future_pose_obs
+        teacher_only_tail = (self.num_actions + getattr(self, "num_grasp_obs", 180) + self.num_velocity_obs + self.num_future_pose_obs
                              + getattr(self, "num_tsil_obs", 0))
         self.states_buf[:] = torch.cat([self.camera_history_buf.view(self.num_envs, -1), self.obs_buf[:, (self.num_features + 6):-teacher_only_tail], self.obs_buf[:, -self.num_actions:]], dim=-1)
         # self.states_buf[:] = torch.cat([self.camera_history_buf.view(self.num_envs, -1), self.obs_buf[:, (self.num_features + 12):-(self.num_actions + 3)], self.obs_buf[:, -self.num_actions:]], dim=-1) # my change

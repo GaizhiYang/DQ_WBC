@@ -19,6 +19,9 @@ from torch import Tensor
 
 
 ROTATIONS = ("rot6d", "euler")
+# raw: tokens bypass the state scaler (first G1/G2 runs); shared: one set of
+# per-feature statistics for all tokens, plus LayerNorm on the GFM embedding.
+NORMALIZATIONS = ("raw", "shared")
 POSITION_DIM = 3
 REACH_DIM = 2            # horizontal distance to the arm base, bearing angle
 Z_CLIP = 0.6             # same clip as the old candidate positions
@@ -36,10 +39,13 @@ class GraspTokenLayout:
     num_candidates: int = 30
     horizons: Tuple[float, ...] = (0.0,)
     rotation: str = "rot6d"
+    normalization: str = "raw"
 
     def __post_init__(self):
         if self.rotation not in ROTATIONS:
             raise ValueError(f"grasp token rotation must be one of {ROTATIONS}")
+        if self.normalization not in NORMALIZATIONS:
+            raise ValueError(f"grasp token normalization must be one of {NORMALIZATIONS}")
         if self.num_candidates <= 0:
             raise ValueError("grasp tokens need at least one candidate")
         if not self.horizons or self.horizons[0] != 0.0:
@@ -69,19 +75,21 @@ class GraspTokenLayout:
 
     def to_dict(self):
         return {"num_candidates": self.num_candidates, "horizons": list(self.horizons),
-                "rotation": self.rotation}
+                "rotation": self.rotation, "normalization": self.normalization}
 
 
 def layout_from_config(cfg, num_candidates=30):
     """Token layout from ``cfg["env"]``, or None when tokens are disabled.
 
     ``graspTokens.future`` adds the EKF horizons (posePrediction.horizons) after h = 0.
+    A missing ``normalization`` means "raw", the setting of runs saved before it existed.
     """
     env_cfg = cfg["env"]
     settings = env_cfg.get("graspTokens", {}) or {}
     enabled = settings.get("enabled", False)
     future = settings.get("future", False)
     rotation = settings.get("rotation", "rot6d")
+    normalization = settings.get("normalization", "raw")
     for name, value in (("enabled", enabled), ("future", future)):
         if not isinstance(value, bool):
             raise ValueError(f"env.graspTokens.{name} must be a boolean")
@@ -95,7 +103,8 @@ def layout_from_config(cfg, num_candidates=30):
         if not prediction.get("enabled", False):
             raise ValueError("env.graspTokens.future requires EKF future poses (posePrediction.enabled)")
         horizons += tuple(float(h) for h in prediction.get("horizons", [0.30, 0.60]))
-    return GraspTokenLayout(num_candidates=num_candidates, horizons=horizons, rotation=rotation)
+    return GraspTokenLayout(num_candidates=num_candidates, horizons=horizons, rotation=rotation,
+                            normalization=normalization)
 
 
 def quat_xyzw_to_matrix(quat: Tensor) -> Tensor:

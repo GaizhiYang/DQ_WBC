@@ -32,6 +32,7 @@ PPO_DEFAULT_CONFIG = {
     "state_preprocessor_kwargs": {},        # state preprocessor's kwargs (e.g. {"size": env.observation_space})
     "value_preprocessor": None,             # value preprocessor class (see skrl.resources.preprocessors)
     "value_preprocessor_kwargs": {},        # value preprocessor's kwargs (e.g. {"size": 1})
+    "value_preprocessor_train_on_values": True,  # DQ_WBC: False fits the value scaler to returns only
 
     "random_timesteps": 0,          # random exploration steps
     "learning_starts": 0,           # learning starts after this many steps
@@ -132,6 +133,7 @@ class PPO(Agent):
 
         self._state_preprocessor = self.cfg["state_preprocessor"]
         self._value_preprocessor = self.cfg["value_preprocessor"]
+        self._value_preprocessor_train_on_values = self.cfg.get("value_preprocessor_train_on_values", True)
 
         self._discount_factor = self.cfg["discount_factor"]
         self._lambda = self.cfg["lambda"]
@@ -310,6 +312,33 @@ class PPO(Agent):
         # write tracking data and checkpoints
         super().post_interaction(timestep, timesteps)
 
+    def _normalize_value_targets(self, values: torch.Tensor, returns: torch.Tensor):
+        """Normalized (values, returns) for one update (DQ_WBC).
+
+        Upstream skrl fits the value scaler to the critic's own predictions and then
+        to the returns. When the predictions spread out, that inflates the variance,
+        the normalized targets collapse towards a constant and the critic stops
+        learning. With ``value_preprocessor_train_on_values`` False, the statistics
+        follow the returns only and both tensors use the same updated statistics.
+        """
+        if self._value_preprocessor_train_on_values:
+            values = self._value_preprocessor(values, train=True)
+            return values, self._value_preprocessor(returns, train=True)
+        returns = self._value_preprocessor(returns, train=True)
+        return self._value_preprocessor(values), returns
+
+    def _track_value_diagnostics(self, values: torch.Tensor, returns: torch.Tensor) -> None:
+        """Critic health (DQ_WBC): explained variance of the unnormalized returns and
+        the value-scaler statistics after this update."""
+        residual = (returns - values).var()
+        self.track_data("Value / explained variance",
+                        (1.0 - residual / returns.var().clamp_min(1e-8)).item())
+        mean = getattr(self._value_preprocessor, "running_mean", None)
+        variance = getattr(self._value_preprocessor, "running_variance", None)
+        if mean is not None and variance is not None:
+            self.track_data("Value / scaler mean", mean.float().mean().item())
+            self.track_data("Value / scaler std", variance.float().sqrt().mean().item())
+
     def _update(self, timestep: int, timesteps: int) -> None:
         """Algorithm's main update step
 
@@ -374,8 +403,10 @@ class PPO(Agent):
                                           discount_factor=self._discount_factor,
                                           lambda_coefficient=self._lambda)
 
-        self.memory.set_tensor_by_name("values", self._value_preprocessor(values, train=True))
-        self.memory.set_tensor_by_name("returns", self._value_preprocessor(returns, train=True))
+        normalized_values, normalized_returns = self._normalize_value_targets(values, returns)
+        self._track_value_diagnostics(values, returns)
+        self.memory.set_tensor_by_name("values", normalized_values)
+        self.memory.set_tensor_by_name("returns", normalized_returns)
         self.memory.set_tensor_by_name("advantages", advantages)
 
         # sample mini-batches from memory

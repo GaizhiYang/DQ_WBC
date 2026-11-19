@@ -22,6 +22,7 @@ env:
   lastCommands: False
   noVelocityObs: False # Set --no_velocity_obs to remove 3D robot + 2D relative object velocity
   criticTimeObs: False # Set --critic_time_obs to give the critic step/maxEpisodeLength; the actor ignores it
+  criticGfm: True # --no_critic_gfm (ablation): the critic ignores the grasp block and has no GFM
   successMode: hold # legacy/hold are compatibility aliases for the shared training/evaluation rule
   sgs:
     mode: disabled # disabled / uniform / sgs; enabled modes require a validated bank
@@ -44,6 +45,7 @@ env:
     enabled: False # --grasp_tokens (G1): token block + GFM embedding output; new checkpoints only
     rotation: rot6d # --grasp_token_rotation rot6d|euler
     future: False # --grasp_future_tokens (G2): tokens at h = 0 and every posePrediction horizon
+    normalization: shared # --grasp_token_norm shared|raw; saved configs without it mean raw (first G1/G2 runs)
 
   low_policy_path: "data/low_model/model_44000.pt"
   taskddescription: "023"

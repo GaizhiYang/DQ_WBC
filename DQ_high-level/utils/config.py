@@ -163,10 +163,11 @@ def apply_pose_prediction_config(cfg, args):
 def apply_grasp_token_config(cfg, args):
     """Apply explicit direction-8 CLI overrides, preserving saved experiment settings."""
     settings = cfg["env"].setdefault("graspTokens", {})
-    for key, value in dict(enabled=False, rotation="rot6d", future=False).items():
+    # A missing normalization is "raw": the setting of runs saved before it existed.
+    for key, value in dict(enabled=False, rotation="rot6d", future=False, normalization="raw").items():
         settings.setdefault(key, value)
     overrides = dict(enabled="grasp_tokens", rotation="grasp_token_rotation",
-                     future="grasp_future_tokens")
+                     future="grasp_future_tokens", normalization="grasp_token_norm")
     for key, argument in overrides.items():
         value = getattr(args, argument, None)
         if value is not None:
@@ -270,7 +271,17 @@ def get_parser():
     parser.add_argument("--grasp_future_tokens", dest="grasp_future_tokens", action="store_true",
                         help="G2: add tokens at the EKF forecast horizons (requires --future_pose_obs).")
     parser.add_argument("--no_grasp_future_tokens", dest="grasp_future_tokens", action="store_false")
+    parser.add_argument("--grasp_token_norm", choices=("shared", "raw"), default=None,
+                        help="shared: standardize token features with statistics shared by all tokens and LayerNorm "
+                             "the GFM embedding; raw: tokens bypass the state scaler (first G1/G2 runs).")
     parser.set_defaults(grasp_tokens=None, grasp_future_tokens=None)
+    parser.add_argument("--critic_gfm", dest="critic_gfm", action="store_true",
+                        help="Keep the GFM in the critic (default).")
+    parser.add_argument("--no_critic_gfm", dest="critic_gfm", action="store_false",
+                        help="Ablation: the critic ignores the grasp block and has no GFM.")
+    parser.set_defaults(critic_gfm=None)
+    parser.add_argument("--value_norm_returns_only", action="store_true",
+                        help="Fit the value scaler to returns only, not to the critic's own predictions (skrl default).")
     prediction = parser.add_mutually_exclusive_group()
     prediction.add_argument("--future_pose_obs", dest="future_pose_obs", action="store_true",
                             help="Add EKF future object poses to teacher observations (default horizons: 0.30/0.60 seconds).")
