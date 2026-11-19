@@ -99,8 +99,12 @@ class TSILPPO(PPO):
         if configured.get("kl_threshold", 0):
             raise ValueError("TSIL traverses the full fixed replay set each epoch; use KLAdaptiveLR, not early stopping")
         configured["state_preprocessor"] = FrozenObservationScaler
+        history_frames = getattr(models["policy"], "actor_history_frames", 1)
+        frame_width = getattr(models["policy"], "frame_observations", 0)
+        history_time_indices = [index - lag * frame_width
+                                for lag in range(history_frames) for index in self.time_indices]
         configured["state_preprocessor_kwargs"] = dict(size=observation_space, device=device,
-                                                          time_indices=self.time_indices)
+                                                          time_indices=history_time_indices)
         configured["value_preprocessor"] = ValueScaler
         configured["value_preprocessor_kwargs"] = dict(size=1, device=device)
         super().__init__(models=models, memory=memory, cfg=configured, observation_space=observation_space,
@@ -125,6 +129,7 @@ class TSILPPO(PPO):
                 max_episode_steps=int(tsil_env.max_episode_length),
                 static_prefix_size=int(settings.get("static_prefix_size", 1024)),
                 success_reward_scale=float(getattr(tsil_env, "reward_scales", {}).get("pick_up", 50.)),
+                target_indices=history_time_indices[1::2],
                 **replay_device)
         self._command_gate = False
         self._diagnostic_steps = []

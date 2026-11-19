@@ -67,6 +67,7 @@ def configure_teacher_experiment(cfg, args, is_eval=False, strict_eval=False):
     if args.stop_after is not None and args.stop_after <= 0:
         raise ValueError("--stop_after must be positive")
     env_cfg = cfg["env"]
+    apply_actor_history_config(cfg, args)
     sgs = dict(SGS_DEFAULTS)
     sgs.update(env_cfg.get("sgs", {}))
     if args.sgs_mode is not None:
@@ -190,6 +191,16 @@ def restore_student_teacher_observation_config(cfg, teacher_checkpoint):
     return config_path
 
 
+def apply_actor_history_config(cfg, args):
+    frames = getattr(args, "actor_history_frames", None)
+    if frames is None:
+        frames = cfg["env"].get("actorHistoryFrames", 1)
+    if type(frames) is not int or frames < 1:
+        raise ValueError("actor_history_frames must be a positive integer (including the current frame)")
+    cfg["env"]["actorHistoryFrames"] = frames
+    return frames
+
+
 def get_parser():
     parser = argparse.ArgumentParser(
         prog="Z1 training",
@@ -238,6 +249,8 @@ def get_parser():
     parser.add_argument("--teacher_ckpt_path", type=str, default="")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--roboinfo", action="store_true")
+    parser.add_argument("--actor_history_frames", type=int, default=None,
+                        help="Actor frames including current: 3 means [t-2, t-1, t]. Defaults to saved YAML or 1.")
     parser.add_argument("--no_velocity_obs", action="store_true",
                         help="Remove robot local linear velocity (3D) and object-relative planar velocity (2D) from B1Z1PickMulti teacher observations.")
     # Not a mutually exclusive group: the last flag wins, so launcher defaults

@@ -22,7 +22,7 @@ from skrl.utils import set_seed
 from envs import *    #import b1z1_pickmulti.py
 from PredictPiontTransform.predictpoint_mul import PredictPoint
 from utils.config import (load_cfg, get_params, copy_cfg, configure_teacher_experiment,
-                          teacher_run_end, apply_pose_prediction_config)
+                          teacher_run_end, apply_pose_prediction_config, apply_actor_history_config)
 import utils.wrapper as wrapper
 import time
 from legged_gym.envs.manip_loco.b1z1_config import B1Z1RoughCfg
@@ -52,7 +52,7 @@ def restore_eval_arguments(args):
     for name in ("roboinfo", "observe_gait_commands", "small_value_set_zero", "no_feature",
                  "mask_arm", "pitch_control", "rand_control", "arm_delay", "rand_cmd_scale",
                  "rand_depth_clip", "stop_pick", "use_tanh", "last_commands", "no_velocity_obs",
-                 "critic_time_obs"):
+                 "critic_time_obs", "actor_history_frames"):
         if name in saved:
             setattr(args, name, saved[name])
 
@@ -78,6 +78,7 @@ def teacher_config_path(args, is_eval=False, strict_eval=False):
 
 def create_env(cfg, args, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor ):
     apply_pose_prediction_config(cfg, args)
+    history_frames = apply_actor_history_config(cfg, args)
     cfg_terrain = B1Z1RoughCfg()
 
     cfg["env"]["enableDebugVis"] = args.debugvis
@@ -101,7 +102,7 @@ def create_env(cfg, args, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor ):
                          rand_cmd_scale=args.rand_cmd_scale, rand_depth_clip=args.rand_depth_clip, stop_pick=args.stop_pick, table_height=args.table_height, eval=args.eval,
                          camera_6p_tensor=camera_6p_tensor, grasp_cv_tensor=grasp_cv_tensor, cube_init_tensor=cube_init_tensor, cfg_terrain = cfg_terrain)
     # the step under is just to add some property to _env , just a small extension of _env(B1Z1PickMulti class)
-    wrapped_env = wrapper.IsaacGymPreview3Wrapper(_env)
+    wrapped_env = wrapper.IsaacGymPreview3Wrapper(_env, actor_history_frames=history_frames)
     return wrapped_env
 
 # define models (stochastic and deterministic models) using mixins
@@ -109,8 +110,12 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
     def __init__(self, observation_space, action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor,
                   use_tanh=False, clip_actions=False,
                  clip_log_std=True, min_log_std=-20, max_log_std=2, reduction="sum", deterministic=False,
-                 num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None):
+                 num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None, actor_history_frames=1):
         Model.__init__(self, observation_space, action_space, device)
+        if type(actor_history_frames) is not int or actor_history_frames < 1 or self.num_observations % actor_history_frames:
+            raise ValueError("actor_history_frames must evenly divide the observation width")
+        self.actor_history_frames = actor_history_frames
+        self.frame_observations = self.num_observations // actor_history_frames
         transform_func = torch.distributions.transforms.TanhTransform() if use_tanh else None
         GaussianMixin.__init__(self, clip_actions, clip_log_std, min_log_std, max_log_std, reduction, transform_func=transform_func, deterministic=deterministic)
         PredictAttentionSelector.__init__(self, d_model=64, obj_feat_dim=encode_dim or 128,
@@ -129,7 +134,7 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
         # MLP input; store its position within that input slice.
         self.critic_time_position = None
         if critic_time_index is not None:
-            body_width = self.num_observations - self.num_features - self.notrain_obs_num - self.num_actions
+            body_width = self.frame_observations - self.num_features - self.notrain_obs_num - self.num_actions
             position = body_width + critic_time_index + self.notrain_obs_num + self.num_actions
             if num_features <= 0 or not 6 <= position < body_width:
                 raise ValueError("critic_time_index must point inside the teacher state block")
@@ -140,7 +145,9 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
                                                   nn.ELU(),
                                                   nn.Linear(512, self.encode_dim),) # input : (envs,512), output : (envs,128)
         actor_time_width = 0 if self.critic_time_position is None else 1
-        self.net = nn.Sequential(nn.Linear(self.num_observations - self.num_features + self.encode_dim - self.notrain_obs_num + 6 - actor_time_width, 512),
+        self.actor_frame_dim = (self.frame_observations - self.num_features + self.encode_dim - self.notrain_obs_num + 6 - actor_time_width
+                                if num_features > 0 else self.frame_observations)
+        self.net = nn.Sequential(nn.Linear(self.actor_frame_dim * actor_history_frames, 512),
                             nn.ELU(),
                             nn.Linear(512, 256),
                             nn.ELU(),
@@ -148,11 +155,15 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
                             nn.ELU(),
                             nn.Linear(128, self.num_actions)
                             )
-        cprint(f"self.num_observations is {self.num_observations}", "yellow")
+        cprint(f"Actor MLP input: {self.actor_frame_dim} x {actor_history_frames} = {self.net[0].in_features} (oldest to current)", "yellow")
 
         self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
 
     def compute(self, inputs, role):
+        batch_shape = inputs["states"].shape[:-1]
+        # Each PPO sample contains its own raw frames. Re-encode them with the
+        # current shared encoder/GFM, without a mutable model-side history.
+        inputs = {"states": inputs["states"].reshape(-1, self.frame_observations)}
         grasp_predict_local_pos_flat = inputs["states"][...,-6*self.cube_object_num-self.num_actions:-3*self.cube_object_num-self.num_actions]
         grasp_predict_local_rpy_flat = inputs["states"][...,-3*self.cube_object_num-self.num_actions:-self.num_actions]
         grasp_predict_local_pos = grasp_predict_local_pos_flat.view(-1, self.cube_object_num, 3)
@@ -170,17 +181,21 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
             if self.critic_time_position is not None:
                 state_block = torch.cat((state_block[..., :self.critic_time_position],
                                          state_block[..., self.critic_time_position + 1:]), dim=-1)
-            actions = self.net(torch.cat([state_block, last_action, features_encode, right_predict_point], dim=-1))
+            frame_inputs = torch.cat([state_block, last_action, features_encode, right_predict_point], dim=-1)
         else:
-            actions = self.net(inputs["states"])
+            frame_inputs = inputs["states"]
+        actions = self.net(frame_inputs.reshape(*batch_shape, self.actor_frame_dim * self.actor_history_frames))
         return actions, self.log_std_parameter, {}
 
 class Value(DeterministicMixin, Model, PredictAttentionSelector):
     def __init__(self, observation_space, action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor,
-                 num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None):
+                 num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None, actor_history_frames=1):
         # critic_time_index needs no handling here: the value MLP consumes the
         # whole state block, including the episode-progress channel.
         Model.__init__(self, observation_space, action_space, device)
+        if type(actor_history_frames) is not int or actor_history_frames < 1 or self.num_observations % actor_history_frames:
+            raise ValueError("actor_history_frames must evenly divide the observation width")
+        self.frame_observations = self.num_observations // actor_history_frames
         DeterministicMixin.__init__(self)
         PredictAttentionSelector.__init__(self, d_model=64, obj_feat_dim=encode_dim or 128,
                                           future_pose_dim=num_future_pose_obs - 1 if num_future_pose_obs else 0)
@@ -198,7 +213,9 @@ class Value(DeterministicMixin, Model, PredictAttentionSelector):
             self.feature_encoder = nn.Sequential(nn.Linear(self.num_features, 512), # input : (envs,1024), output : (envs,512)
                                                   nn.ELU(),
                                                   nn.Linear(512, self.encode_dim),) # input : (envs,512), output : (envs,128)
-        self.net = nn.Sequential(nn.Linear(self.num_observations - self.num_features + self.encode_dim - self.notrain_obs_num + 6, 512), # self.num_observations = 1094
+        critic_dim = (self.frame_observations - self.num_features + self.encode_dim - self.notrain_obs_num + 6
+                      if num_features > 0 else self.frame_observations)
+        self.net = nn.Sequential(nn.Linear(critic_dim, 512),
                             nn.ELU(),
                             nn.Linear(512, 256),
                             nn.ELU(),
@@ -210,6 +227,8 @@ class Value(DeterministicMixin, Model, PredictAttentionSelector):
         self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
 
     def compute(self, inputs, role):
+        # Keep the critic's original single-frame information and architecture.
+        inputs = {"states": inputs["states"][..., -self.frame_observations:]}
         grasp_predict_local_pos_flat = inputs["states"][...,-6*self.cube_object_num-self.num_actions:-3*self.cube_object_num-self.num_actions]
         grasp_predict_local_rpy_flat = inputs["states"][...,-3*self.cube_object_num-self.num_actions:-self.num_actions]
         grasp_predict_local_pos = grasp_predict_local_pos_flat.view(-1, self.cube_object_num, 3)
@@ -307,6 +326,7 @@ def get_trainer(is_eval=False, strict_eval=False):
     if strict_eval:
         if not args.checkpoint or args.resume:
             raise ValueError("Strict evaluation requires --checkpoint and does not accept --resume")
+    if is_eval and args.checkpoint:
         restore_eval_arguments(args)
     temporal_metadata = None
     if is_eval and args.checkpoint:

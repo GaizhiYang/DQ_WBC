@@ -28,7 +28,7 @@ class GPUTemporalReplay:
 
     def __init__(self, state, num_envs, observation_size, action_size, gamma=0.99,
                  topk=5, time_indices=(-191, -190), max_episode_steps=100,
-                 static_prefix_size=1024, success_reward_scale=50.0, device=None):
+                 static_prefix_size=1024, success_reward_scale=50.0, device=None, target_indices=None):
         self.state, self.num_envs = state, int(num_envs)
         # Simulation owns TemporalState; the learner owns replay. These may
         # intentionally use different devices (SIM_DEVICE versus RL_DEVICE).
@@ -37,6 +37,8 @@ class GPUTemporalReplay:
         self.observation_size, self.action_size = int(observation_size), int(action_size)
         self.gamma, self.topk = float(gamma), int(topk)
         self.time_indices = tuple(int(i) % self.observation_size for i in time_indices)
+        self.target_indices = tuple(int(i) % self.observation_size for i in
+                                    (target_indices if target_indices is not None else [time_indices[1]]))
         self.max_episode_steps = int(max_episode_steps)
         self.static_prefix_size = min(int(static_prefix_size), self.observation_size)
         self.success_reward_scale = float(success_reward_scale)
@@ -75,7 +77,7 @@ class GPUTemporalReplay:
         if p and torch.equal(states[:, :p], states[:1, :p].expand(len(states), -1)):
             # Time channels must remain relabelable. A one-step debug fixture
             # must not accidentally compress the deadline into its prefix.
-            p = min(p, min(self.time_indices))
+            p = min(p, min(self.time_indices), min(self.target_indices))
             self.static_prefix_size = p
             self._prefix = states[0, :p].detach().to(self.device, torch.float32).clone() if p else None
         else:
@@ -354,7 +356,7 @@ class GPUTemporalReplay:
             flat = flat_valid[begin:begin + int(screen_batch_size)]
             trajectory, step = flat // self.max_episode_steps, flat % self.max_episode_steps
             suffix = self._archive_obs[slots[trajectory], step]
-            suffix[:, self.time_indices[1] - self.static_prefix_size] = deadlines[trajectory]
+            suffix[:, [i - self.static_prefix_size for i in self.target_indices]] = deadlines[trajectory, None]
             states = (suffix if self._prefix is None else
                       torch.cat((self._prefix.expand(len(flat), -1), suffix), -1))
             gap = screen_gap_fn(states, returns[trajectory, step, None]).detach().to(
@@ -378,7 +380,7 @@ class GPUTemporalReplay:
         step = choices[chosen_positive]
         chosen_slots = slots[trajectory]
         suffix = self._archive_obs[chosen_slots, step]
-        suffix[:, self.time_indices[1] - self.static_prefix_size] = deadlines[trajectory]
+        suffix[:, [i - self.static_prefix_size for i in self.target_indices]] = deadlines[trajectory, None]
         actions = self._archive_actions[chosen_slots, step]
         sampled_success = success[trajectory]
         values = torch.cat((self._stat_tensors(), (gaps > 0).sum().reshape(1))).cpu().tolist()

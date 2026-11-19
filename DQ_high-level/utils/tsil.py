@@ -380,11 +380,13 @@ class TemporalReplay:
 
     def __init__(self, state, num_envs, observation_size, action_size, gamma=0.99,
                  topk=5, time_indices=(-191, -190), max_episode_steps=100,
-                 static_prefix_size=1024, success_reward_scale=50.0):
+                 static_prefix_size=1024, success_reward_scale=50.0, target_indices=None):
         self.state, self.num_envs = state, int(num_envs)
         self.observation_size, self.action_size = int(observation_size), int(action_size)
         self.gamma, self.topk = float(gamma), int(topk)
         self.time_indices = tuple(int(i) % self.observation_size for i in time_indices)
+        self.target_indices = tuple(int(i) % self.observation_size for i in
+                                    (target_indices if target_indices is not None else [time_indices[1]]))
         self.max_episode_steps = int(max_episode_steps)
         self.static_prefix_size = min(int(static_prefix_size), self.observation_size)
         self.success_reward_scale = float(success_reward_scale)
@@ -540,7 +542,7 @@ class TemporalReplay:
         if not math.isfinite(float(reward_scale)) or reward_scale <= 0:
             raise ValueError("TSIL reward scale must be finite and positive")
         states = trajectory.full_observations()
-        states[:, self.time_indices[1]] = float(target) / self.state.t_ref
+        states[:, self.target_indices] = float(target) / self.state.t_ref
         rewards = trajectory.reward_fixed + float(command_gate) * trajectory.reward_command_raw
         rewards = rewards.clone()
         efficiency = 1.0 + (min(float(target) / trajectory.elapsed, 1.0) if trajectory.success else 0.0)

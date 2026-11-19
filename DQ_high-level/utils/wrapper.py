@@ -10,6 +10,7 @@ from packaging import version
 import torch
 
 from skrl import logger
+from utils.observation_history import ObservationHistory
 
 __all__ = ["wrap_env"]
 
@@ -113,7 +114,7 @@ class Wrapper(object):
 
 
 class IsaacGymPreview3Wrapper(Wrapper):
-    def __init__(self, env: Any) -> None:
+    def __init__(self, env: Any, actor_history_frames: int = 1) -> None:
         """Isaac Gym environment (preview 3) wrapper
 
         :param env: The environment to wrap
@@ -121,8 +122,25 @@ class IsaacGymPreview3Wrapper(Wrapper):
         """
         super().__init__(env)
 
+        self.actor_history_frames = actor_history_frames
+        self._actor_history = ObservationHistory(actor_history_frames)
+        space = env.observation_space
+        self._history_observation_space = gym.spaces.Box(
+            low=np.tile(space.low, actor_history_frames),
+            high=np.tile(space.high, actor_history_frames), dtype=space.dtype)
+
         self._reset_once = True
         self._obs_dict = None
+
+    @property
+    def observation_space(self):
+        return self._history_observation_space
+
+    def _stack_actor_observations(self, advance=False, reset_mask=None):
+        if self.actor_history_frames > 1:
+            self._obs_dict = dict(self._obs_dict)
+            self._obs_dict["obs"] = self._actor_history.update(
+                self._obs_dict["obs"], advance=advance, reset_mask=reset_mask)
 
     def step(self, actions: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Any]:
         """Perform a step in the environment
@@ -134,6 +152,7 @@ class IsaacGymPreview3Wrapper(Wrapper):
         :rtype: tuple of torch.Tensor and any other info
         """
         self._obs_dict, reward, terminated, info = self._env.step(actions)
+        self._stack_actor_observations(advance=True)
         truncated = torch.zeros_like(terminated)
         if self.num_states:
             return self._obs_dict, reward.view(-1, 1), terminated.view(-1, 1), truncated.view(-1, 1), info
@@ -149,7 +168,12 @@ class IsaacGymPreview3Wrapper(Wrapper):
         #     self._obs_dict = self._env.reset()
         #     self._reset_once = False
         # return self._obs_dict["obs"], {}
+        reset_mask = self._env.reset_buf.bool().clone() if self.actor_history_frames > 1 else None
         self._obs_dict = self._env.reset()
+        if reset_mask is not None:
+            # Also handles a raw reset_idx() followed by wrapper.reset().
+            reset_mask |= self._env.progress_buf == 0
+        self._stack_actor_observations(reset_mask=reset_mask)
         if self.num_states:
             return self._obs_dict, {}
         return self._obs_dict["obs"], {}

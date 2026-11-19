@@ -19,6 +19,9 @@ def teacher_gfm_kwargs(env):
     critic_time_index = getattr(env, "critic_time_obs_index", None)
     if critic_time_index is not None:
         kwargs["critic_time_index"] = critic_time_index
+    history_frames = getattr(env, "actor_history_frames", 1)
+    if history_frames != 1:
+        kwargs["actor_history_frames"] = history_frames
     return kwargs
 
 
