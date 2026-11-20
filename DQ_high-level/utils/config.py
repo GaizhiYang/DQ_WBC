@@ -188,6 +188,9 @@ def restore_student_teacher_observation_config(cfg, teacher_checkpoint):
     saved_env = saved["env"]
     cfg["env"]["posePrediction"] = deepcopy(saved_env.get("posePrediction", {}))
     cfg["env"]["noVelocityObs"] = saved_env.get("noVelocityObs", False)
+    if "actionScaling" in saved_env:
+        # The student env must map teacher actions the way the teacher was trained.
+        cfg["env"]["actionScaling"] = saved_env["actionScaling"]
     return config_path
 
 
@@ -199,6 +202,33 @@ def apply_actor_history_config(cfg, args):
         raise ValueError("actor_history_frames must be a positive integer (including the current frame)")
     cfg["env"]["actorHistoryFrames"] = frames
     return frames
+
+
+ACTION_SCALING_MODES = ("legacy", "normalized")
+
+
+def validate_action_scaling(env_cfg):
+    """Return env.actionScaling; configurations without the key mean legacy.
+
+    legacy:     the environment clips raw policy outputs at the physical limits.
+    normalized: the environment clips outputs to [-1, 1], then scales them to
+                the physical limits. It replaces the Tanh path, not combines with it.
+    """
+    mode = env_cfg.get("actionScaling", "legacy")
+    if mode not in ACTION_SCALING_MODES:
+        raise ValueError(f"env.actionScaling must be one of {ACTION_SCALING_MODES}, got {mode!r}")
+    if mode == "normalized" and env_cfg.get("useTanh", False):
+        raise ValueError("env.actionScaling=normalized cannot be combined with --use_tanh")
+    return mode
+
+
+def apply_action_scaling_config(cfg, args):
+    """An explicit --action_scaling overrides the YAML; otherwise keep the YAML value."""
+    mode = getattr(args, "action_scaling", None)
+    if mode is not None:
+        cfg["env"]["actionScaling"] = mode
+    cfg["env"]["actionScaling"] = validate_action_scaling(cfg["env"])
+    return cfg["env"]["actionScaling"]
 
 
 def get_parser():
@@ -260,6 +290,10 @@ def get_parser():
     parser.add_argument("--no_critic_time_obs", dest="critic_time_obs", action="store_false",
                         help="Disable the critic episode-progress input, e.g. for an A/B baseline.")
     parser.set_defaults(critic_time_obs=None)
+    parser.add_argument("--action_scaling", choices=ACTION_SCALING_MODES, default=None,
+                        help="legacy: clip raw policy outputs at the physical limits. "
+                             "normalized: clip outputs to [-1, 1], then scale to the limits "
+                             "(policy log-std starts at log 0.5). Defaults to the saved YAML or legacy.")
     prediction = parser.add_mutually_exclusive_group()
     prediction.add_argument("--future_pose_obs", dest="future_pose_obs", action="store_true",
                             help="Add EKF future object poses to teacher observations (default horizons: 0.30/0.60 seconds).")

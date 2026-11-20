@@ -13,6 +13,9 @@ Actor: current + 3 past frames [t-3, t-2, t-1, t], MLP input 214 x 4 = 856.
 Append --actor_history_frames 1 for the single-frame baseline.
 The critic also receives episode progress (step / 100); the actor does not.
 Append --no_critic_time_obs to train the previous baseline without it.
+Append --action_scaling normalized for unit actions: outputs are clipped to [-1, 1],
+then scaled to the physical limits, and the policy std starts at 0.5. The default,
+legacy, clips raw outputs at the limits. Use a new RUN_NAME for each mode.
 
 Environment overrides:
   PYTHON_BIN       Python from the activated dqwbc environment (default: python)

@@ -333,7 +333,20 @@ class Agent:
                 values = torch.stack(tuple(reward_components.values())).detach().cpu().tolist()
                 for name, value in zip(reward_components, values):
                     self.track_data(f"Reward components / {name} (mean)", value)
-            
+
+            # Per-dimension fraction of raw actions outside the executed range,
+            # with the policy's state-independent std, in one GPU transfer.
+            action_saturation = infos.get("action_saturation", {})
+            if action_saturation:
+                names = [f"Action saturation / {name}" for name in action_saturation]
+                values = torch.stack(tuple(action_saturation.values())).detach()
+                log_std = getattr(self.models.get("policy"), "log_std_parameter", None)
+                if log_std is not None and log_std.numel() == len(action_saturation):
+                    names += [f"Action std / {name}" for name in action_saturation]
+                    values = torch.cat((values, log_std.detach().exp().flatten().to(values.device)))
+                for name, value in zip(names, values.cpu().tolist()):
+                    self.track_data(name, value)
+
             if "success_rate" in infos.keys():
                 # These are completed-episode window snapshots. Replace the
                 # previous snapshot, including categories that left the window.

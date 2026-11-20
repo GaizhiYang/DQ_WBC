@@ -13,7 +13,7 @@ OBSERVATION_ARGUMENTS = (
     "mask_arm", "pitch_control", "rand_control", "arm_delay", "rand_cmd_scale",
     "rand_depth_clip", "stop_pick", "use_tanh", "last_commands", "no_velocity_obs",
     "future_pose_obs", "future_pose_horizons", "ekf_history", "ekf_q_scale", "ekf_r_scale",
-    "control_freq", "critic_time_obs", "actor_history_frames",
+    "control_freq", "critic_time_obs", "actor_history_frames", "action_scaling",
 )
 
 

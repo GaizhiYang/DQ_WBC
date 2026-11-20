@@ -23,6 +23,7 @@ env:
   noVelocityObs: False # Set --no_velocity_obs to remove 3D robot + 2D relative object velocity
   criticTimeObs: False # Set --critic_time_obs to give the critic step/maxEpisodeLength; the actor ignores it
   actorHistoryFrames: 1 # SGS+EKF launcher overrides to 4: current + 3 past frames
+  actionScaling: legacy # legacy: clip raw outputs at physical limits; normalized (--action_scaling normalized): clip to [-1, 1], then scale
   successMode: hold # legacy/hold are compatibility aliases for the shared training/evaluation rule
   sgs:
     mode: disabled # disabled / uniform / sgs; enabled modes require a validated bank

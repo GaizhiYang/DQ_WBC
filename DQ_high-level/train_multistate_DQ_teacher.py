@@ -22,7 +22,8 @@ from skrl.utils import set_seed
 from envs import *    #import b1z1_pickmulti.py
 from PredictPiontTransform.predictpoint_mul import PredictPoint
 from utils.config import (load_cfg, get_params, copy_cfg, configure_teacher_experiment,
-                          teacher_run_end, apply_pose_prediction_config, apply_actor_history_config)
+                          teacher_run_end, apply_pose_prediction_config, apply_actor_history_config,
+                          apply_action_scaling_config)
 import utils.wrapper as wrapper
 import time
 from legged_gym.envs.manip_loco.b1z1_config import B1Z1RoughCfg
@@ -52,7 +53,7 @@ def restore_eval_arguments(args):
     for name in ("roboinfo", "observe_gait_commands", "small_value_set_zero", "no_feature",
                  "mask_arm", "pitch_control", "rand_control", "arm_delay", "rand_cmd_scale",
                  "rand_depth_clip", "stop_pick", "use_tanh", "last_commands", "no_velocity_obs",
-                 "critic_time_obs", "actor_history_frames"):
+                 "critic_time_obs", "actor_history_frames", "action_scaling"):
         if name in saved:
             setattr(args, name, saved[name])
 
@@ -110,10 +111,19 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
     def __init__(self, observation_space, action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor,
                   use_tanh=False, clip_actions=False,
                  clip_log_std=True, min_log_std=-20, max_log_std=2, reduction="sum", deterministic=False,
-                 num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None, actor_history_frames=1):
+                 num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None, actor_history_frames=1,
+                 action_scaling="legacy"):
         Model.__init__(self, observation_space, action_space, device)
         if type(actor_history_frames) is not int or actor_history_frames < 1 or self.num_observations % actor_history_frames:
             raise ValueError("actor_history_frames must evenly divide the observation width")
+        if action_scaling not in ("legacy", "normalized"):
+            raise ValueError("action_scaling must be legacy or normalized")
+        # normalized: the environment executes clip(a, -1, 1) * physical limit, so
+        # a standard deviation above 1 would exceed the whole executed range.
+        normalized_actions = action_scaling == "normalized"
+        if normalized_actions:
+            max_log_std = min(max_log_std, 0.0)
+        self.action_scaling = action_scaling
         self.actor_history_frames = actor_history_frames
         self.frame_observations = self.num_observations // actor_history_frames
         transform_func = torch.distributions.transforms.TanhTransform() if use_tanh else None
@@ -157,7 +167,15 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
                             )
         cprint(f"Actor MLP input: {self.actor_frame_dim} x {actor_history_frames} = {self.net[0].in_features} (oldest to current)", "yellow")
 
-        self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
+        if normalized_actions:
+            # Andrychowicz et al. 2021: start near zero mean with a moderate,
+            # state-independent std, here half of each dimension's range.
+            self.log_std_parameter = nn.Parameter(torch.full((self.num_actions,), 0.5).log())
+            with torch.no_grad():
+                self.net[-1].weight.mul_(0.01)
+                self.net[-1].bias.zero_()
+        else:
+            self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
 
     def compute(self, inputs, role):
         batch_shape = inputs["states"].shape[:-1]
@@ -384,6 +402,8 @@ def get_trainer(is_eval=False, strict_eval=False):
     cprint(f"Using {len(multi_obj)} object asset(s): {', '.join(multi_obj)}", "yellow")
     cfg['env']['wandb'] = args.wandb
     cfg['env']["useTanh"] = args.use_tanh
+    action_scaling = apply_action_scaling_config(cfg, args)
+    cprint(f"Teacher action scaling: {action_scaling}", "yellow")
     cfg['env']["near_goal_stop"] = args.near_goal_stop
     cfg['env']["obj_move_prob"] = args.obj_move_prob
     if args.debug:
@@ -433,7 +453,7 @@ def get_trainer(is_eval=False, strict_eval=False):
     encode_dim = 0 if args.no_feature else 128
     models_ppo = {}
     gfm_kwargs = teacher_gfm_kwargs(env)
-    models_ppo["policy"] = Policy(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=args.eval, **gfm_kwargs)
+    models_ppo["policy"] = Policy(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=args.eval, action_scaling=action_scaling, **gfm_kwargs)
     models_ppo["value"] = Value(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, **gfm_kwargs)
     
     cfg_ppo = deepcopy(PPO_DEFAULT_CONFIG)

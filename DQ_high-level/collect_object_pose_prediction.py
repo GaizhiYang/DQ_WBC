@@ -17,7 +17,7 @@ import re
 from copy import deepcopy
 from pathlib import Path
 
-from utils.config import get_parser, load_cfg
+from utils.config import apply_action_scaling_config, get_parser, load_cfg
 
 
 def build_parser():
@@ -58,6 +58,8 @@ def collect(args):
     cfg["env"].update(numEnvs=args.num_envs, wandb=False, useTanh=args.use_tanh,
                        near_goal_stop=args.near_goal_stop, obj_move_prob=0.0,
                        noVelocityObs=args.no_velocity_obs, totalTimesteps=args.timesteps)
+    # A normalized teacher must replay through the same action mapping.
+    action_scaling = apply_action_scaling_config(cfg, args)
     if args.motion_level:
         cfg["env"]["D1_bench_task_level"] = args.motion_level
     if args.episode_length:
@@ -90,7 +92,8 @@ def collect(args):
             policy = Policy(env.observation_space, env.action_space, env.rl_device,
                 0 if args.no_feature else 1024, 0 if args.no_feature else 128,
                 camera, grasps, initial, use_tanh=args.use_tanh,
-                clip_actions=args.use_tanh, deterministic=True, **teacher_gfm_kwargs(env))
+                clip_actions=args.use_tanh, deterministic=True, action_scaling=action_scaling,
+                **teacher_gfm_kwargs(env))
             policy.load_state_dict(checkpoint["policy"])
             policy.to(env.rl_device)
             policy.eval()

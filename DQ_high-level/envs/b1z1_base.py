@@ -8,6 +8,7 @@ from collections import defaultdict
 from termcolor import cprint
 
 from .reward_vec_task import RewardVecTask
+from utils.config import validate_action_scaling
 from utils.low_level_model import ActorCritic
 
 from isaacgym import gymapi
@@ -27,6 +28,9 @@ LIN_VEL_X_CLIP = 0.15
 ANG_VEL_YAW_CLIP = 0.35
 ANG_VEL_PITCH_CLIP = 0.35
 GAIT_WAIT_TIME = 35
+# Teacher action layout: EE position/RPY increments, gripper aperture, base vx/yaw rate.
+ACTION_DIMENSION_NAMES = ("ee_dx", "ee_dy", "ee_dz", "ee_droll", "ee_dpitch", "ee_dyaw",
+                          "gripper", "base_vx", "base_wz")
 
 @torch.jit.script
 def torch_rand_int(lower, upper, shape, device):
@@ -125,6 +129,8 @@ class B1Z1Base(RewardVecTask):
         self.success_mode = self.cfg["env"].get("successMode", "legacy")
         if self.success_mode not in ("legacy", "hold"):
             raise ValueError("successMode must be legacy or hold")
+        # How raw policy outputs map to EE increments, gripper and base commands.
+        self.action_scaling = validate_action_scaling(self.cfg["env"])
         self.img_delay_frame = self.cfg["env"].get("imgDelayFrame", 5) # 0.08s5
         self.enable_camera = self.cfg["sensor"].get("enableCamera", False)
         self.depth_clip_lower = self.cfg["sensor"].get("depth_clip_lower", 0.15)
@@ -1978,7 +1984,8 @@ class B1Z1Base(RewardVecTask):
             actions = self.dr_randomizations['actions']['noise_lambda'](actions)
 
         action_tensor = torch.clamp(actions, -self.clip_actions, self.clip_actions)
-        
+        self._record_action_saturation(action_tensor)
+
         # apply actions
         ee_goal_cart, ee_goal_orn_quat = self.pre_physics_step(action_tensor)
         
@@ -2057,12 +2064,33 @@ class B1Z1Base(RewardVecTask):
 
         return self.obs_dict, self.rew_buf.to(self.rl_device), self.reset_buf.to(self.rl_device), self.extras
     
+    def _record_action_saturation(self, raw_actions):
+        """Per-dimension fraction of environments whose raw output lies outside the executed range.
+
+        legacy compares with the physical clip limits; normalized compares with 1.
+        Tanh outputs never saturate by construction, so that path is not reported.
+        """
+        if self.cfg["env"].get("useTanh", False) or raw_actions.shape[-1] != len(ACTION_DIMENSION_NAMES):
+            return
+        if self.action_scaling == "normalized":
+            limits = raw_actions.new_ones(len(ACTION_DIMENSION_NAMES))
+        else:
+            base_vx = 0.45 if self.commands_curriculum else 0.4
+            limits = raw_actions.new_tensor([0.02] * 3 + [0.06] * 3 + [1.0, base_vx, 0.6])
+        saturated = (raw_actions.abs() > limits).float().mean(0)
+        self.extras["action_saturation"] = dict(zip(ACTION_DIMENSION_NAMES, saturated.unbind()))
+
     def pre_physics_step(self, action_tensor):
         if (not self.stu_distill) and self.global_step_counter <= (self.total_timesteps/5):
             action_delay = 0
         else:
-            action_delay = 0 
-            
+            action_delay = 0
+        # normalized: execute, store and observe the clipped unit action, then
+        # multiply by the physical limits below. PPO keeps the raw sample.
+        normalized = self.cfg["env"].get("actionScaling", "legacy") == "normalized"
+        if normalized:
+            action_tensor = action_tensor.clamp(-1., 1.)
+
         # -------------------------receive commands----------------------------
         self.action_history_buf = torch.cat([self.action_history_buf[:, 1:], action_tensor[:, None, :]], dim=1)
         action_tensor = self.action_history_buf[:, -action_delay - 1]
@@ -2092,7 +2120,7 @@ class B1Z1Base(RewardVecTask):
             else:
                 self.delta_goal_cart = torch.clip(self.actions[:, :3], -0.015, 0.015)
         else:
-            if self.cfg["env"]["useTanh"]: #### 特别注意好像high预测出来的pos只是一个delta_pos值，下面代码找到的目标pos值是用现在的pos加上delta_pos
+            if self.cfg["env"]["useTanh"] or normalized: #### 特别注意好像high预测出来的pos只是一个delta_pos值，下面代码找到的目标pos值是用现在的pos加上delta_pos
                 self.delta_goal_cart = self.actions[:, :3] * 0.02 #my change 0.02->0,03# 
             else:
                 self.delta_goal_cart = torch.clip(self.actions[:, :3], -0.02, 0.02)
@@ -2106,7 +2134,7 @@ class B1Z1Base(RewardVecTask):
         self.ee_goal_global_cart = ee_goal_cart.clone()
 
         
-        if self.cfg["env"]["useTanh"]:
+        if self.cfg["env"]["useTanh"] or normalized:
             self.delta_goal_orn = self.actions[:, 3:6] * 0.06 #my change 0.06->0.08# 
         else:
             self.delta_goal_orn = torch.clip(self.actions[:, 3:6], -0.06, 0.06)
@@ -2122,18 +2150,18 @@ class B1Z1Base(RewardVecTask):
         if (not self.pitch_control) and (not self.floating_base):
             self.commands[:, 1] = 0
         if self.pitch_control:
-            if self.cfg["env"]["useTanh"]:
+            if self.cfg["env"]["useTanh"] or normalized:
                 self.commands[:, 1] = self.actions[:, 9] * 0.6
             else:
                 self.commands[:, 1] = torch.clip(self.actions[:, 9], -0.6, 0.6)
         
         if self.floating_base:
-            if self.cfg["env"]["useTanh"]:
+            if self.cfg["env"]["useTanh"] or normalized:
                 self.commands[:, 1] = self.actions[:, 9] * 0.3
             else:
                 self.commands[:, 1] = torch.clip(self.actions[:, 9], -0.3, 0.3)
         
-        if self.cfg["env"]["useTanh"]:
+        if self.cfg["env"]["useTanh"] or normalized:
             self.commands[:, 2] = self.actions[:, 8] * 0.6
         else:
             self.commands[:, 2] = torch.clip(self.actions[:, 8], -0.6, 0.6)
@@ -2171,14 +2199,16 @@ class B1Z1Base(RewardVecTask):
     
     # For random gripper kp
     def clip_commands(self):
+        # normalized actions are already clipped to [-1, 1]; scale like the Tanh path.
+        normalized = self.cfg["env"].get("actionScaling", "legacy") == "normalized"
         if not self.commands_curriculum:
-            if self.cfg["env"]["useTanh"]:
+            if self.cfg["env"]["useTanh"] or normalized:
                 self.commands[:, 0] = self.actions[:, 7] * 0.4
             else:
                 self.commands[:, 0] = torch.clip(self.actions[:, 7], -0.4, 0.4)
             return
 
-        if self.cfg["env"]["useTanh"]:
+        if self.cfg["env"]["useTanh"] or normalized:
             if (self.global_step_counter > (self.total_timesteps/5 * 3)) or self.stu_distill:
                 self.commands[:, 0] = self.actions[:, 7] * 0.45 # my change #
             elif self.global_step_counter > (self.total_timesteps/2):
