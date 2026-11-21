@@ -318,12 +318,13 @@ class TSILPPO(PPO):
             returns, advantages = compute_gae(self.memory.get_tensor_by_name("rewards"),
                                               self.memory.get_tensor_by_name("terminated"), old_values,
                                               last_values, self._discount_factor, self._lambda)
+            # Same diagnostic as the base PPO: return variance explained by the
+            # critic. old_values is the memory tensor, overwritten in place below.
+            explained_variance = 1 - (returns - old_values).var() / returns.var().clamp_min(1e-8)
             self._value_preprocessor.update_returns(returns)
             self.memory.set_tensor_by_name("values", self._value_preprocessor(old_values))
             self.memory.set_tensor_by_name("returns", self._value_preprocessor(returns))
             self.memory.set_tensor_by_name("advantages", advantages)
-            # Same diagnostic as the base PPO: return variance explained by the critic.
-            explained_variance = 1 - (returns - old_values).var() / returns.var().clamp_min(1e-8)
         self.track_data("Value / Explained variance", explained_variance.item())
         self._record_advantage_diagnostics(advantages)
         selection = self.replay.prepare(
