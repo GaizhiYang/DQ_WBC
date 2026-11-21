@@ -104,6 +104,10 @@ This part you can totally refer to [VBC's Low-level introduction](https://github
 | `--no_velocity_obs` | 删除高层观测中的机器人局部线速度 3 维、物体相对平面速度 2 维 | 当前 YAML 默认保留速度，因此每帧会**增加 5 维** |
 | `--critic_time_obs` | 只给 Critic 添加 `当前步数 / 回合最大步数`，帮助判断剩余任务时间 | 当前 YAML 默认关闭；Critic 从 215 维回到 214 维，Actor 不受影响 |
 | `--actor_history_frames 4` | Actor 使用 `[t-3,t-2,t-1,t]`，即当前帧加前 3 帧 | 当前 YAML 默认 **1 帧**，Actor 从 **856 维回到 214 维** |
+| `--critic_reward_state` | 只给 Critic 加 7 维隐藏奖励状态：历史最近距离、接近差距、抬升差距、两个保持计数、是否已抬起、command_reward 当前权重 | 当前 YAML 默认关闭；Actor 不受影响 |
+| `--command_reward_schedule ramp` / `constant` | `ramp`：command_reward 在前 20% 训练内线性升到全权重；`constant`：从第一步起全权重 | 默认 `step`：训练到一半时才突然打开（旧行为）；TSIL 只支持 `step` |
+| `--approach_shaping potential` | 接近和抬升奖励改为势函数塑形 `γΦ(s′) − Φ(s)`，终止时 Φ = 0 | 默认 `record`：只奖励刷新历史最近距离 / 最大高度（旧行为） |
+| `--no_value_clip`、`--gae_lambda 0.9` | PPO 价值损失不裁剪；GAE λ 改为 0.9（消融用） | 默认裁剪价值损失，λ = 0.95 |
 | `--action_scaling normalized` | 网络输出先截断到 [-1, 1]，再乘物理上限：末端 ±0.02 m、±0.06 rad，底座 ±0.45 m/s、±0.6 rad/s；策略 std 初始为 0.5，上限为 1 | 默认 `legacy`，即旧行为：直接在物理上限截断原始输出。两种模式的 checkpoint 动作语义不同，要用不同的实验目录 |
 
 `small_value_set_zero` 的实际规则是：当**前进速度绝对值 ≤ 0.15 m/s，并且偏航角速度绝对值 ≤ 0.35 rad/s**时，把底盘命令整体置零；它不会把所有较小的机械臂动作清零。

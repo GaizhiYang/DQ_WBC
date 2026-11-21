@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from .b1z1_base import B1Z1Base, reindex_all, reindex_feet, LIN_VEL_X_CLIP, ANG_VEL_YAW_CLIP, torch_rand_int
 from utils.low_level_model import ActorCritic
-from utils.config import load_cfg, get_params, copy_cfg
+from utils.config import load_cfg, get_params, copy_cfg, validate_reward_options
 from utils.pick_success import lifted_grasp_mask, advance_pick_hold, RollingEpisodeSuccess
 from modules.pose_prediction import RollingSE3Predictor
 from utils.object_pose import (
@@ -25,6 +25,15 @@ from isaacgym import gymutil
 from isaacgym.torch_utils import *
 from torch import Tensor
 import torchvision.transforms as transforms
+
+# Critic-only channels (--critic_reward_state): the hidden variables that the
+# record-style rewards and the hold reward depend on, absent from the frame.
+CRITIC_REWARD_STATE_NAMES = ("closest_dist", "approach_gap", "lift_gap", "hold_progress",
+                             "best_hold_progress", "lifted", "command_reward_factor")
+# Potential shaping (reward.approachShaping=potential). A slope of 10 per meter
+# matches the small-step slope of the original tanh(10 * progress) terms.
+SHAPING_SLOPE_PER_M = 10.0
+APPROACH_POTENTIAL_RANGE_M = 3.0
 
 
 class B1Z1PickMulti(B1Z1Base,PredictPoint):
@@ -58,6 +67,9 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
 
         if self.cfg["reward"]["only_positive_rewards"]:
             raise ValueError("TSIL requires only_positive_rewards=False for exact reward relabeling")
+        if getattr(self, "reward_options", {}).get("commandRewardSchedule", "step") != "step":
+            # TSIL replay re-applies the original half-training command gate.
+            raise ValueError("TSIL requires reward.commandRewardSchedule=step")
         if self.enable_camera or self.floating_base or self.obj_move_prob:
             raise ValueError("TSIL requires the nonvisual walking teacher and obj_move_prob=0")
         if not self.sgs_enabled and not self.eval:
@@ -291,6 +303,8 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         # Use the same distance/height history initialization as an ordinary
         # reset's final refresh, without advancing any environment's physics.
         self._update_curr_dist()
+        if getattr(self, "approach_shaping", "record") == "potential":
+            self._reset_shaping_potential(env_ids)
         if self.object_pose_predictor is not None:
             # SGS bypasses the ordinary reset path. Seed the restored A-frame pose
             # before observations, without carrying history across episodes.
@@ -405,7 +419,14 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         if critic_time_obs and (self.no_feature or self.cfg["env"].get("lastCommands", False)):
             raise ValueError("Critic time observations require object features and lastCommands=False")
         self.num_critic_time_obs = 1 if critic_time_obs else 0
-        teacher_extra_obs = self.num_future_pose_obs + self.num_tsil_obs + self.num_critic_time_obs
+        critic_reward_state = self.cfg["env"].get("criticRewardStateObs", False)
+        if not isinstance(critic_reward_state, bool):
+            raise ValueError("env.criticRewardStateObs must be a boolean")
+        if critic_reward_state and (self.no_feature or self.cfg["env"].get("lastCommands", False)):
+            raise ValueError("Critic reward-state observations require object features and lastCommands=False")
+        self.num_critic_state_obs = len(CRITIC_REWARD_STATE_NAMES) if critic_reward_state else 0
+        teacher_extra_obs = (self.num_future_pose_obs + self.num_tsil_obs + self.num_critic_time_obs
+                             + self.num_critic_state_obs)
         # Student states already exclude both velocities, so their size stays fixed.
         super()._setup_obs_and_action_info(
             removed_dim=9+30*6+2-removed_velocity_dim+teacher_extra_obs,
@@ -417,6 +438,11 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.critic_time_obs_index = (
             -(self.cfg["env"]["numActions"] + 30*6 + self.num_tsil_obs
               + self.num_future_pose_obs + 1) if critic_time_obs else None)
+        # The reward-state block sits just before the time channel (or before the
+        # forecast block without it), so all existing end-relative indices stay put.
+        self.critic_state_obs_index = (
+            -(self.cfg["env"]["numActions"] + 30*6 + self.num_tsil_obs + self.num_future_pose_obs
+              + self.num_critic_time_obs + self.num_critic_state_obs) if critic_reward_state else None)
 
         
     def _extra_env_settings(self):
@@ -442,6 +468,11 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         """Add extra tensors for cube and table
         """
         super()._init_tensors()
+        # T2 reward options; missing keys keep the original rewards.
+        self.reward_options = validate_reward_options(self.cfg["reward"])
+        self.approach_shaping = self.reward_options["approachShaping"]
+        # Previous-state potentials [approach, lift] for gamma * Phi(s') - Phi(s).
+        self.shaping_potential_prev = torch.zeros((self.num_envs, 2), device=self.device)
         if self.tsil_enabled:
             self.tsil_time_reference = float(
                 self.max_episode_length * self.control_freq_low_init * self.dt)
@@ -744,6 +775,9 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.render()
 
         self._reset_pick_state(env_ids)
+        if getattr(self, "approach_shaping", "record") == "potential":
+            # Distances were refreshed by the simulate() above: Phi(s_0).
+            self._reset_shaping_potential(env_ids)
         if self.object_pose_predictor is not None:
             # super()._reset_envs computes observations immediately after this
             # method. Clear old history BEFORE that first new-episode observation.
@@ -839,7 +873,11 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
                 critic_time_obs = (
                     self.progress_buf[env_ids, None].to(obs.dtype) / self.max_episode_length
                     if getattr(self, "num_critic_time_obs", 0) else obs.new_empty((len(env_ids), 0)))
-                obs_new = torch.cat([obs[...,:-6],critic_time_obs,future_obs,temporal_obs,grasp_predict_world_pos_flat,grasp_predict_world_rpy_flat],dim = -1)
+                # Critic-only hidden reward state, placed just before the time channel.
+                critic_state_obs = (
+                    self._critic_reward_state(env_ids).to(obs.dtype)
+                    if getattr(self, "num_critic_state_obs", 0) else obs.new_empty((len(env_ids), 0)))
+                obs_new = torch.cat([obs[...,:-6],critic_state_obs,critic_time_obs,future_obs,temporal_obs,grasp_predict_world_pos_flat,grasp_predict_world_rpy_flat],dim = -1)
 
                 self.obs_buf[env_ids] = torch.cat([self.feature_obs[env_ids, :], obs_new, self.action_history_buf[env_ids, -1]], dim=-1) # self.action_history_buf: [num_env,3,9], obs: [num_env, 61]
 
@@ -1024,9 +1062,68 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
     
     def _reward_approaching(self):
         """Reward approaching until the object is grasped at the target height."""
+        if getattr(self, "approach_shaping", "record") == "potential":
+            reward = self._potential_difference(0)
+            return reward, reward
         reward, _ = super()._reward_approaching()
         reward *= ~self.lifted_object
         return reward, reward
+
+    def _reward_lifting(self):
+        if getattr(self, "approach_shaping", "record") == "potential":
+            reward = self._potential_difference(1)
+            return reward, reward
+        return super()._reward_lifting()
+
+    def _shaping_potential(self, env_ids=None):
+        """[N, 2] potentials Phi = [approach, lift], each in [0, SLOPE * range].
+
+        Non-negative potentials make a termination never pay a shaping bonus:
+        the terminal step's difference is -Phi(s) <= 0.
+        """
+        distance = self.curr_dist if env_ids is None else self.curr_dist[env_ids]
+        height = self.curr_height if env_ids is None else self.curr_height[env_ids]
+        approach = APPROACH_POTENTIAL_RANGE_M - distance.clamp(0., APPROACH_POTENTIAL_RANGE_M)
+        lift = height.clamp(0., self.lifted_success_threshold)
+        return SHAPING_SLOPE_PER_M * torch.stack((approach, lift), dim=-1)
+
+    def _reset_shaping_potential(self, env_ids):
+        if len(env_ids):
+            self.shaping_potential_prev[env_ids] = self._shaping_potential(env_ids)
+
+    def _potential_difference(self, column):
+        """gamma * Phi(s') - Phi(s), with Phi(terminal) = 0 (Ng et al. 1999).
+
+        Episodes end here as true terminals (success, failure, or the time
+        limit seen by the critic), so the shaped return differs from the
+        original one only by -Phi(s_0), which no action can change.
+        """
+        current = self._shaping_potential()[:, column]
+        terminal = self.reset_buf.bool()
+        gamma = self.reward_options["shapingGamma"]
+        reward = gamma * torch.where(terminal, torch.zeros_like(current), current) \
+            - self.shaping_potential_prev[:, column]
+        self.shaping_potential_prev[:, column] = current
+        return reward
+
+    def _critic_reward_state(self, env_ids):
+        """[N, 7] hidden reward state for the critic only (CRITIC_REWARD_STATE_NAMES).
+
+        approaching pays only when the EE beats its closest distance so far,
+        lifting only when the object beats its highest height, and the hold
+        reward counts consecutive lifted steps. None of these is in the frame.
+        """
+        closest = self.closest_dist[env_ids].clamp_min(0.)
+        approach_gap = (self.curr_dist[env_ids] - closest).clamp_min(0.)
+        highest = self.highest_object[env_ids]
+        # A fresh episode has no height record yet (-1); its gap is zero.
+        lift_gap = torch.where(highest < 0, torch.zeros_like(highest),
+                               (highest - self.curr_height[env_ids]).clamp_min(0.))
+        hold = self.pick_counter[env_ids].float() / self.hold_steps
+        best_hold = self.best_pick_counter[env_ids].float() / self.hold_steps
+        lifted = self.lifted_object[env_ids].float()
+        command = torch.full_like(closest, float(self._command_reward_factor()))
+        return torch.stack((closest, approach_gap, lift_gap, hold, best_hold, lifted, command), dim=-1)
     
     def _reward_base_approaching(self):
         rew, _ = super()._reward_base_approaching(self._cube_root_states[:, :3])

@@ -22,6 +22,8 @@ class TemporalEnvironment(TestEnvironment):
     _reset_tsil_state = source_method("b1z1_pickmulti.py", "B1Z1PickMulti", "_reset_tsil_state")
     _tsil_observations = source_method("b1z1_pickmulti.py", "B1Z1PickMulti", "_tsil_observations")
     _record_tsil_transition = source_method("b1z1_pickmulti.py", "B1Z1PickMulti", "_record_tsil_transition")
+    # The command reward reads its training-phase weight from this method.
+    _command_reward_factor = source_method("reward_vec_task.py", "RewardVecTask", "_command_reward_factor")
     _prepare_reward_function = source_method("b1z1_base.py", "B1Z1Base", "_prepare_reward_function")
     compute_reward = source_method("b1z1_base.py", "B1Z1Base", "compute_reward")
 

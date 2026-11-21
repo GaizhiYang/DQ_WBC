@@ -23,7 +23,7 @@ from envs import *    #import b1z1_pickmulti.py
 from PredictPiontTransform.predictpoint_mul import PredictPoint
 from utils.config import (load_cfg, get_params, copy_cfg, configure_teacher_experiment,
                           teacher_run_end, apply_pose_prediction_config, apply_actor_history_config,
-                          apply_action_scaling_config)
+                          apply_action_scaling_config, apply_reward_options)
 import utils.wrapper as wrapper
 import time
 from legged_gym.envs.manip_loco.b1z1_config import B1Z1RoughCfg
@@ -53,7 +53,7 @@ def restore_eval_arguments(args):
     for name in ("roboinfo", "observe_gait_commands", "small_value_set_zero", "no_feature",
                  "mask_arm", "pitch_control", "rand_control", "arm_delay", "rand_cmd_scale",
                  "rand_depth_clip", "stop_pick", "use_tanh", "last_commands", "no_velocity_obs",
-                 "critic_time_obs", "actor_history_frames", "action_scaling"):
+                 "critic_time_obs", "actor_history_frames", "action_scaling", "critic_reward_state"):
         if name in saved:
             setattr(args, name, saved[name])
 
@@ -112,7 +112,7 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
                   use_tanh=False, clip_actions=False,
                  clip_log_std=True, min_log_std=-20, max_log_std=2, reduction="sum", deterministic=False,
                  num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None, actor_history_frames=1,
-                 action_scaling="legacy"):
+                 action_scaling="legacy", critic_state_index=None, critic_state_width=0):
         Model.__init__(self, observation_space, action_space, device)
         if type(actor_history_frames) is not int or actor_history_frames < 1 or self.num_observations % actor_history_frames:
             raise ValueError("actor_history_frames must evenly divide the observation width")
@@ -140,22 +140,40 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
         # GFM consumes only the poses; skip the forecast block's final valid channel.
         future_end = -(self.notrain_obs_num + self.num_actions + num_tsil_obs)
         self.future_pose_slice = slice(future_end - num_future_pose_obs, future_end - 1)
-        # The critic-only episode-progress channel is removed from the actor's
-        # MLP input; store its position within that input slice.
+        # Critic-only channels (episode progress, hidden reward state) are removed
+        # from the actor's MLP input; store their positions within that input slice.
+        body_width = self.frame_observations - self.num_features - self.notrain_obs_num - self.num_actions
         self.critic_time_position = None
         if critic_time_index is not None:
-            body_width = self.frame_observations - self.num_features - self.notrain_obs_num - self.num_actions
             position = body_width + critic_time_index + self.notrain_obs_num + self.num_actions
             if num_features <= 0 or not 6 <= position < body_width:
                 raise ValueError("critic_time_index must point inside the teacher state block")
             self.critic_time_position = position
+        self.critic_state_position = None
+        if critic_state_index is not None:
+            position = body_width + critic_state_index + self.notrain_obs_num + self.num_actions
+            if (num_features <= 0 or type(critic_state_width) is not int or critic_state_width <= 0
+                    or position < 6 or position + critic_state_width > body_width):
+                raise ValueError("critic_state_index/width must point inside the teacher state block")
+            self.critic_state_position = position
+        # (position, width), removed from the highest position down so that each
+        # cut leaves the earlier positions unchanged.
+        blocks = []
+        if self.critic_time_position is not None:
+            blocks.append((self.critic_time_position, 1))
+        if self.critic_state_position is not None:
+            blocks.append((self.critic_state_position, critic_state_width))
+        blocks.sort(reverse=True)
+        if any(low + width > high for (high, _), (low, width) in zip(blocks, blocks[1:])):
+            raise ValueError("Critic-only observation channels must not overlap")
+        self.critic_only_blocks = tuple(blocks)
 
         if num_features > 0:
             self.feature_encoder = nn.Sequential(nn.Linear(self.num_features, 512), # input : (envs,1024), output : (envs,512)
                                                   nn.ELU(),
                                                   nn.Linear(512, self.encode_dim),) # input : (envs,512), output : (envs,128)
-        actor_time_width = 0 if self.critic_time_position is None else 1
-        self.actor_frame_dim = (self.frame_observations - self.num_features + self.encode_dim - self.notrain_obs_num + 6 - actor_time_width
+        critic_only_width = sum(width for _, width in self.critic_only_blocks)
+        self.actor_frame_dim = (self.frame_observations - self.num_features + self.encode_dim - self.notrain_obs_num + 6 - critic_only_width
                                 if num_features > 0 else self.frame_observations)
         self.net = nn.Sequential(nn.Linear(self.actor_frame_dim * actor_history_frames, 512),
                             nn.ELU(),
@@ -196,9 +214,9 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
             right_predict_point = self.attention_forward(grasps=grasp_predict_local, obj_feat=features_encode,
                                                         pose=cube_local_pos_rpy, future_pose_obs=future_pose_obs)
             state_block = inputs["states"][..., self.num_features:-self.notrain_obs_num-self.num_actions]
-            if self.critic_time_position is not None:
-                state_block = torch.cat((state_block[..., :self.critic_time_position],
-                                         state_block[..., self.critic_time_position + 1:]), dim=-1)
+            for position, width in self.critic_only_blocks:
+                state_block = torch.cat((state_block[..., :position],
+                                         state_block[..., position + width:]), dim=-1)
             frame_inputs = torch.cat([state_block, last_action, features_encode, right_predict_point], dim=-1)
         else:
             frame_inputs = inputs["states"]
@@ -207,9 +225,10 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
 
 class Value(DeterministicMixin, Model, PredictAttentionSelector):
     def __init__(self, observation_space, action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor,
-                 num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None, actor_history_frames=1):
-        # critic_time_index needs no handling here: the value MLP consumes the
-        # whole state block, including the episode-progress channel.
+                 num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None, actor_history_frames=1,
+                 critic_state_index=None, critic_state_width=0):
+        # The critic-only indices need no handling here: the value MLP consumes
+        # the whole state block, including the progress and reward-state channels.
         Model.__init__(self, observation_space, action_space, device)
         if type(actor_history_frames) is not int or actor_history_frames < 1 or self.num_observations % actor_history_frames:
             raise ValueError("actor_history_frames must evenly divide the observation width")
@@ -392,6 +411,11 @@ def get_trainer(is_eval=False, strict_eval=False):
     if args.critic_time_obs is not None:
         cfg["env"]["criticTimeObs"] = args.critic_time_obs
     cprint(f"Teacher critic episode-progress input: {'enabled' if cfg['env'].get('criticTimeObs', False) else 'disabled'}", "yellow")
+    if args.critic_reward_state is not None:
+        cfg["env"]["criticRewardStateObs"] = args.critic_reward_state
+    cprint(f"Teacher critic reward-state input: {'enabled' if cfg['env'].get('criticRewardStateObs', False) else 'disabled'}", "yellow")
+    reward_options = apply_reward_options(cfg, args)
+    cprint(f"Teacher reward options: {reward_options}", "yellow")
     multi_obj = cfg["env"]["asset"]["asset_multi"]
     if args.object_name is not None:
         if args.object_name not in multi_obj:
@@ -461,7 +485,14 @@ def get_trainer(is_eval=False, strict_eval=False):
     cfg_ppo["learning_epochs"] = 5
     cfg_ppo["mini_batches"] = 6  # 24 * 8192 / 32768
     cfg_ppo["discount_factor"] = 0.99
-    cfg_ppo["lambda"] = 0.95
+    if (reward_options["approachShaping"] == "potential"
+            and reward_options["shapingGamma"] != cfg_ppo["discount_factor"]):
+        # Potential shaping preserves the optimal policy only with the agent's discount.
+        raise ValueError("reward.shapingGamma must equal the PPO discount factor "
+                         f"({cfg_ppo['discount_factor']})")
+    cfg_ppo["lambda"] = 0.95 if args.gae_lambda is None else args.gae_lambda
+    if not 0 <= cfg_ppo["lambda"] <= 1:
+        raise ValueError("--gae_lambda must be in [0, 1]")
     cfg_ppo["learning_rate"] = 4.2e-4 ## my change ##
     cfg_ppo["learning_rate_scheduler"] = KLAdaptiveRL
     cfg_ppo["learning_rate_scheduler_kwargs"] = {"kl_threshold": 0.008}
@@ -470,7 +501,7 @@ def get_trainer(is_eval=False, strict_eval=False):
     cfg_ppo["grad_norm_clip"] = 1.0
     cfg_ppo["ratio_clip"] = 0.2
     cfg_ppo["value_clip"] = 0.2
-    cfg_ppo["clip_predicted_values"] = True
+    cfg_ppo["clip_predicted_values"] = True if args.value_clip is None else args.value_clip
     cfg_ppo["value_loss_scale"] = 1.0
     cfg_ppo["kl_threshold"] = 0
     cfg_ppo["rewards_shaper"] = None

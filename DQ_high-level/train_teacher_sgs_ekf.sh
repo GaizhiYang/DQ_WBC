@@ -16,6 +16,11 @@ Append --no_critic_time_obs to train the previous baseline without it.
 Append --action_scaling normalized for unit actions: outputs are clipped to [-1, 1],
 then scaled to the physical limits, and the policy std starts at 0.5. The default,
 legacy, clips raw outputs at the limits. Use a new RUN_NAME for each mode.
+Value-learning options (T2), all off by default:
+  --critic_reward_state           critic also sees the hidden reward state (7 channels)
+  --command_reward_schedule ramp  command_reward rises over the first 20% (default: step at 50%)
+  --approach_shaping potential    potential-based approach/lift shaping (ablation)
+  --no_value_clip, --gae_lambda 0.9   PPO value-loss and GAE ablations
 
 Environment overrides:
   PYTHON_BIN       Python from the activated dqwbc environment (default: python)

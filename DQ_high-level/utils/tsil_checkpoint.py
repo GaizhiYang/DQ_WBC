@@ -14,6 +14,7 @@ OBSERVATION_ARGUMENTS = (
     "rand_depth_clip", "stop_pick", "use_tanh", "last_commands", "no_velocity_obs",
     "future_pose_obs", "future_pose_horizons", "ekf_history", "ekf_q_scale", "ekf_r_scale",
     "control_freq", "critic_time_obs", "actor_history_frames", "action_scaling",
+    "critic_reward_state",
 )
 
 

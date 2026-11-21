@@ -377,6 +377,10 @@ class PPO(Agent):
         self.memory.set_tensor_by_name("values", self._value_preprocessor(values, train=True))
         self.memory.set_tensor_by_name("returns", self._value_preprocessor(returns, train=True))
         self.memory.set_tensor_by_name("advantages", advantages)
+        # Fraction of this rollout's return variance explained by the critic,
+        # before the update: 1 is perfect, 0 is no better than a constant.
+        self.track_data("Value / Explained variance",
+                        (1 - (returns - values).var() / returns.var().clamp_min(1e-8)).item())
 
         # sample mini-batches from memory
         sampled_batches = self.memory.sample_all(names=self._tensors_names, mini_batches=self._mini_batches)

@@ -64,11 +64,26 @@ class RewardVecTask(VecTask):
             self.tsil_reward_command_raw.copy_(
                 reward * self.reward_scales.get("command_reward", 0.0))
         
-        if self.global_step_counter < self.train_reward_strict:
-            reward = 0.
+        reward = reward * self._command_reward_factor()
 
         return reward, reward
-    
+
+    def _command_reward_factor(self):
+        """Training-phase weight of command_reward in [0, 1] (reward.commandRewardSchedule).
+
+        step:     0 before total_timesteps / 2, then 1 (the original switch)
+        constant: 1 from the first step
+        ramp:     rises linearly to 1 over the first commandRewardRampFraction of training
+        """
+        reward_cfg = self.cfg.get("reward", {})
+        schedule = reward_cfg.get("commandRewardSchedule", "step")
+        if schedule == "constant":
+            return 1.0
+        if schedule == "ramp":
+            ramp_steps = reward_cfg.get("commandRewardRampFraction", 0.2) * self.total_timesteps
+            return min(1.0, self.global_step_counter / ramp_steps) if ramp_steps > 0 else 1.0
+        return 0.0 if self.global_step_counter < self.train_reward_strict else 1.0
+
     # def _reward_command_penalty(self, obj_pos):
     #     # penalty = torch.where(torch.norm(self.ee_pos - self._cube_root_states[:, :3], dim=-1) < 0.1, torch.norm(self.commands[:, :3], dim=-1), \
     #     #     torch.zeros_like(self.reset_buf, device=self.device, dtype=torch.float)) # gripper and object

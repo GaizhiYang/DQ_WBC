@@ -322,6 +322,9 @@ class TSILPPO(PPO):
             self.memory.set_tensor_by_name("values", self._value_preprocessor(old_values))
             self.memory.set_tensor_by_name("returns", self._value_preprocessor(returns))
             self.memory.set_tensor_by_name("advantages", advantages)
+            # Same diagnostic as the base PPO: return variance explained by the critic.
+            explained_variance = 1 - (returns - old_values).var() / returns.var().clamp_min(1e-8)
+        self.track_data("Value / Explained variance", explained_variance.item())
         self._record_advantage_diagnostics(advantages)
         selection = self.replay.prepare(
             self._screen_gap, reward_scale=self.reward_normalizer.active_scale.item(),

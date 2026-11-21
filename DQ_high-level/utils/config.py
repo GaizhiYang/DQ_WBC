@@ -231,6 +231,46 @@ def apply_action_scaling_config(cfg, args):
     return cfg["env"]["actionScaling"]
 
 
+COMMAND_REWARD_SCHEDULES = ("step", "constant", "ramp")
+APPROACH_SHAPING_MODES = ("record", "potential")
+REWARD_OPTION_DEFAULTS = {
+    "commandRewardSchedule": "step",     # step: off until total_timesteps / 2 (original)
+    "commandRewardRampFraction": 0.2,    # ramp: reaches full weight at this training fraction
+    "approachShaping": "record",         # record: reward only new closest distance / height
+    "shapingGamma": 0.99,                # potential: must equal the PPO discount factor
+}
+
+
+def validate_reward_options(reward_cfg):
+    """Return the T2 reward options with defaults; configurations without them mean the original rewards."""
+    options = {name: reward_cfg.get(name, default) for name, default in REWARD_OPTION_DEFAULTS.items()}
+    if options["commandRewardSchedule"] not in COMMAND_REWARD_SCHEDULES:
+        raise ValueError(f"reward.commandRewardSchedule must be one of {COMMAND_REWARD_SCHEDULES}")
+    ramp = options["commandRewardRampFraction"]
+    if isinstance(ramp, bool) or not isinstance(ramp, (int, float)) or not 0 < ramp <= 1:
+        raise ValueError("reward.commandRewardRampFraction must be in (0, 1]")
+    if options["approachShaping"] not in APPROACH_SHAPING_MODES:
+        raise ValueError(f"reward.approachShaping must be one of {APPROACH_SHAPING_MODES}")
+    gamma = options["shapingGamma"]
+    if isinstance(gamma, bool) or not isinstance(gamma, (int, float)) or not 0 < gamma <= 1:
+        raise ValueError("reward.shapingGamma must be in (0, 1]")
+    if options["approachShaping"] == "potential" and reward_cfg.get("only_positive_rewards", False):
+        # Clipping negative rewards would break the telescoping potential difference.
+        raise ValueError("reward.approachShaping=potential requires only_positive_rewards=False")
+    return options
+
+
+def apply_reward_options(cfg, args):
+    """Explicit CLI reward options override the YAML; the result is stored back in cfg."""
+    overrides = {"commandRewardSchedule": getattr(args, "command_reward_schedule", None),
+                 "approachShaping": getattr(args, "approach_shaping", None)}
+    for name, value in overrides.items():
+        if value is not None:
+            cfg["reward"][name] = value
+    cfg["reward"].update(validate_reward_options(cfg["reward"]))
+    return {name: cfg["reward"][name] for name in REWARD_OPTION_DEFAULTS}
+
+
 def get_parser():
     parser = argparse.ArgumentParser(
         prog="Z1 training",
@@ -290,6 +330,24 @@ def get_parser():
     parser.add_argument("--no_critic_time_obs", dest="critic_time_obs", action="store_false",
                         help="Disable the critic episode-progress input, e.g. for an A/B baseline.")
     parser.set_defaults(critic_time_obs=None)
+    parser.add_argument("--critic_reward_state", dest="critic_reward_state", action="store_true",
+                        help="Give the critic only the hidden variables the rewards depend on: closest "
+                             "distance, highest lift, hold counters, lifted flag, command-reward weight.")
+    parser.add_argument("--no_critic_reward_state", dest="critic_reward_state", action="store_false")
+    parser.set_defaults(critic_reward_state=None)
+    parser.add_argument("--approach_shaping", choices=APPROACH_SHAPING_MODES, default=None,
+                        help="record: original record-breaking approach/lift rewards. potential: "
+                             "potential-based shaping gamma*Phi(s')-Phi(s) on EE distance and lift height.")
+    parser.add_argument("--command_reward_schedule", choices=COMMAND_REWARD_SCHEDULES, default=None,
+                        help="step: command_reward starts at total_timesteps/2 (original). constant: "
+                             "from the first step. ramp: linear over the first 20%% of training.")
+    parser.add_argument("--value_clip", dest="value_clip", action="store_true",
+                        help="PPO-style clipped value loss (the current default).")
+    parser.add_argument("--no_value_clip", dest="value_clip", action="store_false",
+                        help="Unclipped value loss, e.g. for the Andrychowicz et al. 2021 ablation.")
+    parser.set_defaults(value_clip=None)
+    parser.add_argument("--gae_lambda", type=float, default=None,
+                        help="GAE lambda (default 0.95).")
     parser.add_argument("--action_scaling", choices=ACTION_SCALING_MODES, default=None,
                         help="legacy: clip raw policy outputs at the physical limits. "
                              "normalized: clip outputs to [-1, 1], then scale to the limits "

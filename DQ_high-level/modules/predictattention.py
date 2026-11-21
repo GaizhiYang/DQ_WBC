@@ -19,6 +19,11 @@ def teacher_gfm_kwargs(env):
     critic_time_index = getattr(env, "critic_time_obs_index", None)
     if critic_time_index is not None:
         kwargs["critic_time_index"] = critic_time_index
+    # Critic-only hidden reward state (--critic_reward_state), likewise removed by the actor.
+    critic_state_index = getattr(env, "critic_state_obs_index", None)
+    if critic_state_index is not None:
+        kwargs["critic_state_index"] = critic_state_index
+        kwargs["critic_state_width"] = env.num_critic_state_obs
     history_frames = getattr(env, "actor_history_frames", 1)
     if history_frames != 1:
         kwargs["actor_history_frames"] = history_frames

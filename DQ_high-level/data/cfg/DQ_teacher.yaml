@@ -22,6 +22,7 @@ env:
   lastCommands: False
   noVelocityObs: False # Set --no_velocity_obs to remove 3D robot + 2D relative object velocity
   criticTimeObs: False # Set --critic_time_obs to give the critic step/maxEpisodeLength; the actor ignores it
+  criticRewardStateObs: False # Set --critic_reward_state to give the critic the hidden reward state (7 channels); the actor ignores it
   actorHistoryFrames: 1 # SGS+EKF launcher overrides to 4: current + 3 past frames
   actionScaling: legacy # legacy: clip raw outputs at physical limits; normalized (--action_scaling normalized): clip to [-1, 1], then scale
   successMode: hold # legacy/hold are compatibility aliases for the shared training/evaluation rule
@@ -249,6 +250,10 @@ sim:
 reward:
   base_height_target: 0.55
   only_positive_rewards: False
+  commandRewardSchedule: step # step: command_reward off until half of training (original); constant; ramp
+  commandRewardRampFraction: 0.2 # ramp: full command_reward weight at this fraction of training
+  approachShaping: record # record: reward new closest distance / height (original); potential: gamma*Phi(s')-Phi(s)
+  shapingGamma: 0.99 # potential shaping discount; must equal the PPO discount factor
   scales:
     approaching: 0.5
     lifting: 0.80 
