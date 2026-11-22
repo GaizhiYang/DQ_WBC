@@ -115,7 +115,7 @@ This part you can totally refer to [VBC's Low-level introduction](https://github
 | 参数 | 作用 | 不加时 |
 |---|---|---|
 | `--reach_model PATH` | 时间可达性模型 T(s, g)，由 `train_reachability.py` 训练；`analytic` 为解析基线 B3 | 不计算裕度，训练与旧版相同 |
-| `--margin_reward` | 拦截裕度势函数塑形（权重 10），替换 `approaching` / `base_approaching`；`--margin_keep_tracking` 保留二者 | 使用原来的追踪式接近奖励 |
+| `--margin_reward` | 势函数塑形 `Φ = 1 − τ*/8 s`（τ\*：最早拦截时间），权重 1（`--margin_reward_scale`），与 `approaching` / `base_approaching` 并存；消融：`--margin_potential slack`（第一版裁剪裕度势函数）、`--no_margin_keep_tracking`（去掉二者） | 只用原来的追踪式接近奖励 |
 | `--margin_tokens` | Actor/Critic 的 GFM 额外关注 16 个时空 token（每个预测时刻的最佳抓取点及其裕度，来自世界系 EKF），每帧多 194 维 | 观测与旧版相同 |
 | `--margin_curriculum prior` / `frontier` | `prior`：用初态裕度 M0 给 SGS 加可行性先验；`frontier`：再把部分 full_task 重置的桌速调快到 M0 前沿 | SGS 只按成功率采样 |
 | `--reach_online` | 训练中用策略自己的数据继续更新 T（EMA，50% 后冻结），随 checkpoint 保存 | T 固定 |

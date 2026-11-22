@@ -546,7 +546,8 @@ def interception_margin(times, horizons, remaining):
     """Margins from times [N, H, C] = T(s, g_c(t + h_k)), horizons [H], remaining [N].
 
     Returns a dict:
-      per_horizon [N, H]  best candidate margin h - T at each horizon (-inf if h > remaining)
+      best        [N, H]  best candidate margin h - T at each horizon, ignoring remaining
+      per_horizon [N, H]  the same, -inf where h > remaining
       candidate   [N, H]  its index
       margin      [N]     M = max over valid horizons (h = 0 is always valid)
       horizon     [N]     index of the maximizing horizon
@@ -560,8 +561,34 @@ def interception_margin(times, horizons, remaining):
     valid[:, 0] = True
     per_horizon = torch.where(valid, best, torch.full_like(best, -float("inf")))
     margin, horizon = per_horizon.max(dim=-1)
-    return {"per_horizon": per_horizon, "candidate": candidate, "margin": margin,
+    return {"best": best, "per_horizon": per_horizon, "candidate": candidate, "margin": margin,
             "horizon": horizon, "valid": valid}
+
+
+def intercept_time(margins, horizons, max_time):
+    """Earliest interception time tau* [N] from per-horizon margins [N, H] = h_k - T(s, g(t + h_k)).
+
+    tau* is where m(h) = h - T first reaches 0, interpolated linearly between
+    horizons; for a static goal it equals T(s, g), and it is 0 at the goal.
+    Without a crossing up to the last horizon h_L it continues as h_L - m_L
+    (T to the object's position at h_L), so tau* is continuous at that boundary.
+    Unlike the margin M, which a slow object pushes to the last horizon and the
+    clip saturates near the goal, tau* keeps decreasing until the grasp.
+    Clamped to [0, max_time]. horizons [H] start at 0 (margin_horizons).
+    """
+    if margins.dim() != 2 or margins.shape[1] != horizons.numel():
+        raise ValueError("margins must have shape [N, H] matching the horizons")
+    reached = margins >= 0
+    first = reached.to(margins.dtype).argmax(dim=-1)  # first reached horizon (0 if none)
+    previous = (first - 1).clamp_min(0)
+    m1 = margins.gather(1, first[:, None]).squeeze(1)
+    m0 = margins.gather(1, previous[:, None]).squeeze(1)
+    h1, h0 = horizons[first], horizons[previous]
+    # first > 0 implies m0 < 0 <= m1, so the crossing fraction lies in (0, 1].
+    fraction = (-m0 / (m1 - m0).clamp_min(1e-6)).clamp(0., 1.)
+    crossing = torch.where(first > 0, h0 + (h1 - h0) * fraction, torch.zeros_like(m1))
+    beyond = horizons[-1] - margins[:, -1]
+    return torch.where(reached.any(dim=-1), crossing, beyond).clamp(0., max_time)
 
 
 def planar_carrier_future(body_pos, body_quat, carrier_pos, carrier_yaw, body_velocity,

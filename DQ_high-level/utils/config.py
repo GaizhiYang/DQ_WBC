@@ -272,15 +272,19 @@ def apply_reward_options(cfg, args):
 
 
 MARGIN_CURRICULUM_MODES = ("disabled", "prior", "frontier")
+# intercept: Phi = 1 - tau*/max_time (earliest interception time). slack: the first
+# design, Phi from the clipped margin M; it failed (ours_s44) and stays as an ablation.
+MARGIN_POTENTIALS = ("intercept", "slack")
 MARGIN_DEFAULTS = {
     "reachModel": "",            # trained T file, "analytic" (B3), "new:mlp"/"new:quasimetric" (online), "" = off
     "horizonStep": 0.3,          # seconds between margin horizons; the first horizon is 0
     "horizonCount": 16,          # 0.0, 0.3, ..., 4.5 s
-    "clip": 2.0,                 # seconds; potential Phi = clip(M, -clip, clip) / clip
+    "clip": 2.0,                 # seconds; clips the token margins and the slack potential
     "chunkEnvs": 1024,           # environments per T evaluation chunk (GPU memory)
     "candidates": 30,            # grasp candidates per object (the first N of PredictPoint's)
-    "reward": False,             # potential-based margin shaping, weight reward.scales.margin_shaping
-    "keepTracking": False,       # with reward: keep approaching/base_approaching (default: replace)
+    "reward": False,             # potential-based shaping, weight reward.scales.margin_shaping
+    "potential": "intercept",    # intercept | slack (see MARGIN_POTENTIALS)
+    "keepTracking": True,        # with reward: keep approaching/base_approaching (False: replace them)
     "tokens": False,             # actor: per-horizon best-grasp tokens from world-frame EKF forecasts
     "curriculum": "disabled",    # disabled | prior | frontier (dynamic SGS; requires SGS)
     "priorStrength": 4.0,        # pseudo-episodes of the M0 prior in the SGS success estimate
@@ -301,7 +305,9 @@ MARGIN_DEFAULTS = {
     "maxPairSteps": 32,          # longest hindsight pair, environment steps
     "expectile": 0.1,
 }
-MARGIN_REWARD_SCALE_DEFAULT = 10.0
+# Phi changes by about 0.15 s / 8 s = 0.02 per step of optimal progress, the size
+# of the approaching reward. Weight 10 (ours_s44) dominated the return and the critic collapsed.
+MARGIN_REWARD_SCALE_DEFAULT = 1.0
 
 
 def validate_margin_config(env_cfg, reward_cfg=None):
@@ -319,6 +325,8 @@ def validate_margin_config(env_cfg, reward_cfg=None):
             raise ValueError(f"env.margin.{name} must be a boolean")
     if settings["curriculum"] not in MARGIN_CURRICULUM_MODES:
         raise ValueError(f"env.margin.curriculum must be one of {MARGIN_CURRICULUM_MODES}")
+    if settings["potential"] not in MARGIN_POTENTIALS:
+        raise ValueError(f"env.margin.potential must be one of {MARGIN_POTENTIALS}")
     for name in ("horizonStep", "clip", "priorTemperature", "frontierMaxSpeedScale",
                  "onlineLearningRate"):
         value = settings[name]
@@ -370,8 +378,8 @@ def validate_margin_config(env_cfg, reward_cfg=None):
 def apply_margin_config(cfg, args):
     """Explicit CLI flags override env.margin; the result is stored back in cfg.
 
-    --margin_reward also sets reward.scales.margin_shaping (default 10.0) and,
-    unless --margin_keep_tracking, zeroes the tracking rewards it replaces.
+    --margin_reward also sets reward.scales.margin_shaping (default 1.0); with
+    --no_margin_keep_tracking it zeroes approaching/base_approaching.
     """
     settings = dict(MARGIN_DEFAULTS)
     settings.update(cfg["env"].get("margin", {}) or {})
@@ -385,7 +393,8 @@ def apply_margin_config(cfg, args):
             model = str(path.resolve())
         settings["reachModel"] = model
     for key, argument in (("tokens", "margin_tokens"), ("online", "reach_online"),
-                          ("curriculum", "margin_curriculum"), ("keepTracking", "margin_keep_tracking")):
+                          ("curriculum", "margin_curriculum"), ("keepTracking", "margin_keep_tracking"),
+                          ("potential", "margin_potential")):
         value = getattr(args, argument, None)
         if value is not None:
             settings[key] = value
@@ -400,7 +409,7 @@ def apply_margin_config(cfg, args):
         scales["margin_shaping"] = args.margin_reward_scale
     scales.setdefault("margin_shaping", 0.0)
     if settings["reward"] and not settings["keepTracking"]:
-        # Ours-R replaces the chase-the-current-position terms (doc section 3.2).
+        # Ablation: margin shaping as the only approach signal (doc section 2).
         scales["approaching"] = 0.0
         scales["base_approaching"] = 0.0
     cfg["env"]["margin"] = settings
@@ -490,14 +499,19 @@ def get_parser():
                         help="Time-to-reach model: a file from train_reachability.py, 'analytic' "
                              "(baseline B3), or new:mlp / new:quasimetric with --reach_online.")
     parser.add_argument("--margin_reward", dest="margin_reward", action="store_true",
-                        help="Potential-based interception-margin shaping; replaces approaching and "
-                             "base_approaching unless --margin_keep_tracking.")
+                        help="Potential-based shaping from the earliest interception time, added to "
+                             "approaching and base_approaching.")
     parser.add_argument("--no_margin_reward", dest="margin_reward", action="store_false")
     parser.set_defaults(margin_reward=None)
     parser.add_argument("--margin_reward_scale", type=float, default=None,
-                        help="reward.scales.margin_shaping with --margin_reward (default 10.0).")
+                        help="reward.scales.margin_shaping with --margin_reward (default 1.0).")
+    parser.add_argument("--margin_potential", choices=MARGIN_POTENTIALS, default=None,
+                        help="intercept (default): Phi = 1 - tau*/8 s. slack: Phi from the clipped "
+                             "margin M (ablation; it saturates near the object).")
     parser.add_argument("--margin_keep_tracking", dest="margin_keep_tracking", action="store_true",
-                        help="Keep the original tracking rewards alongside margin shaping.")
+                        help="Keep approaching/base_approaching with margin shaping (the default).")
+    parser.add_argument("--no_margin_keep_tracking", dest="margin_keep_tracking", action="store_false",
+                        help="Ablation: zero approaching/base_approaching with margin shaping.")
     parser.set_defaults(margin_keep_tracking=None)
     parser.add_argument("--margin_tokens", dest="margin_tokens", action="store_true",
                         help="Actor and critic GFM attend to per-horizon best-grasp tokens with margins "

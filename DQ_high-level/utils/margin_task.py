@@ -5,7 +5,7 @@ unless env.margin.reachModel is set. Pure torch: tests run these methods on
 simulator stand-ins without importing Isaac Gym.
 
 Information flow (doc/主线A_实现说明.md):
-  privileged (training only)  true table motion -> M_priv -> margin shaping, curriculum
+  privileged (training only)  true table motion -> tau*_priv (shaping), M_priv (curriculum)
   real-obtainable (actor)     world-frame EKF forecasts -> per-horizon tokens + M_ekf
 The actor never sees M_priv; T itself only uses proprioception and goals.
 """
@@ -15,8 +15,8 @@ import torch
 from modules.pose_prediction import RollingSE3Predictor
 from modules.reachability import (MARGIN_SCALAR_NAMES, MARGIN_TOKEN_DIM, MARGIN_TOKEN_NAMES,
                                   ReachLearner, TimeToReach, grasp_positions_world,
-                                  interception_margin, load_reach_model, margin_horizons,
-                                  matrix_to_6d, planar_carrier_future, query_frame,
+                                  intercept_time, interception_margin, load_reach_model,
+                                  margin_horizons, matrix_to_6d, planar_carrier_future, query_frame,
                                   reach_state_dim, reach_state_features,
                                   selected_grasp_rotations, to_query_frame, yaw_from_quat,
                                   yaw_matrix)
@@ -85,6 +85,9 @@ class InterceptionMarginMixin:
             if saved_index is not None and saved_index != self.gripper_idx:
                 raise ValueError("reach model was trained with a different EE body index")
         self.margin_model = model.to(device).eval()
+        self.margin_potential_kind = settings["potential"]
+        # tau* never exceeds T's own clamp, so Phi = 1 - tau* / max_time lies in [0, 1].
+        self.margin_intercept_max_time = float(model.limits.max_time)
         self.margin_learner = None
         if settings["online"]:
             self.margin_learner = ReachLearner(
@@ -97,6 +100,7 @@ class InterceptionMarginMixin:
 
         self.margin_priv = torch.zeros(num, device=device)
         self.margin_priv_horizon = torch.zeros(num, device=device)
+        self.margin_priv_intercept = torch.zeros(num, device=device)
         self.margin_ekf = torch.zeros(num, device=device)
         self.margin_obs_buf = torch.zeros((num, self.num_margin_obs), device=device)
         self.margin_phi_prev = torch.zeros(num, device=device)
@@ -213,6 +217,8 @@ class InterceptionMarginMixin:
             result = interception_margin(times, self.margin_horizons, remaining[part])
             self.margin_priv[sub] = result["margin"]
             self.margin_priv_horizon[sub] = self.margin_horizons[result["horizon"]]
+            self.margin_priv_intercept[sub] = intercept_time(result["best"], self.margin_horizons,
+                                                             self.margin_intercept_max_time)
             if tokens:
                 times, goals = self._margin_times(model, state[part], origin[part], yaw[part],
                                                   ekf_pos[part], ekf_quat[part], sub)
@@ -275,6 +281,7 @@ class InterceptionMarginMixin:
             "Margin / privileged mean (s)": self.margin_priv.mean(),
             "Margin / privileged nonnegative fraction": (self.margin_priv >= 0).float().mean(),
             "Margin / privileged best horizon mean (s)": self.margin_priv_horizon.mean(),
+            "Margin / privileged intercept time mean (s)": self.margin_priv_intercept.mean(),
         }
         if self.num_margin_tokens:
             diagnostics["Margin / EKF mean (s)"] = self.margin_ekf.mean()
@@ -310,13 +317,21 @@ class InterceptionMarginMixin:
 
     # ------------------------------------------------------------------ shaping
     def _margin_potential(self, env_ids=None):
-        """Phi in [0, 1]: (clip(M, -c, c) / c + 1) / 2, and 1 once the object is lifted.
+        """Phi in [0, 1], and 1 once the object is lifted.
 
+        intercept (default): 1 - tau* / max_time, from the privileged earliest
+        interception time; it keeps rising until the grasp.
+        slack (ablation, the first design): (clip(M, -c, c) / c + 1) / 2. A slow
+        object puts M's best horizon at the last one, and the clip makes Phi
+        flat near the goal, so it gives no signal for the final approach.
         Non-negative, so a termination never pays a shaping bonus.
         """
         ids = self.margin_all_ids if env_ids is None else env_ids
-        clip = self.margin_clip
-        phi = 0.5 * (self.margin_priv[ids].clamp(-clip, clip) / clip + 1.0)
+        if self.margin_potential_kind == "intercept":
+            phi = 1.0 - self.margin_priv_intercept[ids] / self.margin_intercept_max_time
+        else:
+            clip = self.margin_clip
+            phi = 0.5 * (self.margin_priv[ids].clamp(-clip, clip) / clip + 1.0)
         return torch.where(self.lifted_object[ids], torch.ones_like(phi), phi)
 
     def _reward_margin_shaping(self):

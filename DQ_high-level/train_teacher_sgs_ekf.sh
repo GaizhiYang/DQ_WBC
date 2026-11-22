@@ -23,7 +23,8 @@ Value-learning options (T2), all off by default:
   --no_value_clip, --gae_lambda 0.9   PPO value-loss and GAE ablations
 Main line A (doc/主线A_实现说明.md), all off by default; each needs --reach_model:
   --reach_model PATH              time-to-reach T from train_reachability.py (or: analytic = baseline B3)
-  --margin_reward                 potential-based interception-margin shaping (replaces approaching)
+  --margin_reward                 shaping from the earliest interception time, weight 1, added to approaching
+                                  (ablations: --margin_potential slack, --no_margin_keep_tracking)
   --margin_tokens                 actor/critic GFM also attend to per-horizon best-grasp tokens
   --margin_curriculum frontier    SGS with the M0 feasibility prior plus faster-table frontier resets
   --reach_online                  keep refining T from the policy's rollouts (frozen at 50%)

@@ -1,6 +1,7 @@
 # 主线 A 实现说明：学到的时间可达性与拦截裕度
 
-> 2026-11-22。对应 `顶会论文主线思路.md` §3。代码已写完，**本机没有 torch / GPU，尚未运行任何测试或训练**，第一次使用请先跑 §6 的测试。
+> 2026-11-22。对应 `顶会论文主线思路.md` §3。本机没有 torch / GPU，测试只能在服务器上跑（§6）。
+> 第一次完整训练 ours_s44 失败，奖励塑形已改为最早拦截时间势函数，原因见 §2.1。
 > 所有新功能默认关闭；不加新参数时，训练与 T1 基线完全相同。
 
 ---
@@ -11,7 +12,7 @@
 |---|---|---|
 | 自身时间距离 `T(s, g)` | `modules/reachability.py`：`TimeToReach`（`mlp` / `quasimetric` / `analytic`）、`HindsightBuffer`、`ReachLearner` | `--reach_model` |
 | 拦截裕度 `M = max_{c,h}[h − T(s, ĝ_c(t+h))]` | `interception_margin`；环境内每步计算两份：特权版 `M_priv` 和 EKF 版 `M_ekf` | 有 `--reach_model` 即计算并记录 |
-| 奖励：势函数塑形 | `utils/margin_task.py::_reward_margin_shaping`，替换 `approaching` / `base_approaching` | `--margin_reward` |
+| 奖励：势函数塑形 | `utils/margin_task.py::_reward_margin_shaping`，势函数来自最早拦截时间 τ\*（`intercept_time`），默认与 `approaching` / `base_approaching` 并存 | `--margin_reward` |
 | 表征：时空 token | 每个预测时刻 h 取最优候选，组成 16 个 token；GFM 对 30 个当前候选和 16 个 token 一起做注意力 | `--margin_tokens` |
 | 课程：动态 SGS | M0 可行性先验（Beta 伪计数）＋ 前沿变异（加快桌速） | `--margin_curriculum prior / frontier` |
 | T 的在线更新 | EMA 目标网络，训练到 50% 后冻结，随 checkpoint 保存 | `--reach_online` |
@@ -23,9 +24,9 @@
 |---|---|---|
 | T 的输入：末端位姿、臂关节、夹爪、末端目标积分器、底座指令、IMU 角速度和重力方向 | 全部 | 是（`REACH_STATE_LAYOUT`；不含底座线速度，与 `--no_velocity_obs` 一致） |
 | 物体未来位姿：世界系 EKF 外推 | Actor 的 token 和 `M_ekf` | 是。需要里程计把检测到的位姿转到里程计坐标系，只要求 EKF 窗口内（约 0.75 s）漂移小 |
-| 物体未来位姿：桌子真实运动（当前扭量外推） | 奖励 `M_priv`、课程 M0 | 否，只在训练中使用 |
+| 物体未来位姿：桌子真实运动（当前扭量外推） | 奖励 τ\*_priv、课程 M0、日志 `M_priv` | 否，只在训练中使用 |
 
-Actor 从不接触 `M_priv`。
+Actor 从不接触 τ\*_priv 和 `M_priv`。
 
 ---
 
@@ -35,8 +36,15 @@ Actor 从不接触 `M_priv`。
 2. **查询坐标系**：原点在臂基座，x 轴沿底座朝向，z 轴竖直，在查询时刻冻结。目标、状态、token 都用这个坐标系。
 3. **标签与损失**：`(s_t, t+k 时刻的末端位置)` 的标签是实际耗时，它是最短时间的上界；用 τ = 0.1 的 expectile 回归拟合下包络。`T = 物理下界 + softplus(残差)`。物理下界对任何参数都成立：臂基座速度不超过 0.45 + 0.6×0.3 m/s，再加上手臂和转动的贡献。
 4. **quasimetric 版本**是 MRN 距离 `max relu(ψ−φ) + ‖φ′−ψ′‖`。它目前只是结构上的归纳偏置，训练损失和 mlp 版相同，**还没有实现 QRL 的对偶目标**。论文如果要声称“quasimetric 学到最优时间”，需要补上这一项。
-5. **势函数**：`Φ = (clip(M, −2, 2)/2 + 1)/2 ∈ [0, 1]`，物体抬起后 Φ = 1，终止状态 Φ = 0。因为 Φ ≥ 0，终止那一步的塑形奖励不会为正，不会鼓励提前终止。折扣总和严格等于 `−Φ(s₀)`（命题 P2，有测试）。默认权重 10，和原接近奖励的每步量级相当。
-6. **token**：每个预测时刻一个 token，内容是该时刻裕度最大的候选：位置（3）、6D 姿态（6）、h、该时刻的裕度、是否有效，共 12 维。共 16 个时刻（0–4.5 s），加上 `M_ekf` 和最佳时刻两个标量，每帧多 194 维。
+5. **势函数**（第一版失败后已修改，见 §2.1）：
+   - 默认 `intercept`：`Φ = 1 − τ*/8 s ∈ [0, 1]`。τ\* 是最早拦截时间，即每个时刻的最优候选裕度 `m(h) = h − T(s, g(t+h))` 第一次 ≥ 0 的 h，在相邻预测时刻之间线性插值；
+   - 物体静止时 τ\* 就等于 T(s, g)，到达抓取点时为 0，所以 Φ 一直到抓取都在变，不会饱和；
+   - 4.5 s 内都拦不到时，τ\* 延续为 `T(s, g(t+4.5))`，在边界上连续；上限是 T 自身的截断值 8 s；
+   - τ\* 不受回合剩余时间影响，Φ 只取决于状态和物体运动；
+   - 物体抬起后 Φ = 1，终止状态（含超时，PPO 这里不在超时处自举）Φ = 0。因为 Φ ≥ 0，终止那一步的塑形奖励不会为正。折扣总和严格等于 `−Φ(s₀)`（命题 P2，有测试）；
+   - 默认权重 1，且**保留** `approaching` / `base_approaching`。按最优速度前进时，Φ 每步约增加 0.15/8 ≈ 0.02，与原接近奖励每步 0.01–0.04 相当；
+   - `slack`（`--margin_potential slack`）是第一版：`Φ = (clip(M, −2, 2)/2 + 1)/2`，只作消融保留。
+6. **token**（未改动）：每个预测时刻一个 token，内容是该时刻裕度最大的候选：位置（3）、6D 姿态（6）、h、该时刻的裕度、是否有效，共 12 维。共 16 个时刻（0–4.5 s），加上 `M_ekf` 和最佳时刻两个标量，每帧多 194 维。
    - 观测标准化会把常数通道（如 h）变成 0，所以 GFM 为每个 token 槽位学一个位置嵌入；
    - token 只进 GFM，不进 Actor MLP；两个标量进 MLP；
    - Critic 的 MLP 看到整个块。
@@ -47,6 +55,16 @@ Actor 从不接触 `M_priv`。
    - δ 在训练中从 0.5 s 线性降到 0。
 8. **前沿变异**：每次 full_task 重置时，以 25% 的概率尝试把桌子的线速度和角速度同乘一个系数 1.0–1.6（保持圆周半径不变），取 M0 仍不低于 δ 的最大系数。这类回合单独统计为 `SuccessRate / frontier`，不进 SGS 历史、family 窗口和主指标 `SuccessRate / sugar_box`。这一步也直接给出速度外推实验（0.48 m/s）。
 9. **不兼容**：不能与 TSIL、相机、浮动基座同时使用；token 要求有物体特征，且 `lastCommands=False`。
+
+### 2.1 第一次完整训练（ours_s44）为何失败
+
+ours_s44 同时打开了奖励、token 和课程，并用了第一版塑形（`slack`，权重 10，去掉 approaching）。到第 190 轮被停止时，near_goal 成功率一直为 0（T1 第 40 轮已到 0.70）。排查的结论是：数据流没有问题，失败来自第一版塑形的设计。
+
+- **量级**：塑形每步平均 −0.14 到 −0.53，是 T1 中 approaching（0.011–0.039）的 5–15 倍。每个回合的最后一步要付 −10Φ。势函数不变性要求 Critic 把 −10Φ(s) 学准；Critic 在第 40 轮前后 value loss 升到 6.85，之后解释方差恒为 0，即对所有状态输出同一个值；
+- **近处没有信号**：approaching 被去掉；物体附近 M ≥ 2，被截断后 Φ ≡ 1；
+- **M 被最远时刻主导**：物体比机器人慢时，h − T 随 h 增大，最佳时刻的均值为 3.8–4.3 s（上限 4.5 s），所以 M ≈ 4.5 − T(物体约 4 s 后的位置)。它引导的是物体 4 秒后的位置，而不是当前的抓取点。
+
+`intercept` 势函数、权重 1、保留 approaching 这三处修改分别针对这三点。
 
 ---
 
@@ -94,6 +112,8 @@ python evaluate_margin_auc.py --bank data/sgs/sugar_box_v12.pt --sgs_diagnostics
 
 以下 R、T、C 分别指奖励、表征（token）、课程三个环节。所有组都加 `--action_scaling normalized`；除 B1 外，都再加 `--reach_model data/reach/sugar_box_mlp/reach_model.pt`。
 
+**先跑 R、T、C 三个单因素组**，各约 500 轮（`--stop_after 12000`）。和 T1 对比第 40–60 轮的 near_goal、第 190 轮的 pregrasp 成功率，以及 `Value / Explained variance`。单因素都不差于 T1 之后，再跑组合和多种子。
+
 | 组 | 追加参数 |
 |---|---|
 | B1（基线） | 无 |
@@ -103,11 +123,17 @@ python evaluate_margin_auc.py --bank data/sgs/sugar_box_v12.pt --sgs_diagnostics
 | R+T、R+C、T+C | 对应组合 |
 | **Ours** | `--margin_reward --margin_tokens --margin_curriculum frontier` |
 
-示例：
+示例（单因素 R）：
 
 ```bash
-SEED=44 RUN_NAME=ours_s44 bash train_teacher_sgs_ekf.sh --action_scaling normalized --reach_model data/reach/sugar_box_mlp/reach_model.pt --margin_reward --margin_tokens --margin_curriculum frontier
+SEED=44 RUN_NAME=r_intercept_s44 bash train_teacher_sgs_ekf.sh --action_scaling normalized --reach_model data/reach/sugar_box_mlp/reach_model.pt --margin_reward --stop_after 12000
 ```
+
+R 的消融：
+
+- **R-slack**：`--margin_reward --margin_potential slack`，第一版势函数（权重仍为 1，保留 approaching）；
+- **R-replace**：`--margin_reward --no_margin_keep_tracking`，塑形作为唯一的接近信号；
+- 权重：`--margin_reward_scale 0.5 / 2`。
 
 基线对应：
 
@@ -120,6 +146,8 @@ SEED=44 RUN_NAME=ours_s44 bash train_teacher_sgs_ekf.sh --action_scaling normali
 
 ### 3.5 训练中要看的曲线
 
+- `Margin / privileged intercept time mean (s)`：τ\* 的均值，应随训练下降；
+- `Value / Explained variance`：应保持为正。若长时间恰好为 0，说明 Critic 已经对所有状态输出常数（ours_s44 的症状）；
 - `Margin / privileged mean (s)`、`Margin / privileged nonnegative fraction`：它们应随训练上升；
 - `Margin / EKF minus privileged abs mean (s)`：EKF 预测引入的误差；
 - `Curriculum / delta (s)`、`Curriculum / frontier speed scale mean`、`SuccessRate / frontier`；
@@ -161,7 +189,8 @@ cd DQ_high-level && PYTHONPATH=tests python -m unittest test_margin test_teacher
 - 学习器能学会匀速时间，并优于解析估计；
 - M0 随物体靠近、远离的单调性；
 - SGS 先验只影响采样；
-- 塑形奖励的折扣总和等于 `−Φ(s₀)`；
+- 最早拦截时间：静止目标等于 T，取第一次穿越，在最后一个时刻连续，并截断到上限；
+- 塑形奖励的折扣总和等于 `−Φ(s₀)`（两种势函数）；
 - token 块的布局；
 - 前沿变异只作用于 full_task；
 - 观测块的位置不移动已有的通道；

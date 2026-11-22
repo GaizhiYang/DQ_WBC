@@ -87,6 +87,37 @@ class MarginTests(unittest.TestCase):
         self.assertEqual(result["candidate"][0].tolist(), [0, 0, 0, 0])
         self.assertTrue(math.isinf(result["per_horizon"][1, 2].item()))
 
+    def test_best_ignores_the_remaining_time(self):
+        times = torch.tensor([[[2., 3.], [1.5, 2.], [1., 4.], [.5, .5]]])
+        result = R.interception_margin(times, torch.tensor([0., 1., 2., 3.]), torch.tensor([1.5]))
+        torch.testing.assert_close(result["best"][0], torch.tensor([-2., -.5, 1., 2.5]))
+
+    def test_intercept_time_of_a_static_goal_is_its_reach_time(self):
+        horizons = torch.tensor([0., .3, .6, .9])
+        for reach in (.45, .3, 2.):
+            with self.subTest(reach=reach):
+                margins = (horizons - reach).view(1, -1)
+                tau = R.intercept_time(margins, horizons, 8.)
+                torch.testing.assert_close(tau, torch.tensor([reach]))
+
+    def test_intercept_time_takes_the_first_crossing_and_clamps(self):
+        horizons = torch.tensor([0., 1., 2., 3.])
+        margins = torch.tensor([[0., -1., 1., 2.],      # at the goal
+                                [-2., -.5, 1., 2.5],    # crosses between 1 and 2 at 1 + .5 / 1.5
+                                [-1., .5, -1., 3.],     # the earliest crossing wins
+                                [-9., -9., -9., -9.]])  # beyond: 3 + 9 = 12, clamped
+        tau = R.intercept_time(margins, horizons, 8.)
+        torch.testing.assert_close(tau, torch.tensor([0., 1. + 1. / 3, 2. / 3, 8.]))
+        with self.assertRaises(ValueError):
+            R.intercept_time(margins[:, :3], horizons, 8.)
+
+    def test_intercept_time_is_continuous_at_the_last_horizon(self):
+        horizons = torch.tensor([0., .3, .6, .9])
+        below = R.intercept_time(torch.tensor([[-.9, -.6, -.3, -1e-4]]), horizons, 8.)
+        at = R.intercept_time(torch.tensor([[-.9, -.6, -.3, 0.]]), horizons, 8.)
+        torch.testing.assert_close(below, at, atol=2e-4, rtol=0)
+        torch.testing.assert_close(at, torch.tensor([.9]))
+
     def test_horizon_zero_is_valid_even_without_remaining_time(self):
         result = R.interception_margin(torch.ones(1, 2, 3), torch.tensor([0., .3]), torch.tensor([0.]))
         torch.testing.assert_close(result["margin"], torch.tensor([-1.]))
@@ -377,12 +408,16 @@ class EnvironmentMarginTests(unittest.TestCase):
         env._update_margins()
         torch.testing.assert_close(env.margin_priv, torch.tensor([4.5, .9]))
         torch.testing.assert_close(env.margin_priv_horizon, torch.tensor([4.5, .9]))
+        # tau* ignores the remaining time: the object is already at the gripper.
+        torch.testing.assert_close(env.margin_priv_intercept, torch.zeros(2))
 
     def test_far_static_object_has_a_negative_margin(self):
         env = FakeEnv(1)
         env._cube_root_states[:, 0] = 3.3
         env._update_margins()
         self.assertAlmostEqual(env.margin_priv.item(), 4.5 - (2.4 / .45 + .6 / .25), places=4)
+        # No crossing within 4.5 s: tau* continues as T of the static object.
+        self.assertAlmostEqual(env.margin_priv_intercept.item(), 2.4 / .45 + .6 / .25, places=4)
 
     def test_approaching_object_has_a_larger_margin_than_a_receding_one(self):
         env = FakeEnv(3)
@@ -391,6 +426,8 @@ class EnvironmentMarginTests(unittest.TestCase):
         env._update_margins()
         self.assertGreater(env.margin_priv[0].item(), env.margin_priv[1].item())
         self.assertGreater(env.margin_priv[1].item(), env.margin_priv[2].item())
+        self.assertLess(env.margin_priv_intercept[0].item(), env.margin_priv_intercept[1].item())
+        self.assertLess(env.margin_priv_intercept[1].item(), env.margin_priv_intercept[2].item())
 
     def test_token_block_layout_at_reset(self):
         env = FakeEnv(2)
@@ -422,31 +459,45 @@ class EnvironmentMarginTests(unittest.TestCase):
         self.assertEqual(env.margin_learner.buffer.filled, 4)
         self.assertGreater(env.margin_learner.updates, 0)
         self.assertIn("Margin / privileged mean (s)", env.extras["diagnostics"])
+        self.assertIn("Margin / privileged intercept time mean (s)", env.extras["diagnostics"])
         self.assertIn("Reach / loss", env.extras["diagnostics"])
         torch.testing.assert_close(env.margin_episode_time, torch.full((2,), .64))
 
     def test_margin_shaping_telescopes_and_never_pays_for_termination(self):
-        env = FakeEnv(1, {"reward": True, "tokens": False})
-        env._reset_margin_state(torch.arange(1))
-        phi0 = env.margin_phi_prev.clone()
-        gamma = env.reward_options["shapingGamma"]
-        total, discount = 0., 1.
-        for step, margin in enumerate((.5, -1., 3.)):
-            env.margin_priv[:] = margin
-            env.reset_buf[:] = int(step == 2)
-            reward, phi = env._reward_margin_shaping()
-            self.assertTrue(0. <= phi.item() <= 1.)
-            if step == 2:
-                self.assertLessEqual(reward.item(), 0.)
-            total += discount * reward.item()
-            discount *= gamma
-        self.assertAlmostEqual(total, -phi0.item(), places=5)
+        # Values per step: tau* (s) for intercept, M (s) for slack.
+        for potential, buffer, values in (("intercept", "margin_priv_intercept", (3., 8., .2)),
+                                          ("slack", "margin_priv", (.5, -1., 3.))):
+            with self.subTest(potential=potential):
+                env = FakeEnv(1, {"reward": True, "tokens": False, "potential": potential})
+                env._reset_margin_state(torch.arange(1))
+                phi0 = env.margin_phi_prev.clone()
+                gamma = env.reward_options["shapingGamma"]
+                total, discount = 0., 1.
+                for step, value in enumerate(values):
+                    getattr(env, buffer)[:] = value
+                    env.reset_buf[:] = int(step == 2)
+                    reward, phi = env._reward_margin_shaping()
+                    self.assertTrue(0. <= phi.item() <= 1.)
+                    if step == 2:
+                        self.assertLessEqual(reward.item(), 0.)
+                    total += discount * reward.item()
+                    discount *= gamma
+                self.assertAlmostEqual(total, -phi0.item(), places=5)
+
+    def test_intercept_potential_rises_as_the_intercept_time_falls(self):
+        env = FakeEnv(3, {"reward": True, "tokens": False})
+        self.assertEqual(env.margin_potential_kind, "intercept")
+        env.margin_priv_intercept[:] = torch.tensor([8., 4., 0.])
+        torch.testing.assert_close(env._margin_potential(), torch.tensor([0., .5, 1.]))
 
     def test_lifted_object_has_the_maximal_potential(self):
-        env = FakeEnv(2, {"reward": True, "tokens": False})
-        env.margin_priv[:] = -5.
-        env.lifted_object[:] = torch.tensor([True, False])
-        torch.testing.assert_close(env._margin_potential(), torch.tensor([1., 0.]))
+        for potential in ("intercept", "slack"):
+            with self.subTest(potential=potential):
+                env = FakeEnv(2, {"reward": True, "tokens": False, "potential": potential})
+                env.margin_priv[:] = -5.
+                env.margin_priv_intercept[:] = 8.
+                env.lifted_object[:] = torch.tensor([True, False])
+                torch.testing.assert_close(env._margin_potential(), torch.tensor([1., 0.]))
 
     def test_shaping_requires_the_margin_reward(self):
         with self.assertRaisesRegex(ValueError, "margin.reward"):
@@ -598,18 +649,31 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(cfg["reward"]["scales"]["margin_shaping"], 0.)
         args = config_utils.get_params([])
         for name in ("reach_model", "margin_reward", "margin_tokens", "margin_curriculum",
-                     "reach_online", "margin_keep_tracking", "margin_reward_scale"):
+                     "reach_online", "margin_keep_tracking", "margin_reward_scale", "margin_potential"):
             self.assertIsNone(getattr(args, name))
 
-    def test_margin_reward_replaces_tracking_rewards_unless_kept(self):
-        for keep, expected in ((False, 0.), (True, .5)):
-            with self.subTest(keep=keep):
+    def test_margin_reward_keeps_tracking_rewards_unless_replaced(self):
+        for extra, expected in (([], .5), (["--margin_keep_tracking"], .5), (["--no_margin_keep_tracking"], 0.)):
+            with self.subTest(extra=extra):
                 cfg = repository_config()
-                argv = ["--reach_model", "analytic", "--margin_reward"] + (["--margin_keep_tracking"] if keep else [])
+                argv = ["--reach_model", "analytic", "--margin_reward"] + extra
                 settings = config_utils.apply_margin_config(cfg, config_utils.get_params(argv))
                 self.assertTrue(settings["reward"])
-                self.assertEqual(cfg["reward"]["scales"]["margin_shaping"], 10.)
+                self.assertEqual(settings["potential"], "intercept")
+                self.assertEqual(cfg["reward"]["scales"]["margin_shaping"], 1.)
                 self.assertEqual(cfg["reward"]["scales"]["approaching"], expected)
+
+    def test_margin_potential_and_scale_flags(self):
+        cfg = repository_config()
+        argv = ["--reach_model", "analytic", "--margin_reward", "--margin_potential", "slack",
+                "--margin_reward_scale", "2.5"]
+        settings = config_utils.apply_margin_config(cfg, config_utils.get_params(argv))
+        self.assertEqual(settings["potential"], "slack")
+        self.assertEqual(cfg["reward"]["scales"]["margin_shaping"], 2.5)
+        cfg = repository_config()
+        cfg["env"]["margin"]["potential"] = "distance"
+        with self.assertRaisesRegex(ValueError, "potential"):
+            config_utils.validate_margin_config(cfg["env"], cfg["reward"])
 
     def test_inconsistent_settings_are_rejected(self):
         for argv in (["--margin_reward"], ["--margin_tokens"], ["--reach_model", "new:mlp"],

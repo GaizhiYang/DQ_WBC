@@ -40,11 +40,12 @@ env:
     reachModel: "" # --reach_model: train_reachability.py output, analytic (baseline B3), or new:mlp/new:quasimetric with online
     horizonStep: 0.3 # seconds between margin horizons; the first horizon is 0
     horizonCount: 16 # 0.0, 0.3, ..., 4.5 s
-    clip: 2.0 # seconds; potential Phi = (clip(M, -clip, clip) / clip + 1) / 2, and 1 once lifted
+    clip: 2.0 # seconds; clips the token margins and the slack potential
     chunkEnvs: 1024 # environments per T evaluation chunk (GPU memory)
     candidates: 30 # grasp candidates per object
-    reward: False # --margin_reward: potential-based margin shaping (reward.scales.margin_shaping)
-    keepTracking: False # --margin_keep_tracking: keep approaching/base_approaching with the margin reward
+    reward: False # --margin_reward: potential-based shaping (reward.scales.margin_shaping)
+    potential: intercept # --margin_potential: intercept (Phi = 1 - tau*/8 s, 1 once lifted) / slack (clipped M, ablation)
+    keepTracking: True # --no_margin_keep_tracking: zero approaching/base_approaching with the margin reward (ablation)
     tokens: False # --margin_tokens: actor/critic GFM attend to per-horizon best-grasp tokens (world-frame EKF)
     curriculum: disabled # --margin_curriculum: disabled / prior (M0 prior in SGS) / frontier (prior + faster tables)
     priorStrength: 4.0 # pseudo-episodes of the M0 prior
@@ -297,7 +298,7 @@ reward:
     grasp_base_height: 0.5
     gripper_rate: 0.0 
     limit_yaw_rotation_penalty: 0.40 
-    margin_shaping: 0.0 # --margin_reward sets 10.0 and zeroes approaching/base_approaching
+    margin_shaping: 0.0 # --margin_reward sets 1.0 (--margin_reward_scale)
 
 sensor:
   depth_clip_lower: 0.15
