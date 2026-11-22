@@ -13,6 +13,7 @@ from utils.low_level_model import ActorCritic
 from utils.config import load_cfg, get_params, copy_cfg, validate_reward_options
 from utils.pick_success import lifted_grasp_mask, advance_pick_hold, RollingEpisodeSuccess
 from modules.pose_prediction import RollingSE3Predictor
+from utils.margin_task import InterceptionMarginMixin
 from utils.object_pose import (
     object_pose_in_arm_frame, object_pose_in_teacher_frame, pose_to_rpy_observation,
 )
@@ -36,7 +37,7 @@ SHAPING_SLOPE_PER_M = 10.0
 APPROACH_POTENTIAL_RANGE_M = 3.0
 
 
-class B1Z1PickMulti(B1Z1Base,PredictPoint):
+class B1Z1PickMulti(B1Z1Base, PredictPoint, InterceptionMarginMixin):
     def __init__(self, cfg_terrain=None, table_height=None,camera_6p_tensor=None, grasp_cv_tensor=None, cube_init_tensor=None, eval=False, *args, **kwargs):
         self.cfg_terrain = cfg_terrain
         self.eval = eval
@@ -57,6 +58,8 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.train_reward_strict = total_timesteps / 2
         self._init_sgs()
         self._init_tsil()
+        # Main line A (env.margin): needs PredictPoint's candidates and the SGS bank.
+        self._init_margin()
 
     def _init_tsil(self):
         """Persistent TSIL targets follow configurations, never simulator slots."""
@@ -224,7 +227,13 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         old_ids = self.active_config_id[env_ids]
         started = old_ids >= 0
         completed = started & self._sgs_pending_done[env_ids] & self._sgs_natural_reset
-        done_envs, done_ids = env_ids[completed], old_ids[completed]
+        # Faster-table frontier episodes (margin curriculum) are not outcomes of
+        # their bank configuration: keep them out of SGS and the family windows.
+        frontier = (self._margin_record_frontier(env_ids, completed)
+                    if getattr(self, "margin_enabled", False) else torch.zeros_like(completed))
+        finished_envs = env_ids[completed]
+        bank_completed = completed & ~frontier
+        done_envs, done_ids = env_ids[bank_completed], old_ids[bank_completed]
         successes = self.episode_success[done_envs]
         self.sgs_sampler.observe(done_ids, successes, step=self.global_step_counter)
         done_families = self.sgs_bank.tensors["family_id"][done_ids]
@@ -237,14 +246,18 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         # Success counters were already updated by check_termination, exactly
         # once at completion, independently of the reset sampler.
         self.episode_counter[env_ids] = self.episode_counter[env_ids].clamp_min(0)
-        self.episode_counter[done_envs] += 1
-        self.episode_step_sum[done_envs] += self.one_epoch_step[done_envs]
+        self.episode_counter[finished_envs] += 1
+        self.episode_step_sum[finished_envs] += self.one_epoch_step[finished_envs]
         self.one_epoch_step[env_ids] = 0
 
+        if getattr(self, "margin_enabled", False):
+            self._refresh_margin_prior()  # the M0 prior follows the decreasing delta
         new_ids = self.sgs_sampler.sample(len(env_ids))
         self.active_config_id[env_ids] = new_ids
         self._sgs_pending_done[env_ids] = False
         state = self.sgs_bank.batch(new_ids)
+        if getattr(self, "margin_enabled", False):
+            state = self._margin_apply_frontier(env_ids, state)
         self.sgs_family_samples.scatter_add_(0, state["family_id"], torch.ones_like(new_ids))
 
         # Only clear episode/controller history. Do not invoke the old reset's
@@ -313,6 +326,9 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
                 self._current_object_pose_in_arm_frame(env_ids), self.gym.get_sim_time(self.sim), env_ids)
         if getattr(self, "tsil_enabled", False):
             self._reset_tsil_state(env_ids)
+        # After every restored cache: T's state, margins, tokens and Phi(s_0).
+        if getattr(self, "margin_enabled", False):
+            self._reset_margin_state(env_ids)
         self._compute_observations(env_ids)
         self._record_sgs_metrics()
 
@@ -338,6 +354,8 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             episodes = snapshots["SGS / episodes_" + name]
             if episodes > 0:
                 snapshots["SuccessRate / " + name] = snapshots["SGS / successes_" + name] / episodes
+        if getattr(self, "margin_enabled", False):
+            self._margin_sgs_snapshots(snapshots)
         self.extras.setdefault("success_rate", {}).update(snapshots)
         # Window counts and ratios use the latest snapshot, rather than the
         # logger's ordinary mean over the writing window.
@@ -425,8 +443,14 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         if critic_reward_state and (self.no_feature or self.cfg["env"].get("lastCommands", False)):
             raise ValueError("Critic reward-state observations require object features and lastCommands=False")
         self.num_critic_state_obs = len(CRITIC_REWARD_STATE_NAMES) if critic_reward_state else 0
+        # Main line A actor block (margin tokens); zero width unless env.margin.tokens.
+        # Method-level test stand-ins may lack the mixin; they keep the old layout.
+        if hasattr(self, "_setup_margin_obs"):
+            self._setup_margin_obs()
+        else:
+            self.num_margin_obs = 0
         teacher_extra_obs = (self.num_future_pose_obs + self.num_tsil_obs + self.num_critic_time_obs
-                             + self.num_critic_state_obs)
+                             + self.num_critic_state_obs + self.num_margin_obs)
         # Student states already exclude both velocities, so their size stays fixed.
         super()._setup_obs_and_action_info(
             removed_dim=9+30*6+2-removed_velocity_dim+teacher_extra_obs,
@@ -443,6 +467,11 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.critic_state_obs_index = (
             -(self.cfg["env"]["numActions"] + 30*6 + self.num_tsil_obs + self.num_future_pose_obs
               + self.num_critic_time_obs + self.num_critic_state_obs) if critic_reward_state else None)
+        # The margin block sits before the reward-state block, keeping every index above.
+        self.margin_obs_index = (
+            -(self.cfg["env"]["numActions"] + 30*6 + self.num_tsil_obs + self.num_future_pose_obs
+              + self.num_critic_time_obs + self.num_critic_state_obs + self.num_margin_obs)
+            if self.num_margin_obs else None)
 
         
     def _extra_env_settings(self):
@@ -666,6 +695,10 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             env_ids = env_ids[valid]
             full_task_id = self.sgs_bank.family_names.index("full_task")
             env_ids = env_ids[family_ids[config_ids[valid]] == full_task_id]
+            frontier = getattr(self, "margin_frontier_active", None)
+            if frontier is not None:
+                # Sped-up tables are curriculum variants, not the bank's full task.
+                env_ids = env_ids[~frontier[env_ids]]
         outcomes = torch.stack((env_ids % len(self.obj_list),
                                 self.pick_success_recorded[env_ids].long()), dim=1)
         self.success_window.extend(outcomes.cpu().tolist())
@@ -690,6 +723,11 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         if len(env_ids) > 0:
             self.episode_step_sum[env_ids] += self.one_epoch_step[env_ids]
             self.one_epoch_step[env_ids] = 0.0
+            if getattr(self, "margin_enabled", False):
+                # The base reset restores the EE goal after its observation; recompute
+                # the margin from the complete initial state, then the observation.
+                self._reset_margin_state(env_ids)
+                self._compute_observations(env_ids)
                 
 
                 
@@ -818,6 +856,9 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             self.object_pose_predictor.push(
                 self._current_object_pose_in_arm_frame(), self.gym.get_sim_time(self.sim))
             self.object_pose_predictor.predict()
+        # Main line A: margins of the post-step state, before termination and rewards.
+        if getattr(self, "margin_enabled", False):
+            self._margin_step_update()
 
     def _future_object_observations(self, env_ids, current_object_obs):
         if self.object_pose_predictor is None:
@@ -877,7 +918,10 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
                 critic_state_obs = (
                     self._critic_reward_state(env_ids).to(obs.dtype)
                     if getattr(self, "num_critic_state_obs", 0) else obs.new_empty((len(env_ids), 0)))
-                obs_new = torch.cat([obs[...,:-6],critic_state_obs,critic_time_obs,future_obs,temporal_obs,grasp_predict_world_pos_flat,grasp_predict_world_rpy_flat],dim = -1)
+                # Actor-visible margin tokens (EKF-based), placed before the critic-only blocks.
+                margin_obs = (self._margin_observations(env_ids, obs) if getattr(self, "num_margin_obs", 0)
+                              else obs.new_empty((len(env_ids), 0)))
+                obs_new = torch.cat([obs[...,:-6],margin_obs,critic_state_obs,critic_time_obs,future_obs,temporal_obs,grasp_predict_world_pos_flat,grasp_predict_world_rpy_flat],dim = -1)
 
                 self.obs_buf[env_ids] = torch.cat([self.feature_obs[env_ids, :], obs_new, self.action_history_buf[env_ids, -1]], dim=-1) # self.action_history_buf: [num_env,3,9], obs: [num_env, 61]
 

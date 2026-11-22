@@ -25,7 +25,9 @@ def teacher_models():
     source = ROOT / "train_multistate_DQ_teacher.py"
     tree = ast.parse(source.read_text())
     classes = [node for node in tree.body
-               if isinstance(node, ast.ClassDef) and node.name in ("Policy", "Value")]
+               if (isinstance(node, ast.ClassDef) and node.name in ("Policy", "Value"))
+               or (isinstance(node, ast.FunctionDef)
+                   and node.name in ("margin_token_slice", "margin_tokens_from"))]
     namespace = dict(torch=torch, nn=nn, Model=Model, GaussianMixin=GaussianMixin,
                      DeterministicMixin=DeterministicMixin,
                      PredictAttentionSelector=PredictAttentionSelector,

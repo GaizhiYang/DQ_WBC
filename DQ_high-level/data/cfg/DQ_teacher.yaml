@@ -36,6 +36,34 @@ env:
     temperature: 2.0
     epsilon: 0.0001
     p_init: 0.0
+  margin: # Main line A (doc/主线A_实现说明.md): learned time-to-reach T and interception margin M; off unless reachModel is set
+    reachModel: "" # --reach_model: train_reachability.py output, analytic (baseline B3), or new:mlp/new:quasimetric with online
+    horizonStep: 0.3 # seconds between margin horizons; the first horizon is 0
+    horizonCount: 16 # 0.0, 0.3, ..., 4.5 s
+    clip: 2.0 # seconds; potential Phi = (clip(M, -clip, clip) / clip + 1) / 2, and 1 once lifted
+    chunkEnvs: 1024 # environments per T evaluation chunk (GPU memory)
+    candidates: 30 # grasp candidates per object
+    reward: False # --margin_reward: potential-based margin shaping (reward.scales.margin_shaping)
+    keepTracking: False # --margin_keep_tracking: keep approaching/base_approaching with the margin reward
+    tokens: False # --margin_tokens: actor/critic GFM attend to per-horizon best-grasp tokens (world-frame EKF)
+    curriculum: disabled # --margin_curriculum: disabled / prior (M0 prior in SGS) / frontier (prior + faster tables)
+    priorStrength: 4.0 # pseudo-episodes of the M0 prior
+    priorTemperature: 0.5 # seconds
+    deltaStart: 0.5 # seconds; curriculum threshold delta, linear over training ...
+    deltaEnd: 0.0 # ... to this value
+    frontierProbability: 0.25 # fraction of full_task resets offered a faster table
+    frontierMaxSpeedScale: 1.6 # 0.30 m/s x 1.6 = 0.48 m/s at most
+    frontierCandidates: 8
+    online: False # --reach_online: refine T during training (EMA target, checkpointed)
+    onlineInterval: 24 # environment steps between updates
+    onlineUpdates: 8
+    onlineBatch: 8192
+    onlineLearningRate: 0.0003
+    onlineEmaDecay: 0.99
+    onlineFreezeFraction: 0.5 # T stops changing after this fraction of training
+    window: 48 # hindsight window, environment steps
+    maxPairSteps: 32 # longest hindsight pair, environment steps
+    expectile: 0.1 # low expectile: lower envelope of the observed reach times
   posePrediction:
     enabled: False # Enable with --future_pose_obs; original checkpoints keep their original observation size
     gfmFuturePoses: True # Feed forecast poses (excluding validity) into Actor/Critic GFM Query; absent in legacy configs means False
@@ -269,6 +297,7 @@ reward:
     grasp_base_height: 0.5
     gripper_rate: 0.0 
     limit_yaw_rotation_penalty: 0.40 
+    margin_shaping: 0.0 # --margin_reward sets 10.0 and zeroes approaching/base_approaching
 
 sensor:
   depth_clip_lower: 0.15

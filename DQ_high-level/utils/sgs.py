@@ -134,6 +134,35 @@ class SGSSampler:
         self.success_sum = torch.zeros_like(self.count)
         self.visits_total = torch.zeros_like(self.count)
         self.last_seen = torch.full_like(self.count, -1)
+        # Optional feasibility prior (main line A curriculum); None keeps SGS exact.
+        self.prior_rates = None
+        self.prior_strength = 0.0
+
+    def set_prior(self, rates, strength):
+        """Blend `strength` pseudo-outcomes at `rates` into the sampling estimate.
+
+        Only sampling uses the prior; success_rates() and metrics stay the
+        observed histories. strength 0 or rates None restores plain SGS.
+        """
+        if rates is None or strength == 0:
+            self.prior_rates, self.prior_strength = None, 0.0
+            return
+        if not math.isfinite(float(strength)) or strength < 0:
+            raise ValueError("prior strength must be nonnegative and finite")
+        rates = torch.as_tensor(rates, dtype=torch.float32, device=self.device)
+        if rates.shape != (self.num_configs,):
+            raise ValueError("prior rates need one value per configuration")
+        self.prior_rates = rates.clamp(0.0, 1.0)
+        self.prior_strength = float(strength)
+
+    @torch.no_grad()
+    def sampling_rates(self):
+        """Success estimates used for sampling: observed, or Beta-smoothed by the prior."""
+        if self.prior_rates is None:
+            return self.success_rates()
+        n0 = self.prior_strength
+        return ((self.success_sum.to(torch.float32) + n0 * self.prior_rates)
+                / (self.count.to(torch.float32) + n0))
 
     @property
     def valid_count(self):
@@ -210,7 +239,7 @@ class SGSSampler:
             return torch.full(
                 (self.num_configs,), 1.0 / self.num_configs,
                 dtype=torch.float32, device=self.device)
-        rates = self.success_rates()
+        rates = self.sampling_rates()
         log_weight = (
             self.concentration * self.target_success_rate * torch.log(rates + self.epsilon)
             + self.concentration * (1.0 - self.target_success_rate)

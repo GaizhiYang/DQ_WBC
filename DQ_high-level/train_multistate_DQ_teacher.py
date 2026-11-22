@@ -23,13 +23,15 @@ from envs import *    #import b1z1_pickmulti.py
 from PredictPiontTransform.predictpoint_mul import PredictPoint
 from utils.config import (load_cfg, get_params, copy_cfg, configure_teacher_experiment,
                           teacher_run_end, apply_pose_prediction_config, apply_actor_history_config,
-                          apply_action_scaling_config, apply_reward_options)
+                          apply_action_scaling_config, apply_reward_options, apply_margin_config)
 import utils.wrapper as wrapper
 import time
 from legged_gym.envs.manip_loco.b1z1_config import B1Z1RoughCfg
 from modules.predictattention import PredictAttentionSelector, teacher_gfm_kwargs
 from utils.tsil_checkpoint import (TemporalCheckpointMetadata, read_temporal_checkpoint,
                                    restore_temporal_arguments)
+# Re-exported: rollout scripts import get_predict_point from this entry point.
+from utils.grasp_candidates import get_predict_point
 
 
 def checkpoint_step(path, required=False):
@@ -106,13 +108,37 @@ def create_env(cfg, args, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor ):
     wrapped_env = wrapper.IsaacGymPreview3Wrapper(_env, actor_history_frames=history_frames)
     return wrapped_env
 
+def margin_token_slice(body_width, notrain_obs_num, num_actions, num_features, margin_index,
+                       margin_tokens, margin_token_dim, margin_scalars):
+    """Slice of the margin tokens inside the state block, or None without them.
+
+    margin_index counts from the end of the frame (like critic_time_index); the
+    block holds margin_scalars values, then margin_tokens x margin_token_dim.
+    """
+    if margin_index is None:
+        return None
+    width = margin_scalars + margin_tokens * margin_token_dim
+    position = body_width + margin_index + notrain_obs_num + num_actions
+    if (num_features <= 0 or margin_tokens <= 0 or margin_token_dim <= 0 or margin_scalars < 0
+            or position < 6 or position + width > body_width):
+        raise ValueError("margin_index/tokens must point inside the teacher state block")
+    return slice(position + margin_scalars, position + width)
+
+
+def margin_tokens_from(state_block, token_slice, num_tokens, token_dim):
+    if token_slice is None:
+        return None
+    return state_block[..., token_slice].reshape(-1, num_tokens, token_dim)
+
+
 # define models (stochastic and deterministic models) using mixins
 class Policy(GaussianMixin, Model, PredictAttentionSelector):
     def __init__(self, observation_space, action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor,
                   use_tanh=False, clip_actions=False,
                  clip_log_std=True, min_log_std=-20, max_log_std=2, reduction="sum", deterministic=False,
                  num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None, actor_history_frames=1,
-                 action_scaling="legacy", critic_state_index=None, critic_state_width=0):
+                 action_scaling="legacy", critic_state_index=None, critic_state_width=0,
+                 margin_index=None, margin_tokens=0, margin_token_dim=0, margin_scalars=0):
         Model.__init__(self, observation_space, action_space, device)
         if type(actor_history_frames) is not int or actor_history_frames < 1 or self.num_observations % actor_history_frames:
             raise ValueError("actor_history_frames must evenly divide the observation width")
@@ -129,7 +155,9 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
         transform_func = torch.distributions.transforms.TanhTransform() if use_tanh else None
         GaussianMixin.__init__(self, clip_actions, clip_log_std, min_log_std, max_log_std, reduction, transform_func=transform_func, deterministic=deterministic)
         PredictAttentionSelector.__init__(self, d_model=64, obj_feat_dim=encode_dim or 128,
-                                          future_pose_dim=num_future_pose_obs - 1 if num_future_pose_obs else 0)
+                                          future_pose_dim=num_future_pose_obs - 1 if num_future_pose_obs else 0,
+                                          token_dim=margin_token_dim if margin_index is not None else 0,
+                                          num_tokens=margin_tokens if margin_index is not None else 0)
 
         self.to(device)
         self.num_features = num_features # 1024
@@ -156,6 +184,10 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
                     or position < 6 or position + critic_state_width > body_width):
                 raise ValueError("critic_state_index/width must point inside the teacher state block")
             self.critic_state_position = position
+        # Margin tokens go to the GFM only; the margin scalars stay in the MLP input.
+        self.margin_token_slice = margin_token_slice(body_width, self.notrain_obs_num, self.num_actions,
+                                                     num_features, margin_index, margin_tokens,
+                                                     margin_token_dim, margin_scalars)
         # (position, width), removed from the highest position down so that each
         # cut leaves the earlier positions unchanged.
         blocks = []
@@ -163,6 +195,8 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
             blocks.append((self.critic_time_position, 1))
         if self.critic_state_position is not None:
             blocks.append((self.critic_state_position, critic_state_width))
+        if self.margin_token_slice is not None:
+            blocks.append((self.margin_token_slice.start, margin_tokens * margin_token_dim))
         blocks.sort(reverse=True)
         if any(low + width > high for (high, _), (low, width) in zip(blocks, blocks[1:])):
             raise ValueError("Critic-only observation channels must not overlap")
@@ -211,9 +245,11 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
         if self.num_features > 0:
             features_encode = self.feature_encoder(inputs["states"][..., :self.num_features]) # input : (envs,1024), output : (envs,128)
             future_pose_obs = inputs["states"][..., self.future_pose_slice] if self.future_pose_dim else None
-            right_predict_point = self.attention_forward(grasps=grasp_predict_local, obj_feat=features_encode,
-                                                        pose=cube_local_pos_rpy, future_pose_obs=future_pose_obs)
             state_block = inputs["states"][..., self.num_features:-self.notrain_obs_num-self.num_actions]
+            right_predict_point = self.attention_forward(grasps=grasp_predict_local, obj_feat=features_encode,
+                                                        pose=cube_local_pos_rpy, future_pose_obs=future_pose_obs,
+                                                        tokens=margin_tokens_from(state_block, self.margin_token_slice,
+                                                                                  self.num_tokens, self.token_dim))
             for position, width in self.critic_only_blocks:
                 state_block = torch.cat((state_block[..., :position],
                                          state_block[..., position + width:]), dim=-1)
@@ -226,7 +262,8 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
 class Value(DeterministicMixin, Model, PredictAttentionSelector):
     def __init__(self, observation_space, action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor,
                  num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None, actor_history_frames=1,
-                 critic_state_index=None, critic_state_width=0):
+                 critic_state_index=None, critic_state_width=0,
+                 margin_index=None, margin_tokens=0, margin_token_dim=0, margin_scalars=0):
         # The critic-only indices need no handling here: the value MLP consumes
         # the whole state block, including the progress and reward-state channels.
         Model.__init__(self, observation_space, action_space, device)
@@ -235,7 +272,9 @@ class Value(DeterministicMixin, Model, PredictAttentionSelector):
         self.frame_observations = self.num_observations // actor_history_frames
         DeterministicMixin.__init__(self)
         PredictAttentionSelector.__init__(self, d_model=64, obj_feat_dim=encode_dim or 128,
-                                          future_pose_dim=num_future_pose_obs - 1 if num_future_pose_obs else 0)
+                                          future_pose_dim=num_future_pose_obs - 1 if num_future_pose_obs else 0,
+                                          token_dim=margin_token_dim if margin_index is not None else 0,
+                                          num_tokens=margin_tokens if margin_index is not None else 0)
 
         self.to(device)
 
@@ -245,6 +284,11 @@ class Value(DeterministicMixin, Model, PredictAttentionSelector):
         self.notrain_obs_num = 3*self.cube_object_num + 3*self.cube_object_num # 30 cube's pos + rpy feature_num
         future_end = -(self.notrain_obs_num + self.num_actions + num_tsil_obs)
         self.future_pose_slice = slice(future_end - num_future_pose_obs, future_end - 1)
+        # The critic MLP keeps the whole state block, tokens included; its GFM also attends to them.
+        body_width = self.frame_observations - self.num_features - self.notrain_obs_num - self.num_actions
+        self.margin_token_slice = margin_token_slice(body_width, self.notrain_obs_num, self.num_actions,
+                                                     num_features, margin_index, margin_tokens,
+                                                     margin_token_dim, margin_scalars)
         
         if num_features > 0:
             self.feature_encoder = nn.Sequential(nn.Linear(self.num_features, 512), # input : (envs,1024), output : (envs,512)
@@ -277,85 +321,16 @@ class Value(DeterministicMixin, Model, PredictAttentionSelector):
         if self.num_features > 0:
             features_encode = self.feature_encoder(inputs["states"][..., :self.num_features]) # input : (envs,1024), output : (envs,128)
             future_pose_obs = inputs["states"][..., self.future_pose_slice] if self.future_pose_dim else None
+            state_block = inputs["states"][..., self.num_features:-self.notrain_obs_num-self.num_actions]
             right_predict_point = self.attention_forward(grasps=grasp_predict_local, obj_feat=features_encode,
-                                                        pose=cube_local_pos_rpy, future_pose_obs=future_pose_obs)
+                                                        pose=cube_local_pos_rpy, future_pose_obs=future_pose_obs,
+                                                        tokens=margin_tokens_from(state_block, self.margin_token_slice,
+                                                                                  self.num_tokens, self.token_dim))
             actions = self.net(torch.cat([inputs["states"][..., self.num_features:-self.notrain_obs_num-self.num_actions],last_action , features_encode,right_predict_point], dim=-1))
             return actions, {}        
         else:
             return self.net(inputs["states"]), {}
 
-
-def get_predict_point(camera_6p_info=None, cube_predict_info_path=None, cube_root_states_info_path=None, num_env=None, intervel=None, delta_height=None, object_indices=None):
-    import json
-    import os
-    import torch
-    import numpy as np
-    from scipy.spatial.transform import Rotation as R
-
-    curr_dir = os.getcwd()
-    data_dir = os.path.join(curr_dir,"PredictPiontTransform" , "transform_info")
-    cube_root_states_info_path = os.path.join(data_dir, cube_root_states_info_path)
-
-    # load cubes's states（position + quaternion + velocity...）
-    cube_states = torch.load(cube_root_states_info_path, map_location="cpu")[0]
-    if object_indices is None:
-        object_indices = list(range(cube_states.shape[0]))
-    if not object_indices or any(i < 0 or i >= cube_states.shape[0] for i in object_indices):
-        raise ValueError(f"Object dict_idx values must be in [0, {cube_states.shape[0] - 1}]")
-    # Keep initial poses and grasp predictions in the same order as asset_multi.
-    cube_states = cube_states[object_indices]
-    cprint(f"cube_states.shape is {cube_states.shape}", "yellow")
-
-    cube_pos = cube_states[:, :3]
-    cube_quat = cube_states[:, 3:7]
-    cube_rpy = torch.tensor(R.from_quat(cube_quat.numpy()).as_euler('xyz'))  # turn to RPY
-    cube_init_tensor = torch.cat([cube_pos, cube_rpy], dim=1)
-    cube_init_tensor = cube_init_tensor.to(torch.float32)
-
-    base_n = cube_init_tensor.shape[0]  
-    T_grasp_cv_all = []
-
-    # read base_num sample's all transform
-    for i in object_indices:
-        sample_dir = os.path.join(data_dir, cube_predict_info_path)
-        json_path = os.path.join(sample_dir, f"predictions_image_{(i):02d}.json")
-        with open(json_path, 'r') as f:
-            data = json.load(f)
-        grasp_matrices = np.array(data['transform'])  
-        T_grasp_cv_all.append(grasp_matrices)
-
-    # Shape: [number of selected objects, candidate grasps per object, 4, 4].
-    T_grasp_cv_all = np.stack(T_grasp_cv_all, axis=0)
-    n_grasps = T_grasp_cv_all.shape[1]  # get n
-    T_grasp_cv_all = torch.tensor(T_grasp_cv_all, dtype=torch.float32)
-
-    # extent to num_env
-    T_grasp_cv_list = [T_grasp_cv_all[i % base_n] for i in range(num_env)]
-    grasp_cv_tensor = torch.stack(T_grasp_cv_list, dim=0)  # 形状 [num_env, n, 4, 4]
-
-    camera_tensor = []
-    cube_init_list = []
-    cube_init_ori_list = []
-
-    for i in range(num_env):
-        base_idx = i % base_n
-        height_offset = (delta_height / intervel) * ((i % intervel) + 1)
-
-        # the initial pose of the camera, x,y is related to the initial pose of the float base 
-        camera_x = -0.3
-        camera_y = 2.0
-        camera_z = 0.80 + height_offset
-        camera_info = [camera_x, camera_y, camera_z, 0.0, 0.70, 0.0]
-        camera_tensor.append([camera_info] * n_grasps)
-
-        cube_init = cube_init_tensor[base_idx].clone()
-        cube_init[2] += height_offset 
-        cube_init_list.append([cube_init] * n_grasps)
-        cube_init_ori_list.append(cube_init)
-
-    camera_tensor = torch.tensor(camera_tensor, dtype=torch.float32)  # [num_env, n, 6]
-    cube_init_tensor = torch.stack([torch.stack(cube_init, dim=0) for cube_init in cube_init_list], dim=0)  # [num_env, n, 6]
-    return camera_tensor, grasp_cv_tensor, cube_init_tensor
 
 def get_trainer(is_eval=False, strict_eval=False):
     args = get_params()
@@ -416,6 +391,17 @@ def get_trainer(is_eval=False, strict_eval=False):
     cprint(f"Teacher critic reward-state input: {'enabled' if cfg['env'].get('criticRewardStateObs', False) else 'disabled'}", "yellow")
     reward_options = apply_reward_options(cfg, args)
     cprint(f"Teacher reward options: {reward_options}", "yellow")
+    if is_eval and args.checkpoint and args.reach_model is None:
+        # A saved run keeps a copy of its T file; use it if the original moved.
+        spec = cfg["env"].get("margin", {}).get("reachModel", "")
+        saved = Path(args.checkpoint).resolve().parent.parent / "reach_model_initial.pt"
+        if (spec and spec != "analytic" and not spec.startswith("new:")
+                and not Path(spec).is_file() and saved.is_file()):
+            cfg["env"]["margin"]["reachModel"] = str(saved)
+    margin_settings = apply_margin_config(cfg, args)
+    if margin_settings["reachModel"]:
+        cprint("Main line A margin: model={reachModel} reward={reward} tokens={tokens} "
+               "curriculum={curriculum} online={online}".format(**margin_settings), "yellow")
     multi_obj = cfg["env"]["asset"]["asset_multi"]
     if args.object_name is not None:
         if args.object_name not in multi_obj:
@@ -485,7 +471,7 @@ def get_trainer(is_eval=False, strict_eval=False):
     cfg_ppo["learning_epochs"] = 5
     cfg_ppo["mini_batches"] = 6  # 24 * 8192 / 32768
     cfg_ppo["discount_factor"] = 0.99
-    if (reward_options["approachShaping"] == "potential"
+    if ((reward_options["approachShaping"] == "potential" or margin_settings["reward"])
             and reward_options["shapingGamma"] != cfg_ppo["discount_factor"]):
         # Potential shaping preserves the optimal policy only with the agent's discount.
         raise ValueError("reward.shapingGamma must equal the PPO discount factor "
@@ -538,6 +524,10 @@ def get_trainer(is_eval=False, strict_eval=False):
     if cfg["env"]["tsil"]["enabled"]:
         agent.checkpoint_modules["tsil_metadata"] = TemporalCheckpointMetadata(
             experiment_cfg, args, env.observation_space.shape[0], env.tsil_time_reference)
+    if getattr(env._env, "margin_learner", None) is not None:
+        # Online T (EMA target included) travels with each checkpoint, so evaluation
+        # rebuilds the actor's margin tokens with the T that training used last.
+        agent.checkpoint_modules["reach_learner"] = env._env.margin_learner
     
     # Keep the trainer's rendering setting consistent with the environment.
     # When --headless is omitted, SKRL must call env.render() so the Isaac Gym
@@ -580,6 +570,11 @@ def get_trainer(is_eval=False, strict_eval=False):
                            "checkpoint_kind": ("temporal_teacher_evaluation" if
                                                cfg["env"]["tsil"]["enabled"] else "model_only")},
                           stream, indent=2)
+        reach_spec = experiment_cfg["env"].get("margin", {}).get("reachModel", "")
+        if reach_spec and Path(reach_spec).is_file():
+            import shutil
+            # Provenance: the exact T file the rewards, tokens and curriculum used.
+            shutil.copy2(reach_spec, metadata_path.parent / "reach_model_initial.pt")
         if experiment_cfg["env"]["sgs"]["mode"] != "disabled":
             bank = env.sgs_bank
             bank_metadata = {"fingerprint": bank.fingerprint, "num_configs": bank.num_configs,
@@ -625,6 +620,13 @@ if __name__ == "__main__":
     if trainer.teacher_config["env"]["sgs"]["mode"] != "disabled":
         # Diagnostic history is not a checkpoint for resuming training.
         trainer.env.save_sgs_diagnostics(str(run_dir / "sgs_diagnostics.pt"))
+    learner = getattr(trainer.env._env, "margin_learner", None)
+    if learner is not None:
+        from modules.reachability import save_reach_model
+        # The EMA target that produced rewards/tokens; reusable via --reach_model.
+        save_reach_model(run_dir / "reach_model_final.pt", learner.target, {
+            "gripper_body_index": trainer.env._env.gripper_idx, "source": "online",
+            "updates": learner.updates, "run": str(run_dir)})
     if trainer.teacher_args.stop_after is not None:
         # This is a model checkpoint for smoke evaluation, not a sampler resume.
         checkpoint_dir = run_dir / "checkpoints"

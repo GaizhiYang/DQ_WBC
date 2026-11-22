@@ -347,6 +347,19 @@ class Agent:
                 for name, value in zip(names, values.cpu().tolist()):
                     self.track_data(name, value)
 
+            # Named environment diagnostics (main line A margins, reach-model training):
+            # GPU scalars move to the host together; plain floats are tracked directly.
+            diagnostics = infos.get("diagnostics", {})
+            if diagnostics:
+                tensors = {name: value for name, value in diagnostics.items() if torch.is_tensor(value)}
+                if tensors:
+                    values = torch.stack([value.detach().float().reshape(()) for value in tensors.values()])
+                    for name, value in zip(tensors, values.cpu().tolist()):
+                        self.track_data(name, value)
+                for name, value in diagnostics.items():
+                    if not torch.is_tensor(value):
+                        self.track_data(name, float(value))
+
             if "success_rate" in infos.keys():
                 # These are completed-episode window snapshots. Replace the
                 # previous snapshot, including categories that left the window.

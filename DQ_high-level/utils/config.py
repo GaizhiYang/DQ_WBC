@@ -271,6 +271,143 @@ def apply_reward_options(cfg, args):
     return {name: cfg["reward"][name] for name in REWARD_OPTION_DEFAULTS}
 
 
+MARGIN_CURRICULUM_MODES = ("disabled", "prior", "frontier")
+MARGIN_DEFAULTS = {
+    "reachModel": "",            # trained T file, "analytic" (B3), "new:mlp"/"new:quasimetric" (online), "" = off
+    "horizonStep": 0.3,          # seconds between margin horizons; the first horizon is 0
+    "horizonCount": 16,          # 0.0, 0.3, ..., 4.5 s
+    "clip": 2.0,                 # seconds; potential Phi = clip(M, -clip, clip) / clip
+    "chunkEnvs": 1024,           # environments per T evaluation chunk (GPU memory)
+    "candidates": 30,            # grasp candidates per object (the first N of PredictPoint's)
+    "reward": False,             # potential-based margin shaping, weight reward.scales.margin_shaping
+    "keepTracking": False,       # with reward: keep approaching/base_approaching (default: replace)
+    "tokens": False,             # actor: per-horizon best-grasp tokens from world-frame EKF forecasts
+    "curriculum": "disabled",    # disabled | prior | frontier (dynamic SGS; requires SGS)
+    "priorStrength": 4.0,        # pseudo-episodes of the M0 prior in the SGS success estimate
+    "priorTemperature": 0.5,     # seconds
+    "deltaStart": 0.5,           # seconds; delta decreases linearly over training ...
+    "deltaEnd": 0.0,             # ... to this value
+    "frontierProbability": 0.25, # frontier: fraction of full_task resets offered a faster table
+    "frontierMaxSpeedScale": 1.6,
+    "frontierCandidates": 8,
+    "online": False,             # refine T during training from the policy's own rollouts
+    "onlineInterval": 24,        # environment steps between updates (one PPO rollout)
+    "onlineUpdates": 8,
+    "onlineBatch": 8192,
+    "onlineLearningRate": 3.0e-4,
+    "onlineEmaDecay": 0.99,
+    "onlineFreezeFraction": 0.5, # stop updating T after this training fraction (fixed potential after)
+    "window": 48,                # hindsight window, environment steps
+    "maxPairSteps": 32,          # longest hindsight pair, environment steps
+    "expectile": 0.1,
+}
+MARGIN_REWARD_SCALE_DEFAULT = 10.0
+
+
+def validate_margin_config(env_cfg, reward_cfg=None):
+    """Return env.margin with defaults; a missing section means main line A is off."""
+    settings = dict(MARGIN_DEFAULTS)
+    settings.update(env_cfg.get("margin", {}) or {})
+    unknown = set(settings) - set(MARGIN_DEFAULTS)
+    if unknown:
+        raise ValueError("unknown env.margin keys: " + ", ".join(sorted(unknown)))
+    model = settings["reachModel"]
+    if not isinstance(model, str):
+        raise ValueError("env.margin.reachModel must be a string")
+    for name in ("reward", "keepTracking", "tokens", "online"):
+        if type(settings[name]) is not bool:
+            raise ValueError(f"env.margin.{name} must be a boolean")
+    if settings["curriculum"] not in MARGIN_CURRICULUM_MODES:
+        raise ValueError(f"env.margin.curriculum must be one of {MARGIN_CURRICULUM_MODES}")
+    for name in ("horizonStep", "clip", "priorTemperature", "frontierMaxSpeedScale",
+                 "onlineLearningRate"):
+        value = settings[name]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+            raise ValueError(f"env.margin.{name} must be positive and finite")
+    for name in ("priorStrength", "deltaStart", "deltaEnd"):
+        value = settings[name]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise ValueError(f"env.margin.{name} must be finite")
+    if settings["priorStrength"] < 0:
+        raise ValueError("env.margin.priorStrength must be nonnegative")
+    for name in ("horizonCount", "chunkEnvs", "candidates", "frontierCandidates", "onlineInterval",
+                 "onlineUpdates", "onlineBatch", "window", "maxPairSteps"):
+        if type(settings[name]) is not int or settings[name] < 1:
+            raise ValueError(f"env.margin.{name} must be a positive integer")
+    if settings["candidates"] > 30:
+        raise ValueError("env.margin.candidates must not exceed the 30 PredictPoint candidates")
+    if settings["maxPairSteps"] >= settings["window"]:
+        raise ValueError("env.margin.maxPairSteps must be smaller than env.margin.window")
+    for name in ("frontierProbability", "onlineFreezeFraction"):
+        value = settings[name]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0 <= value <= 1:
+            raise ValueError(f"env.margin.{name} must be in [0, 1]")
+    if not 0 < settings["expectile"] < 1 or not 0 <= settings["onlineEmaDecay"] < 1:
+        raise ValueError("env.margin.expectile must be in (0, 1) and onlineEmaDecay in [0, 1)")
+    if settings["frontierMaxSpeedScale"] < 1:
+        raise ValueError("env.margin.frontierMaxSpeedScale must be at least 1")
+    enabled = bool(model)
+    uses = [name for name in ("reward", "tokens", "online") if settings[name]]
+    if settings["curriculum"] != "disabled":
+        uses.append("curriculum")
+    if uses and not enabled:
+        raise ValueError("env.margin." + "/".join(uses) + " requires env.margin.reachModel")
+    if model.startswith("new:"):
+        if model not in ("new:mlp", "new:quasimetric"):
+            raise ValueError("env.margin.reachModel new:<kind> supports new:mlp and new:quasimetric")
+        if not settings["online"]:
+            raise ValueError("an untrained reach model (new:...) requires env.margin.online")
+    if model == "analytic" and settings["online"]:
+        raise ValueError("the analytic reach model cannot be trained online")
+    scale = (reward_cfg or {}).get("scales", {}).get("margin_shaping", 0.0)
+    if settings["reward"] != bool(scale):
+        raise ValueError("env.margin.reward and a nonzero reward.scales.margin_shaping go together")
+    if settings["reward"] and (reward_cfg or {}).get("only_positive_rewards", False):
+        raise ValueError("margin shaping requires only_positive_rewards=False")
+    return settings
+
+
+def apply_margin_config(cfg, args):
+    """Explicit CLI flags override env.margin; the result is stored back in cfg.
+
+    --margin_reward also sets reward.scales.margin_shaping (default 10.0) and,
+    unless --margin_keep_tracking, zeroes the tracking rewards it replaces.
+    """
+    settings = dict(MARGIN_DEFAULTS)
+    settings.update(cfg["env"].get("margin", {}) or {})
+    scales = cfg["reward"].setdefault("scales", {})
+    model = getattr(args, "reach_model", None)
+    if model is not None:
+        if model not in ("", "analytic") and not model.startswith("new:"):
+            path = Path(model).expanduser()
+            if not path.is_file():
+                raise ValueError(f"--reach_model file not found: {model}")
+            model = str(path.resolve())
+        settings["reachModel"] = model
+    for key, argument in (("tokens", "margin_tokens"), ("online", "reach_online"),
+                          ("curriculum", "margin_curriculum"), ("keepTracking", "margin_keep_tracking")):
+        value = getattr(args, argument, None)
+        if value is not None:
+            settings[key] = value
+    if getattr(args, "margin_reward", None) is not None:
+        settings["reward"] = args.margin_reward
+        if args.margin_reward:
+            scale = getattr(args, "margin_reward_scale", None)
+            scales["margin_shaping"] = MARGIN_REWARD_SCALE_DEFAULT if scale is None else scale
+        else:
+            scales["margin_shaping"] = 0.0
+    elif getattr(args, "margin_reward_scale", None) is not None:
+        scales["margin_shaping"] = args.margin_reward_scale
+    scales.setdefault("margin_shaping", 0.0)
+    if settings["reward"] and not settings["keepTracking"]:
+        # Ours-R replaces the chase-the-current-position terms (doc section 3.2).
+        scales["approaching"] = 0.0
+        scales["base_approaching"] = 0.0
+    cfg["env"]["margin"] = settings
+    validate_margin_config(cfg["env"], cfg["reward"])
+    return settings
+
+
 def get_parser():
     parser = argparse.ArgumentParser(
         prog="Z1 training",
@@ -348,6 +485,32 @@ def get_parser():
     parser.set_defaults(value_clip=None)
     parser.add_argument("--gae_lambda", type=float, default=None,
                         help="GAE lambda (default 0.95).")
+    # Main line A: learned time-to-reach T and interception margin M.
+    parser.add_argument("--reach_model", type=str, default=None,
+                        help="Time-to-reach model: a file from train_reachability.py, 'analytic' "
+                             "(baseline B3), or new:mlp / new:quasimetric with --reach_online.")
+    parser.add_argument("--margin_reward", dest="margin_reward", action="store_true",
+                        help="Potential-based interception-margin shaping; replaces approaching and "
+                             "base_approaching unless --margin_keep_tracking.")
+    parser.add_argument("--no_margin_reward", dest="margin_reward", action="store_false")
+    parser.set_defaults(margin_reward=None)
+    parser.add_argument("--margin_reward_scale", type=float, default=None,
+                        help="reward.scales.margin_shaping with --margin_reward (default 10.0).")
+    parser.add_argument("--margin_keep_tracking", dest="margin_keep_tracking", action="store_true",
+                        help="Keep the original tracking rewards alongside margin shaping.")
+    parser.set_defaults(margin_keep_tracking=None)
+    parser.add_argument("--margin_tokens", dest="margin_tokens", action="store_true",
+                        help="Actor and critic GFM attend to per-horizon best-grasp tokens with margins "
+                             "(world-frame EKF forecasts, real-obtainable with odometry).")
+    parser.add_argument("--no_margin_tokens", dest="margin_tokens", action="store_false")
+    parser.set_defaults(margin_tokens=None)
+    parser.add_argument("--margin_curriculum", choices=MARGIN_CURRICULUM_MODES, default=None,
+                        help="prior: M0 feasibility prior in SGS sampling. frontier: prior plus "
+                             "faster-table variants of full_task resets at the M0 frontier.")
+    parser.add_argument("--reach_online", dest="reach_online", action="store_true",
+                        help="Refine T during training from hindsight pairs (EMA target, frozen later).")
+    parser.add_argument("--no_reach_online", dest="reach_online", action="store_false")
+    parser.set_defaults(reach_online=None)
     parser.add_argument("--action_scaling", choices=ACTION_SCALING_MODES, default=None,
                         help="legacy: clip raw policy outputs at the physical limits. "
                              "normalized: clip outputs to [-1, 1], then scale to the limits "
