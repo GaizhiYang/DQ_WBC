@@ -59,7 +59,6 @@ Actor 从不接触 `M_priv`。
 ```bash
 python diagnose_pursuit.py --checkpoint <B1> --task B1Z1PickMulti --object_name sugar_box --headless --rand_control --eval_episodes 800 --eval_output outputs/d1_pursuit.json
 ```
-
 先看 `summary.linear` 和 `summary.circle` 两组：
 
 - **追踪**：`heading_error` 远小于 `lead_reference`，`los_rate` 很大；
@@ -68,7 +67,7 @@ python diagnose_pursuit.py --checkpoint <B1> --task B1Z1PickMulti --object_name 
 ### 3.2 训练 T，同时完成关卡 D2
 
 ```bash
-python train_reachability.py --checkpoint <B1> --task B1Z1PickMulti --object_name sugar_box --headless --rand_control --num_envs 2048 --reach_output data/reach/sugar_box_mlp
+python train_reachability.py --checkpoint DQ_teacher/b1-pick-sugar-box-sgs-ekf/sgs_ekf_sugar_box_seed43_20261120_220722/checkpoints/agent_120000.pt --task B1Z1PickMulti --object_name sugar_box --headless --rand_control --num_envs 2048 --reach_output data/reach/sugar_box_mlp
 ```
 
 - 默认用随机采样的动作（覆盖更多状态），跑 3000 步，每步更新 2 次；
