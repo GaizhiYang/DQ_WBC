@@ -108,7 +108,7 @@ def main():
         for step in range(1, own.reach_steps + 1):
             actions = agent.act(states, timestep=step, timesteps=own.reach_steps)[0]
             states, _, terminated, truncated, _ = env.step(actions)
-            if (terminated | truncated).any():
+            if torch.logical_or(terminated, truncated).any():
                 states, _ = env.reset()
             # Long pairs exist once the buffer holds a full window.
             if step >= 2:

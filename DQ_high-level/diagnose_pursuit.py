@@ -100,7 +100,8 @@ def diagnose(trainer, episodes):
                 velocity = raw._cube_root_states[:, 7:9]
                 perpendicular = (velocity[:, 0] * -unit[:, 1] + velocity[:, 1] * unit[:, 0]).abs()
                 lead = torch.asin((perpendicular / BASE_SPEED).clamp(max=1.0))
-                done = (terminated | truncated).reshape(-1).to(device)
+                # reset_buf is Long: convert, or ~ would be a bitwise NOT on integers.
+                done = torch.logical_or(terminated, truncated).reshape(-1).to(device)
                 ending = (offset.norm(dim=-1) < APPROACH_END_M) | raw.lifted_object | done
                 weight = (approaching & ~completed).double()
                 sums["los"] += weight * wrap(new_bearing - bearing).abs().double()
