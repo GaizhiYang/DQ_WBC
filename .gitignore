@@ -9,6 +9,9 @@ __pycache__/
 !/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/t2_smoke/
 !/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/sgs_ekf_sugar_box_seed43_20261120_220722/
 !/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/ours_s44/
+!/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/r_intercept_s44/
+!/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/t_only_s44/
+!/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/c_only_s44/
 /DQ_high-level/wandb
 /DQ_high-level/outputs/
 
