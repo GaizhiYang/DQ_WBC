@@ -18,3 +18,4 @@ __pycache__/
 # Generated documentation validation reports and diagnostic snapshots
 /doc/**/*.json
 /doc/**/*.pt
+!/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/rc_s44/

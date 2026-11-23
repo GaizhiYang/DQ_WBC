@@ -1,0 +1,23 @@
+{
+  "episodes": 2048,
+  "hold_successes": 820,
+  "hold_success_rate": 0.400390625,
+  "ever_lifted_episodes": 822,
+  "num_envs": 128,
+  "control_steps": 1600,
+  "reset_protocol": "synchronized_waves",
+  "waves": 16,
+  "wave_seed": "eval_seed + wave_index",
+  "deterministic_policy": true,
+  "scalers_unchanged": true,
+  "success_mode": "hold",
+  "hold_steps": 10,
+  "start_distance": 2.0,
+  "task_level": "Level02",
+  "sampler_mode": "disabled",
+  "time_reference_seconds": 15.999999642372131,
+  "success_time_mean_seconds": 6.345146199638342,
+  "failure_penalized_time": 0.7583929443359375,
+  "checkpoint": "/home/hehui/DQ_WBC/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/t_only_s44/checkpoints/agent_10000.pt",
+  "seed": 1001
+}
