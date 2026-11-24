@@ -2032,6 +2032,12 @@ class B1Z1Base(RewardVecTask):
 
             if not self.headless:
                 self.render()
+
+            # Optional rollout recorder: sample after each low-level cycle so
+            # video timing follows simulation time, including rand_control.
+            video_callback = getattr(self, "_video_frame_callback", None)
+            if video_callback is not None:
+                video_callback()
             
             if self.enable_camera or self.camera_test:
                 if ((self.control_freq_low - low_step - 1) == img_delay_frame): # simulate the real delay, 0.1s

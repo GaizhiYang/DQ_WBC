@@ -332,8 +332,8 @@ class Value(DeterministicMixin, Model, PredictAttentionSelector):
             return self.net(inputs["states"]), {}
 
 
-def get_trainer(is_eval=False, strict_eval=False):
-    args = get_params()
+def get_trainer(is_eval=False, strict_eval=False, argv=None, enable_camera_sensors=False):
+    args = get_params(argv)
     args.eval = is_eval
     if strict_eval:
         if not args.checkpoint or args.resume:
@@ -375,6 +375,12 @@ def get_trainer(is_eval=False, strict_eval=False):
     cprint(f"Using config file: {os.path.realpath(file_path)}", "red")
         
     cfg = deepcopy(temporal_metadata["config"]) if embedded_config else load_cfg(file_path)
+    # Standalone callers pass their own argv; the environment must not reparse
+    # the launcher's CLI to recover the reward/online-learning schedule.
+    cfg["env"]["totalTimesteps"] = args.timesteps
+    if enable_camera_sensors:
+        # Offscreen rollout cameras need a graphics context even without a viewer.
+        cfg["enableCameraSensors"] = True
     configure_teacher_experiment(cfg, args, is_eval=is_eval, strict_eval=strict_eval)
     if is_eval and cfg["env"]["tsil"]["enabled"] and temporal_metadata is None:
         raise ValueError("TSIL evaluation requires a checkpoint with matching temporal state and normalization")

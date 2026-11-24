@@ -212,6 +212,24 @@ python train_multistate_DQ_teacher.py \
    ```bash
    python play_multistate_DQ_teacher.py --task B1Z1PickMulti --checkpoint "your_teacher_checkpoint_path" --roboinfo --observe_gait_commands --small_value_set_zero --rand_control --rl_device "cuda:0" --sim_device "cuda:0"  --headless
    ```
+   SGS/EKF teacher 的 **full_task 回放并录制视频**（从仓库根目录运行）：
+   ```bash
+   conda activate dqwbc
+   bash DQ_high-level/play_teacher_sgs_ekf.sh
+   # 最佳 checkpoint / 指定训练步数；加 --viewer 同时显示窗口
+   bash DQ_high-level/play_teacher_sgs_ekf.sh --checkpoint best --episodes 3
+   bash DQ_high-level/play_teacher_sgs_ekf.sh --checkpoint 85000 --viewer
+   ```
+   默认加载 `r_online_s43_1123` 中步数最大的 `agent_*.pt`，运行 5 个回合。
+   自动恢复该 run 保存的观测、动作缩放、EKF、归一化及在线 reach 模型；仅推理。
+   `full_task` 使用原始 Level02、2 m 起点、100 步上限及 hold 成功条件，关闭 SGS 状态库采样。
+   默认无窗口录制 960×640、25 FPS 的实时速度视频；每回合最后附 1 秒结果定格。
+   输出位于 `<run>/videos/full_task_<checkpoint>_<timestamp>/`，包含每回合的
+   `episode_001.mp4` 等视频、`summary.json` 成功统计和 `environment.yaml`。
+   可用 `--run_dir /path/to/run`、`--checkpoint /path/to/agent_85000.pt` 切换训练结果，
+   `--output_dir /path/to/new_directory` 指定新输出目录，`--camera close` 看抓取近景，
+   `--device cuda:1` 切换 GPU，`--dry-run` 检查选中的 checkpoint 而不启动仿真。
+
 3. Train DQ_stu:
    ```bash
 python train_multi_bc_deter_DQ_stu.py \
