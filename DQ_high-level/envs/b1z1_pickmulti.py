@@ -47,6 +47,7 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self.total_timesteps = total_timesteps
         self.train_reward_strict = total_timesteps / 2
         self._init_sgs()
+        self._init_scout_relay()
         self._init_tsil()
 
     def _init_tsil(self):
@@ -195,6 +196,146 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
               "; task hold_steps:", self.hold_steps,
               "; compatibility:", self.sgs_hold_compatibility)
 
+    def _init_scout_relay(self):
+        """Scout & Relay (doc/SGS_SAPG_scout_relay_design.md, section 4).
+
+        Branch 0 is the deployed leader. Scouts (branches >= 1) sample the fixed
+        bank with their own SGS history times the leader's need; with relay
+        enabled, successful source episodes add physical snapshots to R, and the
+        leader samples B and R with one SGS kernel (R's mass capped). Evaluation
+        always runs the single leader on ordinary resets.
+        """
+        from utils.sgs import SGSSampler
+        from utils.episode_statistics import RecentEpisodeStatistics
+        from utils.scout_relay import (branch_layout, SnapshotBuffer, RelayBank,
+                                       CONTROLLER_STATE_FIELDS)
+
+        sapg_cfg = self.cfg["env"].get("sapg", {})
+        relay_cfg = self.cfg["env"].get("relay", {})
+        training = not self.eval
+        self.sapg_num_branches = int(sapg_cfg.get("branches", 1)) if training else 1
+        self.relay_enabled = bool(relay_cfg.get("enabled", False)) and training
+        self.sapg_branch_id = branch_layout(self.num_envs, self.sapg_num_branches,
+                                            sapg_cfg.get("leader_fraction", 0.5), self.device)
+        self.scout_relay_active = self.sapg_num_branches > 1 or self.relay_enabled
+        self.relay_bank = None
+        if not self.scout_relay_active:
+            return
+        if not getattr(self, "sgs_enabled", False):
+            raise ValueError("SAPG branches and relay resets require SGS bank resets (--sgs_mode sgs/uniform)")
+        if getattr(self, "tsil_enabled", False):
+            raise ValueError("TSIL cannot be combined with SAPG branches or relay resets")
+        leader = self.sgs_sampler
+        num_configs = self.sgs_bank.num_configs
+        num_families = len(self.sgs_family_names)
+        self.branch_env_counts = torch.bincount(self.sapg_branch_id, minlength=self.sapg_num_branches)
+        self.branch_env_counts_host = self.branch_env_counts.tolist()
+        targets = [float(value) for value in (sapg_cfg.get("scout_target_success") or [])]
+        self.scout_samplers = []
+        for scout in range(1, self.sapg_num_branches):
+            target = targets[min(scout - 1, len(targets) - 1)] if targets else leader.target_success_rate
+            self.scout_samplers.append(SGSSampler(
+                num_configs, history_size=leader.history_size, target_success_rate=target,
+                concentration=leader.concentration, temperature=leader.temperature,
+                epsilon=leader.epsilon, p_init=leader.p_init, device=self.device,
+                seed=int(self.cfg.get("seed", 43)) + 7919 * scout, mode=leader.mode))
+        self.scout_need_beta = float(sapg_cfg.get("scout_need_beta", 1.0))
+        self._leader_last_probabilities = leader.probabilities()
+        self._scout_last_probabilities = [sampler.probabilities() for sampler in self.scout_samplers]
+        if self.sapg_num_branches > 1:
+            # Scout monitors; the existing SGS/SuccessRate metrics stay leader-only.
+            self.scout_recent_stats = RecentEpisodeStatistics(num_families, device=self.device,
+                                                              family_window=100)
+            self.scout_family_samples = torch.zeros(num_families, dtype=torch.long, device=self.device)
+            self.scout_success_window = RollingEpisodeSuccess(window_size=1000)
+        print("SAPG branches:", self.sapg_num_branches, "; environments per branch:",
+              self.branch_env_counts_host, "; scout need beta:", self.scout_need_beta,
+              "; scout targets:", [s.target_success_rate for s in self.scout_samplers])
+        if not self.relay_enabled:
+            return
+
+        self.relay_source = relay_cfg.get("source", "scouts")
+        self.relay_trigger = relay_cfg.get("trigger", "success")
+        if self.relay_source == "scouts" and self.sapg_num_branches < 2:
+            raise ValueError("relay source 'scouts' requires --sapg_branches >= 2")
+        self.relay_tau_need = float(relay_cfg.get("tau_need", 0.3))
+        self.relay_quarantine_steps = int(relay_cfg.get("quarantine_steps", 3))
+        self.relay_max_new_chains = int(relay_cfg.get("max_new_chains_per_reset", 32))
+        fractions = sorted(float(value) for value in relay_cfg.get("fractions", [0.2, 0.4, 0.6, 0.8]))
+        self.relay_fractions = torch.tensor(fractions, dtype=torch.float32, device=self.device)
+        self.relay_controller_fields = []
+        if relay_cfg.get("controller_state", False):
+            for name in CONTROLLER_STATE_FIELDS:
+                value = getattr(self, name, None)
+                if isinstance(value, torch.Tensor) and value.ndim >= 1 and value.shape[0] == self.num_envs:
+                    self.relay_controller_fields.append(name)
+        probe = self._relay_state_values(torch.zeros(1, dtype=torch.long, device=self.device))
+        specs = {name: (tuple(value.shape[1:]), value.dtype) for name, value in probe.items()}
+        source_mask = self.sapg_branch_id > 0 if self.relay_source == "scouts" else self.sapg_branch_id == 0
+        self.relay_snapshots = SnapshotBuffer(
+            source_mask.nonzero(as_tuple=False).flatten(), self.num_envs, self.max_episode_length,
+            int(relay_cfg.get("snapshot_interval", 5)), specs, self.device)
+        self.relay_bank = RelayBank(
+            int(relay_cfg.get("capacity", 4096)), specs, num_configs, fractions,
+            int(relay_cfg.get("history_size", 50)), leader.target_success_rate,
+            leader.concentration, leader.epsilon, leader.temperature,
+            float(relay_cfg.get("alpha_max", 0.3)), relay_cfg.get("sampling", "sgs"),
+            int(relay_cfg.get("max_chains_per_config", 2)), float(relay_cfg.get("master_rate", 0.9)),
+            int(relay_cfg.get("master_count", 20)), int(relay_cfg.get("useless_count", 40)),
+            self.device, seed=int(self.cfg.get("seed", 43)) + 104729)
+        self.active_relay_uid = torch.full((self.num_envs,), -1, dtype=torch.long, device=self.device)
+        self.restore_failure_buf = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        print("Relay:", "source", self.relay_source, "; trigger", self.relay_trigger,
+              "; fractions", fractions, "; capacity", self.relay_bank.capacity,
+              "; alpha_max", self.relay_bank.alpha_max, "; tau_need", self.relay_tau_need,
+              "; snapshot interval", self.relay_snapshots.interval,
+              "; controller state", self.relay_controller_fields or "cleared (bank convention)")
+
+    def _relay_state_values(self, env_ids):
+        """Current physical state in ConfigurationBank field names (plus controller buffers)."""
+        values = {
+            "robot_root": self._robot_root_states[env_ids],
+            "object_root": self._cube_root_states[env_ids],
+            "table_root": self._table_root_states[env_ids],
+            "rigid_body_state": self._rigid_body_state.view(self.num_envs, -1, 13)[env_ids],
+            "ee_jacobian": self.ee_j_eef[env_ids],
+            "dof_pos": self._dof_pos[env_ids],
+            "dof_vel": self._dof_vel[env_ids],
+            "ee_goal_cart": self.curr_ee_goal_cart[env_ids],
+            "ee_goal_orn_rpy": self.curr_ee_goal_orn_rpy[env_ids],
+            "gripper_target": self.gripper_dof_pos[env_ids],
+            "table_vy": self.vel_line_forward_y_level02[env_ids],
+            "rotation_enabled": self.lin_circle_select[env_ids],
+            "table_yaw_rate": self.vel_angular_yaw[env_ids],
+            "table_height": self.table_heights[env_ids],
+            "table_change_interval": self.rand_change_step[env_ids],
+        }
+        for name in getattr(self, "relay_controller_fields", ()):
+            values["controller/" + name] = getattr(self, name)[env_ids]
+        return values
+
+    def _capture_relay_snapshots(self):
+        """After a step: snapshot running source episodes every ``interval`` steps."""
+        buffer = self.relay_snapshots
+        env_ids = buffer.source_env_ids
+        progress = self.progress_buf[env_ids].long()
+        take = (~self.reset_buf[env_ids].bool()) & (progress > 0) & (progress % buffer.interval == 0)
+        env_ids = env_ids[take]
+        if env_ids.numel() == 0:
+            return
+        buffer.capture(env_ids, progress[take], self._relay_state_values(env_ids))
+
+    def scout_relay_gap(self, min_episodes=20):
+        """Best scout success minus leader success per bank configuration (H1)."""
+        leader = self.sgs_sampler
+        leader_rates = leader.success_sum.float() / leader.count.clamp_min(1).float()
+        best = torch.full_like(leader_rates, -1.0)
+        for sampler in getattr(self, "scout_samplers", []):
+            rates = sampler.success_sum.float() / sampler.count.clamp_min(1).float()
+            best = torch.where(sampler.count >= min_episodes, torch.maximum(best, rates), best)
+        valid = (leader.count >= min_episodes) & (best >= 0)
+        return torch.where(valid, best - leader_rates, torch.zeros_like(best)), valid
+
     def reset(self):
         # Trainer reset() follows a real terminal transition. Direct reset_idx()
         # cancels a trial and must not add a fabricated failure to its history.
@@ -208,6 +349,9 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
 
     def _reset_sgs_envs(self, env_ids):
         if len(env_ids) == 0:
+            return
+        if getattr(self, "scout_relay_active", False):
+            self._reset_scout_relay_envs(env_ids)
             return
         old_ids = self.active_config_id[env_ids]
         started = old_ids >= 0
@@ -234,7 +378,16 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         self._sgs_pending_done[env_ids] = False
         state = self.sgs_bank.batch(new_ids)
         self.sgs_family_samples.scatter_add_(0, state["family_id"], torch.ones_like(new_ids))
+        self._restore_sgs_state(env_ids, state)
+        self._record_sgs_metrics()
 
+    def _restore_sgs_state(self, env_ids, state, controller=None):
+        """Restore bank-format physical states into ``env_ids`` without stepping.
+
+        ``state`` holds ConfigurationBank fields per environment (a bank batch, or
+        one merged with relay entries). ``controller`` optionally restores the
+        captured controller buffers of some rows: (rows within env_ids, {name: values}).
+        """
         # Only clear episode/controller history. Do not invoke the old reset's
         # global simulate(): an asynchronous reset must not advance other trials.
         B1Z1Base._reset_env_tensors(self, env_ids)
@@ -248,6 +401,13 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             value = getattr(self, name, None)
             if value is not None:
                 value[env_ids] = 0
+        if controller is not None:
+            # Relay ablation: keep the source episode's controller state.
+            rows, values = controller
+            targets = env_ids[rows]
+            for name, value in values.items():
+                buffer = getattr(self, name)
+                buffer[targets] = value.to(buffer.dtype)
         if "table_change_interval" in state:
             self.rand_change_step[env_ids] = state["table_change_interval"].long()
         else:
@@ -300,7 +460,184 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         if getattr(self, "tsil_enabled", False):
             self._reset_tsil_state(env_ids)
         self._compute_observations(env_ids)
+
+    def _reset_scout_relay_envs(self, env_ids):
+        """SGS reset with SAPG branches and/or relay entries (union ID space).
+
+        ``active_config_id`` < N_B is a bank configuration; >= N_B is relay slot
+        (id - N_B). Leader bank outcomes keep the original SGS sampler and family
+        monitors; scouts have their own samplers; relay outcomes go to R.
+        """
+        from utils.scout_relay import scout_probabilities, RELAY_STATE_FIELDS
+
+        bank = self.sgs_bank
+        num_configs = bank.num_configs
+        family_ids = bank.tensors["family_id"]
+        step = self.global_step_counter
+        old_ids = self.active_config_id[env_ids]
+        started = old_ids >= 0
+        completed = started & self._sgs_pending_done[env_ids] & self._sgs_natural_reset
+        done_envs, done_ids = env_ids[completed], old_ids[completed]
+        successes = self.episode_success[done_envs]
+        branches = self.sapg_branch_id[done_envs]
+        from_relay = done_ids >= num_configs
+        bank_done = done_ids.clamp(max=num_configs - 1)
+
+        leader_bank = (branches == 0) & ~from_relay
+        leader_ids, leader_successes = done_ids[leader_bank], successes[leader_bank]
+        self.sgs_sampler.observe(leader_ids, leader_successes, step=step)
+        done_families = family_ids[leader_ids]
+        self.sgs_family_episodes.scatter_add_(0, done_families, torch.ones_like(leader_ids))
+        self.sgs_family_successes.scatter_add_(0, done_families, leader_successes.long())
+        self.recent_episode_stats.record(done_families, leader_successes)
+        # Scouts only start from the fixed bank.
+        for scout, sampler in enumerate(self.scout_samplers, start=1):
+            mask = branches == scout
+            sampler.observe(done_ids[mask], successes[mask], step=step)
+        if self.sapg_num_branches > 1:
+            mask = (branches > 0) & ~from_relay
+            self.scout_recent_stats.record(family_ids[bank_done[mask]], successes[mask])
+        if self.relay_bank is not None:
+            lengths = self.progress_buf[done_envs].long()
+            mask = (branches == 0) & from_relay
+            quick = self.restore_failure_buf[done_envs] & (lengths <= self.relay_quarantine_steps)
+            self.relay_bank.observe(done_ids[mask] - num_configs, self.active_relay_uid[done_envs[mask]],
+                                    successes[mask], quick[mask], step)
+            # Read the finished episodes' snapshots before their rows are cleared below.
+            self._create_relay_chains(done_envs, done_ids, successes, branches, from_relay, lengths)
+        self.sgs_aborted += (started & ~completed).sum()
+        self.episode_counter[env_ids] = self.episode_counter[env_ids].clamp_min(0)
+        self.episode_counter[done_envs] += 1
+        self.episode_step_sum[done_envs] += self.one_epoch_step[done_envs]
+        self.one_epoch_step[env_ids] = 0
+
+        reset_branches = self.sapg_branch_id[env_ids]
+        new_ids = torch.empty_like(env_ids)
+        leader_rows = (reset_branches == 0).nonzero(as_tuple=False).flatten()
+        if leader_rows.numel():
+            if self.relay_bank is not None:
+                probabilities = self.relay_bank.leader_distribution(
+                    self.sgs_sampler.logits(), uniform=self.sgs_sampler.mode == "uniform")
+            else:
+                probabilities = self.sgs_sampler.probabilities()
+            self._leader_last_probabilities = probabilities
+            new_ids[leader_rows] = torch.multinomial(probabilities, leader_rows.numel(), replacement=True,
+                                                     generator=self.sgs_sampler.generator)
+        leader_rates = self.sgs_sampler.success_rates()
+        for scout, sampler in enumerate(self.scout_samplers, start=1):
+            rows = (reset_branches == scout).nonzero(as_tuple=False).flatten()
+            if rows.numel() == 0:
+                continue
+            probabilities = scout_probabilities(sampler, leader_rates, self.scout_need_beta)
+            self._scout_last_probabilities[scout - 1] = probabilities
+            new_ids[rows] = torch.multinomial(probabilities, rows.numel(), replacement=True,
+                                              generator=sampler.generator)
+        self.active_config_id[env_ids] = new_ids
+        self._sgs_pending_done[env_ids] = False
+
+        is_relay = new_ids >= num_configs
+        state = bank.batch(torch.where(is_relay, torch.zeros_like(new_ids), new_ids))
+        if "table_change_interval" not in state:
+            state["table_change_interval"] = torch.randint(40, 60, (len(env_ids),), device=self.device)
+        controller = None
+        if self.relay_bank is not None:
+            relay_rows = is_relay.nonzero(as_tuple=False).flatten()
+            slots = new_ids[relay_rows] - num_configs
+            self.relay_bank.record_sampled(slots, leader_rows.numel())
+            self.active_relay_uid[env_ids] = -1
+            if relay_rows.numel():
+                relay_state = self.relay_bank.batch(slots)
+                for name in RELAY_STATE_FIELDS:
+                    state[name][relay_rows] = relay_state[name].to(state[name].dtype)
+                self.active_relay_uid[env_ids[relay_rows]] = self.relay_bank.uid[slots]
+                if self.relay_controller_fields:
+                    controller = (relay_rows, {name: relay_state["controller/" + name]
+                                               for name in self.relay_controller_fields})
+            self.relay_snapshots.clear(env_ids)
+        leader_bank_rows = ~is_relay & (reset_branches == 0)
+        self.sgs_family_samples.scatter_add_(0, state["family_id"][leader_bank_rows],
+                                             torch.ones_like(new_ids[leader_bank_rows]))
+        if self.sapg_num_branches > 1:
+            scout_rows = ~is_relay & (reset_branches > 0)
+            self.scout_family_samples.scatter_add_(0, state["family_id"][scout_rows],
+                                                   torch.ones_like(new_ids[scout_rows]))
+        self._restore_sgs_state(env_ids, state, controller)
         self._record_sgs_metrics()
+
+    def _create_relay_chains(self, done_envs, done_ids, successes, branches, from_relay, lengths):
+        """Turn finished source episodes into relay chains (design section 4.4)."""
+        num_configs = self.sgs_bank.num_configs
+        source = branches > 0 if self.relay_source == "scouts" else branches == 0
+        triggered = successes if self.relay_trigger == "success" else ~successes
+        configs = done_ids.clamp(0, num_configs - 1)
+        candidates = source & ~from_relay & triggered
+        candidates &= self.sgs_sampler.success_rates()[configs] <= self.relay_tau_need
+        rows = candidates.nonzero(as_tuple=False).flatten()
+        if rows.numel() == 0:
+            return
+        envs, configs = done_envs[rows], configs[rows]
+        # Success: snapshots strictly before the final hold began; failure ablation:
+        # anywhere in the episode.
+        horizons = (lengths[rows] - self.hold_steps + 1 if self.relay_trigger == "success"
+                    else lengths[rows])
+        # At most max_chains_per_config active chains per configuration, in env order.
+        order = torch.argsort(configs, stable=True)
+        sorted_configs = configs[order]
+        positions = torch.arange(order.numel(), device=self.device)
+        starts = torch.ones_like(sorted_configs, dtype=torch.bool)
+        starts[1:] = sorted_configs[1:] != sorted_configs[:-1]
+        group_start = torch.cummax(torch.where(starts, positions, torch.zeros_like(positions)), dim=0).values
+        allowed = torch.zeros(order.numel(), dtype=torch.bool, device=self.device)
+        allowed[order] = (positions - group_start) < self.relay_bank.chain_allowance(sorted_configs)
+        keep = allowed.nonzero(as_tuple=False).flatten()[:self.relay_max_new_chains]
+        if keep.numel() == 0:
+            return
+        envs, configs, horizons = envs[keep], configs[keep], horizons[keep]
+        snapshot_rows, slots, ok = self.relay_snapshots.choose(envs, horizons, self.relay_fractions)
+        has_state = ok.any(dim=-1)
+        if not bool(has_state.any()):
+            return
+        snapshot_rows, slots, ok, configs = (snapshot_rows[has_state], slots[has_state],
+                                             ok[has_state], configs[has_state])
+        num_chains, num_fractions = ok.shape
+        chain_local = torch.arange(num_chains, device=self.device)[:, None].expand(-1, num_fractions)[ok]
+        fraction_index = torch.arange(num_fractions, device=self.device)[None, :].expand(num_chains, -1)[ok]
+        states = self.relay_snapshots.gather(snapshot_rows[:, None].expand(-1, num_fractions)[ok], slots[ok])
+        sources = configs[:, None].expand(-1, num_fractions)[ok]
+        self.relay_bank.insert(states, sources, chain_local, fraction_index, self.global_step_counter)
+
+    def _scout_relay_metrics(self):
+        """Scout, capability-gap and relay scalars (device tensors, one transfer)."""
+        from utils.scout_relay import entropy_of
+
+        metrics = {}
+        leader_envs = float(self.branch_env_counts_host[0])
+        if self.sapg_num_branches > 1:
+            recent = self.scout_recent_stats
+            total = self.scout_family_samples.sum().clamp_min(1)
+            for i, name in enumerate(self.sgs_family_names):
+                metrics["Scout / success_" + name] = recent.family_successes[i] / recent.family_count[i].clamp_min(1)
+                metrics["Scout / episodes_" + name] = recent.family_count[i]
+                metrics["Scout / sample_fraction_" + name] = self.scout_family_samples[i] / total
+            leader_rates = self.sgs_sampler.success_rates()
+            probabilities = self._scout_last_probabilities
+            # Expected leader success of the scouts' sampled configurations: low
+            # values mean the scouts practise where the leader is weak.
+            metrics["Scout / leader_success_of_sampled"] = torch.stack(
+                [(p * leader_rates).sum() for p in probabilities]).mean()
+            metrics["Scout / sampling_entropy"] = torch.stack([entropy_of(p) for p in probabilities]).mean()
+            metrics["Scout / history_success_rate"] = torch.stack(
+                [s.success_sum.sum().float() / s.count.sum().clamp_min(1) for s in self.scout_samplers]).mean()
+            gap, valid = self.scout_relay_gap(20)
+            count = valid.sum()
+            metrics["Gap / valid_configs"] = count
+            metrics["Gap / mean"] = (gap * valid).sum() / count.clamp_min(1)
+            metrics["Gap / fraction_ge_0.3"] = ((gap >= 0.3) & valid).sum() / count.clamp_min(1)
+        if self.relay_bank is not None:
+            metrics.update(self.relay_bank.metrics())
+            metrics["Relay / concurrent_copies_union"] = (
+                leader_envs / torch.exp(self.relay_bank.last_union_entropy).clamp_min(1e-6))
+        return metrics
 
     def _record_sgs_metrics(self):
         metrics = self.sgs_sampler.metrics(
@@ -313,11 +650,18 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             metrics["sample_fraction_" + name] = self.sgs_family_samples[i] / self.sgs_family_samples.sum().clamp_min(1)
             metrics["episodes_" + name] = recent.family_count[i]
         metrics["aborted"] = self.sgs_aborted
+        # P0 diagnostic: concurrent environments per configuration, num_envs / exp(H(q)).
+        scout_relay = getattr(self, "scout_relay_active", False)
+        leader_envs = float(self.branch_env_counts_host[0] if scout_relay else self.num_envs)
+        metrics["concurrent_copies"] = leader_envs / torch.exp(metrics["sampling_entropy"]).clamp_min(1e-6)
         self.extras["SGS"] = metrics
+        extra = self._scout_relay_metrics() if scout_relay else {}
         # Transfer scalar diagnostics together. Float64 preserves large integer
         # episode counters when combining them with floating-point diagnostics.
-        values = torch.stack([value.double() for value in metrics.values()]).detach().cpu().tolist()
+        values = torch.stack([value.double() for value in list(metrics.values()) + list(extra.values())]
+                             ).detach().cpu().tolist()
         snapshots = {"SGS / " + name: value for name, value in zip(metrics, values)}
+        snapshots.update(zip(extra, values[len(metrics):]))
         # Keep the old SGS tags, and expose discoverable success-rate curves.
         # No completed episodes means unknown, not an observed zero success rate.
         for name in self.sgs_family_names:
@@ -357,7 +701,7 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         from pathlib import Path
         output = Path(path)
         output.parent.mkdir(parents=True, exist_ok=True)
-        torch.save({
+        payload = {
             "kind": "sgs_diagnostics_not_training_resume",
             "global_step": self.global_step_counter,
             "bank_fingerprint": self.sgs_bank.fingerprint,
@@ -376,7 +720,25 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
             "recent_family_window": self.recent_episode_stats.family_window,
             "recent_family_episodes": self.recent_episode_stats.family_count.cpu(),
             "recent_family_successes": self.recent_episode_stats.family_successes.cpu(),
-        }, output)
+        }
+        if getattr(self, "scout_relay_active", False):
+            # Leader statistics above; scouts, gap, relay bank and IS overlap here.
+            gap, gap_valid = self.scout_relay_gap(20)
+            tracker = getattr(self, "sapg_overlap_tracker", None)
+            payload["scout_relay"] = {
+                "branches": self.sapg_num_branches,
+                "branch_env_counts": self.branch_env_counts.cpu(),
+                "scout_need_beta": self.scout_need_beta,
+                "scout_success_rate": [s.success_rates().cpu() for s in self.scout_samplers],
+                "scout_history_count": [s.count.cpu() for s in self.scout_samplers],
+                "scout_visits_total": [s.visits_total.cpu() for s in self.scout_samplers],
+                "scout_probability": [p.cpu() for p in self._scout_last_probabilities],
+                "leader_probability_last": self._leader_last_probabilities.cpu(),
+                "gap_min20": gap.cpu(), "gap_valid_min20": gap_valid.cpu(),
+                "relay": self.relay_bank.diagnostics() if self.relay_bank is not None else None,
+                "is_overlap": tracker.diagnostics() if tracker is not None else None,
+            }
+        torch.save(payload, output)
 
     def update_roboinfo(self):
         super().update_roboinfo()
@@ -628,19 +990,34 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         # configuration excludes them from the baseline comparison metric.
         self.episode_outcome_recorded[env_ids] = True
         sgs_enabled = getattr(self, "sgs_enabled", False)
+        scout_ids = None
         if sgs_enabled:
             config_ids = self.active_config_id[env_ids]
             family_ids = self.sgs_bank.tensors["family_id"]
+            # Relay starts (IDs >= bank size) are never full_task outcomes.
             valid = (config_ids >= 0) & (config_ids < family_ids.numel())
             env_ids = env_ids[valid]
             full_task_id = self.sgs_bank.family_names.index("full_task")
             env_ids = env_ids[family_ids[config_ids[valid]] == full_task_id]
+            if getattr(self, "sapg_num_branches", 1) > 1:
+                # The main metric describes the deployed leader only.
+                branch = self.sapg_branch_id[env_ids]
+                scout_ids = env_ids[branch > 0]
+                env_ids = env_ids[branch == 0]
         outcomes = torch.stack((env_ids % len(self.obj_list),
                                 self.pick_success_recorded[env_ids].long()), dim=1)
         self.success_window.extend(outcomes.cpu().tolist())
         # Replace the snapshot so object-specific rates disappear when their
         # last sample leaves the global window. Logging is independent of W&B.
         metrics = self.success_window.metrics(self.obj_list)
+        if scout_ids is not None:
+            scout_outcomes = torch.stack((torch.zeros_like(scout_ids),
+                                          self.pick_success_recorded[scout_ids].long()), dim=1)
+            self.scout_success_window.extend(scout_outcomes.cpu().tolist())
+            scout = self.scout_success_window.metrics(["scout_full_task"])
+            metrics["ScoutWindow / completed"] = scout["SuccessWindow / completed"]
+            if "SuccessRate / scout_full_task" in scout:
+                metrics["SuccessRate / scout_full_task"] = scout["SuccessRate / scout_full_task"]
         self.extras["success_rate"] = metrics
         print({"success_rate": metrics, "window_size": self.success_window.window_size,
                "scope": "full_task" if sgs_enabled else "ordinary_reset"})
@@ -931,6 +1308,8 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
         if getattr(self, "sgs_enabled", False):
             self._sgs_pending_done.copy_(self.reset_buf.bool())
             self._print_sgs_success_rates()
+        if getattr(self, "relay_bank", None) is not None:
+            self._capture_relay_snapshots()
 
         pred_lift = actions[...,-1] > 0
         if self.pred_success and (actions.shape[-1] == (self.action_space.shape[-1]+1)):
@@ -946,6 +1325,10 @@ class B1Z1PickMulti(B1Z1Base,PredictPoint):
     
     def check_termination(self):
         super().check_termination()
+        if getattr(self, "relay_bank", None) is not None:
+            # Roll/pitch/height/IK failures only (before object and yaw checks):
+            # within a few steps of a relay start they mark a faulty restore.
+            self.restore_failure_buf[:] = self._terminate_buf.bool()
 
         # One grasp/lift definition for shaping, holding and evaluation.
         cube_height = self._cube_root_states[:, 2]

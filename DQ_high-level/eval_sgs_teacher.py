@@ -25,6 +25,10 @@ def evaluate_teacher(trainer, episodes):
         raise ValueError("Strict evaluation must not sample or update the training bank")
     agent.set_mode("eval")
     agent.policy.deterministic = True
+    if getattr(env, "sapg_num_branches", 1) != 1 or getattr(env, "relay_enabled", False):
+        raise ValueError("Strict evaluation runs the single leader on ordinary resets")
+    # A SAPG checkpoint keeps every branch; the evaluation agent passes no branch
+    # IDs, so the policy acts with the leader's condition vector (branch 0).
     scaler_states = {}
     for name in ("_state_preprocessor", "_value_preprocessor", "reward_normalizer"):
         preprocessor = getattr(agent, name, None)
@@ -123,6 +127,8 @@ def evaluate_teacher(trainer, episodes):
             "reset_protocol": "synchronized_waves", "waves": waves,
             "wave_seed": "eval_seed + wave_index",
             "deterministic_policy": agent.policy.deterministic,
+            "sapg_model_branches": getattr(agent.policy, "num_branches", 1),
+            "evaluated_branch": "leader (0)",
             "scalers_unchanged": True,
             "success_mode": "hold", "hold_steps": env.hold_steps,
             "start_distance": 2.0, "task_level": "Level02",

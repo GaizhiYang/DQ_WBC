@@ -53,7 +53,8 @@ def restore_eval_arguments(args):
     for name in ("roboinfo", "observe_gait_commands", "small_value_set_zero", "no_feature",
                  "mask_arm", "pitch_control", "rand_control", "arm_delay", "rand_cmd_scale",
                  "rand_depth_clip", "stop_pick", "use_tanh", "last_commands", "no_velocity_obs",
-                 "critic_time_obs", "actor_history_frames", "action_scaling"):
+                 "critic_time_obs", "actor_history_frames", "action_scaling",
+                 "sapg_branches", "sapg_latent_dim"):
         if name in saved:
             setattr(args, name, saved[name])
 
@@ -106,18 +107,44 @@ def create_env(cfg, args, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor ):
     wrapped_env = wrapper.IsaacGymPreview3Wrapper(_env, actor_history_frames=history_frames)
     return wrapped_env
 
+def check_branch_arguments(num_branches, branch_latent_dim):
+    if type(num_branches) is not int or num_branches < 1:
+        raise ValueError("num_branches must be a positive integer")
+    if num_branches > 1 and (type(branch_latent_dim) is not int or branch_latent_dim < 1):
+        raise ValueError("SAPG branch_latent_dim must be a positive integer")
+    return num_branches, branch_latent_dim
+
+
+def branch_index(inputs, batch_shape, num_branches, device):
+    """Flat SAPG branch IDs for a batch; absent IDs select the leader (branch 0)."""
+    count = batch_shape.numel()
+    ids = inputs.get("branch_ids")
+    if ids is None:
+        return torch.zeros(count, dtype=torch.long, device=device)
+    ids = torch.as_tensor(ids, device=device).reshape(-1).long()
+    if ids.numel() != count:
+        raise ValueError(f"branch_ids has {ids.numel()} entries for a batch of {count}")
+    return ids
+
+
 # define models (stochastic and deterministic models) using mixins
 class Policy(GaussianMixin, Model, PredictAttentionSelector):
     def __init__(self, observation_space, action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor,
                   use_tanh=False, clip_actions=False,
                  clip_log_std=True, min_log_std=-20, max_log_std=2, reduction="sum", deterministic=False,
                  num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None, actor_history_frames=1,
-                 action_scaling="legacy"):
+                 action_scaling="legacy", num_branches=1, branch_latent_dim=16):
         Model.__init__(self, observation_space, action_space, device)
         if type(actor_history_frames) is not int or actor_history_frames < 1 or self.num_observations % actor_history_frames:
             raise ValueError("actor_history_frames must evenly divide the observation width")
         if action_scaling not in ("legacy", "normalized"):
             raise ValueError("action_scaling must be legacy or normalized")
+        # SAPG: branches share the backbone and differ by a learned condition
+        # vector phi_j plus their own log-std. Branch 0 is the deployed leader;
+        # inputs without "branch_ids" (evaluation, deployment) use the leader.
+        num_branches, branch_latent_dim = check_branch_arguments(num_branches, branch_latent_dim)
+        self.num_branches = num_branches
+        self.branch_latent_dim = branch_latent_dim if num_branches > 1 else 0
         # normalized: the environment executes clip(a, -1, 1) * physical limit, so
         # a standard deviation above 1 would exceed the whole executed range.
         normalized_actions = action_scaling == "normalized"
@@ -157,7 +184,7 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
         actor_time_width = 0 if self.critic_time_position is None else 1
         self.actor_frame_dim = (self.frame_observations - self.num_features + self.encode_dim - self.notrain_obs_num + 6 - actor_time_width
                                 if num_features > 0 else self.frame_observations)
-        self.net = nn.Sequential(nn.Linear(self.actor_frame_dim * actor_history_frames, 512),
+        self.net = nn.Sequential(nn.Linear(self.actor_frame_dim * actor_history_frames + self.branch_latent_dim, 512),
                             nn.ELU(),
                             nn.Linear(512, 256),
                             nn.ELU(),
@@ -165,20 +192,26 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
                             nn.ELU(),
                             nn.Linear(128, self.num_actions)
                             )
-        cprint(f"Actor MLP input: {self.actor_frame_dim} x {actor_history_frames} = {self.net[0].in_features} (oldest to current)", "yellow")
+        cprint(f"Actor MLP input: {self.actor_frame_dim} x {actor_history_frames} = {self.net[0].in_features - self.branch_latent_dim} (oldest to current)"
+               + (f" + branch latent {self.branch_latent_dim} ({num_branches} SAPG branches)" if num_branches > 1 else ""), "yellow")
 
+        std_shape = (self.num_actions,) if num_branches == 1 else (num_branches, self.num_actions)
         if normalized_actions:
             # Andrychowicz et al. 2021: start near zero mean with a moderate,
             # state-independent std, here half of each dimension's range.
-            self.log_std_parameter = nn.Parameter(torch.full((self.num_actions,), 0.5).log())
+            self.log_std_parameter = nn.Parameter(torch.full(std_shape, 0.5).log())
             with torch.no_grad():
                 self.net[-1].weight.mul_(0.01)
                 self.net[-1].bias.zero_()
         else:
-            self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
+            self.log_std_parameter = nn.Parameter(torch.zeros(std_shape))
+        if num_branches > 1:
+            self.branch_latent = nn.Parameter(torch.randn(num_branches, branch_latent_dim))
 
     def compute(self, inputs, role):
         batch_shape = inputs["states"].shape[:-1]
+        branch_ids = (branch_index(inputs, batch_shape, self.num_branches, self.log_std_parameter.device)
+                      if self.num_branches > 1 else None)
         # Each PPO sample contains its own raw frames. Re-encode them with the
         # current shared encoder/GFM, without a mutable model-side history.
         inputs = {"states": inputs["states"].reshape(-1, self.frame_observations)}
@@ -202,17 +235,27 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
             frame_inputs = torch.cat([state_block, last_action, features_encode, right_predict_point], dim=-1)
         else:
             frame_inputs = inputs["states"]
-        actions = self.net(frame_inputs.reshape(*batch_shape, self.actor_frame_dim * self.actor_history_frames))
-        return actions, self.log_std_parameter, {}
+        net_inputs = frame_inputs.reshape(*batch_shape, self.actor_frame_dim * self.actor_history_frames)
+        if branch_ids is None:
+            return self.net(net_inputs), self.log_std_parameter, {}
+        latent = self.branch_latent[branch_ids].reshape(*batch_shape, self.branch_latent_dim)
+        actions = self.net(torch.cat((net_inputs, latent), dim=-1))
+        log_std = self.log_std_parameter[branch_ids].reshape(*batch_shape, self.num_actions)
+        return actions, log_std, {}
 
 class Value(DeterministicMixin, Model, PredictAttentionSelector):
     def __init__(self, observation_space, action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor,
-                 num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None, actor_history_frames=1):
+                 num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None, actor_history_frames=1,
+                 num_branches=1, branch_latent_dim=16):
         # critic_time_index needs no handling here: the value MLP consumes the
         # whole state block, including the episode-progress channel.
         Model.__init__(self, observation_space, action_space, device)
         if type(actor_history_frames) is not int or actor_history_frames < 1 or self.num_observations % actor_history_frames:
             raise ValueError("actor_history_frames must evenly divide the observation width")
+        # SAPG critic: shared backbone conditioned on its own learned phi_j.
+        num_branches, branch_latent_dim = check_branch_arguments(num_branches, branch_latent_dim)
+        self.num_branches = num_branches
+        self.branch_latent_dim = branch_latent_dim if num_branches > 1 else 0
         self.frame_observations = self.num_observations // actor_history_frames
         DeterministicMixin.__init__(self)
         PredictAttentionSelector.__init__(self, d_model=64, obj_feat_dim=encode_dim or 128,
@@ -233,18 +276,29 @@ class Value(DeterministicMixin, Model, PredictAttentionSelector):
                                                   nn.Linear(512, self.encode_dim),) # input : (envs,512), output : (envs,128)
         critic_dim = (self.frame_observations - self.num_features + self.encode_dim - self.notrain_obs_num + 6
                       if num_features > 0 else self.frame_observations)
-        self.net = nn.Sequential(nn.Linear(critic_dim, 512),
+        self.net = nn.Sequential(nn.Linear(critic_dim + self.branch_latent_dim, 512),
                             nn.ELU(),
                             nn.Linear(512, 256),
                             nn.ELU(),
                             nn.Linear(256, 128),
                             nn.ELU(),
                             nn.Linear(128, 1))
-        
+
 
         self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
+        if num_branches > 1:
+            self.branch_latent = nn.Parameter(torch.randn(num_branches, branch_latent_dim))
+
+    def _with_branch_latent(self, net_inputs, branch_ids):
+        if branch_ids is None:
+            return net_inputs
+        latent = self.branch_latent[branch_ids].reshape(*net_inputs.shape[:-1], self.branch_latent_dim)
+        return torch.cat((net_inputs, latent), dim=-1)
 
     def compute(self, inputs, role):
+        branch_ids = (branch_index(inputs, inputs["states"].shape[:-1], self.num_branches,
+                                   self.log_std_parameter.device)
+                      if self.num_branches > 1 else None)
         # Keep the critic's original single-frame information and architecture.
         inputs = {"states": inputs["states"][..., -self.frame_observations:]}
         grasp_predict_local_pos_flat = inputs["states"][...,-6*self.cube_object_num-self.num_actions:-3*self.cube_object_num-self.num_actions]
@@ -260,10 +314,11 @@ class Value(DeterministicMixin, Model, PredictAttentionSelector):
             future_pose_obs = inputs["states"][..., self.future_pose_slice] if self.future_pose_dim else None
             right_predict_point = self.attention_forward(grasps=grasp_predict_local, obj_feat=features_encode,
                                                         pose=cube_local_pos_rpy, future_pose_obs=future_pose_obs)
-            actions = self.net(torch.cat([inputs["states"][..., self.num_features:-self.notrain_obs_num-self.num_actions],last_action , features_encode,right_predict_point], dim=-1))
-            return actions, {}        
+            critic_inputs = torch.cat([inputs["states"][..., self.num_features:-self.notrain_obs_num-self.num_actions],last_action , features_encode,right_predict_point], dim=-1)
+            actions = self.net(self._with_branch_latent(critic_inputs, branch_ids))
+            return actions, {}
         else:
-            return self.net(inputs["states"]), {}
+            return self.net(self._with_branch_latent(inputs["states"], branch_ids)), {}
 
 
 def get_predict_point(camera_6p_info=None, cube_predict_info_path=None, cube_root_states_info_path=None, num_env=None, intervel=None, delta_height=None, object_indices=None):
@@ -453,8 +508,16 @@ def get_trainer(is_eval=False, strict_eval=False):
     encode_dim = 0 if args.no_feature else 128
     models_ppo = {}
     gfm_kwargs = teacher_gfm_kwargs(env)
-    models_ppo["policy"] = Policy(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=args.eval, action_scaling=action_scaling, **gfm_kwargs)
-    models_ppo["value"] = Value(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, **gfm_kwargs)
+    # SAPG models keep all branches (also when evaluating); inputs without
+    # branch IDs, as in evaluation and deployment, always use the leader.
+    sapg_cfg = cfg["env"]["sapg"]
+    branch_kwargs = ({"num_branches": sapg_cfg["branches"], "branch_latent_dim": sapg_cfg["latent_dim"]}
+                     if sapg_cfg["branches"] > 1 else {})
+    cprint(f"Scout & Relay: SAPG branches {sapg_cfg['branches']} (environment branches "
+           f"{getattr(env, 'sapg_num_branches', 1)}), relay "
+           f"{'enabled' if getattr(env, 'relay_enabled', False) else 'disabled'}", "yellow")
+    models_ppo["policy"] = Policy(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, use_tanh=args.use_tanh, clip_actions=args.use_tanh, deterministic=args.eval, action_scaling=action_scaling, **gfm_kwargs, **branch_kwargs)
+    models_ppo["value"] = Value(env.observation_space, env.action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor, **gfm_kwargs, **branch_kwargs)
     
     cfg_ppo = deepcopy(PPO_DEFAULT_CONFIG)
     cfg_ppo["rollouts"] = 24  # memory_size
@@ -498,6 +561,11 @@ def get_trainer(is_eval=False, strict_eval=False):
     if cfg["env"]["tsil"]["enabled"]:
         from utils.tsil_ppo import TSILPPO
         agent_class, agent_kwargs = TSILPPO, {"tsil_env": env._env}
+    if not is_eval and getattr(env, "sapg_num_branches", 1) > 1:
+        # Relay without branches (M = 1) needs no agent change: plain PPO.
+        from utils.sapg_ppo import SAPGPPO
+        agent_class, agent_kwargs = SAPGPPO, {"sapg_env": env._env}
+        cfg_ppo["sapg"] = deepcopy(sapg_cfg)
     agent = agent_class(models=models_ppo,
             memory=memory,
             cfg=cfg_ppo,

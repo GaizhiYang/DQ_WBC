@@ -57,6 +57,21 @@ def _mode(value):
     return value
 
 
+def sgs_logits(rates, target_success_rate, concentration, epsilon):
+    """SGS Eq. (1) logits with Appendix B.2's weight floor, before temperature.
+
+    Shared by the leader sampler, per-scout samplers and the relay bank, so every
+    curriculum in the Scout & Relay variant uses exactly the same kernel.
+    """
+    log_weight = (
+        concentration * target_success_rate * torch.log(rates + epsilon)
+        + concentration * (1.0 - target_success_rate)
+        * torch.log(1.0 - rates + epsilon)
+    )
+    log_epsilon = torch.full_like(log_weight, math.log(epsilon))
+    return torch.logaddexp(torch.maximum(log_weight, log_epsilon), log_epsilon)
+
+
 def _integer_vector(value, device, name):
     result = torch.as_tensor(value, device=device)
     if result.ndim != 1:
@@ -205,20 +220,31 @@ class SGSSampler:
         return torch.where(self.count > 0, rates, self.p_init)
 
     @torch.no_grad()
+    def logits(self, rates=None):
+        """Kernel logits before temperature; ``rates`` defaults to this history."""
+        rates = self.success_rates() if rates is None else rates
+        return sgs_logits(rates, self.target_success_rate, self.concentration, self.epsilon)
+
+    @torch.no_grad()
     def probabilities(self, mode=None):
         if _mode(self.mode if mode is None else mode) == "uniform":
             return torch.full(
                 (self.num_configs,), 1.0 / self.num_configs,
                 dtype=torch.float32, device=self.device)
-        rates = self.success_rates()
-        log_weight = (
-            self.concentration * self.target_success_rate * torch.log(rates + self.epsilon)
-            + self.concentration * (1.0 - self.target_success_rate)
-            * torch.log(1.0 - rates + self.epsilon)
-        )
-        log_epsilon = torch.full_like(log_weight, math.log(self.epsilon))
-        logits = torch.logaddexp(torch.maximum(log_weight, log_epsilon), log_epsilon)
-        return torch.softmax(logits / max(self.temperature, 1.0), dim=0)
+        return torch.softmax(self.logits() / max(self.temperature, 1.0), dim=0)
+
+    @torch.no_grad()
+    def reset_entries(self, config_ids):
+        """Forget the outcomes of reused slots (relay bank); not used for the fixed bank."""
+        ids = self._config_ids(config_ids)
+        if not ids.numel():
+            return
+        self.history[ids] = False
+        self.count[ids] = 0
+        self.head[ids] = 0
+        self.success_sum[ids] = 0
+        self.visits_total[ids] = 0
+        self.last_seen[ids] = -1
 
     @torch.no_grad()
     def sample(self, num_resets, mode=None):

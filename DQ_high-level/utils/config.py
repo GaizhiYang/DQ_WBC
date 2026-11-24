@@ -19,6 +19,133 @@ SGS_DEFAULTS = {
     "p_init": 0.0,
 }
 
+# Scout & Relay (doc/SGS_SAPG_scout_relay_design.md). Defaults reproduce the
+# single-policy SGS teacher exactly: one branch and no relay bank.
+SAPG_DEFAULTS = {
+    "branches": 1,               # M; branch 0 is the deployed leader, 1..M-1 are scouts
+    "leader_fraction": 0.5,      # share of environments for the leader; scouts split the rest
+    "latent_dim": 16,            # learned per-branch condition vector (actor and critic)
+    "off_policy_coef": 1.0,      # SAPG lambda; 0 turns the IS channel off (ablation)
+    "entropy_coef": 0.0,         # scout j adds entropy_coef * j * entropy; the leader none
+    "mu_max": 0.0,               # optional IS-weight truncation; 0 = faithful (untruncated)
+    "chunk_size": 16384,
+    "scout_need_beta": 1.0,      # q_S ~ [(w(p_S)+eps)(1-p_L+eps)^beta]^(1/T); 0 = per-branch SGS
+    "scout_target_success": None,  # None: leader's target; list: one value per scout (last repeats)
+}
+
+RELAY_DEFAULTS = {
+    "enabled": False,
+    "source": "scouts",          # scouts (method) / leader (self-relay baselines D and G)
+    "trigger": "success",        # success (method) / failure (ablation)
+    "capacity": 4096,
+    "alpha_max": 0.3,            # cap on R's share of the leader's reset distribution
+    "tau_need": 0.3,             # create chains only where leader success <= tau_need
+    "max_chains_per_config": 2,
+    "fractions": [0.2, 0.4, 0.6, 0.8],
+    "snapshot_interval": 5,      # high-level steps between snapshots
+    "sampling": "sgs",           # sgs (method) / uniform within R (ablation)
+    "history_size": 50,
+    "master_rate": 0.9,
+    "master_count": 20,
+    "useless_count": 40,
+    "quarantine_steps": 3,
+    "max_new_chains_per_reset": 32,
+    "controller_state": False,   # ablation: also restore gait/history controller buffers
+}
+
+
+def _positive_int(settings, name, prefix):
+    if type(settings[name]) is not int or settings[name] < 1:
+        raise ValueError(f"env.{prefix}.{name} must be a positive integer")
+
+
+def _unit_interval(settings, name, prefix, low_open=False, high_open=False):
+    value = settings[name]
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        raise ValueError(f"env.{prefix}.{name} must be a finite number")
+    if (value < 0 or value > 1 or (low_open and value == 0) or (high_open and value == 1)):
+        raise ValueError(f"env.{prefix}.{name} is outside its allowed range in [0, 1]")
+
+
+def apply_scout_relay_config(cfg, args, is_eval=False):
+    """Merge YAML and CLI settings for SAPG branches and the relay bank."""
+    env_cfg = cfg["env"]
+    sapg = dict(SAPG_DEFAULTS)
+    sapg.update(env_cfg.get("sapg", {}) or {})
+    relay = dict(RELAY_DEFAULTS)
+    relay.update(env_cfg.get("relay", {}) or {})
+    for key, argument in (("branches", "sapg_branches"), ("leader_fraction", "sapg_leader_fraction"),
+                          ("latent_dim", "sapg_latent_dim"), ("off_policy_coef", "sapg_off_policy_coef"),
+                          ("entropy_coef", "sapg_entropy_coef"), ("mu_max", "sapg_mu_max"),
+                          ("scout_need_beta", "scout_need_beta"),
+                          ("scout_target_success", "scout_target_success")):
+        value = getattr(args, argument, None)
+        if value is not None:
+            sapg[key] = value
+    for key, argument in (("enabled", "relay"), ("source", "relay_source"),
+                          ("trigger", "relay_trigger"), ("capacity", "relay_capacity"),
+                          ("alpha_max", "relay_alpha_max"), ("tau_need", "relay_tau_need"),
+                          ("max_chains_per_config", "relay_max_chains_per_config"),
+                          ("fractions", "relay_fractions"),
+                          ("snapshot_interval", "relay_snapshot_interval"),
+                          ("sampling", "relay_sampling"), ("controller_state", "relay_controller_state")):
+        value = getattr(args, argument, None)
+        if value is not None:
+            relay[key] = value
+
+    for name in ("branches", "latent_dim", "chunk_size"):
+        _positive_int(sapg, name, "sapg")
+    _unit_interval(sapg, "leader_fraction", "sapg", low_open=True, high_open=True)
+    for name in ("off_policy_coef", "entropy_coef", "mu_max", "scout_need_beta"):
+        value = sapg[name]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+            raise ValueError(f"env.sapg.{name} must be a finite nonnegative number")
+    if sapg["scout_target_success"] is not None:
+        targets = sapg["scout_target_success"]
+        if not isinstance(targets, (list, tuple)) or not targets:
+            raise ValueError("env.sapg.scout_target_success must be null or a nonempty list")
+        sapg["scout_target_success"] = [float(value) for value in targets]
+        if any(not 0 <= value <= 1 for value in sapg["scout_target_success"]):
+            raise ValueError("env.sapg.scout_target_success values must be in [0, 1]")
+
+    if type(relay["enabled"]) is not bool or type(relay["controller_state"]) is not bool:
+        raise ValueError("env.relay.enabled and controller_state must be Boolean")
+    if relay["source"] not in ("scouts", "leader"):
+        raise ValueError("env.relay.source must be scouts or leader")
+    if relay["trigger"] not in ("success", "failure"):
+        raise ValueError("env.relay.trigger must be success or failure")
+    if relay["sampling"] not in ("sgs", "uniform"):
+        raise ValueError("env.relay.sampling must be sgs or uniform")
+    for name in ("capacity", "max_chains_per_config", "snapshot_interval", "history_size",
+                 "master_count", "useless_count", "max_new_chains_per_reset"):
+        _positive_int(relay, name, "relay")
+    if type(relay["quarantine_steps"]) is not int or relay["quarantine_steps"] < 0:
+        raise ValueError("env.relay.quarantine_steps must be a nonnegative integer")
+    _unit_interval(relay, "alpha_max", "relay", low_open=True)
+    _unit_interval(relay, "tau_need", "relay")
+    _unit_interval(relay, "master_rate", "relay", low_open=True)
+    fractions = relay["fractions"]
+    if (not isinstance(fractions, (list, tuple)) or not fractions
+            or any(isinstance(f, bool) or not isinstance(f, (int, float)) or not 0 < f < 1 for f in fractions)
+            or len(set(float(f) for f in fractions)) != len(fractions)):
+        raise ValueError("env.relay.fractions must be distinct values in (0, 1)")
+    relay["fractions"] = sorted(float(f) for f in fractions)
+    if relay["max_new_chains_per_reset"] * len(relay["fractions"]) > relay["capacity"]:
+        raise ValueError("env.relay.max_new_chains_per_reset * len(fractions) exceeds the relay capacity")
+
+    active = sapg["branches"] > 1 or relay["enabled"]
+    if active and not is_eval:
+        if env_cfg["sgs"]["mode"] == "disabled":
+            raise ValueError("SAPG branches and relay resets require --sgs_mode sgs or uniform")
+        if env_cfg.get("tsil", {}).get("enabled", False):
+            raise ValueError("TSIL cannot be combined with SAPG branches or relay resets")
+        if relay["enabled"] and relay["source"] == "scouts" and sapg["branches"] < 2:
+            raise ValueError("--relay_source scouts requires --sapg_branches >= 2")
+    env_cfg["sapg"] = sapg
+    env_cfg["relay"] = relay
+    return sapg, relay
+
+
 TSIL_DEFAULTS = {
     "enabled": False,
     "top_k": 5,
@@ -117,6 +244,7 @@ def configure_teacher_experiment(cfg, args, is_eval=False, strict_eval=False):
             raise ValueError("SGS training requires an existing validated bank via --sgs_bank or env.sgs.bank_path")
         # The bank loader validates the schema, source task, and physical validation.
     apply_tsil_config(cfg, args, is_eval=is_eval)
+    apply_scout_relay_config(cfg, args, is_eval=is_eval)
     return cfg
 
 
@@ -294,6 +422,47 @@ def get_parser():
                         help="legacy: clip raw policy outputs at the physical limits. "
                              "normalized: clip outputs to [-1, 1], then scale to the limits "
                              "(policy log-std starts at log 0.5). Defaults to the saved YAML or legacy.")
+    # Scout & Relay (doc/SGS_SAPG_scout_relay_design.md). None keeps the YAML/default value.
+    parser.add_argument("--sapg_branches", type=int, default=None,
+                        help="SAPG branches M (1 = ordinary PPO). Branch 0 is the deployed leader.")
+    parser.add_argument("--sapg_leader_fraction", type=float, default=None,
+                        help="Share of environments for the leader (default 0.5); scouts split the rest.")
+    parser.add_argument("--sapg_latent_dim", type=int, default=None,
+                        help="Learned per-branch condition vector size (default 16).")
+    parser.add_argument("--sapg_off_policy_coef", type=float, default=None,
+                        help="SAPG lambda for the leader's IS term (default 1; 0 disables the IS channel).")
+    parser.add_argument("--sapg_entropy_coef", type=float, default=None,
+                        help="Scout j adds coef * j * entropy (default 0; the leader never does).")
+    parser.add_argument("--sapg_mu_max", type=float, default=None,
+                        help="Optional truncation of the IS weight mu (default 0 = untruncated SAPG).")
+    parser.add_argument("--scout_need_beta", type=float, default=None,
+                        help="Scout curriculum exponent on (1 - leader success); 0 = per-branch SGS (default 1).")
+    parser.add_argument("--scout_target_success", type=float, nargs="+", default=None,
+                        help="SGS target success per scout (last value repeats); default: the leader's target.")
+    relay = parser.add_mutually_exclusive_group()
+    relay.add_argument("--relay", dest="relay", action="store_true",
+                       help="Enable the relay bank: snapshots of successful source episodes become leader resets.")
+    relay.add_argument("--no_relay", dest="relay", action="store_false")
+    parser.set_defaults(relay=None)
+    parser.add_argument("--relay_source", choices=("scouts", "leader"), default=None,
+                        help="scouts (method) or leader (self-relay baselines).")
+    parser.add_argument("--relay_trigger", choices=("success", "failure"), default=None,
+                        help="success (method) or failure (ablation).")
+    parser.add_argument("--relay_capacity", type=int, default=None)
+    parser.add_argument("--relay_alpha_max", type=float, default=None,
+                        help="Cap on the relay share of leader resets (default 0.3; 1 = no cap).")
+    parser.add_argument("--relay_tau_need", type=float, default=None,
+                        help="Create relay chains only where leader success <= tau (default 0.3).")
+    parser.add_argument("--relay_max_chains_per_config", type=int, default=None)
+    parser.add_argument("--relay_fractions", type=float, nargs="+", default=None,
+                        help="Fractions of the pre-hold horizon to snapshot (default 0.2 0.4 0.6 0.8).")
+    parser.add_argument("--relay_snapshot_interval", type=int, default=None,
+                        help="High-level steps between snapshots (default 5).")
+    parser.add_argument("--relay_sampling", choices=("sgs", "uniform"), default=None,
+                        help="Leader SGS within the relay bank (method) or uniform (ablation).")
+    parser.add_argument("--relay_controller_state", dest="relay_controller_state", action="store_true",
+                        help="Ablation: also restore gait/history controller buffers at relay starts.")
+    parser.set_defaults(relay_controller_state=None)
     prediction = parser.add_mutually_exclusive_group()
     prediction.add_argument("--future_pose_obs", dest="future_pose_obs", action="store_true",
                             help="Add EKF future object poses to teacher observations (default horizons: 0.30/0.60 seconds).")

@@ -150,7 +150,7 @@ class BaseStandIn:
 
 
 def production_environment_class():
-    methods = ("reset", "_reset_sgs_envs", "_record_sgs_metrics", "_print_sgs_success_rates",
+    methods = ("reset", "_reset_sgs_envs", "_restore_sgs_state", "_record_sgs_metrics", "_print_sgs_success_rates",
                "update_roboinfo", "step", "check_termination", "_yaw_deviation",
                "_reset_pick_state", "_record_episode_outcomes", "_update_curr_dist",
                "_current_object_pose_in_arm_frame", "_update_object_pose_prediction",

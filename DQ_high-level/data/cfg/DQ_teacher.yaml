@@ -35,6 +35,36 @@ env:
     temperature: 2.0
     epsilon: 0.0001
     p_init: 0.0
+  # Scout & Relay (doc/SGS_SAPG_scout_relay_design.md); requires sgs.mode sgs/uniform.
+  # These defaults are the single-policy SGS teacher: one branch, no relay bank.
+  sapg:
+    branches: 1 # --sapg_branches; branch 0 is the deployed leader, 1..M-1 are scouts
+    leader_fraction: 0.5 # leader's share of environments; scouts split the rest
+    latent_dim: 16 # learned per-branch condition vector (actor and critic)
+    off_policy_coef: 1.0 # SAPG lambda for the leader's IS term; 0 = no IS channel
+    entropy_coef: 0.0 # scout j adds entropy_coef * j * entropy; the leader never does
+    mu_max: 0.0 # optional IS-weight truncation; 0 = untruncated (SAPG)
+    chunk_size: 16384
+    scout_need_beta: 1.0 # scout curriculum (w(p_S)+eps)(1-p_L+eps)^beta; 0 = per-branch SGS
+    scout_target_success: null # null: leader's SGS target; list: one value per scout
+  relay:
+    enabled: False # --relay
+    source: scouts # scouts (method) / leader (self-relay baselines)
+    trigger: success # success (method) / failure (ablation)
+    capacity: 4096
+    alpha_max: 0.3 # cap on the relay share of leader resets; 1.0 = no cap
+    tau_need: 0.3 # create chains only where leader success <= tau_need
+    max_chains_per_config: 2
+    fractions: [0.2, 0.4, 0.6, 0.8] # of the pre-hold horizon
+    snapshot_interval: 5 # high-level steps between snapshots
+    sampling: sgs # sgs (method) / uniform within the relay bank (ablation)
+    history_size: 50
+    master_rate: 0.9 # retire when success >= master_rate over >= master_count episodes
+    master_count: 20
+    useless_count: 40 # retire after this many episodes without a success
+    quarantine_steps: 3 # physical failure within this many steps removes an entry
+    max_new_chains_per_reset: 32
+    controller_state: False # ablation: also restore gait/history controller buffers
   posePrediction:
     enabled: False # Enable with --future_pose_obs; original checkpoints keep their original observation size
     gfmFuturePoses: True # Feed forecast poses (excluding validity) into Actor/Critic GFM Query; absent in legacy configs means False

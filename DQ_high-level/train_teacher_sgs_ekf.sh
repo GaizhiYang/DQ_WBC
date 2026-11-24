@@ -79,6 +79,7 @@ cmd=(
     --future_pose_obs --future_pose_horizons 0.60 0.90
     --ekf_history 5 --ekf_q_scale 1.0 --ekf_r_scale 0.01
     --critic_time_obs
+    --action_scaling normalized
     --experiment_dir "${EXPERIMENT_DIR:-DQ_teacher/b1-pick-sugar-box-sgs-ekf}"
     --wandb_project "${WANDB_PROJECT:-isaacgym}" --wandb_name "$run_name"
     --seed "$seed" --headless

@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>动态接触过渡生成 · 实现架构</title>
+<style>
+:root{color-scheme:light;--bg:#f5f7fa;--paper:#fff;--ink:#142536;--muted:#526477;--line:#ccd6df;--blue:#2458a6;--blue-soft:#edf3fd;--green:#157568;--green-soft:#ebf6f1;--orange:#a35816;--orange-soft:#fff5e9;--code:#edf0f4}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.6}button,a{touch-action:manipulation}button{font:inherit;cursor:pointer}a{color:var(--blue);text-underline-offset:3px}button:focus-visible,a:focus-visible{outline:3px solid #71a4ef;outline-offset:4px}header{background:var(--ink);color:#fff;padding:40px max(24px,calc((100vw - 1180px)/2));border-bottom:5px solid #47b6a3}.eyebrow{font-size:12px;letter-spacing:.12em;color:#9fd8cf;text-transform:uppercase}h1{font-size:clamp(25px,4vw,37px);line-height:1.25;margin:12px 0 14px;letter-spacing:-.02em}header p{max-width:850px;color:#d2dce7;margin:0;font-size:16px}.meta{display:flex;flex-wrap:wrap;gap:10px 24px;margin-top:22px;font-size:13px;color:#ced9e4}.meta strong{font-weight:500;color:#fff}main{max-width:1230px;margin:auto;padding:25px}.toolbar{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:20px}.tabs{display:flex;gap:5px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:7px}.tab{border:0;background:transparent;border-radius:6px;padding:10px 15px;color:var(--muted);font-weight:600}.tab[aria-selected=true]{background:var(--ink);color:#fff}.actions{display:flex;gap:14px;align-items:center;font-size:13px}.plain-button{border:1px solid var(--line);border-radius:5px;background:var(--paper);padding:7px 11px;color:var(--ink)}.view-heading{display:flex;align-items:baseline;justify-content:space-between;gap:20px;flex-wrap:wrap;margin:14px 0 8px}.view-heading h2{font-size:21px;margin:0}.view-heading span{font-size:13px;color:var(--muted)}.intro{max-width:1000px;color:var(--muted);font-size:14px;margin:8px 0 19px}.legend{display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px;font-size:12px;color:var(--muted);margin:0 0 12px}.legend-item{display:inline-flex;align-items:center;gap:7px}.swatch{display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--blue)}.swatch.existing{background:#5d7184}.swatch.artifact{background:var(--green)}.line-key{width:25px;height:0;border-top:2px solid #64798c}.line-key.dashed{border-top-style:dashed;border-color:var(--orange)}.diagram-wrap{background:var(--paper);border:1px solid #dce3ea;border-radius:9px;padding:6px;overflow:visible}.diagram{display:block;width:100%;height:auto;overflow:visible}.diagram text{font-family:inherit;pointer-events:none}.node{cursor:pointer}.node .body{stroke-width:1.25;transition:stroke-width .12s}.node:hover .body{stroke-width:2.5}.node.selected .body{stroke:#2458a6;stroke-width:3}.node:focus-visible .body{stroke:#2458a6;stroke-width:4}.node:focus{outline:none}.edge{fill:none;stroke:#6d8091;stroke-width:1.6}.edge-feedback{fill:none;stroke:var(--orange);stroke-width:1.7;stroke-dasharray:5 5}.edge-label{font-size:12px;fill:var(--muted)}.boundary-note{display:flex;gap:12px;align-items:flex-start;margin:14px 0 24px;padding:13px 16px;background:var(--orange-soft);border-left:3px solid var(--orange);font-size:14px}.boundary-note strong{white-space:nowrap;color:#874310}.inspector{background:var(--paper);border:1px solid var(--line);border-radius:8px;margin-top:20px;padding:22px}.inspector-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:8px}.inspector h3{font-size:19px;margin:0}.badge{font-size:12px;padding:3px 9px;border-radius:4px;background:var(--blue-soft);color:var(--blue)}.inspector p{font-size:14px;margin:10px 0 18px;color:var(--muted)}.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:17px 30px}.detail-grid h4{font-size:12px;letter-spacing:.07em;color:var(--muted);margin:0 0 5px}.detail-grid div{font-size:14px;min-width:0}.detail-grid .full{grid-column:1/-1}.files{display:flex;flex-direction:column;gap:5px}.files code{overflow-wrap:anywhere;font-size:12px;color:var(--blue)}code{font-family:"SFMono-Regular",Consolas,monospace;background:var(--code);padding:2px 4px;border-radius:3px}.scope-grid{display:grid;grid-template-columns:1fr 1fr;gap:25px;margin:28px 0 22px}.scope-grid h3{font-size:16px;margin:0 0 9px}.scope-grid p{color:var(--muted);font-size:13px;margin:0}.phase-mapping{margin-top:22px;border-top:1px solid var(--line);padding-top:18px}.phase-mapping h3{margin:0 0 10px;font-size:17px}.phase-mapping ul{padding-left:22px;font-size:14px}.phase-mapping li{margin-bottom:8px}.foot{margin-top:30px;padding:18px 0 4px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}[hidden]{display:none!important}.noscript{padding:20px;background:var(--orange-soft)}.screen-reader{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}@media(max-width:650px){header{padding:27px 18px}main{padding:18px 12px}.toolbar{align-items:stretch}.actions{width:100%;justify-content:space-between}.tab{padding:10px 11px;font-size:14px}.detail-grid,.scope-grid{grid-template-columns:1fr}.inspector{padding:17px}.boundary-note{display:block}.boundary-note strong{display:block;margin-bottom:4px}.view-heading{gap:5px}.diagram-wrap{padding:2px}.legend{gap:10px 15px}.meta{gap:5px 17px}.scope-grid{gap:18px}}@media(prefers-reduced-motion:reduce){*{transition:none!important}}@media print{body{background:#fff}header{background:#fff;color:#142536;padding:15px 0;border-bottom:2px solid #142536}header p,.meta,.eyebrow,.meta strong{color:#34475a}main{padding:10px 0;max-width:none}.toolbar,.inspector,.foot,.view-heading span{display:none}.panel[hidden]{display:block!important}.panel{break-before:page}.panel:first-of-type{break-before:auto}.diagram-wrap{border:0;padding:0}.diagram{max-height:800px}.boundary-note{background:transparent;border-color:#777}.scope-grid{break-inside:avoid}h1{font-size:26px}.intro{font-size:11px}.legend{font-size:10px}.phase-mapping{font-size:11px}.print-status{display:block}}
+</style>
+</head>
+<body>
+<header>
+ <div class="eyebrow">DQ_WBC-1888ce7 · Engineering design</div>
+ <h1>动态接触过渡生成</h1>
+ <p>通过前向物理分支寻找闭爪机会，把转换前仍有决策空间的状态，接入现有 SGS 与 PPO 训练。</p>
+ <div class="meta"><span><strong>研究方案 · 尚未实现</strong></span><span>首版：离线生成、冻结起点库</span><span>更新：2026-11-23</span></div>
+</header>
+<main>
+ <div class="toolbar">
+  <nav class="tabs" role="tablist" aria-label="架构视图">
+   <button class="tab" id="tab-overview" type="button" role="tab" aria-selected="true" aria-controls="panel-overview">01 整体数据流</button>
+   <button class="tab" id="tab-reset" type="button" role="tab" aria-selected="false" aria-controls="panel-reset">02 训练与恢复时序</button>
+   <button class="tab" id="tab-phases" type="button" role="tab" aria-selected="false" aria-controls="panel-phases">03 实施阶段</button>
+  </nav>
+  <div class="actions"><a href="Dynamic_contact_transition_implementation_plan.md">阅读实现方案 MD</a><button class="plain-button" id="print" type="button">打印架构</button></div>
+ </div>
+ <div class="legend" aria-label="图例">
+  <span class="legend-item"><i class="swatch" aria-hidden="true"></i>计划新增／修改</span>
+  <span class="legend-item"><i class="swatch existing" aria-hidden="true"></i>复用现有流程</span>
+  <span class="legend-item"><i class="swatch artifact" aria-hidden="true"></i>冻结数据产物</span>
+  <span class="legend-item"><i class="line-key" aria-hidden="true"></i>执行顺序／数据</span>
+  <span class="legend-item"><i class="line-key dashed" aria-hidden="true"></i>诊断反馈／条件旁路</span>
+ </div>
+ <noscript><p class="noscript">此文件的交互架构图需要浏览器开启 JavaScript。流程为：共享配置 → 独立采集 → 接触事件与上下文 → 前向分支 → 时序探测 → 恢复验收 → 候选选择 → 冻结起点库 → SGS/PPO → 原始完整任务评估。训练保留 step → record_transition → post_interaction → 仅已结束环境 reset 的顺序。</p></noscript>
+ <section class="panel" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
+  <div class="view-heading"><h2>离线生成，在线只练习</h2><span>选择节点查看职责、接口和代码落点</span></div>
+  <p class="intro">候选生成器使用独立仿真实例。窗口探测轨迹只提供筛选证据；进入正式训练的是冻结的起点和恢复上下文。</p>
+  <div class="diagram-wrap"><svg class="diagram" id="svg-overview" role="group" aria-label="从共享推理配置、离线生成到冻结起点库与完整任务评价的架构图"></svg></div>
+  <div class="boundary-note"><strong>数据边界</strong><span>探测器动作、旧策略轨迹、局部转换成功标签均不写入 PPO memory 或 SGS 的最终成功历史。正式学习从起点重新采集当前策略数据。</span></div>
+ </section>
+ <section class="panel" id="panel-reset" role="tabpanel" aria-labelledby="tab-reset" hidden>
+  <div class="view-heading"><h2>保持原训练顺序，只扩展重置事务</h2><span>未结束的回合跨越 PPO rollout 边界继续</span></div>
+  <p class="intro">底层 step 先返回真实终止观测；训练器记录 transition 并执行 post_interaction，随后仅重置 done 环境。100 步回合不应被 24 步 PPO rollout 强制截断。</p>
+  <div class="diagram-wrap"><svg class="diagram" id="svg-reset" role="group" aria-label="训练器记录终止数据后，按结束环境恢复上下文并初始化新练习回合的时序图"></svg></div>
+  <div class="boundary-note"><strong>恢复边界</strong><span>恢复物理、控制与因果观测上下文；新练习的 elapsed、hold、成功锁存和奖励历史重新初始化。重置事务中不额外推进共享模拟器。</span></div>
+ </section>
+ <section class="panel" id="panel-phases" role="tabpanel" aria-labelledby="tab-phases" hidden>
+  <div class="view-heading"><h2>按可验证依赖逐步落地</h2><span>通过上一阶段验收，再扩大算法范围</span></div>
+  <p class="intro">先统一配置与事件证据，再验证恢复；之后才生产候选和训练。在线 bank 替换、训练效用选择器和策略结构变化留在首版之外。</p>
+  <div class="diagram-wrap"><svg class="diagram" id="svg-phases" role="group" aria-label="从共享配置、事件诊断、恢复验证到冻结训练库和成本公平评价的实施阶段图"></svg></div>
+  <div class="phase-mapping"><h3>首版验收的四个边界</h3><ul><li>旧 <code>ConfigurationBank</code> schema 1 与 v12 路径继续可用；动态态使用独立的 typed bundle 校验。</li><li>保存、恢复和探测都带环境参数身份、控制周期、来源轨迹及策略版本。</li><li>从已完成事件的状态出发，不得产生 <code>T_event = 0</code> 的虚假成功窗口。</li><li>评价从完整原始起点执行，关闭 SGS；比较包含生成、筛选与恢复成本。</li></ul></div>
+ </section>
+ <aside class="inspector" id="inspector" aria-live="polite" aria-atomic="true">
+  <div class="inspector-head"><h3 id="detail-title"></h3><span class="badge" id="detail-status"></span></div>
+  <p id="detail-summary"></p>
+  <div class="detail-grid">
+   <div><h4>输入</h4><div id="detail-input"></div></div>
+   <div><h4>输出</h4><div id="detail-output"></div></div>
+   <div class="full"><h4>代码位置</h4><div class="files" id="detail-files"></div></div>
+   <div class="full"><h4>必须保持的约束</h4><div id="detail-rule"></div></div>
+  </div>
+ </aside>
+ <section class="scope-grid" aria-label="设计范围">
+  <div><h3>首版核心</h3><p>在同一物理有效候选上比较不同闭爪时序与未干预策略，选择“有成功机会但策略尚未掌握”的转换前状态。有限探测窗口是经验证据，不是精确可达集。</p></div>
+  <div><h3>复用边界</h3><p>奖励、Actor 输入、动作范围、PPO 和最终 hold 语义保持一致。接触标签只参与仿真建库与诊断，不由本课程方法要求新增真机触觉传感器。</p></div>
+ </section>
+ <footer class="foot">基于仓库代码审计与 <a href="Dynamic_contact_transition_curriculum_design.md">研究设计</a>。节点中的“计划新增／修改”描述拟议实现，不代表已完成代码。图中所有逻辑均在本文件本地运行，无外部资源依赖。</footer>
+</main>
+<script>
+(() => {
+'use strict';
+const root = '../DQ_high-level/';
+const ct = root + 'utils/contact_transition/';
+const n = (id,title,sub,status,kind,summary,input,output,files,rule) => ({id,title,sub,status,kind,summary,input,output,files,rule});
+const overview = [
+n('runtime','共享推理配置','配置快照 + checkpoint','计划抽取','new','从教师的真实运行参数、保存的 YAML 与模型元数据构造一致的推理环境。避免 collector 使用建库工厂的简化默认值。','teacher_run.json、教师 YAML、权重与 scaler','只读 RuntimeSpec 与冻结推理句柄',[root+'utils/teacher_inference.py',ct+'config.py',root+'train_multistate_DQ_teacher.py'],'Isaac Gym 先于 PyTorch 导入；校验观测宽度、动作缩放、EKF、控制频率和策略版本。'),
+n('collector','独立离线采集','完整起点与合法辅助根','计划新增','new','在独立仿真进程中采集完整轨迹和辅助起点轨迹，不在训练 simulator 中偷偷推进候选分支。','RuntimeSpec、源数据 split、种子表','原始轨迹、动作时序、动力学身份',[root+'collect_contact_transitions.py',root+'utils/teacher_inference.py'],'源自辅助根的状态只能声明相对该根可达；不伪称从完整 2 m 起点可达。'),
+n('capture','事件与高层快照','低层证据 / 高层动作边界','计划新增 / hook','new','逐物理或低层周期读取接触证据，在下一高层动作前保存动态上下文。失败轨迹也按捕获区或首次可信接触锚定。','刷新后的物理张量、控制与观测历史','ContactEvidence、TransitionSnapshot、provenance',[ct+'events.py',ct+'snapshot.py',root+'envs/b1z1_base.py'],'净指尖力不等于目标接触对；unknown 不等于失败。只读采集不得调用会推进 history 或 gait 的观测函数。'),
+n('restore','恢复与配对调度','状态、参数、随机周期一致','计划新增','new','为独立探测环境恢复候选上下文，并安排配对的控制周期和外部随机序列。物理参数不兼容时拒绝或单独复验。','Snapshot、目标环境身份、RNG schedule','可执行的配对分支起点',[ct+'snapshot.py',ct+'probe.py',root+'modules/pose_prediction.py'],'物理时间与练习 elapsed 分离；EKF 历史时间戳重定位。缓存中的力不能充当恢复后的物理接触真值。'),
+n('prefix','前向进入分支','真实九维控制接口','计划新增','new','用短前缀改变跟踪或对准方式，通过真实推进产生候选的位姿、速度、控制参考和历史。','合法父快照、受限进入动作族','真实前驱候选及前向路径证据',[ct+'probe.py',root+'envs/b1z1_base.py'],'禁止独立拼装速度和位置，禁止倒放物理轨迹；保留来源根和实际动作。'),
+n('probe','闭爪窗口探测','时序干预 + 自然策略对照','计划新增','new','在同一候选上比较等待 0/1/2/3 个高层周期等有限动作族，并保留完全不覆盖策略动作的对照。','前驱候选、冻结策略、有限动作族','离散时序掩码、事件结局、置信度',[ct+'probe.py',ct+'events.py'],'目标事件在 reset 时尚未完成；C1 等待不主动张爪。保持夹爪目标需反解真实映射，a6=0 是半开而非保持。'),
+n('audit','恢复与物理验收','未中断续跑 vs 恢复续跑','计划新增','new','检查穿透、异常冲击、接触语义、动作接口可执行性，以及恢复后窗口是否保留。','候选、配对续跑轨迹、阈值协议','接受 / 拒绝 / 未知及原因码',[root+'audit_contact_transition_bank.py',ct+'snapshot.py',ct+'events.py'],'不给动态候选统一施加静止一秒检查；额外推进改变时间和状态时，以推进后的状态为实际起点并计费。'),
+n('select','分层选择与去重','容易 / 能做未会 / 未知前沿','计划新增','new','按事件、入射方向和相对运动分层，控制相邻轨迹帧重复。对关键成功分支做独立复验，不追逐偶然成功或最窄窗口。','同一个物理有效候选池与证据','固定容量候选 ID 清单',[ct+'selection.py',ct+'config.py'],'窗口证据不等于训练效用；同池随机、几何、动态选择器共同形成消融。'),
+n('bundle','冻结 TransitionBankBundle','anchors + typed context + manifest','计划新增产物','artifact','组合完整旧 anchors.pt（启用 1152 行：512 full、512 near、128 pre）和 384 个动态候选。manifest 绑定数组顺序与哈希；先生成 draft，经报告 hash 绑定的审计后原子发布 passed manifest，ResetSource adapter 提供 1536 个 active slot。','选入 ID、legacy anchors、typed 动态状态','不可变 bundle 与 audit / cost 报告',[ct+'bank.py',root+'build_contact_transition_bank.py',root+'utils/sgs.py'],'入口 --sgs_bank 指向 bundle/manifest.json 文件。旧 schema 1 不改；动态态独立验证，不能继承旧静态几何或 15→10 hold 兼容豁免。'),
+n('learn','SGS + PPO 正式训练','仅 done reset / fresh rollout','现有流程 + 计划接入','existing','SGS 选择起点；环境和 wrapper 按协议恢复；当前策略重新采样。回合终止后仅把原 hold 结果归给实际候选。','冻结 reset source、当前策略、原奖励','教师 checkpoint、候选最终成功统计',[root+'envs/b1z1_pickmulti.py',root+'utils/wrapper.py',root+'utils/sgs.py',root+'train_multistate_DQ_teacher.py'],'终止观测先写 PPO memory；未 done 环境跨 rollout 延续。探测轨迹不进入 PPO，局部事件成功不写 SGS hold。'),
+n('evaluate','完整任务评估','SGS 关闭 / 原始约 2 m 起步','现有流程 + 计划诊断','existing','复用严格评估的同步波次、固定种子和冻结 scaler，增加事件失败分解及完整成本账本。','同预算训练结果、独立最终测试集','hold、完成时间、失败类型、成本曲线',[root+'eval_sgs_teacher.py',ct+'events.py'],'最终测试不用于选择候选。报告生成、筛选、恢复、课程 probe 与训练的总物理步和墙钟。'),
+n('feedback','下一轮诊断与决策','先验证收益，再考虑在线','计划实验','new','比较同容量接触覆盖、简单状态回收、随机分支与窗口生成。只有完整任务收益成立才进入在线版本。','留出的课程验证结果、基线差值','继续 / 简化 / 转向；下一批离线设置',[root+'doc/Dynamic_contact_transition_implementation_plan.md'],'虚线是实验决策反馈，不表示第一版会在线热替换 bank。在线候选身份和延迟结算属于后续工作。')
+];
+overview[11].files=['doc/Dynamic_contact_transition_implementation_plan.md'];
+overview.push(n('reject','拒绝 / 下轮重新生成','记录原因和已消耗计算','计划新增审计分支','new','物理或恢复验收失败的候选不进入 bank；记录拒绝原因与完整成本，按剩余预算重新选择父状态或进入动作。','验收失败、异常或标签不可靠','拒绝记录；下一轮生成请求',[ct+'probe.py',ct+'snapshot.py',root+'audit_contact_transition_bank.py'],'失败不会被写成 SGS 的策略失败；不得放宽物理标准来凑满配额。'));
+const reset = [
+n('step','01 真实 step','返回旧回合的 terminal observation','复用现有','existing','高层动作经过真实环境推进，post_physics_step 更新观测、奖励和结束标记；此处不自动换成新起点。','当前策略动作','next_obs、reward、done、info',[root+'envs/b1z1_base.py',root+'utils/wrapper.py'],'保持现有有限时域处理；不能只改 terminated/truncated 映射而不审查 PPO bootstrap 和 GAE。'),
+n('record','02 record_transition','先记录终止 transition','复用现有','existing','训练器把该次交互写入 memory，保留真正的 terminal next_obs。','step 输出与当前策略统计','新的 PPO transition',['third_party/skrl/skrl/trainers/torch/base.py',root+'train_multistate_DQ_teacher.py'],'不要在 step 内 reset 后用新 episode 观测覆盖 terminal next_obs。保持现有训练器的记录顺序。'),
+n('post','03 post_interaction','到边界时执行 PPO 更新','复用现有','existing','复用原训练器的 post_interaction；更新边界与 episode 结束互相独立。','已记录 rollout、当前训练步','可能更新的策略',[root+'train_multistate_DQ_teacher.py'],'PPO rollout 为 24 步不等于任务 episode 为 24 步。未结束回合保留状态和 history。'),
+n('done','04 仅选择 done 环境','其余环境直接继续下一次 act','复用现有','existing','只把结束环境交给 reset 事务。所有未结束环境无需 SGS 采样，也不清空历史。','done mask','reset env_ids / 原样继续的 env_ids',[root+'utils/wrapper.py',root+'envs/b1z1_pickmulti.py'],'一次 reset 调用不得推进共享 simulator；不得改写未选环境。'),
+n('settle','05 结算旧回合','旧 ID + 原最终 hold','现有流程 + 计划身份校验','existing','在切换 active candidate 前完成旧成绩归属。冻结首版使用不可变 bundle 指纹与候选行号。','旧 active ID、episode_success','旧候选 SGS history 更新',[root+'envs/b1z1_pickmulti.py',root+'utils/sgs.py'],'新候选不能继承其他候选的成功历史；探测和局部事件计数另存。'),
+n('sample','06 SGS 采样新起点','统一 reset-source adapter','计划接入','new','保持原 SGS 权重语义，adapter 返回 legacy 或动态候选的显式恢复类型。','SGS sampler、冻结 source','新 dense slot、固定 candidate UUID、restore kind',[ct+'bank.py',root+'utils/sgs.py',root+'envs/b1z1_pickmulti.py'],'容量占比不等于采样占比；分别记录 reset 次数和实际 PPO 步数。'),
+n('context','07 恢复动态上下文','root / DOF / targets / control','计划修改','new','新事务先清理旧 episode，再恢复候选物理和控制上下文；相关 tensor 只处理本次 env_ids。','typed snapshot + 兼容环境','恢复后的 root、DOF、参考与低层状态',[ct+'snapshot.py',root+'envs/b1z1_pickmulti.py',root+'envs/b1z1_base.py'],'新练习计数与低层 history 初始化标记要拆开，防止下一次观测覆盖刚恢复的 history。'),
+n('ekf','08 恢复估计 / 初始化练习','物理时钟保留 / 练习计数归零','计划修改','new','重定位因果 EKF 时间戳并重建选中环境的预测；新练习 elapsed、hold 与奖励历史按协议初始化。','过去 poses / 相对时间 / count','有效预测、100 步新练习预算',[root+'modules/pose_prediction.py',ct+'snapshot.py',root+'envs/b1z1_pickmulti.py'],'禁止未来观测泄漏，禁止重复 push 同一时间戳。practice 的历史 time 列归零并用重算 current raw obs 替换最后帧；continuation 审计保留原剩余时长。'),
+n('wrapper','09 wrapper 返回新 obs','恢复原始帧历史 / 当前 scaler','计划修改','new','恢复或初始化 wrapper 的原始 Actor history，不能再被 ObservationHistory.reset 平铺覆盖；使用当前模型 scaler，提交新 active ID 后返回下一次 act。','环境新观测、过去原始帧、restore kind','新 state，进入下一次策略动作',[root+'utils/wrapper.py',ct+'snapshot.py'],'不保存跨模型的归一化帧当作 raw history；动态上下文恢复只影响 done 环境。')
+];
+const phases = [
+n('p0','P0 统一运行配置','入口审计与基线固定','计划新增 / 抽取','new','抽取共享推理构造，明确原有参数优先级与 checkpoint 加载路径；保持旧训练入口行为。','教师 run 元数据、YAML、现有 eval 流程','RuntimeSpec、配置差异报告',[root+'utils/teacher_inference.py',ct+'config.py'],'通过相同权重/观测的动作一致性检查；旧入口与旧 v12 loader 通过回归。'),
+n('p1','P0 接触证据与轨迹','只读 hook + 高层快照','计划新增','new','加入事件状态机与 ring buffer；先确认失败确实集中在接触窗口，且采集不改变控制行为。','刷新后的物理状态、完整起步 rollout','带置信度事件、源轨迹及候选锚点',[ct+'events.py',ct+'snapshot.py',root+'collect_contact_transitions.py'],'unknown 显式保留；只读 hook 开关不改变同种子轨迹；失败轨迹必须覆盖。'),
+n('p2','P1 恢复契约','先审计，再谈动态候选','计划新增 / 修改','new','实现选定 env 的上下文恢复、EKF 时间重定位、wrapper history 与低层初始化标记拆分。','同一真实轨迹快照','未中断 vs 恢复续跑审计报告',[ct+'snapshot.py',root+'audit_contact_transition_bank.py',root+'modules/pose_prediction.py',root+'utils/wrapper.py'],'不推进共享 simulator；不改写其他环境；异常冲击或窗口失真未解决则停止。'),
+n('p3','P2 分支与窗口','自然策略对照不可省略','计划新增','new','实现进入分支、闭合时序覆盖、配对随机调度、成本计数和独立复验。','恢复可用的父状态、受限动作族','窗口掩码、自然策略能力、结果不确定性',[ct+'probe.py',ct+'events.py'],'a6 保持语义必须正确；不可把局部事件成功写入最终 hold，也不将 probe 写入 memory。'),
+n('p4','P3 选择与冻结 bundle','typed 状态与 manifest 指纹','计划新增','artifact','按显式分层规则选择候选，组合 legacy anchors 和动态上下文，记录各产物哈希与顺序。','已验证候选池、旧锚点','TransitionBankBundle 与一致性审计',[ct+'selection.py',ct+'bank.py',root+'build_contact_transition_bank.py'],'schema 1 不改；动态 validator 独立；manifest 与数组错配必须拒绝。'),
+n('p5','P4 SGS 训练接入','原异步 reset 事务扩展','计划修改','new','新增 reset-source 分派，让 SGS 继续选固定候选；训练器和 PPO 算法保持原流程。','冻结 bundle、原训练参数','训练日志与教师 checkpoint',[root+'envs/b1z1_pickmulti.py',root+'utils/wrapper.py',root+'utils/config.py',root+'train_multistate_DQ_teacher.py'],'终止 transition 在 reset 前记录；旧 ID 在新 ID 生效前结算；未结束回合不受影响。'),
+n('p6','P5 成本公平评价','同容量 / 同支持集 / 同预算','计划扩展诊断','existing','比较原库、接触覆盖、简单回收、随机分支和窗口方法；增加同池信息消融。','独立训练种子、最终完整任务测试','完整起步成功、失败归因和成本曲线',[root+'eval_sgs_teacher.py',ct+'events.py'],'评价关闭 SGS；记录总仿真步和墙钟；不把 bank 内成功当作主任务收益。'),
+n('later','后续：在线更新','首版收益成立后再进入','后置，不纳入 MVP','new','若离线方案有效，再设计版本化候选生命周期、延迟结算及低频外层预算分配。','冻结版的稳定证据','新的在线设计与单独消融',['doc/Dynamic_contact_transition_implementation_plan.md'],'不在当前方案里原地修改不可变 bank；无需为首版提前实现通用世界模型或效用学习器。')
+];
+const views = {overview:{nodes:overview,feedback:'诊断反馈 → 下一批离线设计'},reset:{nodes:reset,feedback:'下一次 act：新起点与未结束回合共同继续'},phases:{nodes:phases,feedback:null}};
+const ns = 'http://www.w3.org/2000/svg';
+let active='overview'; const selected={overview:'probe',reset:'record',phases:'p2'};
+function svgEl(tag,attrs,text){const el=document.createElementNS(ns,tag);Object.entries(attrs||{}).forEach(([k,v])=>el.setAttribute(k,v));if(text!==undefined)el.textContent=text;return el;}
+function detail(node){document.getElementById('detail-title').textContent=node.title;document.getElementById('detail-status').textContent=node.status;document.getElementById('detail-summary').textContent=node.summary;document.getElementById('detail-input').textContent=node.input;document.getElementById('detail-output').textContent=node.output;document.getElementById('detail-rule').textContent=node.rule;const host=document.getElementById('detail-files');host.replaceChildren();node.files.forEach(file=>{const code=document.createElement('code');code.textContent=file.replace(/^\.\.\/DQ_high-level\//,'DQ_high-level/');host.append(code);});}
+function select(id,key=active){selected[key]=id;const node=views[key].nodes.find(x=>x.id===id);if(key===active)detail(node);document.querySelectorAll('#svg-'+key+' .node').forEach(g=>{const yes=g.dataset.node===id;g.classList.toggle('selected',yes);g.setAttribute('aria-pressed',String(yes));});}
+function fitLines(str,max){const words=Array.from(str);const lines=[];let line='';let width=0;for(const c of words){const unit=/[\x00-\x7f]/.test(c)?.56:1;if(width+unit>max&&line){lines.push(line);line='';width=0;}line+=c;width+=unit;}if(line)lines.push(line);return lines;}
+function draw(key){const svg=document.getElementById('svg-'+key);const available=svg.parentElement.clientWidth-12;if(available<=0)return;const w=Math.max(280,available);const cols=w>=960?3:w>=660?2:1;const margin=cols===1?22:34;const gap=cols===1?0:48;const nw=(w-2*margin-(cols-1)*gap)/cols;const nh=112;const step=163;const nodes=views[key].nodes;const rows=Math.ceil(nodes.length/cols);const h=rows*step+54;svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.setAttribute('width',w);svg.setAttribute('height',h);svg.replaceChildren();svg.append(svgEl('title',{},key==='overview'?'动态接触过渡生成整体数据流':key==='reset'?'训练器与异步恢复时序':'依赖驱动的实施阶段'));svg.append(svgEl('desc',{},'方框为可选择节点，实线箭头表示数据或执行顺序，外侧虚线表示诊断反馈、条件旁路或下一次循环。选择节点可以在图下方阅读代码位置、输入输出与约束。'));const defs=svgEl('defs');const marker=svgEl('marker',{id:'arrow-'+key,viewBox:'0 0 10 10',refX:'9',refY:'5',markerWidth:'7',markerHeight:'7',orient:'auto-start-reverse'});marker.append(svgEl('path',{d:'M 0 0 L 10 5 L 0 10 z',fill:'#6d8091'}));defs.append(marker);const fm=svgEl('marker',{id:'feedback-'+key,viewBox:'0 0 10 10',refX:'9',refY:'5',markerWidth:'7',markerHeight:'7',orient:'auto'});fm.append(svgEl('path',{d:'M 0 0 L 10 5 L 0 10 z',fill:'#a35816'}));defs.append(fm);svg.append(defs);
+const positions=nodes.map((node,i)=>{const row=Math.floor(i/cols);let col=i%cols;if(row%2===1)col=cols-1-col;return{x:margin+col*(nw+gap),y:27+row*step,row,col};});
+for(let i=0;i<nodes.length-1;i++){if(key==='overview'&&nodes[i+1].id==='reject')continue;const a=positions[i],b=positions[i+1];let d;if(a.row===b.row){const right=b.x>a.x;const x1=right?a.x+nw:a.x;const x2=right?b.x:b.x+nw;d=`M ${x1} ${a.y+nh/2} L ${x2} ${b.y+nh/2}`;}else{const x1=a.x+nw/2,x2=b.x+nw/2;const yy=a.y+nh+(step-nh)/2;d=`M ${x1} ${a.y+nh} L ${x1} ${yy} L ${x2} ${yy} L ${x2} ${b.y}`;}svg.append(svgEl('path',{d,class:'edge','marker-end':'url(#arrow-'+key+')'}));}
+nodes.forEach((node,i)=>{const p=positions[i];const g=svgEl('g',{class:'node'+(node.id===selected[key]?' selected':''),transform:`translate(${p.x},${p.y})`,role:'button',tabindex:'0','aria-label':node.title+'，'+node.status,'aria-pressed':String(node.id===selected[key])});g.dataset.node=node.id;const kind=node.kind;const fill=kind==='artifact'?'#ebf6f1':kind==='existing'?'#f1f4f7':'#edf3fd';const stroke=kind==='artifact'?'#a1cbbf':kind==='existing'?'#bcc9d5':'#b5c9e6';const accent=kind==='artifact'?'#157568':kind==='existing'?'#526477':'#2458a6';g.append(svgEl('rect',{class:'body',width:nw,height:nh,rx:7,fill,stroke}));g.append(svgEl('text',{x:15,y:22,fill:accent,'font-size':11.5,'font-weight':600},String(i+1).padStart(2,'0')+' / '+node.status));const lines=fitLines(node.title,(nw-30)/18);lines.slice(0,2).forEach((line,j)=>g.append(svgEl('text',{x:15,y:49+j*23,fill:'#142536','font-size':18,'font-weight':650},line)));const sublines=fitLines(node.sub,(nw-30)/12.5);sublines.slice(0,lines.length>1?1:2).forEach((line,j)=>g.append(svgEl('text',{x:15,y:lines.length>1?96:78+j*18,fill:'#526477','font-size':12.5},lines.length>1&&sublines.length>1?line.slice(0,-1)+'…':line)));g.addEventListener('click',()=>select(node.id,key));g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(node.id,key);}});svg.append(g);});
+if(key==='overview'){
+ const audit=positions[nodes.findIndex(node=>node.id==='audit')];
+ const reject=positions[nodes.findIndex(node=>node.id==='reject')];
+ const prefix=positions[nodes.findIndex(node=>node.id==='prefix')];
+ const outY=audit.y+nh+23;
+ svg.append(svgEl('path',{d:`M ${audit.x+nw/2} ${audit.y+nh} L ${audit.x+nw/2} ${outY} L ${w-9} ${outY} L ${w-9} ${reject.y-15} L ${reject.x+nw/2} ${reject.y-15} L ${reject.x+nw/2} ${reject.y}`,class:'edge-feedback','marker-end':'url(#feedback-'+key+')'}));
+ svg.append(svgEl('text',{x:audit.x+nw/2+8,y:outY-6,'font-size':12,fill:'#a35816'},'验收失败'));
+ svg.append(svgEl('path',{d:`M ${reject.x} ${reject.y+nh/2} L 18 ${reject.y+nh/2} L 18 ${prefix.y-16} L ${prefix.x+nw/2} ${prefix.y-16} L ${prefix.x+nw/2} ${prefix.y}`,class:'edge-feedback','marker-end':'url(#feedback-'+key+')'}));
+}
+if(key==='reset'){
+ const done=positions[nodes.findIndex(node=>node.id==='done')];const target=positions[0];const yy=done.y+nh+24;
+ svg.append(svgEl('path',{d:`M ${done.x+nw/2} ${done.y+nh} L ${done.x+nw/2} ${yy} L ${w-9} ${yy} L ${w-9} 17 L ${target.x+nw/2+15} 17 L ${target.x+nw/2+15} ${target.y}`,class:'edge-feedback','marker-end':'url(#feedback-'+key+')'}));
+ svg.append(svgEl('text',{x:done.x+nw/2+7,y:yy-6,'font-size':12,fill:'#a35816'},'未结束：继续'));
+}
+if(views[key].feedback){const last=positions[key==='overview'?nodes.findIndex(node=>node.id==='feedback'):positions.length-1];const target=positions[key==='overview'?1:0];const y=h-28;svg.append(svgEl('path',{d:`M ${last.x} ${last.y+nh/2} L 9 ${last.y+nh/2} L 9 9 L ${target.x+nw/2} 9 L ${target.x+nw/2} ${target.y}`,class:'edge-feedback','marker-end':'url(#feedback-'+key+')'}));const caption=fitLines(views[key].feedback,(w-2*margin)/12);caption.forEach((line,i)=>svg.append(svgEl('text',{x:w/2,y:y-9-i*16,'text-anchor':'middle','font-size':12,fill:'#a35816'},line)));}
+}
+function activate(key){active=key;document.querySelectorAll('.tab').forEach(tab=>tab.setAttribute('aria-selected',String(tab.id==='tab-'+key)));Object.keys(views).forEach(k=>document.getElementById('panel-'+k).hidden=k!==key);draw(key);select(selected[key],key);}
+document.querySelectorAll('.tab').forEach(tab=>{tab.addEventListener('click',()=>activate(tab.id.slice(4)));tab.addEventListener('keydown',event=>{const keys=Object.keys(views);let i=keys.indexOf(active);if(event.key==='ArrowRight')i=(i+1)%keys.length;else if(event.key==='ArrowLeft')i=(i+keys.length-1)%keys.length;else if(event.key==='Home')i=0;else if(event.key==='End')i=keys.length-1;else return;event.preventDefault();activate(keys[i]);document.getElementById('tab-'+keys[i]).focus();});});
+document.getElementById('print').addEventListener('click',()=>window.print());
+let resizeTimer;new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>draw(active),70);}).observe(document.querySelector('main'));
+window.addEventListener('beforeprint',()=>{Object.keys(views).forEach(k=>{const panel=document.getElementById('panel-'+k);panel.hidden=false;draw(k);});});window.addEventListener('afterprint',()=>activate(active));activate('overview');
+})();
+</script>
+</body>
+</html>
