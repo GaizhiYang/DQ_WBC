@@ -8,7 +8,7 @@ from collections import defaultdict
 from termcolor import cprint
 
 from .reward_vec_task import RewardVecTask
-from utils.config import validate_action_scaling
+from utils.config import validate_action_scaling, ee_delta_limits
 from utils.low_level_model import ActorCritic
 
 from isaacgym import gymapi
@@ -2082,7 +2082,8 @@ class B1Z1Base(RewardVecTask):
             limits = raw_actions.new_ones(len(ACTION_DIMENSION_NAMES))
         else:
             base_vx = 0.45 if self.commands_curriculum else 0.4
-            limits = raw_actions.new_tensor([0.02] * 3 + [0.06] * 3 + [1.0, base_vx, 0.6])
+            position, rotation = ee_delta_limits(self.cfg["env"])
+            limits = raw_actions.new_tensor([position] * 3 + [rotation] * 3 + [1.0, base_vx, 0.6])
         saturated = (raw_actions.abs() > limits).float().mean(0)
         self.extras["action_saturation"] = dict(zip(ACTION_DIMENSION_NAMES, saturated.unbind()))
 
@@ -2120,16 +2121,13 @@ class B1Z1Base(RewardVecTask):
         # -------------------------delta based on current ee pos----------------------------
         
         # -------------------------delta based on current ee goal----------------------------
-        if False: # self.cfg["env"].get("lastCommands", False) and (self.global_step_counter > 50000 or self.enable_camera):
-            if self.cfg["env"]["useTanh"]:
-                self.delta_goal_cart = self.actions[:, :3] * 0.015
-            else:
-                self.delta_goal_cart = torch.clip(self.actions[:, :3], -0.015, 0.015)
+        # Per-step increment limits: env.eeDeltaPositionLimit (m per axis) and
+        # env.eeDeltaRotationLimit (rad per RPY channel); without them 0.02 / 0.06.
+        position_limit, rotation_limit = ee_delta_limits(self.cfg["env"])
+        if self.cfg["env"]["useTanh"] or normalized: #### 特别注意好像high预测出来的pos只是一个delta_pos值，下面代码找到的目标pos值是用现在的pos加上delta_pos
+            self.delta_goal_cart = self.actions[:, :3] * position_limit
         else:
-            if self.cfg["env"]["useTanh"] or normalized: #### 特别注意好像high预测出来的pos只是一个delta_pos值，下面代码找到的目标pos值是用现在的pos加上delta_pos
-                self.delta_goal_cart = self.actions[:, :3] * 0.02 #my change 0.02->0,03# 
-            else:
-                self.delta_goal_cart = torch.clip(self.actions[:, :3], -0.02, 0.02)
+            self.delta_goal_cart = torch.clip(self.actions[:, :3], -position_limit, position_limit)
         self.curr_ee_goal_cart[:] = self.curr_ee_goal_cart + self.delta_goal_cart
         # self.curr_ee_goal_cart[:, 0] = torch.clip(self.curr_ee_goal_cart[:, 0], 0.0, 0.9)
 
@@ -2141,9 +2139,9 @@ class B1Z1Base(RewardVecTask):
 
         
         if self.cfg["env"]["useTanh"] or normalized:
-            self.delta_goal_orn = self.actions[:, 3:6] * 0.06 #my change 0.06->0.08# 
+            self.delta_goal_orn = self.actions[:, 3:6] * rotation_limit
         else:
-            self.delta_goal_orn = torch.clip(self.actions[:, 3:6], -0.06, 0.06)
+            self.delta_goal_orn = torch.clip(self.actions[:, 3:6], -rotation_limit, rotation_limit)
         self.curr_ee_goal_orn_rpy[:] = self.curr_ee_goal_orn_rpy + self.delta_goal_orn
         # self.curr_ee_goal_orn_rpy[:] = self.curr_ee_goal_orn_rpy + torch.clip(actions[:, 3:6], -0.04, 0.04)
         # self.curr_ee_goal_orn_rpy[:] = self.curr_ee_goal_orn_rpy + torch.clip(actions[:, 3:6], -0.02, 0.02)

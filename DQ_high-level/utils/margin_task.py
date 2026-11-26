@@ -17,10 +17,10 @@ from modules.reachability import (MARGIN_SCALAR_NAMES, MARGIN_TOKEN_DIM, MARGIN_
                                   ReachLearner, TimeToReach, grasp_positions_world,
                                   intercept_time, interception_margin, load_reach_model,
                                   margin_horizons, matrix_to_6d, planar_carrier_future, query_frame,
-                                  reach_state_dim, reach_state_features,
+                                  reach_limits_for, reach_state_dim, reach_state_features,
                                   selected_grasp_rotations, to_query_frame, yaw_from_quat,
                                   yaw_matrix)
-from utils.config import validate_margin_config
+from utils.config import ee_delta_limits, validate_margin_config
 from utils.episode_statistics import RecentEpisodeStatistics
 from utils.margin_curriculum import (choose_frontier, initial_margins, margin_delta,
                                      prior_success_rates)
@@ -73,10 +73,12 @@ class InterceptionMarginMixin:
         state_dim = reach_state_dim(self.num_gripper_dof)
         spec = settings["reachModel"]
         self.margin_model_metadata = {}
+        # The floor's arm speed follows this run's EE-goal increment limit.
+        limits = reach_limits_for(ee_delta_limits(self.cfg["env"])[0])
         if spec == "analytic":
-            model = TimeToReach(state_dim, kind="analytic")
+            model = TimeToReach(state_dim, kind="analytic", limits=limits)
         elif spec.startswith("new:"):
-            model = TimeToReach(state_dim, kind=spec[len("new:"):])
+            model = TimeToReach(state_dim, kind=spec[len("new:"):], limits=limits)
         else:
             model, self.margin_model_metadata = load_reach_model(spec, device=device)
             if model.state_dim != state_dim:
@@ -84,6 +86,11 @@ class InterceptionMarginMixin:
             saved_index = self.margin_model_metadata.get("gripper_body_index")
             if saved_index is not None and saved_index != self.gripper_idx:
                 raise ValueError("reach model was trained with a different EE body index")
+            if model.limits.arm_speed < limits.arm_speed - 1e-6:
+                # Its floor and data come from a slower arm interface; tau* would be too pessimistic.
+                print(f"WARNING: reach model {spec} assumes arm_speed {model.limits.arm_speed:.3f} m/s, "
+                      f"but this run's EE increment allows {limits.arm_speed:.3f} m/s. "
+                      "Retrain T with a teacher that uses these limits (or use --reach_online).")
         self.margin_model = model.to(device).eval()
         self.margin_potential_kind = settings["potential"]
         # tau* never exceeds T's own clamp, so Phi = 1 - tau* / max_time lies in [0, 1].

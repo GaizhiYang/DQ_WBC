@@ -415,9 +415,17 @@ class EnvironmentMarginTests(unittest.TestCase):
         env = FakeEnv(1)
         env._cube_root_states[:, 0] = 3.3
         env._update_margins()
-        self.assertAlmostEqual(env.margin_priv.item(), 4.5 - (2.4 / .45 + .6 / .25), places=4)
+        # The repository YAML's 0.05 m EE increment gives arm_speed 0.25 * 0.05 / 0.02.
+        arm_speed = R.reach_limits_for(config_utils.ee_delta_limits(env.cfg["env"])[0]).arm_speed
+        self.assertAlmostEqual(env.margin_model.limits.arm_speed, arm_speed)
+        expected = 2.4 / .45 + .6 / arm_speed
+        self.assertAlmostEqual(env.margin_priv.item(), 4.5 - expected, places=4)
         # No crossing within 4.5 s: tau* continues as T of the static object.
-        self.assertAlmostEqual(env.margin_priv_intercept.item(), 2.4 / .45 + .6 / .25, places=4)
+        self.assertAlmostEqual(env.margin_priv_intercept.item(), expected, places=4)
+
+    def test_reach_limits_follow_the_ee_increment(self):
+        self.assertAlmostEqual(R.reach_limits_for(0.02).arm_speed, R.ReachLimits().arm_speed)
+        self.assertAlmostEqual(R.reach_limits_for(0.05).arm_speed, 0.625)
 
     def test_approaching_object_has_a_larger_margin_than_a_receding_one(self):
         env = FakeEnv(3)

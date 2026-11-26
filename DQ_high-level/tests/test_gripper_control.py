@@ -7,8 +7,10 @@ import unittest
 
 import torch
 
+from utils.config import ee_delta_limits
 
-SOURCE = Path(__file__).resolve().parents[1] / "envs" / "b1z1_base.py"
+
+SOURCE =Path(__file__).resolve().parents[1] / "envs" / "b1z1_base.py"
 
 
 def quat_apply(quaternion, vector):
@@ -42,7 +44,8 @@ def source_method(name):
     method = next(node for node in cls.body
                   if isinstance(node, ast.FunctionDef) and node.name == name)
     namespace = {"torch": torch, "quat_apply": quat_apply,
-                 "quat_mul": quat_mul, "quat_from_euler_xyz": quat_from_euler_xyz}
+                 "quat_mul": quat_mul, "quat_from_euler_xyz": quat_from_euler_xyz,
+                 "ee_delta_limits": ee_delta_limits}
     module = ast.fix_missing_locations(ast.Module(body=[method], type_ignores=[]))
     exec(compile(module, str(SOURCE), "exec"), namespace)
     return namespace[name]

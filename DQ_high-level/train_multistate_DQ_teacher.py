@@ -23,7 +23,8 @@ from envs import *    #import b1z1_pickmulti.py
 from PredictPiontTransform.predictpoint_mul import PredictPoint
 from utils.config import (load_cfg, get_params, copy_cfg, configure_teacher_experiment,
                           teacher_run_end, apply_pose_prediction_config, apply_actor_history_config,
-                          apply_action_scaling_config, apply_reward_options, apply_margin_config)
+                          apply_action_scaling_config, apply_reward_options, apply_margin_config,
+                          apply_ee_delta_limits)
 import utils.wrapper as wrapper
 import time
 from legged_gym.envs.manip_loco.b1z1_config import B1Z1RoughCfg
@@ -420,6 +421,9 @@ def get_trainer(is_eval=False, strict_eval=False, argv=None, enable_camera_senso
     cfg['env']["useTanh"] = args.use_tanh
     action_scaling = apply_action_scaling_config(cfg, args)
     cprint(f"Teacher action scaling: {action_scaling}", "yellow")
+    # A saved run's own limits when evaluating its checkpoint (0.02 m / 0.06 rad if it predates them).
+    ee_limits = apply_ee_delta_limits(cfg, args.checkpoint if is_eval else None)
+    cprint(f"Teacher EE-goal increment limits per step: {ee_limits}", "yellow")
     cfg['env']["near_goal_stop"] = args.near_goal_stop
     cfg['env']["obj_move_prob"] = args.obj_move_prob
     if args.debug:
@@ -573,6 +577,7 @@ def get_trainer(is_eval=False, strict_eval=False, argv=None, enable_camera_senso
             with metadata_path.open("w") as stream:
                 json.dump({"arguments": vars(args), "config_file": cfg_file,
                            "planned_timesteps": args.timesteps,
+                           "ee_delta_limits": ee_limits,
                            "checkpoint_kind": ("temporal_teacher_evaluation" if
                                                cfg["env"]["tsil"]["enabled"] else "model_only")},
                           stream, indent=2)

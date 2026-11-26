@@ -191,6 +191,9 @@ def restore_student_teacher_observation_config(cfg, teacher_checkpoint):
     if "actionScaling" in saved_env:
         # The student env must map teacher actions the way the teacher was trained.
         cfg["env"]["actionScaling"] = saved_env["actionScaling"]
+    # ... and with its EE increment limits; a YAML without them used 0.02 m / 0.06 rad.
+    for name, default in LEGACY_EE_DELTA_LIMITS.items():
+        cfg["env"][name] = saved_env.get(name, default)
     return config_path
 
 
@@ -229,6 +232,49 @@ def apply_action_scaling_config(cfg, args):
         cfg["env"]["actionScaling"] = mode
     cfg["env"]["actionScaling"] = validate_action_scaling(cfg["env"])
     return cfg["env"]["actionScaling"]
+
+
+# Per-step increments of the EE goal: meters per axis (actions 0-2) and radians
+# per RPY channel (actions 3-5). A configuration or run without these keys
+# predates them and used 0.02 m / 0.06 rad.
+LEGACY_EE_DELTA_LIMITS = {"eeDeltaPositionLimit": 0.02, "eeDeltaRotationLimit": 0.06}
+
+
+def ee_delta_limits(env_cfg):
+    """(position m, rotation rad) per-step EE-goal increment limits of env_cfg."""
+    return tuple(float(env_cfg.get(name, default)) for name, default in LEGACY_EE_DELTA_LIMITS.items())
+
+
+def validate_ee_delta_limits(env_cfg):
+    for name, default in LEGACY_EE_DELTA_LIMITS.items():
+        value = env_cfg.get(name, default)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+            raise ValueError(f"env.{name} must be positive and finite")
+    return ee_delta_limits(env_cfg)
+
+
+def saved_ee_delta_limits(checkpoint):
+    """The limits a checkpoint's run trained with, or None without teacher_run.json.
+
+    A run whose metadata lacks them predates the setting: 0.02 m / 0.06 rad.
+    """
+    metadata_path = Path(checkpoint).resolve().parent.parent / "teacher_run.json"
+    if not metadata_path.is_file():
+        return None
+    with metadata_path.open() as stream:
+        saved = json.load(stream).get("ee_delta_limits", {})
+    return {name: saved.get(name, default) for name, default in LEGACY_EE_DELTA_LIMITS.items()}
+
+
+def apply_ee_delta_limits(cfg, checkpoint=None):
+    """Evaluating a saved run replays its own limits, whatever YAML is passed;
+    otherwise keep the YAML values. The result is stored back in cfg."""
+    saved = saved_ee_delta_limits(checkpoint) if checkpoint else None
+    if saved is not None:
+        cfg["env"].update(saved)
+    position, rotation = validate_ee_delta_limits(cfg["env"])
+    cfg["env"]["eeDeltaPositionLimit"], cfg["env"]["eeDeltaRotationLimit"] = position, rotation
+    return {"eeDeltaPositionLimit": position, "eeDeltaRotationLimit": rotation}
 
 
 COMMAND_REWARD_SCHEDULES = ("step", "constant", "ramp")

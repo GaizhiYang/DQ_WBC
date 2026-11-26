@@ -130,7 +130,7 @@ class ReachLimits:
     """Command limits of the high-level action interface (b1z1_base.py)."""
     base_speed: float = 0.45       # m/s, |vx| command limit (clip_commands)
     yaw_rate: float = 0.6          # rad/s, |wz| command limit (pre_physics_step)
-    arm_speed: float = 0.25        # m/s, 0.02 m EE-goal increment per axis per ~0.14 s step
+    arm_speed: float = 0.25        # m/s, 0.02 m EE-goal increment per axis per ~0.14 s step (reach_limits_for)
     arm_reach: float = 0.9         # m, generous planar EE reach from the arm base
     nominal_reach: float = 0.6     # m, analytic estimate: comfortable grasp distance
     max_time: float = 8.0          # s, upper clamp of every estimate
@@ -142,6 +142,17 @@ class ReachLimits:
         if self.nominal_reach > self.arm_reach:
             raise ValueError("nominal_reach must not exceed arm_reach")
         return self
+
+
+# The default arm_speed belongs to the 0.02 m per-axis EE-goal increment; the
+# command-limited EE speed scales with the increment (env.eeDeltaPositionLimit).
+LEGACY_EE_DELTA_POSITION_M = 0.02
+
+
+def reach_limits_for(ee_delta_position_m):
+    """ReachLimits whose arm_speed matches this per-step EE-goal increment."""
+    return ReachLimits(arm_speed=ReachLimits.arm_speed * ee_delta_position_m
+                       / LEGACY_EE_DELTA_POSITION_M).validate()
 
 
 def physical_lower_bound(ee_query, goals, limits):

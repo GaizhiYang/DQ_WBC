@@ -16,6 +16,9 @@ Append --no_critic_time_obs to train the previous baseline without it.
 Append --action_scaling normalized for unit actions: outputs are clipped to [-1, 1],
 then scaled to the physical limits, and the policy std starts at 0.5. The default,
 legacy, clips raw outputs at the limits. Use a new RUN_NAME for each mode.
+EE-goal increments per step: +/-0.05 m per axis and +/-0.1 rad per RPY channel
+(env.eeDeltaPositionLimit / eeDeltaRotationLimit in the YAML). Runs saved before
+these keys used 0.02 / 0.06, and evaluating their checkpoints replays those values.
 Value-learning options (T2), all off by default:
   --critic_reward_state           critic also sees the hidden reward state (7 channels)
   --command_reward_schedule ramp  command_reward rises over the first 20% (default: step at 50%)

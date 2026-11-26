@@ -6,6 +6,7 @@ Runs on CPU without Isaac Gym, through the production methods.
 """
 
 import ast
+import json
 import math
 from pathlib import Path
 import tempfile
@@ -48,7 +49,7 @@ def saturation_method():
                if isinstance(node, ast.ClassDef) and node.name == "B1Z1Base")
     method = next(node for node in cls.body if isinstance(node, ast.FunctionDef)
                   and node.name == "_record_action_saturation")
-    namespace = {"torch": torch}
+    namespace = {"torch": torch, "ee_delta_limits": config_utils.ee_delta_limits}
     module = ast.fix_missing_locations(ast.Module(body=[names, method], type_ignores=[]))
     exec(compile(module, str(source), "exec"), namespace)
     return namespace["_record_action_saturation"], namespace["ACTION_DIMENSION_NAMES"]
@@ -97,6 +98,44 @@ class ConfigurationTests(unittest.TestCase):
                 config_utils.restore_student_teacher_observation_config(cfg, str(checkpoint))
                 self.assertEqual(cfg["env"].get("actionScaling"), expected)
 
+    def test_ee_increment_limits_default_to_legacy_and_yaml_sets_the_new_ones(self):
+        self.assertEqual(config_utils.ee_delta_limits({}), (0.02, 0.06))
+        cfg = yaml.safe_load((ROOT / "data/cfg/DQ_teacher.yaml").read_text())
+        self.assertEqual(config_utils.validate_ee_delta_limits(cfg["env"]), (0.05, 0.1))
+        for bad in (0, -0.1, float("nan"), True):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                config_utils.validate_ee_delta_limits({"eeDeltaPositionLimit": bad})
+
+    def test_evaluation_replays_the_run_limits_whatever_yaml_is_passed(self):
+        new = {"eeDeltaPositionLimit": 0.05, "eeDeltaRotationLimit": 0.1}
+        legacy = {"eeDeltaPositionLimit": 0.02, "eeDeltaRotationLimit": 0.06}
+        for metadata, expected in (({"ee_delta_limits": new}, new), ({}, legacy), (None, new)):
+            with self.subTest(metadata=metadata), tempfile.TemporaryDirectory() as directory:
+                run = Path(directory)
+                (run / "checkpoints").mkdir()
+                checkpoint = run / "checkpoints" / "agent_1.pt"
+                checkpoint.touch()
+                if metadata is not None:
+                    (run / "teacher_run.json").write_text(json.dumps(metadata))
+                cfg = {"env": dict(new)}  # the current repository YAML
+                self.assertEqual(config_utils.apply_ee_delta_limits(cfg, str(checkpoint)), expected)
+                self.assertEqual({name: cfg["env"][name] for name in expected}, expected)
+        cfg = {"env": dict(legacy)}  # training: no checkpoint, keep the YAML
+        self.assertEqual(config_utils.apply_ee_delta_limits(cfg), legacy)
+
+    def test_student_maps_actions_with_the_teacher_limits(self):
+        for saved, expected in (({"eeDeltaPositionLimit": 0.05, "eeDeltaRotationLimit": 0.1}, (0.05, 0.1)),
+                                ({}, (0.02, 0.06))):
+            with self.subTest(saved=saved), tempfile.TemporaryDirectory() as directory:
+                run = Path(directory)
+                (run / "checkpoints").mkdir()
+                checkpoint = run / "checkpoints" / "agent_1.pt"
+                checkpoint.touch()
+                (run / "DQ_teacher.yaml").write_text(yaml.safe_dump({"env": saved}))
+                cfg = {"env": {}}
+                config_utils.restore_student_teacher_observation_config(cfg, str(checkpoint))
+                self.assertEqual(config_utils.ee_delta_limits(cfg["env"]), expected)
+
 
 class StepMappingTests(unittest.TestCase):
     """pre_physics_step and clip_commands, with the gripper test's stand-in state."""
@@ -139,6 +178,20 @@ class StepMappingTests(unittest.TestCase):
         torch.testing.assert_close(env.action_history_buf[:, -1], clipped)
         torch.testing.assert_close(env.clipped_actions[:, :6],
                                    torch.cat((env.delta_goal_cart, env.delta_goal_orn), dim=-1))
+
+    def test_configured_ee_limits_scale_both_modes(self):
+        raw = [[0.5, -1.0, 2.0, 0.5, -3.0, 0.25, 0.0, 0.0, 0.0]]
+        for mode, expected_cart, expected_orn in (
+                ("normalized", [[0.025, -0.05, 0.05]], [[0.05, -0.1, 0.025]]),
+                ("legacy", [[0.05, -0.05, 0.05]], [[0.1, -0.1, 0.1]])):
+            with self.subTest(mode=mode):
+                env = self.helpers.environment([0.0])
+                self.helpers.prepare_step(env)
+                env.cfg["env"].update(actionScaling=mode, eeDeltaPositionLimit=0.05, eeDeltaRotationLimit=0.1)
+                env.commands_curriculum = True
+                env.pre_physics_step(torch.tensor(raw))
+                torch.testing.assert_close(env.delta_goal_cart, torch.tensor(expected_cart))
+                torch.testing.assert_close(env.delta_goal_orn, torch.tensor(expected_orn))
 
     def test_unit_bounds_reach_the_same_physical_limits_as_legacy(self):
         for sign in (1.0, -1.0):
