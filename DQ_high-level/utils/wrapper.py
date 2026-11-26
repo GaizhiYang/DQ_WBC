@@ -114,20 +114,28 @@ class Wrapper(object):
 
 
 class IsaacGymPreview3Wrapper(Wrapper):
-    def __init__(self, env: Any, actor_history_frames: int = 1) -> None:
+    def __init__(self, env: Any, actor_history_frames: int = 1, critic_history_frames: int = 1) -> None:
         """Isaac Gym environment (preview 3) wrapper
 
         :param env: The environment to wrap
         :type env: Any supported Isaac Gym environment (preview 3) environment
+
+        Observations stack max(actor, critic) raw frames, oldest first; the
+        actor and the critic each read their newest frames from that stack.
         """
         super().__init__(env)
 
+        for frames in (actor_history_frames, critic_history_frames):
+            if type(frames) is not int or frames < 1:
+                raise ValueError("history frames must be positive integers (including the current frame)")
         self.actor_history_frames = actor_history_frames
-        self._actor_history = ObservationHistory(actor_history_frames)
+        self.critic_history_frames = critic_history_frames
+        self.history_frames = max(actor_history_frames, critic_history_frames)
+        self._actor_history = ObservationHistory(self.history_frames)
         space = env.observation_space
         self._history_observation_space = gym.spaces.Box(
-            low=np.tile(space.low, actor_history_frames),
-            high=np.tile(space.high, actor_history_frames), dtype=space.dtype)
+            low=np.tile(space.low, self.history_frames),
+            high=np.tile(space.high, self.history_frames), dtype=space.dtype)
 
         self._reset_once = True
         self._obs_dict = None
@@ -137,7 +145,7 @@ class IsaacGymPreview3Wrapper(Wrapper):
         return self._history_observation_space
 
     def _stack_actor_observations(self, advance=False, reset_mask=None):
-        if self.actor_history_frames > 1:
+        if self.history_frames > 1:
             self._obs_dict = dict(self._obs_dict)
             self._obs_dict["obs"] = self._actor_history.update(
                 self._obs_dict["obs"], advance=advance, reset_mask=reset_mask)
@@ -168,7 +176,7 @@ class IsaacGymPreview3Wrapper(Wrapper):
         #     self._obs_dict = self._env.reset()
         #     self._reset_once = False
         # return self._obs_dict["obs"], {}
-        reset_mask = self._env.reset_buf.bool().clone() if self.actor_history_frames > 1 else None
+        reset_mask = self._env.reset_buf.bool().clone() if self.history_frames > 1 else None
         self._obs_dict = self._env.reset()
         if reset_mask is not None:
             # Also handles a raw reset_idx() followed by wrapper.reset().

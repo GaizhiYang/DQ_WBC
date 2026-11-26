@@ -24,7 +24,7 @@ from PredictPiontTransform.predictpoint_mul import PredictPoint
 from utils.config import (load_cfg, get_params, copy_cfg, configure_teacher_experiment,
                           teacher_run_end, apply_pose_prediction_config, apply_actor_history_config,
                           apply_action_scaling_config, apply_reward_options, apply_margin_config,
-                          apply_ee_delta_limits)
+                          apply_ee_delta_limits, apply_critic_history_config, saved_history_frames)
 import utils.wrapper as wrapper
 import time
 from legged_gym.envs.manip_loco.b1z1_config import B1Z1RoughCfg
@@ -59,6 +59,9 @@ def restore_eval_arguments(args):
                  "critic_time_obs", "actor_history_frames", "action_scaling", "critic_reward_state"):
         if name in saved:
             setattr(args, name, saved[name])
+    # Frame counts come from the run itself (its saved YAML for older runs, which
+    # used one critic frame), never from the YAML passed for evaluation.
+    args.actor_history_frames, args.critic_history_frames = saved_history_frames(args.checkpoint)
 
 
 def teacher_config_path(args, is_eval=False, strict_eval=False):
@@ -83,6 +86,7 @@ def teacher_config_path(args, is_eval=False, strict_eval=False):
 def create_env(cfg, args, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor ):
     apply_pose_prediction_config(cfg, args)
     history_frames = apply_actor_history_config(cfg, args)
+    critic_frames = apply_critic_history_config(cfg, args)
     cfg_terrain = B1Z1RoughCfg()
 
     cfg["env"]["enableDebugVis"] = args.debugvis
@@ -106,8 +110,21 @@ def create_env(cfg, args, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor ):
                          rand_cmd_scale=args.rand_cmd_scale, rand_depth_clip=args.rand_depth_clip, stop_pick=args.stop_pick, table_height=args.table_height, eval=args.eval,
                          camera_6p_tensor=camera_6p_tensor, grasp_cv_tensor=grasp_cv_tensor, cube_init_tensor=cube_init_tensor, cfg_terrain = cfg_terrain)
     # the step under is just to add some property to _env , just a small extension of _env(B1Z1PickMulti class)
-    wrapped_env = wrapper.IsaacGymPreview3Wrapper(_env, actor_history_frames=history_frames)
+    wrapped_env = wrapper.IsaacGymPreview3Wrapper(_env, actor_history_frames=history_frames,
+                                                  critic_history_frames=critic_frames)
     return wrapped_env
+
+def stacked_history_frames(num_observations, actor_history_frames, critic_history_frames):
+    """Raw frames per stacked observation: max(actor, critic); each model reads its newest ones."""
+    for name, frames in (("actor_history_frames", actor_history_frames),
+                         ("critic_history_frames", critic_history_frames)):
+        if type(frames) is not int or frames < 1:
+            raise ValueError(f"{name} must be a positive integer (including the current frame)")
+    stacked = max(actor_history_frames, critic_history_frames)
+    if num_observations % stacked:
+        raise ValueError("the stacked history frames must evenly divide the observation width")
+    return stacked
+
 
 def margin_token_slice(body_width, notrain_obs_num, num_actions, num_features, margin_index,
                        margin_tokens, margin_token_dim, margin_scalars):
@@ -139,10 +156,11 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
                  clip_log_std=True, min_log_std=-20, max_log_std=2, reduction="sum", deterministic=False,
                  num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None, actor_history_frames=1,
                  action_scaling="legacy", critic_state_index=None, critic_state_width=0,
-                 margin_index=None, margin_tokens=0, margin_token_dim=0, margin_scalars=0):
+                 margin_index=None, margin_tokens=0, margin_token_dim=0, margin_scalars=0,
+                 critic_history_frames=1):
         Model.__init__(self, observation_space, action_space, device)
-        if type(actor_history_frames) is not int or actor_history_frames < 1 or self.num_observations % actor_history_frames:
-            raise ValueError("actor_history_frames must evenly divide the observation width")
+        self.stacked_history_frames = stacked_history_frames(
+            self.num_observations, actor_history_frames, critic_history_frames)
         if action_scaling not in ("legacy", "normalized"):
             raise ValueError("action_scaling must be legacy or normalized")
         # normalized: the environment executes clip(a, -1, 1) * physical limit, so
@@ -152,7 +170,7 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
             max_log_std = min(max_log_std, 0.0)
         self.action_scaling = action_scaling
         self.actor_history_frames = actor_history_frames
-        self.frame_observations = self.num_observations // actor_history_frames
+        self.frame_observations = self.num_observations // self.stacked_history_frames
         transform_func = torch.distributions.transforms.TanhTransform() if use_tanh else None
         GaussianMixin.__init__(self, clip_actions, clip_log_std, min_log_std, max_log_std, reduction, transform_func=transform_func, deterministic=deterministic)
         PredictAttentionSelector.__init__(self, d_model=64, obj_feat_dim=encode_dim or 128,
@@ -234,7 +252,9 @@ class Policy(GaussianMixin, Model, PredictAttentionSelector):
         batch_shape = inputs["states"].shape[:-1]
         # Each PPO sample contains its own raw frames. Re-encode them with the
         # current shared encoder/GFM, without a mutable model-side history.
-        inputs = {"states": inputs["states"].reshape(-1, self.frame_observations)}
+        # The stack may hold more (critic) frames; the actor reads its newest ones.
+        actor_width = self.actor_history_frames * self.frame_observations
+        inputs = {"states": inputs["states"][..., -actor_width:].reshape(-1, self.frame_observations)}
         grasp_predict_local_pos_flat = inputs["states"][...,-6*self.cube_object_num-self.num_actions:-3*self.cube_object_num-self.num_actions]
         grasp_predict_local_rpy_flat = inputs["states"][...,-3*self.cube_object_num-self.num_actions:-self.num_actions]
         grasp_predict_local_pos = grasp_predict_local_pos_flat.view(-1, self.cube_object_num, 3)
@@ -264,13 +284,16 @@ class Value(DeterministicMixin, Model, PredictAttentionSelector):
     def __init__(self, observation_space, action_space, device, num_features, encode_dim, camera_6p_tensor, grasp_cv_tensor, cube_init_tensor,
                  num_future_pose_obs=0, num_tsil_obs=0, critic_time_index=None, actor_history_frames=1,
                  critic_state_index=None, critic_state_width=0,
-                 margin_index=None, margin_tokens=0, margin_token_dim=0, margin_scalars=0):
+                 margin_index=None, margin_tokens=0, margin_token_dim=0, margin_scalars=0,
+                 critic_history_frames=1):
         # The critic-only indices need no handling here: the value MLP consumes
         # the whole state block, including the progress and reward-state channels.
         Model.__init__(self, observation_space, action_space, device)
-        if type(actor_history_frames) is not int or actor_history_frames < 1 or self.num_observations % actor_history_frames:
-            raise ValueError("actor_history_frames must evenly divide the observation width")
-        self.frame_observations = self.num_observations // actor_history_frames
+        self.stacked_history_frames = stacked_history_frames(
+            self.num_observations, actor_history_frames, critic_history_frames)
+        # 1 (every run before criticHistoryFrames): the newest frame only, the original critic.
+        self.critic_history_frames = critic_history_frames
+        self.frame_observations = self.num_observations // self.stacked_history_frames
         DeterministicMixin.__init__(self)
         PredictAttentionSelector.__init__(self, d_model=64, obj_feat_dim=encode_dim or 128,
                                           future_pose_dim=num_future_pose_obs - 1 if num_future_pose_obs else 0,
@@ -295,22 +318,25 @@ class Value(DeterministicMixin, Model, PredictAttentionSelector):
             self.feature_encoder = nn.Sequential(nn.Linear(self.num_features, 512), # input : (envs,1024), output : (envs,512)
                                                   nn.ELU(),
                                                   nn.Linear(512, self.encode_dim),) # input : (envs,512), output : (envs,128)
-        critic_dim = (self.frame_observations - self.num_features + self.encode_dim - self.notrain_obs_num + 6
-                      if num_features > 0 else self.frame_observations)
-        self.net = nn.Sequential(nn.Linear(critic_dim, 512),
+        self.critic_frame_dim = (self.frame_observations - self.num_features + self.encode_dim - self.notrain_obs_num + 6
+                                 if num_features > 0 else self.frame_observations)
+        self.net = nn.Sequential(nn.Linear(self.critic_frame_dim * critic_history_frames, 512),
                             nn.ELU(),
                             nn.Linear(512, 256),
                             nn.ELU(),
                             nn.Linear(256, 128),
                             nn.ELU(),
                             nn.Linear(128, 1))
-        
+        cprint(f"Critic MLP input: {self.critic_frame_dim} x {critic_history_frames} = {self.net[0].in_features} (oldest to current)", "yellow")
 
         self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
 
     def compute(self, inputs, role):
-        # Keep the critic's original single-frame information and architecture.
-        inputs = {"states": inputs["states"][..., -self.frame_observations:]}
+        batch_shape = inputs["states"].shape[:-1]
+        # The newest critic_history_frames raw frames, each encoded like the actor's
+        # (1 frame: the original single-frame critic, bit for bit).
+        critic_width = self.critic_history_frames * self.frame_observations
+        inputs = {"states": inputs["states"][..., -critic_width:].reshape(-1, self.frame_observations)}
         grasp_predict_local_pos_flat = inputs["states"][...,-6*self.cube_object_num-self.num_actions:-3*self.cube_object_num-self.num_actions]
         grasp_predict_local_rpy_flat = inputs["states"][...,-3*self.cube_object_num-self.num_actions:-self.num_actions]
         grasp_predict_local_pos = grasp_predict_local_pos_flat.view(-1, self.cube_object_num, 3)
@@ -327,10 +353,11 @@ class Value(DeterministicMixin, Model, PredictAttentionSelector):
                                                         pose=cube_local_pos_rpy, future_pose_obs=future_pose_obs,
                                                         tokens=margin_tokens_from(state_block, self.margin_token_slice,
                                                                                   self.num_tokens, self.token_dim))
-            actions = self.net(torch.cat([inputs["states"][..., self.num_features:-self.notrain_obs_num-self.num_actions],last_action , features_encode,right_predict_point], dim=-1))
-            return actions, {}        
+            frame_inputs = torch.cat([state_block, last_action, features_encode, right_predict_point], dim=-1)
         else:
-            return self.net(inputs["states"]), {}
+            frame_inputs = inputs["states"]
+        values = self.net(frame_inputs.reshape(*batch_shape, self.critic_frame_dim * self.critic_history_frames))
+        return values, {}
 
 
 def get_trainer(is_eval=False, strict_eval=False, argv=None, enable_camera_sensors=False):
@@ -383,6 +410,11 @@ def get_trainer(is_eval=False, strict_eval=False, argv=None, enable_camera_senso
         # Offscreen rollout cameras need a graphics context even without a viewer.
         cfg["enableCameraSensors"] = True
     configure_teacher_experiment(cfg, args, is_eval=is_eval, strict_eval=strict_eval)
+    # Record the resolved frame counts in teacher_run.json, not only the CLI values.
+    args.actor_history_frames = cfg["env"]["actorHistoryFrames"]
+    args.critic_history_frames = cfg["env"]["criticHistoryFrames"]
+    cprint(f"Teacher history frames: actor {args.actor_history_frames}, "
+           f"critic {args.critic_history_frames}", "yellow")
     if is_eval and cfg["env"]["tsil"]["enabled"] and temporal_metadata is None:
         raise ValueError("TSIL evaluation requires a checkpoint with matching temporal state and normalization")
     prediction_cfg = apply_pose_prediction_config(cfg, args)

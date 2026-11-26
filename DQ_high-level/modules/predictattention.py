@@ -27,6 +27,9 @@ def teacher_gfm_kwargs(env):
     history_frames = getattr(env, "actor_history_frames", 1)
     if history_frames != 1:
         kwargs["actor_history_frames"] = history_frames
+    critic_frames = getattr(env, "critic_history_frames", 1)
+    if critic_frames != 1:
+        kwargs["critic_history_frames"] = critic_frames
     # Main line A: actor-visible margin block (scalars, then per-horizon tokens).
     margin_index = getattr(env, "margin_obs_index", None)
     if margin_index is not None:

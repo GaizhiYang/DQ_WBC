@@ -17,7 +17,8 @@ import re
 from copy import deepcopy
 from pathlib import Path
 
-from utils.config import apply_action_scaling_config, apply_ee_delta_limits, get_parser, load_cfg
+from utils.config import (apply_action_scaling_config, apply_ee_delta_limits, get_parser, load_cfg,
+                          saved_history_frames)
 
 
 def build_parser():
@@ -61,6 +62,9 @@ def collect(args):
     # A normalized teacher must replay through the same action mapping.
     action_scaling = apply_action_scaling_config(cfg, args)
     apply_ee_delta_limits(cfg, args.checkpoint)  # and the teacher's own EE increment limits
+    frames = saved_history_frames(args.checkpoint) if args.checkpoint else None
+    if frames is not None:  # and its own actor/critic history frames
+        args.actor_history_frames, args.critic_history_frames = frames
     if args.motion_level:
         cfg["env"]["D1_bench_task_level"] = args.motion_level
     if args.episode_length:

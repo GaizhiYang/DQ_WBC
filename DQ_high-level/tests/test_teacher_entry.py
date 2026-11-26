@@ -30,7 +30,8 @@ def entry_function(name):
     path = ROOT / "train_multistate_DQ_teacher.py"
     tree = ast.parse(path.read_text())
     node = next(item for item in tree.body if isinstance(item, ast.FunctionDef) and item.name == name)
-    namespace = {"Path": Path, "json": json, "re": re}
+    namespace = {"Path": Path, "json": json, "re": re,
+                 "saved_history_frames": config.saved_history_frames}
     exec(compile(ast.Module(body=[node], type_ignores=[]), str(path), "exec"), namespace)
     return namespace[name]
 

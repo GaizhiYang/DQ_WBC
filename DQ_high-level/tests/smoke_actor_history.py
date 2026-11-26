@@ -1,4 +1,4 @@
-"""Real SGS+EKF rollout, PPO update and checkpoint roundtrip for actor history.
+"""Real SGS+EKF rollout, PPO update and checkpoint roundtrip for actor/critic history.
 
 Run from DQ_high-level with the launcher's teacher arguments, --num_envs 8,
 --stop_after 24 (or 48), --headless and a temporary --experiment_dir; no --wandb.
@@ -24,7 +24,10 @@ def main():
     assert trainer.teacher_args.stop_after in (24, 48)
     assert env.actor_history_frames == 4 and raw.num_obs == 1285
     assert agent.policy.net[0].in_features == 856
-    assert agent.value.net[0].in_features == 215
+    # The repository YAML gives the critic 4 frames too; --critic_history_frames 1 keeps one.
+    critic_frames = env.critic_history_frames
+    assert critic_frames in (1, 4) and env.history_frames == 4
+    assert agent.value.net[0].in_features == 215 * critic_frames
     assert raw.sgs_enabled and raw.object_pose_predictor.horizons == (.6, .9)
     assert env.observation_space.shape == (5140,)
     counts = dict(steps=0, updates=0, resets=0)
@@ -87,7 +90,8 @@ def main():
             agent.load(str(checkpoint))
             actual = agent.policy.compute({"states": agent._state_preprocessor(states)}, "policy")[0]
         torch.testing.assert_close(actual, expected)
-        report = dict(passed=True, actor_frames=4, actor_input=856, critic_input=215,
+        report = dict(passed=True, actor_frames=4, actor_input=856, critic_frames=critic_frames,
+                      critic_input=215 * critic_frames,
                       raw_frame=1285, stacked_observation=5140, partial_reset_checked=True,
                       checkpoint=str(checkpoint), **counts)
         (Path(agent.experiment_dir) / "actor_history_smoke.json").write_text(json.dumps(report, indent=2))

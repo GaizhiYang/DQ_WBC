@@ -99,7 +99,9 @@ class TSILPPO(PPO):
         if configured.get("kl_threshold", 0):
             raise ValueError("TSIL traverses the full fixed replay set each epoch; use KLAdaptiveLR, not early stopping")
         configured["state_preprocessor"] = FrozenObservationScaler
-        history_frames = getattr(models["policy"], "actor_history_frames", 1)
+        # Every raw frame in the stacked observation, max(actor, critic) frames.
+        history_frames = getattr(models["policy"], "stacked_history_frames",
+                                 getattr(models["policy"], "actor_history_frames", 1))
         frame_width = getattr(models["policy"], "frame_observations", 0)
         history_time_indices = [index - lag * frame_width
                                 for lag in range(history_frames) for index in self.time_indices]

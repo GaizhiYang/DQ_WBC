@@ -68,6 +68,7 @@ def configure_teacher_experiment(cfg, args, is_eval=False, strict_eval=False):
         raise ValueError("--stop_after must be positive")
     env_cfg = cfg["env"]
     apply_actor_history_config(cfg, args)
+    apply_critic_history_config(cfg, args)
     sgs = dict(SGS_DEFAULTS)
     sgs.update(env_cfg.get("sgs", {}))
     if args.sgs_mode is not None:
@@ -205,6 +206,48 @@ def apply_actor_history_config(cfg, args):
         raise ValueError("actor_history_frames must be a positive integer (including the current frame)")
     cfg["env"]["actorHistoryFrames"] = frames
     return frames
+
+
+def apply_critic_history_config(cfg, args):
+    """Critic frames including the current one; a configuration without the key used 1.
+
+    The wrapper stacks max(actor, critic) frames; each network reads its newest ones.
+    """
+    frames = getattr(args, "critic_history_frames", None)
+    if frames is None:
+        frames = cfg["env"].get("criticHistoryFrames", 1)
+    if type(frames) is not int or frames < 1:
+        raise ValueError("critic_history_frames must be a positive integer (including the current frame)")
+    cfg["env"]["criticHistoryFrames"] = frames
+    return frames
+
+
+def saved_history_frames(checkpoint):
+    """(actor, critic) frames a saved run trained with, or None if its files are missing.
+
+    teacher_run.json records explicit CLI values (resolved values in newer runs);
+    otherwise the run's saved YAML copy holds them. A run without a key used 1.
+    """
+    run_dir = Path(checkpoint).expanduser().resolve().parent.parent
+    metadata_path = run_dir / "teacher_run.json"
+    if not metadata_path.is_file():
+        return None
+    with metadata_path.open() as stream:
+        metadata = json.load(stream)
+    arguments = metadata.get("arguments", {})
+    saved_env = {}
+    for path in (run_dir / Path(metadata.get("config_file") or "DQ_teacher.yaml").name,
+                 run_dir / "DQ_teacher.yaml"):
+        if path.is_file():
+            with path.open() as stream:
+                saved_env = (yaml.safe_load(stream) or {}).get("env", {})
+            break
+    frames = []
+    for name, key in (("actor_history_frames", "actorHistoryFrames"),
+                      ("critic_history_frames", "criticHistoryFrames")):
+        value = arguments.get(name)
+        frames.append(value if value is not None else saved_env.get(key, 1))
+    return tuple(frames)
 
 
 ACTION_SCALING_MODES = ("legacy", "normalized")
@@ -513,6 +556,8 @@ def get_parser():
     parser.add_argument("--roboinfo", action="store_true")
     parser.add_argument("--actor_history_frames", type=int, default=None,
                         help="Actor frames including current: 3 means [t-2, t-1, t]. Defaults to saved YAML or 1.")
+    parser.add_argument("--critic_history_frames", type=int, default=None,
+                        help="Critic frames including current. Defaults to saved YAML or 1.")
     parser.add_argument("--no_velocity_obs", action="store_true",
                         help="Remove robot local linear velocity (3D) and object-relative planar velocity (2D) from B1Z1PickMulti teacher observations.")
     # Not a mutually exclusive group: the last flag wins, so launcher defaults

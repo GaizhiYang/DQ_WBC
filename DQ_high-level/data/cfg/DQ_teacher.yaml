@@ -23,7 +23,8 @@ env:
   noVelocityObs: False # Set --no_velocity_obs to remove 3D robot + 2D relative object velocity
   criticTimeObs: False # Set --critic_time_obs to give the critic step/maxEpisodeLength; the actor ignores it
   criticRewardStateObs: False # Set --critic_reward_state to give the critic the hidden reward state (7 channels); the actor ignores it
-  actorHistoryFrames: 1 # SGS+EKF launcher overrides to 4: current + 3 past frames
+  actorHistoryFrames: 4 # current + 3 past frames; --actor_history_frames 1 for the single-frame actor (all runs before 2026-11-26)
+  criticHistoryFrames: 4 # the critic's frames; a run without this key used 1 (--critic_history_frames overrides)
   actionScaling: legacy # legacy: clip raw outputs at physical limits; normalized (--action_scaling normalized): clip to [-1, 1], then scale
   eeDeltaPositionLimit: 0.05 # m per axis per step, EE-goal increment (actions 0-2); runs without this key used 0.02
   eeDeltaRotationLimit: 0.1 # rad per RPY channel per step (actions 3-5); runs without this key used 0.06

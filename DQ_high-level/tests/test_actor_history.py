@@ -9,15 +9,19 @@ import unittest
 import gym
 import numpy as np
 import torch
+import yaml
 
 from test_teacher_gfm import Policy, Value
 from test_teacher_entry import entry_function
-from utils.config import apply_actor_history_config, get_params
+from utils.config import apply_actor_history_config, apply_critic_history_config, get_params
 from utils.wrapper import IsaacGymPreview3Wrapper
 from skrl.memories.torch import RandomMemory
 from utils.tsil import TemporalReplay, TemporalState, Trajectory
 from utils.tsil_ppo import TSILPPO
 from utils.tsil_replay_gpu import GPUTemporalReplay
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class FakeTask:
@@ -79,13 +83,21 @@ class WrapperTests(unittest.TestCase):
             with self.subTest(frames=frames), self.assertRaises(ValueError):
                 IsaacGymPreview3Wrapper(FakeTask(), frames)
 
+    def test_stack_holds_the_larger_of_actor_and_critic_frames(self):
+        env = IsaacGymPreview3Wrapper(FakeTask(), actor_history_frames=1, critic_history_frames=4)
+        self.assertEqual((env.history_frames, env.observation_space.shape), (4, (8,)))
+        self.assertEqual(env.reset()[0].shape, (2, 8))
+        for frames in (0, 1.5, True):
+            with self.subTest(frames=frames), self.assertRaises(ValueError):
+                IsaacGymPreview3Wrapper(FakeTask(), 1, frames)
+
 
 class ModelTests(unittest.TestCase):
     @staticmethod
-    def model(cls, frames):
-        return cls(1285 * frames, 9, "cpu", 1024, 128, None, None, None,
+    def model(cls, frames, critic_frames=1):
+        return cls(1285 * max(frames, critic_frames), 9, "cpu", 1024, 128, None, None, None,
                    num_future_pose_obs=13, critic_time_index=-203,
-                   actor_history_frames=frames)
+                   actor_history_frames=frames, critic_history_frames=critic_frames)
 
     def test_actor_encodes_all_four_frames_in_order_and_ignores_every_critic_clock(self):
         torch.manual_seed(19)
@@ -129,6 +141,37 @@ class ModelTests(unittest.TestCase):
                                    restored.compute({"states": frames.flatten(1)}, "policy")[0])
 
 
+    def test_critic_can_encode_all_four_frames_in_order(self):
+        torch.manual_seed(23)
+        critic, single = self.model(Value, 4, critic_frames=4), self.model(Value, 1)
+        single.load_state_dict({k: (v if k != "net.0.weight" else v[:, -215:])
+                                for k, v in critic.state_dict().items()})
+        self.assertEqual(critic.net[0].in_features, 860)
+        captures = {}
+        critic.net.register_forward_pre_hook(lambda m, x: captures.update(stacked=x[0].detach()))
+        single.net.register_forward_pre_hook(lambda m, x: captures.update(single=x[0].detach()))
+        frames = torch.randn(3, 4, 1285) * .2
+        critic.compute({"states": frames.flatten(1)}, "value")
+        single.compute({"states": frames.reshape(-1, 1285)}, "value")
+        torch.testing.assert_close(captures["stacked"], captures["single"].reshape(3, 860))
+        frames.requires_grad_()
+        critic.compute({"states": frames.flatten(1)}, "value")[0].sum().backward()
+        for lag in range(4):
+            self.assertGreater(frames.grad[:, lag, 1024:1030].abs().sum().item(), 0)
+            # Unlike the actor, the critic reads its clock in every frame.
+            self.assertGreater(frames.grad[:, lag, -203].abs().sum().item(), 0)
+
+    def test_single_frame_actor_reads_only_the_newest_frame_of_a_critic_stack(self):
+        actor, reference = self.model(Policy, 1, critic_frames=4), self.model(Policy, 1)
+        reference.load_state_dict(actor.state_dict())
+        self.assertEqual(actor.net[0].in_features, 214)
+        frames = torch.randn(3, 4, 1285) * .2
+        expected = reference.compute({"states": frames[:, -1]}, "policy")[0]
+        torch.testing.assert_close(actor.compute({"states": frames.flatten(1)}, "policy")[0], expected)
+        frames[:, :-1] *= 50
+        torch.testing.assert_close(actor.compute({"states": frames.flatten(1)}, "policy")[0], expected)
+
+
 class ConfigTests(unittest.TestCase):
     def test_saved_frame_count_and_explicit_cli_override(self):
         self.assertIsNone(get_params([]).actor_history_frames)
@@ -150,6 +193,36 @@ class ConfigTests(unittest.TestCase):
             args = get_params(["--checkpoint", str(checkpoint)])
             entry_function("restore_eval_arguments")(args)
             self.assertEqual(args.actor_history_frames, 4)
+
+    def test_critic_frames_default_to_one_and_follow_yaml_or_cli(self):
+        self.assertIsNone(get_params([]).critic_history_frames)
+        self.assertEqual(apply_critic_history_config({"env": {}}, get_params([])), 1)
+        cfg = {"env": {"criticHistoryFrames": 4}}
+        self.assertEqual(apply_critic_history_config(cfg, get_params([])), 4)
+        self.assertEqual(apply_critic_history_config(cfg, get_params(["--critic_history_frames", "1"])), 1)
+        for value in (0, -3, True, "4"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                apply_critic_history_config({"env": {"criticHistoryFrames": value}}, get_params([]))
+        repository = yaml.safe_load((ROOT / "data/cfg/DQ_teacher.yaml").read_text())
+        self.assertEqual((apply_actor_history_config(repository, get_params([])),
+                          apply_critic_history_config(repository, get_params([]))), (4, 4))
+
+    def test_evaluation_takes_frames_from_the_run_not_the_passed_yaml(self):
+        # Older runs: CLI values absent, the saved YAML has one actor frame and no critic key.
+        for arguments, saved_env, expected in (
+                ({"actor_history_frames": None}, {"actorHistoryFrames": 1}, (1, 1)),
+                ({"actor_history_frames": 4, "critic_history_frames": 4}, {}, (4, 4))):
+            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as directory:
+                run = Path(directory)
+                checkpoint = run / "checkpoints/agent_24.pt"
+                checkpoint.parent.mkdir()
+                checkpoint.touch()
+                (run / "teacher_run.json").write_text(json.dumps(
+                    {"arguments": arguments, "config_file": "data/cfg/DQ_teacher.yaml"}))
+                (run / "DQ_teacher.yaml").write_text(yaml.safe_dump({"env": saved_env}))
+                args = get_params(["--checkpoint", str(checkpoint), "--critic_history_frames", "4"])
+                entry_function("restore_eval_arguments")(args)
+                self.assertEqual((args.actor_history_frames, args.critic_history_frames), expected)
 
 
 class TemporalHistoryTests(unittest.TestCase):

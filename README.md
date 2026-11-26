@@ -18,7 +18,6 @@
 <img src="./dqnet_architecture.png" width="100%"/>
 </p>
 
-
 **Clarification**: Our project is highly based on work--[VBC](https://github.com/Ericonaldo/visual_wholebody)
 
 # 💻 Installation

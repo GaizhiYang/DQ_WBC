@@ -10,7 +10,9 @@ Train the sugar_box teacher with both SGS and EKF future-pose observations.
 Defaults: 8192 environments, 120000 steps, seed 43, CUDA 0, headless, W&B enabled.
 EKF: horizons 0.60/0.90 seconds, history 5, Q scale 1.0, R scale 0.01.
 Actor: current + 3 past frames [t-3, t-2, t-1, t], MLP input 214 x 4 = 856.
-Append --actor_history_frames 1 for the single-frame baseline.
+Critic: the same 4 frames, MLP input 215 x 4 = 860 (YAML actorHistoryFrames/criticHistoryFrames).
+Append --actor_history_frames 1 --critic_history_frames 1 for the single-frame baseline
+(every run before 2026-11-26); evaluation always replays a run's own frame counts.
 The critic also receives episode progress (step / 100); the actor does not.
 Append --no_critic_time_obs to train the previous baseline without it.
 Append --action_scaling normalized for unit actions: outputs are clipped to [-1, 1],
