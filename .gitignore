@@ -3,7 +3,10 @@ __pycache__/
 
 # Training outputs and checkpoints
 /DQ_high-level/DQ_stu/
-/DQ_high-level/DQ_teacher/
+/DQ_high-level/DQ_teacher/*
+!/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/
+/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/*
+!/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/r_online_s43_1123/
 /DQ_high-level/wandb
 /DQ_high-level/outputs/
 

@@ -1,0 +1,51 @@
+{
+  "checkpoint": "/home/hehui/DQ_WBC/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/r_online_s43_1123/checkpoints/agent_85000.pt",
+  "task": "full_task",
+  "task_level": "Level02",
+  "start_distance": 2.0,
+  "sampler_mode": "disabled",
+  "success_mode": "hold",
+  "hold_steps": 10,
+  "deterministic_policy": true,
+  "action_scaling": "normalized",
+  "fps": 25,
+  "terminal_still_seconds": 1.0,
+  "episodes": [
+    {
+      "episode": 1,
+      "seed": 43,
+      "success": true,
+      "ever_lifted": true,
+      "status": "SUCCESS",
+      "control_steps": 35,
+      "simulation_seconds": 5.199999883770943,
+      "video": "episode_001.mp4",
+      "video_frames": 156
+    },
+    {
+      "episode": 2,
+      "seed": 44,
+      "success": true,
+      "ever_lifted": true,
+      "status": "SUCCESS",
+      "control_steps": 35,
+      "simulation_seconds": 5.1799998842179775,
+      "video": "episode_002.mp4",
+      "video_frames": 155
+    },
+    {
+      "episode": 3,
+      "seed": 45,
+      "success": false,
+      "ever_lifted": false,
+      "status": "FAILED",
+      "control_steps": 25,
+      "simulation_seconds": 3.759999915957451,
+      "video": "episode_003.mp4",
+      "video_frames": 120
+    }
+  ],
+  "completed_episodes": 3,
+  "successes": 2,
+  "success_rate": 0.6666666666666666
+}
