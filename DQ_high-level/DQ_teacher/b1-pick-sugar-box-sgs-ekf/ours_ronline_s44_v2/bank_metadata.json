@@ -1,0 +1,7 @@
+{
+  "fingerprint": "ba20fcbabb524e1918b884d90cb95881a0551c6a51a2bc68bdc0a4030bb76372",
+  "num_configs": 2048,
+  "bank_path": "/home/hehui/DQ_WBC/DQ_high-level/data/sgs/sugar_box_level03_v2.pt",
+  "task_hold_steps": 10,
+  "hold_compatibility": "exact"
+}

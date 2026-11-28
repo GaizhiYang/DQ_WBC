@@ -4,11 +4,15 @@ __pycache__/
 # Training outputs and checkpoints
 /DQ_high-level/DQ_stu/
 /DQ_high-level/DQ_teacher/*
+!/DQ_high-level/DQ_teacher/b1-pick-sugar-box-ekf/
+/DQ_high-level/DQ_teacher/b1-pick-sugar-box-ekf/*
+!/DQ_high-level/DQ_teacher/b1-pick-sugar-box-ekf/base_level03_hard_s44/
 !/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/
 /DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/*
 !/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/t2_smoke/
 !/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/sgs_ekf_sugar_box_seed43_20261120_220722/
 !/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/ours_s44/
+!/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/ours_ronline_s44_v2/
 !/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/r_intercept_s44/
 !/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/t_only_s44/
 !/DQ_high-level/DQ_teacher/b1-pick-sugar-box-sgs-ekf/c_only_s44/
