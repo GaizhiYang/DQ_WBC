@@ -45,14 +45,67 @@ class BuildConfigTests(unittest.TestCase):
         loaded = load_build_config()
         normalized = validate_build_config(loaded, lifted_threshold=0.2)
         self.assertTrue(MODULE.DEFAULT_BUILD_CONFIG_PATH.is_absolute())
-        self.assertEqual(normalized["full_task"]["arm_pose"], "default")
-        self.assertEqual(normalized["schema_version"], 5)
+        self.assertEqual(normalized["full_task"], {"source": "ordinary_reset"})
+        self.assertEqual(normalized["schema_version"], 6)
         self.assertEqual(normalized["heading_reference"], "object_motion")
         self.assertEqual(normalized, loaded)
         self.assertEqual(set(normalized), {
-            "schema_version", "heading_reference", "object", "validation", "full_task", "pregrasp", "near_goal"})
+            "schema_version", "heading_reference", "object", "validation", "full_task",
+            "pregrasp", "at_grasp", "near_goal"})
+        self.assertEqual(normalized["at_grasp"]["base"], normalized["pregrasp"]["base"])
+        self.assertEqual(normalized["at_grasp"]["gripper_opening_range"], [.2, 1.])
         self.assertEqual(set(normalized["pregrasp"]["ee_rotation_offset_range_deg"]),
                          {"roll", "pitch", "yaw"})
+
+    def test_level03_default_uses_same_ordinary_full_task_and_curriculum_ranges(self):
+        general = load_build_config()
+        level03 = load_build_config(SOURCE.parents[1] / "data/cfg/sgs_bank_level03.yaml")
+        self.assertEqual(level03["full_task"], {"source": "ordinary_reset"})
+        self.assertEqual(level03["heading_reference"], "object_motion")
+        for family in ("pregrasp", "at_grasp", "near_goal"):
+            self.assertEqual(level03[family], general[family])
+
+    def test_ordinary_full_task_has_no_geometry_overrides(self):
+        config = self.near_goal_config()
+        config["schema_version"] = 5
+        config.pop("at_grasp")
+        config["full_task"] = {"source": "ordinary_reset"}
+        normalized = validate_build_config(config)
+        self.assertEqual(normalized, config)
+        normalized["full_task"]["source"] = "changed"
+        self.assertEqual(config["full_task"], {"source": "ordinary_reset"})
+        for extra, value in (("base", self.config["full_task"]["base"]),
+                             ("arm_pose", "default"), ("typo", 1)):
+            invalid = copy.deepcopy(config)
+            invalid["full_task"][extra] = value
+            with self.subTest(extra=extra), self.assertRaisesRegex(ValueError, "unknown keys"):
+                validate_build_config(invalid)
+
+    def test_ordinary_full_task_rejects_unknown_source_and_legacy_schemas(self):
+        config = self.near_goal_config()
+        config["schema_version"] = 5
+        config.pop("at_grasp")
+        for value in ("ordinary", "geometry", None, True, [], {}):
+            config["full_task"] = {"source": value}
+            with self.subTest(source=value), self.assertRaisesRegex(ValueError, "full_task.source"):
+                validate_build_config(config)
+        for legacy in (self.config, self.near_goal_config()):
+            invalid = copy.deepcopy(legacy)
+            invalid["full_task"] = {"source": "ordinary_reset"}
+            with self.subTest(version=invalid["schema_version"]), \
+                    self.assertRaisesRegex(ValueError, "schema_version 5"):
+                validate_build_config(invalid)
+
+    def test_legacy_full_task_format_is_not_renormalized_to_new_source(self):
+        for version in (3, 4, 5):
+            config = copy.deepcopy(self.config) if version == 3 else self.near_goal_config()
+            config["schema_version"] = version
+            if version == 5:
+                config.pop("at_grasp")
+            with self.subTest(version=version):
+                normalized = validate_build_config(config)
+                self.assertEqual(normalized, config)
+                self.assertNotIn("source", normalized["full_task"])
 
     def test_default_loading_does_not_depend_on_working_directory(self):
         original = Path.cwd()
@@ -124,7 +177,7 @@ class BuildConfigTests(unittest.TestCase):
                         validate_build_config(config)
 
     def test_schema_version_requires_supported_integer(self):
-        for version in (True, False, 3., 4., 5., "3", "4", "5", 0, 1, 2, 6, None):
+        for version in (True, False, 3., 4., 5., 6., "3", "4", "5", "6", 0, 1, 2, 7, None):
             with self.subTest(version=version):
                 self.config["schema_version"] = version
                 with self.assertRaisesRegex(ValueError, "schema_version"):
@@ -265,6 +318,96 @@ class BuildConfigTests(unittest.TestCase):
             with self.subTest(key=key), self.assertRaises(ValueError):
                 validate_build_config(invalid, lifted_threshold=.2)
         self.assertEqual(validate_build_config(config), config)
+
+    def schema_six_config(self):
+        config = self.near_goal_config()
+        config["schema_version"] = 6
+        config["full_task"] = {"source": "ordinary_reset"}
+        config["at_grasp"] = {"base": {"same_as": "pregrasp"},
+                              "gripper_opening_range": [.2, 1.]}
+        return config
+
+    def test_schema_six_requires_all_four_families(self):
+        config = self.schema_six_config()
+        self.assertEqual(MODULE.BUILD_FAMILIES[6],
+                         ("full_task", "pregrasp", "at_grasp", "near_goal"))
+        for family in MODULE.BUILD_FAMILIES[6]:
+            invalid = copy.deepcopy(config)
+            invalid.pop(family)
+            with self.subTest(family=family), self.assertRaisesRegex(ValueError, "missing keys " + family):
+                validate_build_config(invalid)
+
+    def test_schema_six_requires_ordinary_full_task_source_before_building(self):
+        for full_task in (self.config["full_task"], {}, None,
+                          {"source": "geometric"}, {"source": None}):
+            config = self.schema_six_config()
+            config["full_task"] = copy.deepcopy(full_task)
+            with self.subTest(full_task=full_task), self.assertRaisesRegex(
+                ValueError, "schema_version 6 requires full_task.source = 'ordinary_reset'"
+            ):
+                validate_build_config(config)
+
+    def test_schema_six_at_grasp_references_current_pregrasp_base_without_aliasing(self):
+        config = self.schema_six_config()
+        before = copy.deepcopy(config)
+        config["pregrasp"]["base"] = {
+            "x_range_m": [.81, .94], "y_range_m": [-.12, .18],
+            "heading_offset_range_deg": [-13., 11.],
+        }
+        result = validate_build_config(config)
+        self.assertEqual(result["at_grasp"]["base"], config["pregrasp"]["base"])
+        self.assertEqual(validate_build_config(result), result)
+        self.assertEqual(config["at_grasp"], before["at_grasp"])
+        result["at_grasp"]["base"]["x_range_m"][0] = 9.
+        self.assertEqual(result["pregrasp"]["base"]["x_range_m"], [.81, .94])
+        self.assertEqual(config["pregrasp"]["base"]["x_range_m"], [.81, .94])
+
+    def test_schema_six_base_reference_rejects_unknown_cycles_and_mixed_overrides(self):
+        for base in ({"same_as": "near_goal"}, {"same_as": "at_grasp"},
+                     {"same_as": None}, {"same_as": "pregrasp", "x_range_m": [.8, .9]}):
+            config = self.schema_six_config()
+            config["at_grasp"]["base"] = base
+            with self.subTest(base=base), self.assertRaises(ValueError):
+                validate_build_config(config)
+        for family in ("pregrasp", "near_goal"):
+            config = self.schema_six_config()
+            config[family]["base"] = {"same_as": "at_grasp"}
+            with self.subTest(family=family), self.assertRaises(ValueError):
+                validate_build_config(config)
+        for version in (3, 4):
+            config = copy.deepcopy(self.config) if version == 3 else self.near_goal_config()
+            config["at_grasp"]["base"] = {"same_as": "pregrasp"}
+            with self.subTest(version=version), self.assertRaises(ValueError):
+                validate_build_config(config)
+
+    def test_schema_six_at_grasp_is_not_fully_closed_and_has_no_pregrasp_pose_offsets(self):
+        config = self.schema_six_config()
+        for opening in ([0., 1.], [0., 0.], [-.1, .5], [.5, 1.01]):
+            config["at_grasp"]["gripper_opening_range"] = opening
+            with self.subTest(opening=opening), self.assertRaisesRegex(ValueError, "gripper_opening_range"):
+                validate_build_config(config)
+        for opening in ([.2, 1.], [.3, .3], [1., 1.]):
+            config["at_grasp"]["gripper_opening_range"] = opening
+            with self.subTest(opening=opening):
+                self.assertEqual(validate_build_config(config)["at_grasp"]["gripper_opening_range"],
+                                 opening)
+        for field in ("ee_approach_distance_range_m", "ee_lateral_offset_range_m",
+                      "ee_vertical_offset_range_m", "ee_rotation_offset_range_deg"):
+            invalid = copy.deepcopy(config)
+            invalid["at_grasp"][field] = invalid["pregrasp"][field]
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, "unknown keys"):
+                validate_build_config(invalid)
+
+    def test_schema_six_reference_survives_yaml_load_and_explicit_roundtrip(self):
+        config = self.schema_six_config()
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.yaml"
+            saved = Path(directory) / "normalized.yaml"
+            source.write_text(yaml.safe_dump(config), encoding="utf-8")
+            result = load_build_config(source)
+            saved.write_text(yaml.safe_dump(result), encoding="utf-8")
+            self.assertEqual(load_build_config(saved), result)
+            self.assertNotIn("same_as", result["at_grasp"]["base"])
 
     def test_near_goal_missing_unknown_and_duplicate_fields_are_rejected(self):
         for key in self.near_goal_config()["near_goal"]:

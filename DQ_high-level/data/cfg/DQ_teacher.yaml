@@ -12,6 +12,28 @@ env:
   controlFrequencyLow: 8
   imgDelayFrame: 4
   D1_bench_task_level : "Level02"
+  level03Motion: # Independent smooth local X/Y motion; yaw_rate=vy*curvature
+    translationAxes: xy # y replays the legacy local-Y-only carrier
+    minSpeed: 0.25 # m/s; minimum driving target magnitude, excluding smooth startup
+    maxSpeed: 0.45 # m/s per axis; vx and vy targets in [-0.45,-0.25] or [0.25,0.45]
+    maxYawRate: 0.4 # rad/s; maximum curvature=maxYawRate/maxSpeed (1/m), no spin at rest
+    linearAcceleration: 1.0 # m/s^2 per axis; continuous velocity and acceleration
+    yawAcceleration: 1.8 # rad/s^2; shared by changing forward speed and steering
+    driveDuration: [6.0, 10.0] # renew cruise intentions while keeping each axis's episode direction
+    throttleUpdateTime: [0.4, 0.8] # correlated throttle corrections (seconds)
+    steeringUpdateTime: [0.3, 0.65] # steering corrections use an independent clock
+    turnHoldTime: [2.0, 4.0] # retain a bend/straight intention across corrections
+    stopHoldTime: [0.4, 0.9] # pause starts only after braking to near rest
+    inputResponseTime: 0.12 # seconds; smooth the operator inputs before vehicle response
+    throttleTrackingGain: 0.4 # fraction of the gap to the cruise reference per correction
+    throttleVariation: 0.18 # normalized random correction amplitude, before smoothing
+    cruiseThrottleRange: [0.56, 0.95] # ordinary cruise references as a fraction of maxSpeed
+    steeringTrackingGain: 0.6 # fraction of the gap to the bend reference per correction
+    steeringVariation: 0.08 # normalized random steering correction amplitude
+    turnMagnitudeRange: [0.45, 0.95] # ordinary bend references as a fraction of maximum curvature
+    stopProbability: 0.0 # continuous driving: no in-episode stops
+    reverseProbability: 0.0 # keep each axis's initial signed direction throughout the episode
+    straightProbability: 0.35 # probability of a straight intention
   robotStartDistanceRange: [2.0, 2.0] # Horizontal distance from robot base to object [m]
   cameraVisibilityReset: False # Keep termination rules consistent with visual distillation
 

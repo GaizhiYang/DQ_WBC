@@ -6,10 +6,17 @@ usage() {
     cat <<'EOF'
 Usage: bash DQ_high-level/train_teacher_ekf.sh [--dry-run] [--no-wandb] [teacher arguments...]
 
-Train the sugar_box EKF baseline with ordinary resets and the original PPO.
+Train the sugar_box EKF baseline on Level03 table motion with ordinary resets and the original PPO.
 SGS and TSIL are explicitly disabled; no SGS bank is required.
 Defaults: 8192 environments, 120000 steps, seed 43, CUDA 0, headless, W&B enabled.
-EKF: horizons 0.60/0.90 seconds, history 5, Q scale 1.0, R scale 0.01.
+EKF: horizons 0.60/0.90 seconds, history 5, Q scale 10.0, R scale 0.0001.
+Level03 uses independent smooth local X/Y motion:
+         Driving targets: each of vx/vy in [-0.45, -0.25] or [0.25, 0.45] m/s.
+         Each axis keeps its signed direction per episode; no stops or reversals.
+         Smooth startup passes through speeds below 0.25 m/s.
+         Smooth steering; yaw rate within +/-0.4 rad/s, no spinning at rest.
+         Acceleration limits: 1.0 m/s^2 per axis and 1.8 rad/s^2 (env.level03Motion in YAML).
+         Correlated throttle/steering corrections throughout the episode.
 
 Environment overrides:
   PYTHON_BIN       Python from the activated dqwbc environment (default: python)
@@ -26,6 +33,7 @@ Environment overrides:
 Examples:
   bash DQ_high-level/train_teacher_ekf.sh
   bash DQ_high-level/train_teacher_ekf.sh --dry-run
+  bash DQ_high-level/train_teacher_ekf.sh --motion_level Level03
   NUM_ENVS=64 RUN_NAME=ekf_smoke bash DQ_high-level/train_teacher_ekf.sh --no-wandb --stop_after 48
 
 Extra arguments override other teacher defaults. This entrypoint fixes
@@ -56,13 +64,14 @@ run_name="${RUN_NAME:-ekf_sugar_box_seed${seed}_$(TZ=Asia/Shanghai date +%Y%m%d_
 cmd=(
     "$python_bin" train_multistate_DQ_teacher.py
     --cfg_file data/cfg/DQ_teacher.yaml
+    --motion_level Level03
     --task B1Z1PickMulti --object_name sugar_box
     --rl_device "$rl_device" --sim_device "${SIM_DEVICE:-$rl_device}"
     --num_envs "${NUM_ENVS:-8192}" --timesteps "${TIMESTEPS:-120000}"
     --roboinfo --observe_gait_commands --small_value_set_zero
     --rand_control --no_velocity_obs --success_mode hold
     --future_pose_horizons 0.60 0.90
-    --ekf_history 5 --ekf_q_scale 1.0 --ekf_r_scale 0.01
+    --ekf_history 5 --ekf_q_scale 10.0 --ekf_r_scale 0.0001
     --experiment_dir "${EXPERIMENT_DIR:-DQ_teacher/b1-pick-sugar-box-ekf}"
     --wandb_project "${WANDB_PROJECT:-isaacgym}" --wandb_name "$run_name"
     --seed "$seed" --headless

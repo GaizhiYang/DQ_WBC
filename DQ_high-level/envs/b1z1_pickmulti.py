@@ -12,6 +12,7 @@ from .b1z1_base import B1Z1Base, reindex_all, reindex_feet, LIN_VEL_X_CLIP, ANG_
 from utils.low_level_model import ActorCritic
 from utils.config import load_cfg, get_params, copy_cfg, validate_reward_options
 from utils.pick_success import lifted_grasp_mask, advance_pick_hold, RollingEpisodeSuccess
+from utils.table_collision import read_chassis_box, table_chassis_contact
 from modules.pose_prediction import RollingSE3Predictor
 from utils.margin_task import InterceptionMarginMixin
 from utils.object_pose import (
@@ -146,23 +147,34 @@ class B1Z1PickMulti(B1Z1Base, PredictPoint, InterceptionMarginMixin):
         self.sgs_enabled = cfg.get("mode", "disabled") != "disabled"
         if not self.sgs_enabled:
             return
-        if len(self.obj_list) != 1 or self.table_level != "Level02":
-            raise ValueError("SGS requires a single object and Level02")
+        if len(self.obj_list) != 1 or self.table_level not in ("Level02", "Level03"):
+            raise ValueError("SGS requires a single object and Level02 or Level03")
         if self.enable_camera or self.floating_base or self.obj_move_prob:
             raise ValueError("SGS requires the nonvisual walking teacher and obj_move_prob=0")
+        expected_metadata = {
+            "object_name": self.obj_list[0],
+            "robot_asset": self.cfg["env"]["asset"]["assetFileRobot"],
+            "num_dofs": self.num_dofs,
+            "num_bodies": self._rigid_body_pos.shape[1],
+            "lifted_threshold": self.lifted_success_threshold,
+            "table_level": self.table_level,
+            "physical_validation": {"passed": True},
+        }
+        if self.table_level == "Level03":
+            if self.cfg["env"].get("margin", {}).get("curriculum", "disabled") != "disabled":
+                raise ValueError("Level03 SGS does not support the Level02 margin prior/frontier curriculum")
+            # ConfigurationBank validates the exact reset mode against its
+            # physical profile: legacy sampled intent or ordinary full-task reset.
         self.sgs_bank = ConfigurationBank.load(
             cfg.get("bank_path", ""), device=self.device,
-            expected_metadata={
-                "object_name": self.obj_list[0],
-                "robot_asset": self.cfg["env"]["asset"]["assetFileRobot"],
-                "num_dofs": self.num_dofs,
-                "num_bodies": self._rigid_body_pos.shape[1],
-                "lifted_threshold": self.lifted_success_threshold,
-                "table_level": "Level02",
-                "physical_validation": {
-                    "passed": True,
-                },
-            })
+            expected_metadata=expected_metadata)
+        if self.table_level == "Level03":
+            from utils.sgs_level03 import validated_bank_motion_config
+            bank_motion = validated_bank_motion_config(
+                self.sgs_bank.metadata.get("level03_motion_config"))
+            for name in sorted(bank_motion.keys() | self.level03_motion_cfg.keys()):
+                if bank_motion.get(name) != self.level03_motion_cfg.get(name):
+                    raise ValueError("bank metadata mismatch: level03_motion_config." + name)
         self.sgs_hold_compatibility = validate_task_hold_steps(
             self.sgs_bank.metadata, self.hold_steps)
         physical = self.sgs_bank.metadata.get("physical_validation", {})
@@ -292,9 +304,13 @@ class B1Z1PickMulti(B1Z1Base, PredictPoint, InterceptionMarginMixin):
         self.table_heights[env_ids] = state["table_height"]
         self.table_commands[env_ids] = 0
         self.table_commands[env_ids, 4] = state["table_height"] - self.table_dimz / 2
-        self.vel_line_forward_y_level02[env_ids] = state["table_vy"]
-        self.lin_circle_select[env_ids] = state["rotation_enabled"]
-        self.vel_angular_yaw[env_ids] = state["table_yaw_rate"]
+        if self.table_level == "Level03":
+            from utils.sgs_level03 import restore_motion
+            restore_motion(self.level03_motion, state, env_ids)
+        else:
+            self.vel_line_forward_y_level02[env_ids] = state["table_vy"]
+            self.lin_circle_select[env_ids] = state["rotation_enabled"]
+            self.vel_angular_yaw[env_ids] = state["table_yaw_rate"]
         # Isaac Gym GPU permits one call per state setter between simulate()
         # calls. The next table-control upload commits these roots and DOFs in
         # one batch; otherwise its table-only upload can discard this reset.
@@ -537,6 +553,7 @@ class B1Z1PickMulti(B1Z1Base, PredictPoint, InterceptionMarginMixin):
         self._cube_actor_ids = self.num_actors * torch.arange(self.num_envs, device=self.device, dtype=torch.long) + 2
         
         self.table_idx = self.gym.find_actor_rigid_body_index(self.envs[0], self.table_handles[0], "box", gymapi.DOMAIN_ENV)
+        self._init_table_chassis_collision()
         
         self.lifted_success_threshold = self.cfg["env"]["liftedSuccessThreshold"]
         self.lifted_init_threshold = self.cfg["env"]["liftedInitThreshold"]
@@ -560,7 +577,41 @@ class B1Z1PickMulti(B1Z1Base, PredictPoint, InterceptionMarginMixin):
         # SGS and evaluation read the same latched outcome as the original task.
         self.episode_success = self.pick_success_recorded
 
-        
+    def _init_table_chassis_collision(self):
+        """Match the physical trunk box, excluding the arm, gripper and legs."""
+        asset = self.cfg["env"]["asset"]
+        half, offset, rotation = read_chassis_box(
+            os.path.join(asset["assetRoot"], asset["assetFileRobot"]))
+        actor_body_idx = self.body_names_to_idx["trunk"]
+        self.chassis_idx = self.gym.find_actor_rigid_body_index(
+            self.envs[0], self.robot_handles[0], "trunk", gymapi.DOMAIN_ENV)
+        if self.chassis_idx < 0:
+            raise ValueError("table/chassis reset requires the trunk rigid body")
+        self._chassis_half_extents = self._table_root_states.new_tensor(half)
+        self._chassis_box_offset = self._table_root_states.new_tensor(offset).expand(self.num_envs, -1)
+        self._chassis_box_rotation = self._table_root_states.new_tensor(rotation).expand(self.num_envs, -1)
+        self._table_half_extents = self._table_root_states.new_tensor(
+            [self.table_dims.x / 2, self.table_dims.y / 2, self.table_dims.z / 2])
+        shape_range = self.gym.get_actor_rigid_body_shape_indices(
+            self.envs[0], self.robot_handles[0])[actor_body_idx]
+        robot_shapes = self.gym.get_actor_rigid_shape_properties(self.envs[0], self.robot_handles[0])
+        table_shapes = self.gym.get_actor_rigid_shape_properties(self.envs[0], self.table_handles[0])
+        self._table_chassis_rest_offset = (
+            max(shape.rest_offset for shape in robot_shapes[shape_range.start:shape_range.start + shape_range.count])
+            + max(shape.rest_offset for shape in table_shapes))
+        self.table_chassis_collision = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+
+    def _update_table_chassis_collision(self):
+        # Called after every gym.simulate(), not just the high-level action:
+        # a transient hit remains a hard failure until this episode is reset.
+        q = self._rigid_body_rot[:, self.chassis_idx]
+        center = self._rigid_body_pos[:, self.chassis_idx] + quat_apply(q, self._chassis_box_offset)
+        rotation = quat_mul(q, self._chassis_box_rotation)
+        self.table_chassis_collision |= table_chassis_contact(
+            center, rotation, self._chassis_half_extents,
+            self._table_root_states[:, :3], self._table_root_states[:, 3:7],
+            self._table_half_extents, self._contact_forces[:, self.chassis_idx],
+            self._table_chassis_rest_offset)
 
     def _create_extra(self, env_i):
         self.env_ptr = self.envs[env_i]
@@ -784,6 +835,8 @@ class B1Z1PickMulti(B1Z1Base, PredictPoint, InterceptionMarginMixin):
     
     def _reset_pick_state(self, env_ids):
         """Reset task progress identically for ordinary and bank initial states."""
+        if hasattr(self, "table_chassis_collision"):
+            self.table_chassis_collision[env_ids] = False
         self.lifted_object[env_ids] = 0
         self.lifted_now[env_ids] = False
         self.pick_success[env_ids] = False
@@ -829,6 +882,8 @@ class B1Z1PickMulti(B1Z1Base, PredictPoint, InterceptionMarginMixin):
     def _refresh_sim_tensors(self):
         super()._refresh_sim_tensors()
         self._update_curr_dist()
+        if hasattr(self, "table_chassis_collision"):
+            self._update_table_chassis_collision()
     
     def _update_curr_dist(self):
         # d_s = self.ee_pos - self._cube_root_states[:, :3]
@@ -1055,8 +1110,13 @@ class B1Z1PickMulti(B1Z1Base, PredictPoint, InterceptionMarginMixin):
             
             self._terminate_buf[:] |= deviate_much | too_close_table
 
-        # Resolve hard failures before awarding success, including the yaw limit.
-        self._terminate_buf[:] |= self._yaw_deviation() > np.deg2rad(70.0)
+        # Resolve hard failures before awarding success. Yaw alone does not
+        # terminate the task; its optional shaping penalty is separate.
+        if hasattr(self, "table_chassis_collision"):
+            self._terminate_buf[:] |= self.table_chassis_collision
+            # episode_success aliases this tensor; a collision cannot be counted
+            # as success even if a previous callback already latched completion.
+            self.pick_success_recorded[self.table_chassis_collision] = False
         self.reset_buf[:] |= self._terminate_buf
         count, best_count, progress, success = advance_pick_hold(
             self.lifted_object, self._terminate_buf.bool(), self.pick_counter,

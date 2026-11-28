@@ -8,8 +8,9 @@ from collections import defaultdict
 from termcolor import cprint
 
 from .reward_vec_task import RewardVecTask
-from utils.config import validate_action_scaling, ee_delta_limits
+from utils.config import validate_action_scaling, ee_delta_limits, level03_motion_config
 from utils.low_level_model import ActorCritic
+from utils.table_motion import RemoteCarMotion
 
 from isaacgym import gymapi
 from isaacgym import gymtorch
@@ -102,6 +103,9 @@ class B1Z1Base(RewardVecTask):
         self.camera_history_len = 3
         self.table_level = "Level01"
         self.table_level = self.cfg["env"]["D1_bench_task_level"]
+        self.level03_motion_cfg = level03_motion_config(self.cfg["env"])
+        self.level03_linear_acceleration = self.level03_motion_cfg["linearAcceleration"]
+        self.level03_yaw_acceleration = self.level03_motion_cfg["yawAcceleration"]
         cprint(f"[ DQ_Bench ] Task_Level : {self.table_level} !", "red")
         self.random_forces_value_max = 7.2
         self.random_forces_value_min = 3.6
@@ -275,6 +279,8 @@ class B1Z1Base(RewardVecTask):
         ##### DQ add #####
         self.cat_forward_camera_RGBD_flatten_tensor = torch.zeros(self.num_envs, self.one_img_features, device=self.device)
         self.table_commands = torch.zeros(self.num_envs, 6, dtype=torch.float, device=self.device, requires_grad=False) ## 1 linear , 1 angular , 1 height
+        if self.table_level == "Level03":
+            self.level03_motion = RemoteCarMotion(self.num_envs, self.device, self.level03_motion_cfg)
         self.table_z_lower = torch.ones(self.num_envs, device=self.device)*0.2
         self.table_z_upper = torch.ones(self.num_envs, device=self.device)*0.9
         self.vel_line_z = torch.rand(self.num_envs,device=self.device) *-0.0008/7*8 + 0.0004/7*8
@@ -1083,6 +1089,12 @@ class B1Z1Base(RewardVecTask):
         self._terminate_buf[env_ids] = 0
         self.num_steps_to_change_mode[env_ids] = 0 
         self.increase_to_change_step[env_ids] = 1 
+        if self.table_level == "Level03":
+            # The carrier is reset at rest. Do not reuse the previous episode's
+            # velocity, or clear column 4 (the freshly sampled table height).
+            self.table_commands[env_ids, :2] = 0.0
+            self.table_commands[env_ids, 5] = 0.0
+            self.level03_motion.reset(env_ids)
         
         self.last_actions[env_ids, :] = 0
         self.last_low_actions[env_ids, :] = 0
@@ -1852,22 +1864,14 @@ class B1Z1Base(RewardVecTask):
     #     self.table_commands[:,5] = self.vel_angular_yaw
     #     self.table_commands[:,2] = 0
         
-    def compute_table_command_level_03(self): ## High-speed random two-dimensional trajectory
-        self.num_steps_to_change_mode[...] += 1
-        mask_step_change = (self.num_steps_to_change_mode % (self.rand_change_step*6*self.increase_to_change_step)==0)
-        self.increase_to_change_step[mask_step_change]+=1
-        self.mask_step_change = mask_step_change
-        true_count = mask_step_change.sum().item()
-        self.rand_change_step[mask_step_change] = torch.randint(low=40, high=60, size=(true_count,), device=self.device)
-        
-        self.vel_line_forward_y_level03[mask_step_change] = torch.rand(true_count,device=self.device) *(-0.212-0.212) + 0.212
-        self.vel_line_forward_x[mask_step_change] = torch.rand(true_count,device=self.device) *(-0.212-0.212) + 0.212
-        self.vel_angular_yaw[mask_step_change] = torch.rand(true_count,device=self.device) *(-0.3-0.3) + 0.3
-        self.vel_line_z[mask_step_change] = torch.rand(true_count,device=self.device) *-0.0008/7*8 + 0.0004/7*8
-        self.table_commands[:,0] = self.vel_line_forward_x
-        self.table_commands[:,1] = self.vel_line_forward_y_level03
-        self.table_commands[:,5] = self.vel_angular_yaw
-        self.table_commands[:,2] = 0
+    def compute_table_command_level_03(self):
+        """Smooth table-local translation and yaw under the Level03 motion config."""
+        # Physics dt, not the longer low-level policy period self.dt.
+        velocity = self.level03_motion.step(self.sim_params.dt)
+        self.table_commands[:, :2] = velocity[:, :2]
+        self.table_commands[:, 5] = velocity[:, 2]
+        self.table_commands[:, 2] = 0
+        self.mask_step_change = self.level03_motion.command_changed
     
     def compute_table_command_level_04(self): 
         self.num_steps_to_change_mode[...] += 1

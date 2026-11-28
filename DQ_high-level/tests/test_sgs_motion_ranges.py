@@ -16,6 +16,15 @@ from utils.sgs_motion import base_motion_angle_deg, level02_object_motion_xy
 class MotionRangeConfigTests(unittest.TestCase):
     def config(self):
         config = load_build_config()
+        config["schema_version"] = 5
+        config.pop("at_grasp", None)
+        # Exercise the legacy geometry-source schema even though the current
+        # default full_task delegates its whole pose to ordinary reset.
+        config["full_task"] = {
+            "base": {"x_range_m": [2., 2.], "y_range_m": [0., 0.],
+                     "heading_offset_range_deg": [75., 90.]},
+            "arm_pose": "default",
+        }
         config["heading_reference"] = "object_motion"
         for family in ("full_task", "pregrasp", "near_goal"):
             config[family]["base"]["heading_offset_range_deg"] = [45.0, 75.0]

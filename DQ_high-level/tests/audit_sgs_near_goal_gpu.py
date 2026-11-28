@@ -10,7 +10,9 @@ Paths resolve from DQ_high-level. Sample IDs are drawn uniformly without
 replacement. The closed-gripper test uses saved targets and the builder's hold
 criteria in a freshly constructed simulator. The release control restores those
 same states again, opens the gripper, and runs 0.8 s of ordinary physics with the
-low-level policy and Level02 table controller. It reports contact and height
+low-level policy and the bank's Level02 or Level03 table controller. Level03
+uses the saved motion settings and stationary driver-intention reset state.
+It reports contact and height
 changes without requiring every object to fall. Neither phase is a task-success
 evaluation or a learned-policy rollout. This file never runs under unittest
 discovery. A failed closed-gripper check writes its report and exits nonzero.
@@ -82,12 +84,19 @@ def main():
         from utils.sgs_grounding import grasp_contact_body_indices
 
         bank = ConfigurationBank.load(args.bank, device=args.device, expected_metadata={
-            "object_name": "sugar_box", "table_level": "Level02",
+            "object_name": "sugar_box",
             "physical_validation": {"near_goal_grasp_verified": True},
         })
+        table_level = bank.metadata.get("table_level")
+        if table_level not in ("Level02", "Level03"):
+            raise ValueError("The selected bank must declare Level02 or Level03 table motion")
         if bank.metadata["physical_validation"].get("validation_profile") not in SUPPORTED_FAMILY_PROFILES:
             raise ValueError("The selected bank requires a supported physical validation profile")
         report["fingerprint"] = bank.fingerprint
+        report["table_level"] = table_level
+        if table_level == "Level03":
+            report["level03_motion_config"] = bank.metadata["level03_motion_config"]
+            report["level03_reset_mode"] = bank.metadata["level03_reset_mode"]
         names = bank.metadata["family_names"]
         if "near_goal" not in names:
             raise ValueError("The selected bank has no near_goal family")
@@ -98,7 +107,10 @@ def main():
         selected = random.Random(args.seed).sample(candidates, args.num_envs)
         report["sample_config_ids"] = selected
         state = bank.batch(torch.tensor(selected, device=bank.device))
-        env = create_builder_environment(num_envs=args.num_envs, device=args.device, seed=args.seed)
+        env = create_builder_environment(
+            num_envs=args.num_envs, device=args.device, seed=args.seed,
+            motion_level=table_level,
+            motion_config=bank.metadata.get("level03_motion_config"))
         builder = PhysicsBankBuilder(
             env, per_family=1, seed=args.seed,
             reset_config=bank.metadata["construction"]["reset_config"])
@@ -122,6 +134,7 @@ def main():
                 "finger_contact_force_n": plain(
                     env._contact_forces[:, grasp_contact_body_indices(env)].norm(dim=-1)),
                 "object_speed_m_s": plain(env._cube_root_states[:, 7:10].norm(dim=1)),
+                "table_local_vx_vy_yaw_rate": plain(env.table_commands[:, [0, 1, 5]]),
             }
 
         with torch.no_grad():

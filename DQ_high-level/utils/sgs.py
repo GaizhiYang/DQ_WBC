@@ -20,10 +20,18 @@ NEAR_GOAL_FAMILIES = RESET_FAMILIES + ("near_goal",)
 # Current construction profile. Keep legacy tuples intact: saved family IDs
 # must retain their original meaning when inspecting an older immutable bank.
 ACTIVE_RESET_FAMILIES = ("full_task", "pregrasp", "near_goal")
+ORDINARY_FULL_TASK_PROFILE = "ordinary_full_task_v1"
+ORDINARY_FULL_TASK_PROFILE_V2 = "ordinary_full_task_v2"
+ORDINARY_FULL_TASK_PROFILES = {
+    ORDINARY_FULL_TASK_PROFILE: ACTIVE_RESET_FAMILIES,
+    ORDINARY_FULL_TASK_PROFILE_V2: NEAR_GOAL_FAMILIES,
+}
+ORDINARY_FULL_LEVEL03_RESET_MODE = "rest_with_family_driver_initialization"
 SUPPORTED_FAMILY_PROFILES = {
     "geometry_v1": RESET_FAMILIES,
     "geometry_grasp_v2": NEAR_GOAL_FAMILIES,
     "geometry_grasp_v3": ACTIVE_RESET_FAMILIES,
+    **ORDINARY_FULL_TASK_PROFILES,
 }
 
 
@@ -425,6 +433,10 @@ class ConfigurationBank:
             raise ValueError("lifted_threshold must be finite and positive")
         if expected_metadata:
             _validate_metadata_subset(self.metadata, expected_metadata)
+        ordinary_full = self._validate_ordinary_full_task_profile()
+        level03_state = self.metadata.get("table_level") == "Level03"
+        if level03_state:
+            self._validate_level03_motion()
         if "family_names" in self.metadata:
             names = self.metadata["family_names"]
             if (not isinstance(names, list) or not names
@@ -467,6 +479,11 @@ class ConfigurationBank:
                          & (value == value.long()))
                 if not bool(valid.all()):
                     raise ValueError("table_change_interval must contain integers in [40, 60)")
+            elif level03_state and name.startswith(("level03_motion_", "level03_driver_",
+                                                   "level03_x_motion_", "level03_x_driver_")):
+                # Complete field names, shapes, dtypes and ranges were checked
+                # above; driver flags/phases legitimately use bool/int64.
+                pass
             elif not value.is_floating_point() or not bool(torch.isfinite(value).all()):
                 raise ValueError("bank state must contain finite floating values: " + name)
         gripper = self.tensors["gripper_target"]
@@ -485,7 +502,7 @@ class ConfigurationBank:
         profile = physical.get("validation_profile")
         geometry_profile = profile in SUPPORTED_FAMILY_PROFILES
         if geometry_profile:
-            for name, expected in (("passed", True), ("feet_near_ground", True),
+            for name, expected in (("passed", True), ("feet_near_ground", not ordinary_full),
                                    ("collision_checked", True), ("object_attachment", False)):
                 if physical.get(name) is not expected:
                     raise ValueError("invalid " + profile + " validation flag: " + name)
@@ -510,7 +527,8 @@ class ConfigurationBank:
         if geometry_profile:
             if grounding.get("limits") != APPROX_GROUND_LIMITS:
                 raise ValueError("invalid " + profile + " grounding limits")
-            if not bool(approx_grounded_mask(bottom).all()):
+            grounded_rows = (self.tensors["family_id"] != 0) if ordinary_full else slice(None)
+            if not bool(approx_grounded_mask(bottom[grounded_rows]).all()):
                 raise ValueError("bank contains initial feet outside approximate ground limits")
         elif physical.get("grounded_initial_states", False):
             forces = self.tensors.get("initial_foot_contact_force")
@@ -520,7 +538,95 @@ class ConfigurationBank:
                 raise ValueError("bank contains ungrounded or unsettled initial states")
         if geometry_profile and "near_goal" in self.family_names:
             self._validate_near_goal()
+        if profile == ORDINARY_FULL_TASK_PROFILE_V2:
+            self._validate_at_grasp()
         return self
+
+    def _validate_ordinary_full_task_profile(self):
+        """Scope the ordinary-reset exemption explicitly; legacy banks stay strict."""
+        physical = self.metadata.get("physical_validation", {})
+        if not isinstance(physical, dict):
+            raise ValueError("physical_validation must be a metadata dictionary")
+        construction = self.metadata.get("construction", {})
+        config = construction.get("reset_config", {}) if isinstance(construction, dict) else {}
+        full = config.get("full_task", {}) if isinstance(config, dict) else {}
+        declared = isinstance(full, dict) and full.get("source") == "ordinary_reset"
+        profile = physical.get("validation_profile")
+        enabled = profile in ORDINARY_FULL_TASK_PROFILES
+        if not enabled:
+            if declared or physical.get("full_task_reset_source") == "ordinary_reset":
+                raise ValueError("ordinary_reset full_task requires an ordinary_full_task profile")
+            return False
+        expected_families = ORDINARY_FULL_TASK_PROFILES[profile]
+        if not isinstance(construction, dict) or not isinstance(config, dict):
+            raise ValueError(profile + " requires its effective construction config")
+        if profile == ORDINARY_FULL_TASK_PROFILE_V2 and config.get("schema_version") != 6:
+            raise ValueError(profile + " requires construction schema_version 6")
+        if profile == ORDINARY_FULL_TASK_PROFILE and (config.get("schema_version") == 6 or "at_grasp" in config):
+            raise ValueError(profile + " cannot contain the fourth at_grasp family")
+        if (full != {"source": "ordinary_reset"}
+                or physical.get("full_task_reset_source") != "ordinary_reset"):
+            raise ValueError(profile + " requires ordinary_reset full_task source")
+        if self.metadata.get("family_names") != list(expected_families):
+            raise ValueError(profile + " requires " + "/".join(expected_families) + " family_names")
+        if (physical.get("feet_near_ground") is not False
+                or physical.get("feet_near_ground_families") != list(expected_families[1:])):
+            raise ValueError(profile + " requires grounding only for curriculum families")
+        families = self.tensors["family_id"]
+        if (families.dtype != torch.long
+                or not bool(((families >= 0) & (families < len(expected_families))).all())
+                or any(not bool((families == index).any()) for index in range(len(expected_families)))):
+            raise ValueError(profile + " requires nonempty valid family IDs")
+        return True
+
+    def _validate_level03_motion(self):
+        """Validate rest-start filters and each family's driver initialization."""
+        from utils.sgs_level03 import (validate_motion_state, validated_bank_motion_config,
+                                       REST_PLANAR_TOLERANCE)
+
+        validated = validated_bank_motion_config(self.metadata.get("level03_motion_config"))
+        ordinary_full = self._validate_ordinary_full_task_profile()
+        expected_mode = (ORDINARY_FULL_LEVEL03_RESET_MODE if ordinary_full
+                         else "rest_with_sampled_driver_intention")
+        if self.metadata.get("level03_reset_mode") != expected_mode:
+            raise ValueError("Level03 bank requires " + expected_mode + " reset mode")
+        validate_motion_state(self.tensors, validated)
+        axis_rest_fields = (
+            "level03_motion_speed_stage", "level03_motion_speed",
+            "level03_motion_curvature_stage", "level03_motion_curvature",
+            "level03_motion_target_speed", "level03_motion_target_curvature",
+            "level03_driver_input_speed", "level03_driver_input_curvature",
+        )
+        rest_fields = axis_rest_fields + ("table_vy", "table_yaw_rate")
+        if validated["translationAxes"] == "xy":
+            rest_fields += tuple(name.replace("level03_", "level03_x_", 1)
+                                 for name in axis_rest_fields)
+        for name in rest_fields:
+            if not bool((self.tensors[name] == 0).all()):
+                raise ValueError("Level03 rest bank has nonzero motion: " + name)
+        prefixes = ("level03_", "level03_x_") if validated["translationAxes"] == "xy" else ("level03_",)
+        course_rows = self.tensors["family_id"] != 0 if ordinary_full else slice(None)
+        for prefix in prefixes:
+            if ordinary_full and bool(self.tensors[prefix + "driver_initialized"][~course_rows].any()):
+                raise ValueError("Level03 ordinary full_task driver must remain uninitialized: " + prefix)
+            if ordinary_full and bool(self.tensors[prefix + "motion_command_changed"][~course_rows].any()):
+                raise ValueError("Level03 ordinary full_task cannot retain a command-change event: " + prefix)
+            # validate_motion_state additionally guarantees every driver field is
+            # zero wherever initialized=False. Only curriculum rows preselect intent.
+            if (not bool(self.tensors[prefix + "driver_initialized"][course_rows].all())
+                    or not bool((self.tensors[prefix + "driver_phase"] == 0).all())
+                    or not bool((self.tensors[prefix + "driver_direction"]
+                                 == self.tensors[prefix + "driver_pending_direction"]).all())):
+                raise ValueError("Level03 rest bank requires an initialized driving intention: " + prefix)
+        if bool(self.tensors["rotation_enabled"].any()):
+            raise ValueError("Level03 rest bank cannot enable Level02 fixed rotation")
+        table = self.tensors["table_root"]
+        if tuple(table.shape) != (self.num_configs, 13):
+            raise ValueError("invalid bank tensor shape: table_root")
+        # Curriculum placement can leave vertical support velocity but requires
+        # planar rest. Ordinary rows retain actual reset-tick contact residuals.
+        if not bool((table[course_rows][:, [7, 8, 12]].abs() <= REST_PLANAR_TOLERANCE).all()):
+            raise ValueError("Level03 rest bank table has nonzero planar velocity")
 
     def _validate_near_goal(self):
         """Validate saved grasp evidence; no contacts are synthesized at reset."""
@@ -585,6 +691,74 @@ class ConfigurationBank:
         # contact with the object normally prevents it reaching that target.
         if not bool((self.tensors["gripper_target"][near].abs() < 1e-5).all()):
             raise ValueError("near_goal requires a saved closed gripper target")
+
+    def _validate_at_grasp(self):
+        """New four-family banks certify arrival with an open, unlifted gripper.
+
+        Preserve the older schema-4 profile unchanged. These checks consume the
+        actual post-physics candidate-relative pose emitted by the builder.
+        """
+        construction = self.metadata["construction"]
+        cfg = construction["reset_config"].get("at_grasp")
+        if not isinstance(cfg, dict):
+            raise ValueError("at_grasp requires its effective construction config")
+        bounds = cfg.get("gripper_opening_range")
+        if (not isinstance(bounds, list) or len(bounds) != 2
+                or any(type(v) not in (int, float) or not math.isfinite(v) for v in bounds)
+                or not 0 < bounds[0] <= bounds[1] <= 1):
+            raise ValueError("at_grasp gripper_opening_range must stay within (0, 1]")
+        if (construction.get("at_grasp_position_tolerance_m") != .005
+                or construction.get("at_grasp_angle_tolerance_rad") != .10):
+            raise ValueError("at_grasp requires the 5 mm / 0.1 rad arrival tolerances")
+        limits = construction.get("gripper_joint_limits_rad")
+        if (not isinstance(limits, list) or len(limits) != 2
+                or any(type(v) not in (int, float) or not math.isfinite(v) for v in limits)
+                or not limits[0] < limits[1] == 0):
+            raise ValueError("at_grasp requires the physical gripper joint limits (closed at zero)")
+        at = self.tensors["family_id"] == self.family_names.index("at_grasp")
+        shapes = {"gripper_opening": (self.num_configs,),
+                  "candidate_local_offset": (self.num_configs, 3),
+                  "ee_rotation_offset_deg": (self.num_configs, 3),
+                  "grasp_candidate_index": (self.num_configs,)}
+        for name, shape in shapes.items():
+            value = self.tensors.get(name)
+            if not isinstance(value, torch.Tensor) or tuple(value.shape) != shape:
+                raise ValueError("at_grasp requires per-configuration evidence: " + name)
+        candidate = self.tensors["grasp_candidate_index"][at]
+        if not bool(((candidate >= 0) & (candidate == candidate.long())).all()):
+            raise ValueError("at_grasp requires a valid grasp candidate index")
+        distance = self.tensors["candidate_local_offset"][at].norm(dim=-1)
+        if not bool((distance <= .005 + 1e-6).all()):
+            raise ValueError("at_grasp end effector has not reached its grasp candidate")
+        # Convert the stored relative XYZ Euler angles to quaternion w. This
+        # measures the same shortest rotation angle as the builder's quaternion gate.
+        half_angles = torch.deg2rad(self.tensors["ee_rotation_offset_deg"][at]) / 2
+        cosine, sine = half_angles.cos(), half_angles.sin()
+        w = cosine.prod(dim=-1) + sine.prod(dim=-1)
+        angle = 2 * w.abs().clamp(max=1).acos()
+        if not bool((angle < .10 + 1e-6).all()):
+            raise ValueError("at_grasp end effector is not aligned with its grasp candidate")
+        opening = self.tensors["gripper_opening"][at]
+        tolerance = .005 if bounds[0] == bounds[1] else 0.
+        if not bool(((opening > 0) & (opening <= 1 + 1e-6)
+                     & (opening >= bounds[0] - tolerance - 1e-6)
+                     & (opening <= bounds[1] + tolerance + 1e-6)).all()):
+            raise ValueError("at_grasp actual gripper opening is outside the open range")
+        if (self.tensors["gripper_target"].shape[1] != 1
+                or not bool((self.tensors["gripper_target"][at, 0] < 0).all())
+                or not bool((self.tensors["dof_pos"][at, -1] < 0).all())):
+            raise ValueError("at_grasp requires an actually open gripper and open target")
+        actual_opening = (self.tensors["dof_pos"][at, -1] - limits[1]) / (limits[0] - limits[1])
+        if not torch.allclose(opening, actual_opening, atol=1e-5, rtol=0):
+            raise ValueError("at_grasp opening evidence disagrees with actual gripper DOF")
+        target_opening = (self.tensors["gripper_target"][at, 0] - limits[1]) / (limits[0] - limits[1])
+        if not bool(((target_opening >= bounds[0] - 1e-6)
+                     & (target_opening <= bounds[1] + 1e-6)).all()):
+            raise ValueError("at_grasp gripper target is outside its configured open range")
+        initial_height = self.metadata["object_init_height_m"]
+        height = self.tensors["object_root"][at, 2] - self.tensors["table_height"][at] - initial_height
+        if not bool((height.abs() < .02 + 1e-6).all()):
+            raise ValueError("at_grasp object must remain on the table, before lifting")
 
     def _fingerprint(self):
         digest = hashlib.sha256()

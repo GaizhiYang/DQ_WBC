@@ -20,12 +20,17 @@ def main():
     parser.add_argument("--seed", type=int, default=43)
     parser.add_argument("--max-batches", type=int, default=512)
     parser.add_argument("--config", default="data/cfg/DQ_teacher.yaml")
+    parser.add_argument("--motion-level", choices=("Level02", "Level03"), default=None,
+                        help="Override table motion without changing the shared teacher YAML.")
     parser.add_argument("--reset-config", default=str(DEFAULT_BUILD_CONFIG_PATH),
                         help="YAML ranges for reset families (separate from --config).")
     parser.add_argument("--output", default="data/sgs/sugar_box_v10.pt")
     args = parser.parse_args()
     if min(args.num_envs, args.per_family, args.max_batches) < 1:
         parser.error("--num-envs, --per-family and --max-batches must be positive")
+    output = Path(args.output)
+    if output.exists() or output.with_suffix(".json").exists():
+        parser.error("Output bank/audit already exists; use a new --output path.")
     # Reject invalid geometry before allocating a GPU simulator.
     teacher_config = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
     reset_config = load_build_config(args.reset_config, lifted_threshold=teacher_config["env"]["liftedSuccessThreshold"])
@@ -34,15 +39,14 @@ def main():
     print("SGS: initializing simulator and loading robot/controller assets...", flush=True)
     env = create_builder_environment(
         num_envs=args.num_envs, device=args.device, seed=args.seed,
-        config_path=args.config)
+        config_path=args.config, motion_level=args.motion_level)
     print(f"SGS: simulator ready in {time.monotonic() - started:.1f}s; starting geometry sampling.", flush=True)
     try:
         builder = PhysicsBankBuilder(env, args.per_family, args.seed,
                                      reset_config=reset_config)
-        output = Path(args.output)
         try:
             bank = builder.build(args.max_batches)
-        except RuntimeError as error:
+        except (RuntimeError, ValueError) as error:
             # Keep useful rejection evidence even when no complete bank exists.
             failure_path = output.with_suffix(".failed.json")
             failure_path.parent.mkdir(parents=True, exist_ok=True)

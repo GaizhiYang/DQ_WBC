@@ -1,4 +1,4 @@
-"""Level02 motion and horizontal heading geometry, without simulator imports."""
+"""Reset motion references and horizontal heading geometry, without simulation."""
 
 import torch
 
@@ -24,6 +24,36 @@ def level02_object_motion_xy(state):
     return velocity + yaw_rate[:, None] * tangent
 
 
+def object_motion_xy(state):
+    """World XY reference used to orient a reset's robot toward table travel.
+
+    Level03 banks start at rest with a saved initial driving intention. Their
+    reference is the signed local departure direction, rotated by the table pose;
+    it is not a measured velocity or a nonzero velocity imposed at reset. Yaw
+    motion is zero at this rest start. Level02 retains its actual commanded
+    translation plus rotation at the object's support location.
+    """
+    if "level03_driver_direction" not in state:
+        return level02_object_motion_xy(state)
+    quaternion = state["table_root"][:, 3:7]
+    quaternion = quaternion / quaternion.norm(dim=1, keepdim=True).clamp_min(1e-12)
+    x, y, z, w = quaternion.unbind(-1)
+    local_y_world_xy = torch.stack((2 * (x * y - w * z),
+                                    1 - 2 * (x.square() + z.square())), dim=1)
+    direction = local_y_world_xy * state["level03_driver_direction"][:, None]
+    if "level03_x_driver_direction" in state:
+        local_x_world_xy = torch.stack((1 - 2 * (y.square() + z.square()),
+                                        2 * (x * y + w * z)), dim=1)
+        # The two axes share filter constants but may have different initial
+        # pedal targets. Their ratio determines departure from rest.
+        y_weight = state.get("level03_driver_throttle_goal", torch.ones_like(x))
+        x_weight = state.get("level03_x_driver_throttle_goal", torch.ones_like(x))
+        direction = (direction * y_weight[:, None] + local_x_world_xy
+                     * (state["level03_x_driver_direction"] * x_weight)[:, None])
+        direction = direction / direction.norm(dim=1, keepdim=True).clamp_min(1e-12)
+    return direction
+
+
 def base_motion_angle_deg(state):
     """Unsigned angle in [0, 180]; NaN when a horizontal direction is absent."""
     quaternion = state["robot_root"][:, 3:7]
@@ -31,7 +61,7 @@ def base_motion_angle_deg(state):
     x, y, z, w = quaternion.unbind(-1)
     forward = torch.stack((1 - 2 * (y.square() + z.square()),
                            2 * (x * y + w * z)), dim=1)
-    motion = level02_object_motion_xy(state)
+    motion = object_motion_xy(state)
     dot = (forward * motion).sum(dim=1)
     cross = forward[:, 0] * motion[:, 1] - forward[:, 1] * motion[:, 0]
     angle = torch.rad2deg(torch.atan2(cross.abs(), dot))

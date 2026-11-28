@@ -22,7 +22,9 @@ from utils.sgs_grounding import (
     foot_indices, grounding_state, approx_grounded_mask,
     grasp_contact_body_indices,
 )
-from utils.sgs_motion import level02_object_motion_xy, base_motion_angle_deg
+from utils.sgs_motion import level02_object_motion_xy, object_motion_xy, base_motion_angle_deg
+from utils.sgs_level03 import (prepare_rest_motion, snapshot_motion, restore_motion,
+                               REST_PLANAR_TOLERANCE)
 
 
 @contextmanager
@@ -37,7 +39,8 @@ def _environment_arguments():
 
 
 def create_builder_environment(num_envs=32, device="cuda:0", seed=43,
-                               config_path="data/cfg/DQ_teacher.yaml", enable_graphics=False):
+                               config_path="data/cfg/DQ_teacher.yaml", enable_graphics=False,
+                               motion_level=None, motion_config=None):
     """Construct the teacher without PPO; previews may request external cameras."""
     from envs.b1z1_pickmulti import B1Z1PickMulti
     from legged_gym.envs.manip_loco.b1z1_config import B1Z1RoughCfg
@@ -47,8 +50,14 @@ def create_builder_environment(num_envs=32, device="cuda:0", seed=43,
 
     set_seed(seed)
     cfg = deepcopy(load_cfg(config_path))
-    if cfg["env"].get("D1_bench_task_level") != "Level02":
-        raise ValueError("The SGS builder requires the original Level02 table motion.")
+    if motion_level is not None:
+        cfg["env"]["D1_bench_task_level"] = motion_level
+    if motion_config is not None:
+        if cfg["env"].get("D1_bench_task_level") != "Level03":
+            raise ValueError("motion_config applies only to Level03")
+        cfg["env"]["level03Motion"] = deepcopy(motion_config)
+    if cfg["env"].get("D1_bench_task_level") not in ("Level02", "Level03"):
+        raise ValueError("The SGS builder supports Level02 and Level03 table motion.")
     if cfg["env"]["asset"]["assetFileRobot"] != "b1z1-col/urdf/b1z1.urdf":
         raise ValueError("The offline IK chain supports b1z1-col/urdf/b1z1.urdf only.")
     if cfg["env"].get("floatingBase", False):
@@ -196,7 +205,7 @@ def synchronize_targets(env, world_position, world_quaternion, gripper_target):
 
 def snapshot(env):
     """Copy only reset state, never simulator handles or opaque contact caches."""
-    return {
+    state = {
         "robot_root": env._robot_root_states.clone(),
         "object_root": env._cube_root_states.clone(),
         "table_root": env._table_root_states.clone(),
@@ -215,6 +224,12 @@ def snapshot(env):
         # Evidence from this simulated frame; never restored into live contacts.
         "initial_foot_contact_force": grounding_state(env)[1].clone(),
     }
+    if getattr(env, "table_level", "Level02") == "Level03":
+        state.update(snapshot_motion(env.level03_motion))
+        state["table_vy"] = env.level03_motion.speed.clone()
+        state["table_yaw_rate"] = (env.level03_motion.speed * env.level03_motion.curvature).clone()
+        state["rotation_enabled"] = torch.zeros_like(env.lin_circle_select)
+    return state
 
 
 def restore_snapshot(env, state):
@@ -223,6 +238,7 @@ def restore_snapshot(env, state):
     from envs.b1z1_base import B1Z1Base
     ids = torch.arange(env.num_envs, device=env.device)
     B1Z1Base._reset_env_tensors(env, ids)
+    env._reset_pick_state(ids)
     for name in ("actions", "gait_indices", "clock_inputs", "gait_wait_timer",
                  "is_walking", "low_obs_history_buf", "action_data_history_buf",
                  "states_history_buf", "timeout_buf", "foot_contacts_from_sensor",
@@ -251,6 +267,8 @@ def restore_snapshot(env, state):
     env.vel_line_forward_y_level02[:] = state["table_vy"]
     env.lin_circle_select[:] = state["rotation_enabled"]
     env.vel_angular_yaw[:] = state["table_yaw_rate"]
+    if getattr(env, "table_level", "Level02") == "Level03":
+        restore_motion(env.level03_motion, state)
     env._sgs_pending_reset = torch.ones(env.num_envs, dtype=torch.bool, device=env.device)
     env._sgs_has_pending_reset = True
     env._rigid_body_state.view(env.num_envs, -1, 13)[:] = state["rigid_body_state"]
@@ -293,7 +311,7 @@ def restored_physics_tick(env, state):
 class PhysicsBankBuilder:
     """Diverse reset geometry with a bounded physics window, without task rollouts."""
 
-    FAMILY_NAMES = BUILD_FAMILIES[5]
+    FAMILY_NAMES = BUILD_FAMILIES[6]
     NON_GRASP_CONTACT_LIMIT_N = 5.
     GRASP_CONTACT_LIMIT_N = 250.
     AT_GRASP_POSITION_TOLERANCE_M = .005
@@ -371,11 +389,18 @@ class PhysicsBankBuilder:
         if self.reset_config.get("heading_reference", "object_bearing") != "object_motion":
             return bearing + offset
         env = self.env
-        motion = level02_object_motion_xy({
+        motion_state = {
             "object_root": env._cube_root_states, "table_root": env._table_root_states,
             "table_vy": env.vel_line_forward_y_level02,
             "rotation_enabled": env.lin_circle_select, "table_yaw_rate": env.vel_angular_yaw,
-        })
+        }
+        if getattr(env, "table_level", "Level02") == "Level03":
+            motion_state["level03_driver_direction"] = env.level03_motion.driver.direction
+            if env.level03_motion.x_motion is not None:
+                motion_state["level03_x_driver_direction"] = env.level03_motion.x_motion.driver.direction
+                motion_state["level03_driver_throttle_goal"] = env.level03_motion.driver.throttle_goal
+                motion_state["level03_x_driver_throttle_goal"] = env.level03_motion.x_motion.driver.throttle_goal
+        motion = object_motion_xy(motion_state)
         direction = torch.atan2(motion[:, 1], motion[:, 0])
         plus, minus = direction + offset, direction - offset
         # Both signs have the requested unsigned motion angle. Prefer the side
@@ -547,9 +572,16 @@ class PhysicsBankBuilder:
         return state
 
     def _full(self):
+        if self.reset_config["full_task"].get("source") == "ordinary_reset":
+            return self._ordinary_full()
         from isaacgym.torch_utils import quat_mul, quat_from_euler_xyz
         env = self.env
         env.reset_idx()
+        if getattr(env, "table_level", "Level02") == "Level03":
+            # The physical placement windows hold the support still. Keep the
+            # same rest-start controller state and sampled intention in the bank.
+            prepare_rest_motion(env.level03_motion, env.sim_params.dt)
+            env.table_commands[:, [0, 1, 5]] = 0
         self.sampled_object_yaw = self._sample_range(self.reset_config["object"]["yaw_offset_range_deg"])
         zero = torch.zeros_like(self.sampled_object_yaw)
         env._cube_root_states[:, 3:7] = quat_mul(
@@ -568,6 +600,49 @@ class PhysicsBankBuilder:
         checks["default_arm_pose"] = (
             env._dof_pos[:, 12:18] - env._initial_dof_pos[:, 12:18]).abs().amax(dim=1) < .03
         return state, checks
+
+    def _ordinary_full(self):
+        """Save the actual ordinary reset, without extra placement or physics.
+
+        Retain base height, airborne feet, gripper state, control targets and
+        transient velocities. Level03's driver remains uninitialized until the
+        first control tick, exactly as for an ordinary training reset.
+        """
+        env = self.env
+        env.reset_idx()
+        self.sampled_object_yaw = torch.zeros(env.num_envs, device=env.device)
+        nominal_object = env._cube_root_states[:, :3].clone()
+        nominal_object[:, 0] = env.cube_start_pose.p.x
+        nominal_object[:, 1] = env.cube_start_pose.p.y
+        nominal_object[:, 2] = env.table_heights + env.init_height
+        evidence = {
+            "validation_peak_contact_force_n": env._contact_forces.norm(dim=-1).amax(dim=1),
+            "validation_max_object_displacement_m": (
+                env._cube_root_states[:, :3] - nominal_object).norm(dim=1),
+        }
+        state = self._state(evidence)
+        self.sampled_object_yaw = state["object_yaw_offset_deg"].clone()
+        state["sampled_object_yaw_offset_deg"] = self.sampled_object_yaw.clone()
+        finite = torch.ones(env.num_envs, dtype=torch.bool, device=env.device)
+        for value in state.values():
+            finite &= torch.isfinite(value).reshape(env.num_envs, -1).all(dim=1)
+        return state, {"finite_state": finite,
+                       "table_chassis_clear": ~env.table_chassis_collision.clone()}
+
+    def _curriculum_initial(self, initial):
+        """Prepare a separate curriculum state; never edit the ordinary snapshot."""
+        from isaacgym.torch_utils import quat_mul, quat_from_euler_xyz
+        env = self.env
+        state = dict(initial)
+        if getattr(env, "table_level", "Level02") == "Level03":
+            prepare_rest_motion(env.level03_motion, env.sim_params.dt)
+            state.update(snapshot_motion(env.level03_motion))
+        self.sampled_object_yaw = self._sample_range(self.reset_config["object"]["yaw_offset_range_deg"])
+        zero = torch.zeros_like(self.sampled_object_yaw)
+        state["object_root"] = initial["object_root"].clone()
+        state["object_root"][:, 3:7] = quat_mul(
+            quat_from_euler_xyz(zero, zero, torch.deg2rad(self.sampled_object_yaw)), env.init_quat)
+        return state
 
     def _grasp_pose(self, initial, family):
         from isaacgym.torch_utils import (
@@ -701,7 +776,7 @@ class PhysicsBankBuilder:
             with torch.no_grad():
                 env.last_low_actions[:] = reindex_all(env.low_level_policy(env.low_obs_buf.detach(), hist_encoding=True))
         if table_target is None:
-            # Cold replay uses the actual low-level policy and Level02 controller.
+            # Cold replay uses the actual low-level policy and selected table controller.
             env.floating_table_control()
         else:
             env._table_root_states[:] = table_target
@@ -833,6 +908,13 @@ class PhysicsBankBuilder:
         return state, checks
 
     def _collect(self, family, state, checks):
+        ordinary_full = (family == 0 and getattr(self, "reset_config", {}).get(
+            "full_task", {}).get("source") == "ordinary_reset")
+        if "level03_driver_direction" in state and not ordinary_full:
+            # Keep the actual post-PhysX snapshot. Reject contact-induced table
+            # motion instead of zeroing physical velocities or rejecting a whole bank.
+            checks = dict(checks, level03_stationary_support=(
+                state["table_root"][:, [7, 8, 12]].abs() <= REST_PLANAR_TOLERANCE).all(dim=1))
         valid = torch.stack(list(checks.values()), dim=1).all(dim=1)
         chosen = valid.nonzero(as_tuple=False).flatten()[:self.per_family - self.counts[family]]
         self.sampling_audit.record(family, state["grasp_candidate_index"], checks, chosen)
@@ -856,6 +938,9 @@ class PhysicsBankBuilder:
             accepted = [0] * len(self.family_names)
             if self.counts[0] < self.per_family:
                 accepted[0] = self._collect(0, initial, full_checks)
+            if (self.reset_config["full_task"].get("source") == "ordinary_reset"
+                    and any(count < self.per_family for count in self.counts[1:])):
+                initial = self._curriculum_initial(initial)
             for family in range(1, len(self.family_names)):
                 if self.counts[family] < self.per_family:
                     state, checks = (self._near_goal(initial) if self.family_names[family] == "near_goal"
@@ -873,13 +958,13 @@ class PhysicsBankBuilder:
         tensors = {key: torch.cat([part[key] for family in self.parts for part in family])
                    for key in self.parts[0][0]}
         metadata = {
-            "version": ("b1z1-sugar-sgs-v10" if self.reset_config["schema_version"] == 5
+            "version": ("b1z1-sugar-sgs-v10" if self.reset_config["schema_version"] >= 5
                         else "b1z1-sugar-sgs-v9"), "object_name": env.obj_list[0],
             "object_init_height_m": float(env.init_height[0].item()),
             "robot_asset": env.cfg["env"]["asset"]["assetFileRobot"],
             "num_dofs": env.num_dofs, "num_bodies": env._rigid_body_pos.shape[1],
             "hold_steps": env.hold_steps, "lifted_threshold": env.lifted_success_threshold,
-            "seed": self.seed, "source_num_envs": env.num_envs, "table_level": "Level02",
+            "seed": self.seed, "source_num_envs": env.num_envs, "table_level": env.table_level,
             "coordinate_convention": "existing_reset_tensor_coordinates_no_env_origin_offset",
             "family_names": list(self.family_names),
             "construction": {
@@ -907,7 +992,7 @@ class PhysicsBankBuilder:
             "physical_validation": {
                 "passed": True,
                 "validation_profile": {3: "geometry_v1", 4: "geometry_grasp_v2",
-                                       5: "geometry_grasp_v3"}[self.reset_config["schema_version"]],
+                                       5: "geometry_grasp_v3", 6: "ordinary_full_task_v2"}[self.reset_config["schema_version"]],
                 "feet_near_ground": True,
                 "collision_checked": True, "object_attachment": False,
                 "near_goal_grasp_verified": "near_goal" in self.family_names,
@@ -933,4 +1018,66 @@ class PhysicsBankBuilder:
             },
             "sampling_audit": self.sampling_audit.summary(tensors),
         }
+        ordinary_full = self.reset_config["full_task"].get("source") == "ordinary_reset"
+        ordinary_version = "v2" if self.reset_config["schema_version"] == 6 else "v1"
+        if ordinary_full:
+            metadata["version"] = "b1z1-sugar-sgs-ordinary-full-" + ordinary_version
+            metadata["construction"].update(
+                full_task_source="ordinary_reset",
+                full_task_reset=(
+                    "direct env.reset_idx snapshot after its own physics tick; no extra placement, "
+                    "ground alignment, gripper opening, velocity clearing or motion-heading filter"),
+                ordinary_robot_start_distance_range=deepcopy(env.cfg["env"].get("robotStartDistanceRange")),
+                sampling="ordinary full-task resets; curriculum geometry targets followed by IK and physics checks",
+                heading_constraint_families=list(self.family_names[1:]),
+                object_yaw="full_task uses ordinary reset; curriculum uses configured offline world-z offsets",
+            )
+            metadata["physical_validation"].update(
+                validation_profile="ordinary_full_task_" + ordinary_version,
+                feet_near_ground=False,
+                feet_near_ground_families=list(self.family_names[1:]),
+                full_task_reset_source="ordinary_reset",
+                full_task_additional_physics_steps=0,
+            )
+            metadata["physical_validation"]["validation_by_family"]["full_task"] = (
+                "finite actual ordinary-reset state and table/chassis clearance; "
+                "ordinary startup transients retained, no additional physics window")
+            metadata["physical_validation"]["collision_check"]["method"] = (
+                "full_task: actual ordinary-reset table/chassis check; "
+                "curriculum: every-frame joint limits/contact forces, displacement and support")
+            if self.reset_config["schema_version"] == 6:
+                metadata["construction"]["gripper_joint_limits_rad"] = [
+                    float(env.dof_limits_lower[-1]), float(env.dof_limits_upper[-1])]
+                metadata["physical_validation"]["validation_by_family"]["at_grasp"] = (
+                    "candidate position/orientation reached, partially open gripper, "
+                    "pregrasp base ranges and short geometric physics window")
+        if env.table_level == "Level03":
+            residual_motion = {
+                name: tensors["table_root"][tensors["family_id"] == index][:, [7, 8, 12]].abs().amax(dim=0).tolist()
+                for index, name in enumerate(self.family_names)
+            }
+            print("SGS_LEVEL03_REST_PHYSICS", residual_motion, flush=True)
+            metadata["version"] = ("b1z1-sugar-sgs-level03-ordinary-full-" + ordinary_version
+                                   if ordinary_full else "b1z1-sugar-sgs-level03-v1")
+            metadata["level03_motion_config"] = deepcopy(env.level03_motion_cfg)
+            metadata["level03_reset_mode"] = ("rest_with_family_driver_initialization" if ordinary_full
+                                               else "rest_with_sampled_driver_intention")
+            metadata["construction"].update(
+                heading_offset=("unsigned angle between robot forward and initial signed local departure direction, degrees"
+                    if self.reset_config.get("heading_reference") == "object_motion"
+                    else "robot yaw minus bearing to object, degrees"),
+                motion_heading_constraint="robot forward XY dot initial signed local departure direction > 0; "
+                    "table starts at rest, so direction comes from the saved driver intention",
+                motion_state="full filter and driver tensor state; future random corrections remain stochastic",
+            )
+            metadata["physical_validation"]["table_control"] = (
+                "nominal support pose held during placement/grasp construction; "
+                "Level03 rest-start motion restored for near-goal cold replay and training reset")
+            metadata["physical_validation"]["level03_stationary_support_tolerance"] = REST_PLANAR_TOLERANCE
+            metadata["physical_validation"]["max_abs_table_vx_vy_yaw_after_physics_by_family"] = residual_motion
+            if ordinary_full:
+                metadata["construction"]["motion_state"] = (
+                    "full_task: untouched ordinary uninitialized driver; curriculum: sampled driver intention; "
+                    "all filter states saved; future random corrections remain stochastic")
+                metadata["physical_validation"]["level03_stationary_support_families"] = list(self.family_names[1:])
         return ConfigurationBank(tensors, metadata)

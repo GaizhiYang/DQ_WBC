@@ -3,6 +3,7 @@ import json
 import yaml
 import argparse
 import math
+import warnings
 from copy import deepcopy
 from pathlib import Path
 
@@ -60,6 +61,106 @@ def apply_tsil_config(cfg, args, is_eval=False):
     return settings
 
 
+LEVEL03_MOTION_DEFAULTS = {
+    "translationAxes": "xy",
+    "minSpeed": 0.25,
+    "maxSpeed": 0.45,
+    "maxYawRate": 0.4,
+    "linearAcceleration": 1.0,
+    "yawAcceleration": 1.8,
+    "driveDuration": [6.0, 10.0],
+    "throttleUpdateTime": [0.4, 0.8],
+    "steeringUpdateTime": [0.3, 0.65],
+    "turnHoldTime": [2.0, 4.0],
+    "stopHoldTime": [0.4, 0.9],
+    "inputResponseTime": 0.12,
+    "throttleTrackingGain": 0.4,
+    "throttleVariation": 0.18,
+    "cruiseThrottleRange": [0.56, 0.95],
+    "steeringTrackingGain": 0.6,
+    "steeringVariation": 0.08,
+    "turnMagnitudeRange": [0.45, 0.95],
+    "stopProbability": 0.0,
+    "reverseProbability": 0.0,
+    "straightProbability": 0.35,
+}
+
+
+def level03_motion_config(env_cfg):
+    """Validate local translation axes, steering and response limits."""
+    supplied = env_cfg.get("level03Motion", {})
+    if not isinstance(supplied, dict):
+        raise ValueError("env.level03Motion must be a mapping")
+    # Older saved runs contain the independent, held-target sampler's options.
+    # Keep those runs readable without reintroducing forced full-throttle turns.
+    legacy = set(supplied) & {"commandHoldTime", "fullTurnProbability", "fullTurnHoldTime"}
+    if legacy:
+        warnings.warn("Deprecated env.level03Motion settings ignored: {}. "
+                      "Using correlated driver settings instead.".format(sorted(legacy)),
+                      UserWarning, stacklevel=2)
+        supplied = {key: value for key, value in supplied.items() if key not in legacy}
+    unknown = set(supplied) - set(LEVEL03_MOTION_DEFAULTS)
+    if unknown:
+        raise ValueError(f"Unknown env.level03Motion settings: {sorted(unknown)}")
+    settings = deepcopy(LEVEL03_MOTION_DEFAULTS)
+    settings.update(supplied)
+    # Saved motion configurations predating the driving-speed floor retain
+    # their original zero lower limit, including existing Level03 SGS banks.
+    if "maxSpeed" in supplied and "minSpeed" not in supplied:
+        settings["minSpeed"] = 0.0
+    # Saved configurations with an explicit speed but no axis selection used
+    # local Y only. Preserve their trajectories and existing SGS-bank replay.
+    if "maxSpeed" in supplied and "translationAxes" not in supplied:
+        settings["translationAxes"] = "y"
+    if settings["translationAxes"] not in ("y", "xy"):
+        raise ValueError("env.level03Motion.translationAxes must be 'y' or 'xy'")
+    for name in ("maxSpeed", "maxYawRate", "linearAcceleration", "yawAcceleration", "inputResponseTime"):
+        value = settings[name]
+        if (isinstance(value, bool) or not isinstance(value, (int, float))
+                or not math.isfinite(value) or value <= 0):
+            raise ValueError(f"env.level03Motion.{name} must be finite and positive")
+    minimum = settings["minSpeed"]
+    if (isinstance(minimum, bool) or not isinstance(minimum, (int, float))
+            or not math.isfinite(minimum) or not 0 <= minimum < settings["maxSpeed"]):
+        raise ValueError("env.level03Motion.minSpeed must be finite and in [0, maxSpeed)")
+    for name in ("stopProbability", "reverseProbability", "straightProbability",
+                 "throttleVariation", "steeringVariation"):
+        value = settings[name]
+        if (isinstance(value, bool) or not isinstance(value, (int, float))
+                or not math.isfinite(value) or not 0 <= value <= 1):
+            raise ValueError(f"env.level03Motion.{name} must be in [0, 1]")
+    for name in ("throttleTrackingGain", "steeringTrackingGain"):
+        value = settings[name]
+        if (isinstance(value, bool) or not isinstance(value, (int, float))
+                or not math.isfinite(value) or not 0 < value <= 1):
+            raise ValueError(f"env.level03Motion.{name} must be in (0, 1]")
+    for name in ("cruiseThrottleRange", "turnMagnitudeRange"):
+        value = settings[name]
+        if (not isinstance(value, (list, tuple)) or len(value) != 2
+                or any(isinstance(v, bool) or not isinstance(v, (int, float))
+                       or not math.isfinite(v) or not 0 <= v <= 1 for v in value)
+                or value[0] > value[1]):
+            raise ValueError(f"env.level03Motion.{name} must be an ordered [min, max] in [0, 1]")
+        settings[name] = list(value)
+    if settings["stopProbability"] + settings["reverseProbability"] > 1.0:
+        raise ValueError("env.level03Motion.stopProbability + reverseProbability must not exceed 1")
+    for name in ("driveDuration", "throttleUpdateTime", "steeringUpdateTime", "turnHoldTime", "stopHoldTime"):
+        value = settings[name]
+        if (not isinstance(value, (list, tuple)) or len(value) != 2
+                or any(isinstance(v, bool) or not isinstance(v, (int, float))
+                       or not math.isfinite(v) or v <= 0 for v in value)
+                or value[0] > value[1]):
+            raise ValueError(f"env.level03Motion.{name} must be an ordered positive [min, max] in seconds")
+        settings[name] = list(value)
+    return settings
+
+
+def level03_motion_limits(env_cfg):
+    """Return the per-axis local linear and yaw acceleration budgets."""
+    settings = level03_motion_config(env_cfg)
+    return settings["linearAcceleration"], settings["yawAcceleration"]
+
+
 def configure_teacher_experiment(cfg, args, is_eval=False, strict_eval=False):
     """Apply entrypoint overrides without changing the planned reward horizon."""
     if args.timesteps <= 0:
@@ -67,6 +168,9 @@ def configure_teacher_experiment(cfg, args, is_eval=False, strict_eval=False):
     if args.stop_after is not None and args.stop_after <= 0:
         raise ValueError("--stop_after must be positive")
     env_cfg = cfg["env"]
+    if getattr(args, "motion_level", None) is not None:
+        env_cfg["D1_bench_task_level"] = args.motion_level
+    env_cfg["level03Motion"] = level03_motion_config(env_cfg)
     apply_actor_history_config(cfg, args)
     apply_critic_history_config(cfg, args)
     sgs = dict(SGS_DEFAULTS)
@@ -516,6 +620,8 @@ def get_parser():
                         help="Stop training after this many steps in this invocation without shortening the --timesteps reward schedule.")
     parser.add_argument("--cfg_file", type=str, default=None,
                         help="Teacher YAML path; defaults to data/cfg/DQ_teacher.yaml.")
+    parser.add_argument("--motion_level", choices=tuple(f"Level0{i}" for i in range(6)), default=None,
+                        help="Override env.D1_bench_task_level; Level03 uses smooth local vx/vy and yaw motion.")
     parser.add_argument("--sgs_mode", choices=("disabled", "uniform", "sgs"), default=None,
                         help="Override env.sgs.mode. Enabled modes require a validated reset bank.")
     parser.add_argument("--sgs_bank", type=str, default=None,

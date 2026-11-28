@@ -1,10 +1,14 @@
 """Read and validate SGS bank-construction parameters without a simulator.
 
 The builder samples targets from these ranges and checks geometry, collision and
-approximate ground contact. Schema 5 keeps full_task, pregrasp and physically
-verified near_goal. Legacy schema 4 also includes at_grasp; schema 3 keeps the
-original three geometry-only families.
-Neither profile requires stable standing. Accepted states need not be uniform.
+approximate ground contact for curriculum families. Schema 6 has full_task,
+pregrasp, at_grasp and physically verified near_goal. Its at_grasp starts at an
+exact grasp pose with a not-fully-closed gripper and can reference pregrasp base
+ranges. Schemas 5 and 6 allow full_task to use the ordinary task reset directly
+instead of geometry construction. Legacy schema 5 has no at_grasp; schemas 3
+and 4 retain their earlier family and geometry definitions.
+Geometry construction does not require stable standing. Accepted states need
+not be uniform.
 """
 
 from collections.abc import Mapping
@@ -22,6 +26,7 @@ BUILD_FAMILIES = {
     3: ("full_task", "pregrasp", "at_grasp"),
     4: ("full_task", "pregrasp", "at_grasp", "near_goal"),
     5: ("full_task", "pregrasp", "near_goal"),
+    6: ("full_task", "pregrasp", "at_grasp", "near_goal"),
 }
 
 _BASE_KEYS = {"x_range_m", "y_range_m", "heading_offset_range_deg"}
@@ -133,7 +138,7 @@ def _base(value, path, heading_reference="object_bearing"):
 def validate_build_config(mapping, lifted_threshold=None):
     """Return a detached, normalized config, rejecting ambiguous settings.
 
-    ``lifted_threshold`` is used for schemas 4 and 5: a near-goal state must be
+    ``lifted_threshold`` is used for schemas 4, 5 and 6: a near-goal state must be
     strictly below the task's success height (default 0.2 m). Schema 3 does not
     pre-lift objects and keeps its earlier threshold-independent behavior.
     """
@@ -155,7 +160,7 @@ def validate_build_config(mapping, lifted_threshold=None):
         raise ValueError("SGS build config: missing keys schema_version")
     version = mapping["schema_version"]
     if type(version) is not int or version not in BUILD_FAMILIES:
-        raise ValueError("schema_version must be the integer 3, 4 or 5")
+        raise ValueError("schema_version must be the integer 3, 4, 5 or 6")
     families = BUILD_FAMILIES[version]
     root_keys = {"schema_version", "object", "validation", *families}
     if "heading_reference" in mapping:
@@ -187,9 +192,30 @@ def validate_build_config(mapping, lifted_threshold=None):
         if family not in families:
             continue
         source = mapping[family]
+        if family == "full_task" and version == 6 and (
+            not isinstance(source, Mapping) or source.get("source") != "ordinary_reset"
+        ):
+            raise ValueError("schema_version 6 requires full_task.source = 'ordinary_reset'")
+        if family == "full_task" and isinstance(source, Mapping) and "source" in source:
+            _keys(source, {"source"}, family)
+            if version not in (5, 6) or source["source"] != "ordinary_reset":
+                raise ValueError("full_task.source must be 'ordinary_reset' in schema_version 5 or 6")
+            # Do not silently accept ignored geometry ranges or arm overrides:
+            # all physical reset sampling comes from the teacher environment.
+            result[family] = {"source": "ordinary_reset"}
+            continue
         extra_keys = _PREGRASP_OFFSET_KEYS if family == "pregrasp" else set()
         _keys(source, {"base", extra_key, *extra_keys}, family)
-        result[family] = {"base": _base(source["base"], f"{family}.base", heading_reference)}
+        base = source["base"]
+        if family == "at_grasp" and version == 6 and isinstance(base, Mapping) and "same_as" in base:
+            _keys(base, {"same_as"}, "at_grasp.base")
+            if base["same_as"] != "pregrasp":
+                raise ValueError("at_grasp.base.same_as must be 'pregrasp'")
+            # Expand to a detached explicit base. Saved configs are self-contained
+            # and revalidation is idempotent; editing the source YAML's pregrasp
+            # ranges also updates the at_grasp construction targets.
+            base = result["pregrasp"]["base"]
+        result[family] = {"base": _base(base, f"{family}.base", heading_reference)}
         if family == "full_task":
             if source[extra_key] != "default":
                 raise ValueError("full_task.arm_pose must be 'default'")
@@ -222,6 +248,9 @@ def validate_build_config(mapping, lifted_threshold=None):
                 )
         else:
             opening = _range(source[extra_key], f"{family}.{extra_key}")
+            if version == 6 and opening[0] <= 0:
+                raise ValueError("at_grasp.gripper_opening_range must stay within (0, 1]; "
+                                 "the gripper must not start fully closed")
             if opening[0] < 0 or opening[1] > 1:
                 raise ValueError(f"{family}.{extra_key} must stay within [0, 1]")
             result[family][extra_key] = opening

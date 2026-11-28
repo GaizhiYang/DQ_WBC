@@ -31,7 +31,6 @@ def build_parser():
                         small_value_set_zero=True, no_velocity_obs=True)
     parser.add_argument("--output", type=Path, required=True, help="New directory for trajectories, config, and evaluation")
     parser.add_argument("--config", type=Path, default=Path(__file__).resolve().parent / "data/cfg/DQ_teacher.yaml")
-    parser.add_argument("--motion_level", choices=["Level0" + str(i) for i in range(6)], help="Override motion level in memory only")
     parser.add_argument("--episode_length", type=int, help="Override maximum high-level steps per episode")
     parser.add_argument("--velocity_obs", action="store_false", dest="no_velocity_obs", help="For checkpoints trained with velocity observations")
     parser.add_argument("--collect_only", action="store_true", help="Save CSV trajectories without running prediction evaluation")

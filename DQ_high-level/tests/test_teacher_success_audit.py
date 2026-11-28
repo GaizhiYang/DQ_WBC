@@ -1,6 +1,6 @@
 """Additional boundary checks for the current teacher's success definition.
 
-The existing SGS/reward tests cover hold duration, reset attribution and yaw/IK
+The existing SGS/reward tests cover hold duration, reset attribution and collision/IK
 failure priority. These checks cover physical pose boundaries, other base
 failures and the separation between predicted observations and success labels.
 """
@@ -33,7 +33,8 @@ class TeacherSuccessAuditTests(unittest.TestCase):
         env = make_environment([.21] * 4)
         roll = torch.tensor([.81, 0., 0., 0.])
         pitch = torch.tensor([0., -.81, 0., 0.])
-        env._robot_root_states[:, 3:7] = quat_from_euler_xyz(roll, pitch, torch.zeros(4))
+        yaw = torch.deg2rad(torch.tensor([100., -100., 179., -179.]))
+        env._robot_root_states[:, 3:7] = quat_from_euler_xyz(roll, pitch, yaw)
         env._robot_root_states[2, 2] = .09
         env._update_base_yaw_quat()
         env.update_roboinfo()
@@ -48,7 +49,7 @@ class TeacherSuccessAuditTests(unittest.TestCase):
         self.assertEqual(reward.tolist(), [0., 0., 0., 1.])
 
     def test_timeout_requires_full_hold_even_if_goal_geometry_is_satisfied(self):
-        env = make_environment([.21, .21])
+        env = make_environment([.21, .21], [179., -179.])
         env.pick_counter[:] = torch.tensor([env.hold_steps - 2, env.hold_steps - 1])
         env.progress_buf.fill_(env.max_episode_length)
         env.check_termination()
@@ -58,6 +59,18 @@ class TeacherSuccessAuditTests(unittest.TestCase):
         self.assertFalse(env._terminate_buf.any().item())
         # A completed ten-step hold at the deadline is success, not timeout.
         self.assertEqual(env.episode_success.tolist(), [False, True])
+
+    def test_drop_and_ik_failures_still_override_hold_at_large_yaw(self):
+        env = make_environment([-.1, .21, .21], [100., -100., 179.])
+        env.curr_ee_goal_cart[1, 2] += .3
+        env.pick_counter.fill_(env.hold_steps - 1)
+        env.progress_buf.fill_(env.max_episode_length)
+        env.check_termination()
+        reward, _ = env._reward_pick_up()
+        self.assertEqual(env._terminate_buf.bool().tolist(), [True, True, False])
+        self.assertEqual(env.episode_success.tolist(), [False, False, True])
+        self.assertEqual(reward.tolist(), [0., 0., 1.])
+        self.assertFalse(env.timeout_buf.any().item())
 
     def test_success_uses_simulator_pose_when_ekf_future_pose_disagrees(self):
         env = make_environment([.08, .21])

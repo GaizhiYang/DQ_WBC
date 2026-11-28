@@ -14,6 +14,18 @@ from utils.sgs_bank_builder import PhysicsBankBuilder, pregrasp_local_offset
 from utils.sgs_build_config import load_build_config
 
 
+def legacy_schema_five_config():
+    config = load_build_config()
+    config["schema_version"] = 5
+    config.pop("at_grasp", None)
+    config["full_task"] = {
+        "base": {"x_range_m": [2., 2.], "y_range_m": [0., 0.],
+                 "heading_offset_range_deg": [75., 90.]},
+        "arm_pose": "default",
+    }
+    return config
+
+
 class BuilderRangeTests(unittest.TestCase):
     device = "cpu"
 
@@ -195,7 +207,7 @@ class BuilderRangeTests(unittest.TestCase):
         env.cfg = {"env": {"asset": {"assetRoot": str(asset_root),
                                     "assetFileObj": "obj_set",
                                     "asset_multi": {"sugar_box": {}}}}}
-        config = load_build_config()
+        config = legacy_schema_five_config()
         rebuilt = PhysicsBankBuilder(env, per_family=2, reset_config=config)
         self.assertEqual(rebuilt.family_names, ("full_task", "pregrasp", "near_goal"))
         self.assertEqual(rebuilt.counts, [0, 0, 0])
@@ -207,11 +219,12 @@ class BuilderRangeTests(unittest.TestCase):
     def test_schema_five_build_routes_near_goal_and_assigns_contiguous_family_ids(self):
         builder = self.builder(2)
         env = builder.env
-        config = load_build_config()
+        config = legacy_schema_five_config()
         builder.reset_config = config
         builder.family_names = ("full_task", "pregrasp", "near_goal")
         builder.per_family = 2
         env.obj_list = ["sugar_box"]
+        env.table_level = "Level02"
         env.init_height = torch.tensor([.045], device=self.device)
         env.num_dofs = 19
         env._rigid_body_pos = torch.zeros(2, 27, 3, device=self.device)
@@ -238,6 +251,49 @@ class BuilderRangeTests(unittest.TestCase):
         self.assertTrue(validation["near_goal_grasp_verified"])
         self.assertTrue(validation["scripted_grasp_required"])
         self.assertIn("cold-reset grip verification", validation["validation_by_family"]["near_goal"])
+
+    def test_schema_six_routes_exact_at_grasp_separately_from_near_goal(self):
+        builder = self.builder(2)
+        env = builder.env
+        builder.reset_config = load_build_config()
+        self.assertEqual(builder.reset_config["schema_version"], 6)
+        builder.family_names = ("full_task", "pregrasp", "at_grasp", "near_goal")
+        builder.parts, builder.counts = [[] for _ in range(4)], [0] * 4
+        builder.per_family = 2
+        env.obj_list, env.table_level = ["sugar_box"], "Level02"
+        env.init_height = torch.tensor([.045], device=self.device)
+        env.num_dofs = 19
+        env._rigid_body_pos = torch.zeros(2, 27, 3, device=self.device)
+        env.hold_steps = 10
+        env.cfg = {"sim": {"dt": .005}, "env": {"asset": {"assetFileRobot": "b1z1.urdf"},
+                  "robotStartDistanceRange": [2., 2.]}}
+        full = {"grasp_candidate_index": torch.full((2,), -1, device=self.device)}
+        course = {"grasp_candidate_index": torch.full((2,), 3, device=self.device)}
+        checks = {"valid": torch.ones(2, dtype=torch.bool, device=self.device)}
+        builder._full = Mock(return_value=(full, checks))
+        builder._curriculum_initial = Mock(return_value=course)
+        builder._grasp_pose = Mock(return_value=(course, checks))
+        builder._near_goal = Mock(return_value=(course, checks))
+        builder.sampling_audit = Mock()
+        builder.sampling_audit.summary.return_value = {}
+        with patch("utils.sgs_bank_builder.foot_indices", return_value=[3, 7, 11, 15]), \
+                patch("utils.sgs.ConfigurationBank", side_effect=lambda tensors, metadata: (tensors, metadata)):
+            tensors, metadata = builder.build(max_batches=1)
+        builder._curriculum_initial.assert_called_once_with(full)
+        self.assertEqual([call.args[1] for call in builder._grasp_pose.call_args_list],
+                         ["pregrasp", "at_grasp"])
+        for call in builder._grasp_pose.call_args_list:
+            self.assertIs(call.args[0], course)
+        builder._near_goal.assert_called_once_with(course)
+        self.assertEqual(tensors["family_id"].tolist(), [0, 0, 1, 1, 2, 2, 3, 3])
+        self.assertEqual(tensors["grasp_candidate_index"].tolist(), [-1, -1, 3, 3, 3, 3, 3, 3])
+        self.assertEqual(metadata["family_names"], list(builder.family_names))
+        self.assertEqual(metadata["physical_validation"]["validation_profile"], "ordinary_full_task_v2")
+        self.assertFalse(metadata["physical_validation"]["feet_near_ground"])
+        self.assertEqual(metadata["physical_validation"]["feet_near_ground_families"],
+                         ["pregrasp", "at_grasp", "near_goal"])
+        self.assertEqual(metadata["construction"]["gripper_joint_limits_rad"],
+                         [float(env.dof_limits_lower[-1]), float(env.dof_limits_upper[-1])])
 
 
 @unittest.skipUnless(torch.cuda.is_available(), "CUDA unavailable")

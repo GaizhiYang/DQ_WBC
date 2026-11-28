@@ -200,7 +200,14 @@ class BuildAudit:
             "validation_peak_contact_force_n": read("validation_peak_contact_force_n"),
             "validation_max_object_displacement_m": read("validation_max_object_displacement_m"),
         }
-        motion_names = ("table_root", "table_vy", "rotation_enabled", "table_yaw_rate")
+        motion_names = (("table_root", "level03_driver_direction")
+                        if "level03_driver_direction" in tensors else
+                        ("table_root", "table_vy", "rotation_enabled", "table_yaw_rate"))
+        if "level03_x_driver_direction" in tensors:
+            motion_names += ("level03_x_driver_direction",)
+            motion_names += tuple(name for name in ("level03_driver_throttle_goal",
+                                                    "level03_x_driver_throttle_goal")
+                                  if name in tensors)
         if all(name in tensors for name in motion_names):
             motion_state = {"robot_root": robot, "object_root": obj,
                             **{name: read(name, 13 if name == "table_root" else None)

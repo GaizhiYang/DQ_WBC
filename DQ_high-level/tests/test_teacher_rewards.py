@@ -31,6 +31,7 @@ def make_environment(heights, yaw_degrees=None):
     env = RewardEnvironment(num_envs=n)
     env.initialize(tuple(range(n)))
     env.cfg["reward"] = {"base_height_target": .55, "only_positive_rewards": False}
+    env.table_chassis_collision = torch.zeros(n, dtype=torch.bool)
     env.actions[:, 6] = -1.
     env._robot_root_states[:, 2] = .55
     yaw = torch.deg2rad(torch.tensor(yaw_degrees or [0.] * n))
@@ -98,21 +99,24 @@ class TeacherRewardTests(unittest.TestCase):
         torch.testing.assert_close(env.reset_buf, resets)
         torch.testing.assert_close(env._terminate_buf, failures)
 
-    def test_yaw_penalty_and_failure_have_separate_thresholds(self):
-        env = make_environment([.08] * 4, [59., 61., 69., 71.])
-        env.check_termination()
-        self.assertEqual(env._terminate_buf.bool().tolist(), [False, False, False, True])
-        self.assertEqual(env.reset_buf.tolist(), [0, 0, 0, 1])
-        reward, _ = env._reward_limit_yaw_rotation_penalty()
-        self.assertEqual((reward < 0).tolist(), [False, True, True, True])
+    def test_yaw_penalty_remains_above_sixty_without_a_yaw_terminal_threshold(self):
+        for angles in ([-179., -100., -71., 59.], [61., 71., 100., 179.]):
+            with self.subTest(angles=angles):
+                env = make_environment([.08] * len(angles), angles)
+                env.check_termination()
+                self.assertFalse(env._terminate_buf.bool().any().item())
+                self.assertFalse(env.reset_buf.bool().any().item())
+                reward, _ = env._reward_limit_yaw_rotation_penalty()
+                self.assertEqual((reward < 0).tolist(), [abs(yaw) > 60 for yaw in angles])
 
-    def test_final_hold_yaw_failure_is_not_a_success_or_a_positive_sgs_label(self):
+    def test_final_hold_collision_is_not_a_success_or_a_positive_sgs_label(self):
         for evaluate in (False, True):
             with self.subTest(evaluate=evaluate):
                 env = make_environment([.21] * 4, [0., 65., 80., -80.])
                 env.eval = evaluate
                 env.global_step_counter = 0 if not evaluate else 20
                 env.pick_counter.fill_(env.hold_steps - 1)
+                env.table_chassis_collision[2:] = True
                 env.check_termination()
                 self.assertEqual(env._terminate_buf.bool().tolist(), [False, False, True, True])
                 reward, _ = env._reward_pick_up()
@@ -130,7 +134,7 @@ class TeacherRewardTests(unittest.TestCase):
                                            torch.tensor([1., 1., 0., 0.]))
                 self.assertEqual(env.sgs_sampler.count[:4].tolist(), [1, 1, 1, 1])
 
-    def test_yaw_failure_is_independent_of_reward_weight(self):
+    def test_large_yaw_allows_success_independent_of_yaw_reward_weight(self):
         for scales in ({"limit_yaw_rotation_penalty": 0.}, {}):
             with self.subTest(scales=scales):
                 env = make_environment([.21, .21], [80., -80.])
@@ -138,10 +142,10 @@ class TeacherRewardTests(unittest.TestCase):
                 env.pick_counter.fill_(env.hold_steps - 1)
                 env.check_termination()
                 self.assertTrue(env.reset_buf.bool().all().item())
-                self.assertTrue(env._terminate_buf.bool().all().item())
+                self.assertFalse(env._terminate_buf.bool().any().item())
                 reward, _ = env._reward_pick_up()
-                self.assertEqual(reward.tolist(), [0., 0.])
-                self.assertFalse(env.pick_success_recorded.any().item())
+                self.assertEqual(reward.tolist(), [1., 1.])
+                self.assertTrue(env.pick_success_recorded.all().item())
 
     def test_yaw_difference_preserves_baseline_absolute_subtraction(self):
         env = make_environment([.08, .08, .08], [-179., 179., 10.])
@@ -149,8 +153,8 @@ class TeacherRewardTests(unittest.TestCase):
         torch.testing.assert_close(torch.rad2deg(env._yaw_deviation()),
                                    torch.tensor([358., 358., 340.]), atol=5e-5, rtol=0)
         env.check_termination()
-        self.assertTrue(env._terminate_buf.bool().all().item())
-        self.assertTrue(env.reset_buf.bool().all().item())
+        self.assertFalse(env._terminate_buf.bool().any().item())
+        self.assertFalse(env.reset_buf.bool().any().item())
         reward, _ = env._reward_limit_yaw_rotation_penalty()
         self.assertTrue((reward < 0).all().item())
 

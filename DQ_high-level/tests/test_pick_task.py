@@ -26,6 +26,7 @@ def make_task(eval_mode=False, reward_scales=None, num_envs=1, wandb_enabled=Fal
     task.eval = eval_mode
     task.pred_success = False
     task.enable_camera = False
+    task.table_level = "Level02"
     task.cfg = {"env": {"wandb": wandb_enabled}, "reward": {
         "only_positive_rewards": False, "base_height_target": .55,
     }}
@@ -51,7 +52,8 @@ def make_task(eval_mode=False, reward_scales=None, num_envs=1, wandb_enabled=Fal
                  "best_pick_counter", "success_counter", "success_onetime_counter"):
         setattr(task, name, torch.zeros(num_envs, dtype=torch.long))
     for name in ("timeout_buf", "lifted_now", "lifted_object", "pick_success",
-                 "pick_success_recorded", "pick_hold_progress", "episode_outcome_recorded"):
+                 "pick_success_recorded", "pick_hold_progress", "episode_outcome_recorded",
+                 "table_chassis_collision"):
         setattr(task, name, torch.zeros(num_envs, dtype=torch.bool))
     task.obj_list = ["sugar_box"]
     task.extras = {}
@@ -108,13 +110,27 @@ class PickTaskTests(unittest.TestCase):
             traces.append(trace)
         self.assertEqual(traces[0], traces[1])
 
-    def test_yaw_failure_prevents_success_on_the_tenth_hold_step(self):
+    def test_large_signed_yaw_does_not_terminate_or_prevent_hold_success(self):
+        for yaw in (-179., -100., -71., 71., 100., 179.):
+            with self.subTest(yaw=yaw):
+                task = make_task()
+                half_yaw = math.radians(yaw) / 2
+                task._robot_root_states[0, 3:7] = torch.tensor(
+                    [0., 0., math.sin(half_yaw), math.cos(half_yaw)])
+                for _ in range(task.hold_steps - 1):
+                    self.assertEqual(step_task(task).item(), 0.)
+                    self.assertFalse(task.reset_buf.item())
+                    self.assertFalse(task._terminate_buf.item())
+                self.assertEqual(step_task(task).item(), 3.5)
+                self.assertTrue(task.pick_success.item())
+                self.assertFalse(task._terminate_buf.item())
+                self.assertFalse(task.timeout_buf.item())
+
+    def test_collision_prevents_success_on_the_tenth_hold_step(self):
         task = make_task()
         for _ in range(9):
             step_task(task)
-        half_yaw = math.radians(71.) / 2
-        task._robot_root_states[0, 3:7] = torch.tensor(
-            [0., 0., math.sin(half_yaw), math.cos(half_yaw)])
+        task.table_chassis_collision[0] = True
         self.assertEqual(step_task(task).item(), 0.)
         self.assertTrue(task._terminate_buf.item())
         self.assertTrue(task.reset_buf.item())
@@ -219,7 +235,9 @@ class PickTaskTests(unittest.TestCase):
             setattr(task, name, torch.ones((2, 9)))
         task.action_history_buf = torch.ones((2, 3, 9))
         task.command_history_buf = torch.ones((2, 3, 3))
+        task.table_chassis_collision[:] = True
         task._reset_env_tensors(torch.tensor([0]))
+        self.assertEqual(task.table_chassis_collision.tolist(), [False, True])
         for name in ("lifted_object", "lifted_now", "pick_success",
                      "pick_success_recorded", "pick_hold_progress", "episode_outcome_recorded"):
             self.assertEqual(getattr(task, name).tolist(), [False, True], name)
@@ -251,12 +269,10 @@ class PickTaskTests(unittest.TestCase):
                     for _ in range(9):
                         step_task(task)
                     # Env 0 completes; env 1 times out one hold step short;
-                    # env 2 violates the yaw limit on its would-be success step.
+                    # env 2 collides with the table on its would-be success step.
                     task.progress_buf[1] = 99
                     task.pick_counter[1] = 8
-                    half_yaw = math.radians(71.) / 2
-                    task._robot_root_states[2, 3:7] = torch.tensor(
-                        [0., 0., math.sin(half_yaw), math.cos(half_yaw)])
+                    task.table_chassis_collision[2] = True
                     task.progress_buf += 1
                     task.check_termination()
                     task.compute_reward()

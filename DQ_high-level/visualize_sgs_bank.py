@@ -9,6 +9,7 @@ images/GIFs, and measurements.json.
 
 import argparse
 import json
+import math
 from pathlib import Path
 import random
 import time
@@ -20,6 +21,17 @@ GRASP_EVIDENCE = (
     "lift_height", "near_goal_relative_slip_m", "near_goal_relative_rotation_deg",
     "near_goal_contact_fraction", "near_goal_object_speed_m_s", "near_goal_restore_verified",
 )
+
+
+def saved_motion_reference(state, table_level):
+    """Return JSON-safe reset references; ordinary Level03 has no intent yet."""
+    from utils.sgs_motion import base_motion_angle_deg
+
+    angle = float(base_motion_angle_deg(state)[0].item())
+    direction = None
+    if table_level == "Level03" and bool(state["level03_driver_initialized"][0]):
+        direction = float(state["level03_driver_direction"][0].item())
+    return (angle if math.isfinite(angle) else None), direction
 
 
 def parse_args():
@@ -57,14 +69,23 @@ class BankPreview:
         self.args, self.gymapi, self.gymtorch, self.torch = args, gymapi, gymtorch, torch
         self.bank = ConfigurationBank.load(
             args.bank, device=args.device,
-            expected_metadata={"object_name": "sugar_box", "table_level": "Level02",
+            expected_metadata={"object_name": "sugar_box",
                                "physical_validation": {"passed": True,
-                                   "feet_near_ground": True, "collision_checked": True,
+                                   "collision_checked": True,
                                    "object_attachment": False}})
+        self.table_level = self.bank.metadata.get("table_level", "Level02")
+        if self.table_level not in ("Level02", "Level03"):
+            raise ValueError("Preview supports Level02 and Level03 SGS banks")
         self.families = tuple(self.bank.metadata.get("family_names", ()))
         physical = self.bank.metadata["physical_validation"]
         if self.families != SUPPORTED_FAMILY_PROFILES.get(physical.get("validation_profile")):
             raise ValueError("Preview requires a supported SGS family/validation profile")
+        ordinary_full = physical.get("validation_profile") in (
+            "ordinary_full_task_v1", "ordinary_full_task_v2")
+        if physical.get("feet_near_ground") is not (not ordinary_full):
+            raise ValueError("Preview requires the profile's declared grounding scope")
+        if ordinary_full and physical.get("feet_near_ground_families") != list(self.families[1:]):
+            raise ValueError("Ordinary full-task preview requires grounded course families")
         if "near_goal" in self.families and physical.get("near_goal_grasp_verified") is not True:
             raise ValueError("Near-goal preview requires offline grasp verification")
         if args.family not in self.families:
@@ -86,7 +107,9 @@ class BankPreview:
             raise ValueError("--config-id is outside the bank")
         # Both interactive viewing and headless image export need rendering.
         self.env = create_builder_environment(
-            num_envs=1, device=args.device, seed=args.seed, enable_graphics=True)
+            num_envs=1, device=args.device, seed=args.seed, enable_graphics=True,
+            motion_level=self.table_level,
+            motion_config=self.bank.metadata.get("level03_motion_config"))
         self.env.rand_control = True
         # The real policy interprets action 0 as half open, not "hold".
         # Override only this preview instance so playback preserves the saved
@@ -124,6 +147,8 @@ class BankPreview:
         self.config_id = self.family_ids[self.family][self.index]
         state = self.bank.batch(torch.tensor([self.config_id], device=env.device))
         restore_snapshot(env, state)
+        self.saved_motion_heading, self.saved_departure_direction = saved_motion_reference(
+            state, env.table_level)
         candidate = state.get("grasp_candidate_index")
         self.grasp_candidate_index = int(candidate[0].item()) if candidate is not None else -1
         self.saved_geometry = {}
@@ -178,6 +203,12 @@ class BankPreview:
         values = {
             "family": self.families[self.family], "config_id": self.config_id,
             "family_sample_index": self.index, "elapsed_sim_seconds": self.elapsed,
+            "motion_level": env.table_level,
+            "table_local_vx_m_s": float(env.table_commands[0, 0].item()),
+            "table_local_vy_m_s": float(env.table_commands[0, 1].item()),
+            "table_yaw_rate_rad_s": float(env.table_commands[0, 5].item()),
+            "saved_initial_motion_heading_deg": self.saved_motion_heading,
+            "saved_departure_direction": self.saved_departure_direction,
             "base_to_object_xy_m": float((env._robot_root_states[0, :2] - env._cube_root_states[0, :2]).norm().item()),
             "ee_to_object_center_m": float((env.ee_pos[0] - env._cube_root_states[0, :3]).norm().item()),
             "lift_above_original_support_m": float(
@@ -374,6 +405,8 @@ class BankPreview:
                     f"(target {values['gripper_target_opening_normalized']:.2f})")
                 if values["ee_to_grasp_candidate_m"] is not None:
                     title += f" | Grasp gap: {values['ee_to_grasp_candidate_m']*100:.2f} cm"
+                title += (f"\n{values['motion_level']} | local vy: {values['table_local_vy_m_s']:+.3f} m/s"
+                          f" | yaw: {values['table_yaw_rate_rad_s']:+.3f} rad/s")
                 axes[row, family].set_title(title, fontsize=11)
                 ground_axes[row, family].set_title(title, fontsize=11)
                 self.set_camera(overview_view)
@@ -405,18 +438,31 @@ class BankPreview:
         plt.close(ground_figure)
         report = {
             "bank": str(Path(self.args.bank).resolve()), "fingerprint": self.bank.fingerprint,
+            "motion_level": self.table_level,
+            "level03_motion_config": self.bank.metadata.get("level03_motion_config"),
+            "level03_reset_mode": self.bank.metadata.get("level03_reset_mode"),
+            "validation_profile": self.bank.metadata["physical_validation"].get("validation_profile"),
+            "feet_near_ground_families": self.bank.metadata["physical_validation"].get(
+                "feet_near_ground_families", list(self.families)),
             "preview_physics_ticks": 1, "seed": self.args.seed,
             "foot_names": list(FOOT_NAMES), "foot_collision_radius_m": FOOT_RADIUS,
             "ground_z_m": 0., "grounding_limits": APPROX_GROUND_LIMITS,
             "grounding_note": "feet_near_ground checks only collision-bottom geometry; "
-                              "contact forces are diagnostic, not a standing requirement.",
+                              "contact forces are diagnostic, not a standing requirement. "
+                              "Ordinary full-task states retain normal reset ground clearance.",
             "sampling": "uniform without replacement within each family"
                         if self.args.sample_index is None else "explicit family index",
             "selected_config_ids": {
                 self.families[family]: [self.family_ids[family][i] for i in indices]
                 for family, indices in enumerate(self.sample_indices)},
             "controller": "Low-level balance/IK; zero high-level deltas; saved gripper target; "
-                          "Level02 table motion",
+                          + self.table_level + " table motion",
+            "motion_note": "Table velocity measurements are local vx/vy and yaw rate after physics. "
+                           "The saved initial motion heading is the robot's unsigned angle to the "
+                           "bank's reset motion reference: commanded object motion for Level02, "
+                           "or sampled local departure intention from rest for Level03. "
+                           "Ordinary Level03 full-task references are null because direction "
+                           "is sampled on the first control tick.",
             "note": "Candidate measurements use the saved candidate ID in the object's current pose; "
                     "offsets are in the candidate frame, and rotation offsets are local roll/pitch/yaw. "
                     "Object yaw is relative to the normal reset orientation. "
@@ -455,7 +501,7 @@ class BankPreview:
         print(f"{family_keys}: family | Left/Right: sampled configurations | Space: play/pause | N: step | R: reset\n"
               "F/C: wide/close | O: toggle gripper | S: screenshot | Esc: exit\n"
               "Starts paused with the saved gripper target. O explicitly overrides it; R restores it.\n"
-              "No high-level teacher policy is running; Level02 motion is preserved.")
+              f"No high-level teacher policy is running; {getattr(env, 'table_level', 'Level02')} motion is preserved.")
         print("Sampled bank IDs:", {
             self.families[family]: [self.family_ids[family][i] for i in indices]
             for family, indices in enumerate(self.sample_indices)}, flush=True)

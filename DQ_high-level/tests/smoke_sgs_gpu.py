@@ -42,6 +42,7 @@ def main():
     from isaacgym.torch_utils import quat_apply, quat_from_euler_xyz, quat_mul
     import torch
     from utils.config import get_params
+    from utils.sgs_level03 import snapshot_motion
     from train_multistate_DQ_teacher import get_trainer, finalize_teacher_logging
 
     args = get_params()
@@ -69,6 +70,24 @@ def main():
             msg=name)
         report["checks"][name] = True
 
+    def check_observation_stack(env, wrapper, prefix, returned=None, reset_ids=None):
+        """Validate the wrapper's full stack and its current raw frame."""
+        current = torch.clamp(env.obs_buf, -env.clip_obs, env.clip_obs).to(env.rl_device)
+        frames = wrapper.history_frames
+        cached = wrapper._obs_dict["obs"]
+        check(prefix + "/shape", tuple(cached.shape) == (
+            env.num_envs, current.shape[1] * frames))
+        check(prefix + "/finite", bool(torch.isfinite(cached).all()))
+        history = cached.reshape(env.num_envs, frames, current.shape[1])
+        compare(prefix + "/latest_frame_matches_raw_buffer", history[:, -1], current)
+        if frames > 1:
+            compare(prefix + "/matches_history_buffer", history, wrapper._actor_history.buffer)
+        if returned is not None:
+            compare(prefix + "/returned_matches_cache", returned, cached)
+        if reset_ids is not None:
+            expected = current[reset_ids].unsqueeze(1).expand(-1, frames, -1)
+            compare(prefix + "/reset_frames_repeat_current", history[reset_ids], expected)
+
     def check_bank_state(env, ids, prefix):
         state = env.sgs_bank.batch(env.active_config_id[ids])
         pairs = (
@@ -85,10 +104,19 @@ def main():
             ("rigid_body_cache",
              env._rigid_body_state.view(env.num_envs, -1, 13)[ids], state["rigid_body_state"]),
             ("jacobian_cache", env.ee_j_eef[ids], state["ee_jacobian"]),
-            ("table_speed", env.vel_line_forward_y_level02[ids], state["table_vy"]),
-            ("table_rotation", env.lin_circle_select[ids], state["rotation_enabled"]),
-            ("table_yaw_rate", env.vel_angular_yaw[ids], state["table_yaw_rate"]),
         )
+        if env.table_level == "Level02":
+            pairs += (
+                ("table_speed", env.vel_line_forward_y_level02[ids], state["table_vy"]),
+                ("table_rotation", env.lin_circle_select[ids], state["rotation_enabled"]),
+                ("table_yaw_rate", env.vel_angular_yaw[ids], state["table_yaw_rate"]),
+            )
+        else:
+            check(prefix + "/supported_motion_level", env.table_level == "Level03")
+            pairs += tuple((name, value[ids], state[name])
+                           for name, value in snapshot_motion(env.level03_motion).items())
+            check(prefix + "/rest_start_commands",
+                  bool((env.table_commands[ids][:, [0, 1, 5]] == 0).all()))
         for name, actual, expected in pairs:
             compare(prefix + "/" + name, actual, expected)
         expected_global = quat_apply(
@@ -113,7 +141,17 @@ def main():
     try:
         trainer = get_trainer()
         env = trainer.env._env
+        wrapped_env = trainer.env
         agent = trainer.agents
+        report["collision_geometry"] = {
+            "chassis_body_index": int(env.chassis_idx),
+            "chassis_half_extents": env._chassis_half_extents.cpu().tolist(),
+            "chassis_box_offset": env._chassis_box_offset[0].cpu().tolist(),
+            "chassis_box_rotation": env._chassis_box_rotation[0].cpu().tolist(),
+            "table_half_extents": env._table_half_extents.cpu().tolist(),
+            "table_chassis_rest_offset": float(env._table_chassis_rest_offset),
+        }
+        print("SGS_COLLISION_GEOMETRY " + json.dumps(report["collision_geometry"]), flush=True)
         check("sgs_enabled", getattr(env, "sgs_enabled", False))
         check("multiple_environments", env.num_envs >= 3)
         check("sampler_cuda", env.sgs_sampler.history.is_cuda)
@@ -130,8 +168,13 @@ def main():
         first_observation = first_observation.clone()
         check_bank_state(env, all_ids, "initial_reset")
         check("initial_observation_finite", bool(torch.isfinite(first_observation).all()))
-        compare("initial_observation_matches_buffer", first_observation,
-                torch.clamp(env.obs_buf, -env.clip_obs, env.clip_obs).to(env.rl_device))
+        check_observation_stack(env, wrapped_env, "initial_observation", first_observation, all_ids)
+        report["observation_layout"] = dict(
+            raw_frame_width=int(env.obs_buf.shape[1]),
+            stacked_width=int(first_observation.shape[1]),
+            actor_history_frames=wrapped_env.actor_history_frames,
+            critic_history_frames=wrapped_env.critic_history_frames,
+            wrapper_history_frames=wrapped_env.history_frames)
         snapshot_obs = env.obs_buf.clone()
         env._compute_observations(all_ids)
         compare("initial_observation_recomputes_from_current_cache", env.obs_buf, snapshot_obs, False)
@@ -150,7 +193,10 @@ def main():
             "episodes": env.episode_counter.clone(),
             "recent_family_count": recent.family_count.clone(),
             "recent_family_successes": recent.family_successes.clone(),
+            "wrapped_obs": wrapped_env._obs_dict["obs"].clone(),
         }
+        if env.table_level == "Level03":
+            snapshots["motion"] = snapshot_motion(env.level03_motion)
         aborted = env.sgs_aborted.item()
         single_id = all_ids[:1]
         env.reset_idx(single_id)
@@ -163,12 +209,25 @@ def main():
         compare("cancel_other_observations_unchanged", env.obs_buf[1:], snapshots["obs"])
         compare("cancel_other_progress_unchanged", env.progress_buf[1:], snapshots["progress"])
         compare("cancel_other_config_ids_unchanged", env.active_config_id[1:], snapshots["ids"])
+        if env.table_level == "Level03":
+            for name, value in snapshot_motion(env.level03_motion).items():
+                compare("cancel_other_motion_unchanged/" + name,
+                        value[1:], snapshots["motion"][name][1:])
         compare("cancel_no_sampler_outcomes", env.sgs_sampler.visits_total, snapshots["visits"])
         compare("cancel_no_completed_episodes", env.episode_counter, snapshots["episodes"])
         for name in ("family_count", "family_successes"):
             compare("cancel_no_recent_" + name, getattr(recent, name), snapshots["recent_" + name])
         check("cancel_counted_separately", env.sgs_aborted.item() == aborted + 1)
         check_bank_state(env, single_id, "cancel_reset")
+        # Raw reset_idx does not own observation history. The public wrapper
+        # reset call must seed this selected slot and preserve all other stacks.
+        cancelled_observation, _ = wrapped_env.reset()
+        check_observation_stack(env, wrapped_env, "cancel_observation",
+                                cancelled_observation, single_id)
+        compare("cancel_other_stacked_observations_unchanged",
+                cancelled_observation[1:], snapshots["wrapped_obs"][1:])
+        compare("initial_returned_observation_not_mutated", first_observation,
+                snapshots["wrapped_obs"])
 
         models = (agent.policy, agent.value)
         before = [parameter.detach().clone()
@@ -177,6 +236,35 @@ def main():
         # following reset may legitimately queue another upload, including on
         # the final training iteration.
         original_step = env.step
+        original_table_control = env.floating_table_control
+        motion_steps = [0]
+        motion_maxima = torch.zeros(5, device=env.device)
+        if env.table_level == "Level03":
+            limits = env.level03_motion_cfg
+
+            def checked_table_control():
+                previous = env.table_commands[:, [0, 1, 5]].clone()
+                result = original_table_control()
+                actual = env.table_commands[:, [0, 1, 5]]
+                delta = (actual - previous).abs().amax(dim=0)
+                peak = actual.abs().amax(dim=0)
+                dt = float(env.sim_params.dt)
+                check("level03_motion_finite", bool(torch.isfinite(actual).all()))
+                if env.level03_motion.translation_axes == "y":
+                    check("level03_local_vx_zero", bool((actual[:, 0] == 0).all()))
+                check("level03_vx_limit", bool(peak[0] <= limits["maxSpeed"] + 1e-6))
+                check("level03_vy_limit", bool(peak[1] <= limits["maxSpeed"] + 1e-6))
+                check("level03_yaw_limit", bool(peak[2] <= limits["maxYawRate"] + 1e-6))
+                check("level03_linear_acceleration_limit",
+                      bool(delta[:2].max() <= limits["linearAcceleration"] * dt + 1e-7))
+                check("level03_yaw_acceleration_limit",
+                      bool(delta[2] <= limits["yawAcceleration"] * dt + 1e-7))
+                motion_maxima.copy_(torch.maximum(
+                    motion_maxima, torch.stack((peak[0], peak[1], peak[2], delta[:2].max() / dt, delta[2] / dt))))
+                motion_steps[0] += 1
+                return result
+
+            env.floating_table_control = checked_table_control
         checked_steps = [0]
         full_task_id = env.sgs_family_names.index("full_task")
         full_task_outcomes = deque(maxlen=1000)
@@ -197,6 +285,32 @@ def main():
             trainer.train()
         finally:
             env.step = original_step
+            env.floating_table_control = original_table_control
+        if env.table_level == "Level03":
+            check("level03_physics_commands_checked", motion_steps[0] > 0)
+            # After real rollout motion, a selected reset must leave the other
+            # environments' filter histories and driver clocks untouched.
+            live_motion = snapshot_motion(env.level03_motion)
+            live_observation = wrapped_env._obs_dict["obs"].clone()
+            env.reset_idx(single_id)
+            for name, value in snapshot_motion(env.level03_motion).items():
+                compare("live_cancel_other_motion_unchanged/" + name,
+                        value[1:], live_motion[name][1:])
+            check_bank_state(env, single_id, "live_cancel_reset")
+            live_cancelled_observation, _ = wrapped_env.reset()
+            check_observation_stack(env, wrapped_env, "live_cancel_observation",
+                                    live_cancelled_observation, single_id)
+            compare("live_cancel_other_stacked_observations_unchanged",
+                    live_cancelled_observation[1:], live_observation[1:])
+            report["level03_motion"] = dict(
+                checked_physics_steps=motion_steps[0],
+                max_abs_local_vx=float(motion_maxima[0]),
+                max_abs_local_vy=float(motion_maxima[1]),
+                max_abs_yaw_rate=float(motion_maxima[2]),
+                max_linear_acceleration=float(motion_maxima[3]),
+                max_yaw_acceleration=float(motion_maxima[4]),
+                configured_limits=limits,
+            )
         finalize_teacher_logging(trainer)
         torch.cuda.synchronize(env.sgs_sampler.device)
         after = [parameter for model in models for parameter in model.parameters()]
@@ -217,6 +331,7 @@ def main():
         check("all_reset_families_sampled", bool((env.sgs_family_samples > 0).all()))
         check("family_statistics_match_loaded_bank", len(env.sgs_family_samples) == len(env.sgs_bank.family_names))
         check("final_observation_finite", bool(torch.isfinite(env.obs_buf).all()))
+        check_observation_stack(env, wrapped_env, "final_observation")
         # Read the real TensorBoard event file used by wandb sync, including the
         # final reset outcomes written after the trainer's last ordinary write.
         from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
@@ -270,6 +385,7 @@ def main():
         report.update({
             "passed": True,
             "num_envs": env.num_envs,
+            "motion_level": env.table_level,
             "bank_fingerprint": env.sgs_bank.fingerprint,
             "bank_size": env.sgs_bank.num_configs,
             "planned_timesteps": args.timesteps,

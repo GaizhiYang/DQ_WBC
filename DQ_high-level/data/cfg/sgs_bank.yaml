@@ -1,42 +1,40 @@
 # SGS 配置库构建参数。修改后需要重新构建 .pt 配置库，训练直接读取构建后的库。
 # 单位：距离为米，角度为度；每个范围均写成 [最小值, 最大值]。
-# 各类 base 的位置定义一致（世界坐标系、有符号）：
+# 课程家族的 base 位置定义一致（世界坐标系、有符号）；full_task 沿用普通 reset：
 #   x = 物体中心 world_x - 机器人底盘中心 world_x
 #   y = 物体中心 world_y - 机器人底盘中心 world_y
 # heading_reference: object_motion 时，heading_offset_range_deg 是底盘前向与物体
 # 预期水平运动方向的无符号夹角范围；0 度表示同向，90 度表示正交。
 # 直接均匀采样夹角，在运动方向两侧的对称朝向中选更面向物体的一侧。
-# 各类仍要求夹角小于 90 度；可设 [75, 90]，但实际不接受恰好 90 度。
+# 课程家族仍要求夹角小于 90 度；可设 [75, 90]，但实际不接受恰好 90 度。
 # 运动方向按保存的 Level02 桌面朝向、平移和旋转参数计算，不使用构库时近零的物体速度。
 # 缺省 heading_reference 或设为 object_bearing 时保留旧定义：
 #   heading_offset = wrap(机器人 yaw - atan2(y, x))，有符号，正值逆时针。
 # 范围约束用于最终状态验收，不只约束摆放目标。
-# 构建时均匀采样目标，再检查可达性、碰撞和足底大致接地；入库分布不保证均匀。
-# 不要求稳定站立；前两类仅做几何检查，Near-Goal 额外执行短时闭爪、抬升与抓持保持。
+# 课程家族均匀采样目标，再检查可达性、碰撞和足底大致接地；入库分布不保证均匀。
+# 课程家族不要求稳定站立；pregrasp / at_grasp 做几何检查，near_goal 额外执行闭爪、抬升与保持。
 # [a, a] 表示固定目标；仅这种零宽范围允许 5 mm / 1 度的物理验收容差。
 # 不可达的范围会降低有效样本数，严重时导致构建失败；不会自动放宽到范围外。
-schema_version: 5
+schema_version: 6
 heading_reference: object_motion
 
-# 物体在桌面上的朝向扰动，绕世界 z 轴，相对于正常 reset 的物体姿态。
-# 仅离线构库应用；不改变物体的支撑面，也不改变原训练任务的普通 reset。
+# 课程家族的物体朝向扰动，绕世界 z 轴，相对于正常 reset 的物体姿态。
+# 不改变物体的支撑面；full_task 直接保留普通 reset 的物体姿态采样。
 object:
   yaw_offset_range_deg: [-15, 15]
 
-# 连续短时物理检查，最后保存真实仿真状态；不要求底盘静止或持续承重。
+# 课程家族的连续短时物理检查，最后保存真实状态；不要求底盘静止或持续承重。
 # 位移上限相对于本次候选物体初始位置；接触力上限用于拒绝明显冲击。
 validation:
   physics_steps: 5
   max_object_displacement_m: 0.02
   max_contact_force_n: 5000.0
 
-# 完整任务起步：正常重置，足底大致接地，保持默认机械臂关节姿态。
+# 完整任务起步：直接保存普通 reset 的起点分布。
+# 位置/姿态/关节/物体/桌面初始化由 teacher 环境决定；不再摆放、接地或按运动方向筛选。
+# source 模式不接受 base / arm_pose 覆盖，避免这些参数被静默忽略。
 full_task:
-  base:
-    x_range_m: [2.0, 2.0]
-    y_range_m: [0.0, 0.0]
-    heading_offset_range_deg: [75.0, 90.0]
-  arm_pose: default
+  source: ordinary_reset
 
 # 临近抓取：夹爪打开，末端位于候选抓取位姿的 local -x 一侧。
 # 距离仍是到候选原点的欧氏距离 d；横向 y 和上下 z 偏差均在候选局部坐标系。
@@ -56,6 +54,14 @@ pregrasp:
     roll: [-5, 5]
     pitch: [-5, 5]
     yaw: [-5, 5]
+
+# 已到抓取位姿：末端精确对齐所选候选，夹爪未完全闭合；其余条件沿用 pregrasp。
+# base 引用保证修改 pregrasp 底盘范围时两类同步；不沿用其接近距离和末端姿态扰动。
+# 开度 0=完全闭合、1=完全张开；schema 6 要求下限严格大于 0。
+at_grasp:
+  base:
+    same_as: pregrasp
+  gripper_opening_range: [0.2, 1.0]
 
 # Near-Goal：真实夹住物体并抬升 5–10 cm，尚未达到任务成功高度。
 # 高度 = object_z - table_height - init_height；不是物体中心到桌面的绝对距离。

@@ -15,6 +15,10 @@ import unittest
 import torch
 
 from utils.sgs import SUPPORTED_FAMILY_PROFILES
+from utils.config import level03_motion_config
+from utils.sgs_level03 import prepare_rest_motion, snapshot_motion
+from utils.table_motion import RemoteCarMotion
+from visualize_sgs_bank import saved_motion_reference
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -150,6 +154,10 @@ class BuilderGraphicsRequestTests(unittest.TestCase):
         for profile, profile_families in SUPPORTED_FAMILY_PROFILES.items():
             bank.metadata["family_names"] = profile_families
             bank.metadata["physical_validation"]["validation_profile"] = profile
+            ordinary_full = profile in ("ordinary_full_task_v1", "ordinary_full_task_v2")
+            physical = bank.metadata["physical_validation"]
+            physical["feet_near_ground"] = not ordinary_full
+            physical["feet_near_ground_families"] = list(profile_families[1:]) if ordinary_full else list(profile_families)
             bank.tensors["family_id"] = torch.arange(len(profile_families))
             bank.num_configs = len(profile_families)
             for headless in (False, True):
@@ -163,6 +171,16 @@ class BuilderGraphicsRequestTests(unittest.TestCase):
                     self.assertEqual(preview.families, profile_families)
                     self.assertTrue(calls[-1]["enable_graphics"])
                     self.assertEqual(calls[-1]["device"], "cuda:1")
+            # Grounding exemptions are scoped by the declared validation
+            # profile; an ordinary reset does not loosen old bank checks.
+            physical["feet_near_ground"] = ordinary_full
+            with self.assertRaisesRegex(ValueError, "grounding scope"):
+                namespace["__init__"](SimpleNamespace(), args)
+            physical["feet_near_ground"] = not ordinary_full
+            if ordinary_full:
+                physical["feet_near_ground_families"] = ["pregrasp"]
+                with self.assertRaisesRegex(ValueError, "grounded course families"):
+                    namespace["__init__"](SimpleNamespace(), args)
 
     def test_viewer_numeric_keys_follow_saved_family_order(self):
         method = source_node("visualize_sgs_bank.py", "interactive", "BankPreview")
@@ -189,9 +207,34 @@ class BuilderGraphicsRequestTests(unittest.TestCase):
                     namespace["interactive"](preview)
                 self.assertEqual({key: name for key, name in bindings.items() if key.isdigit()},
                                  {str(index + 1): name for index, name in enumerate(families)})
-                if profile == "geometry_grasp_v3":
+                if profile in ("geometry_grasp_v3", "ordinary_full_task_v1"):
                     self.assertEqual(bindings["3"], "near_goal")
                     self.assertNotIn("at_grasp", bindings.values())
+                if profile == "ordinary_full_task_v2":
+                    self.assertEqual(bindings["3"], "at_grasp")
+                    self.assertEqual(bindings["4"], "near_goal")
+
+
+class PreviewMotionReferenceTests(unittest.TestCase):
+    def state(self, initialize):
+        motion = RemoteCarMotion(1, "cpu", level03_motion_config({}))
+        if initialize:
+            prepare_rest_motion(motion, .005)
+        root = torch.zeros(1, 13)
+        root[:, 6] = 1.
+        return dict(snapshot_motion(motion), table_root=root.clone(), robot_root=root.clone())
+
+    def test_ordinary_full_task_has_null_reference_before_driver_sampling(self):
+        heading, direction = saved_motion_reference(self.state(False), "Level03")
+        self.assertIsNone(heading)
+        self.assertIsNone(direction)
+        self.assertEqual(json.dumps([heading, direction], allow_nan=False), "[null, null]")
+
+    def test_course_family_retains_sampled_departure_reference(self):
+        heading, direction = saved_motion_reference(self.state(True), "Level03")
+        self.assertTrue(0. <= heading <= 180.)
+        self.assertIn(direction, (-1., 1.))
+        json.dumps([heading, direction], allow_nan=False)
 
 
 if __name__ == "__main__":
